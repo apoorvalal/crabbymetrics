@@ -1,0 +1,22 @@
+[package]
+name = "crabbymetrics"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "crabbymetrics"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.27", features = ["extension-module"] }
+numpy = "0.27"
+ndarray = "=0.16.1"
+linfa = { path = "../linfa" }
+linfa-linear = { path = "../linfa/algorithms/linfa-linear" }
+linfa-logistic = { path = "../linfa/algorithms/linfa-logistic" }
+linfa-elasticnet = { path = "../linfa/algorithms/linfa-elasticnet" }
+linfa-ftrl = { path = "../linfa/algorithms/linfa-ftrl" }
+rand = "0.8"
+nalgebra = "0.33"
+argmin = "0.11"
+argmin-math = "0.5"

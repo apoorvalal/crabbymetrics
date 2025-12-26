@@ -1,0 +1,13 @@
+[build-system]
+requires = ["maturin>=1.5"]
+build-backend = "maturin"
+
+[project]
+name = "crabbymetrics"
+version = "0.1.0"
+requires-python = ">=3.8"
+dependencies = ["numpy"]
+
+[tool.maturin]
+module-name = "crabbymetrics"
+features = ["pyo3/extension-module"]
