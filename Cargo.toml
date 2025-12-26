@@ -11,11 +11,11 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.27", features = ["extension-module"] }
 numpy = "0.27"
 ndarray = "=0.16.1"
-linfa = { path = "../linfa" }
-linfa-linear = { path = "../linfa/algorithms/linfa-linear" }
-linfa-logistic = { path = "../linfa/algorithms/linfa-logistic" }
-linfa-elasticnet = { path = "../linfa/algorithms/linfa-elasticnet" }
-linfa-ftrl = { path = "../linfa/algorithms/linfa-ftrl" }
+linfa = "0.8.1"
+linfa-linear = "0.8.1"
+linfa-logistic = "0.8.1"
+linfa-elasticnet = "0.8.1"
+linfa-ftrl = "0.8.1"
 rand = "0.8"
 nalgebra = "0.33"
 argmin = "0.11"
