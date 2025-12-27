@@ -1,11 +1,13 @@
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, fisher_cov_multinomial,
-    fisher_cov_poisson, hc1_cov, pyarray1_from_f64, pyarray1_from_i32, pyarray2_from_f64,
-    take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32, to_array2,
+    fisher_cov_poisson, hc1_cov, invert_matrix, pyarray1_from_f64, pyarray1_from_i32,
+    pyarray2_from_f64, take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32,
+    to_array2,
 };
 use argmin::core::{CostFunction, Executor, Gradient, Hessian};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::newton::NewtonCG;
+use argmin::solver::quasinewton::LBFGS;
 use linfa::prelude::{Fit, FitWith, Predict};
 use linfa::Dataset;
 use linfa_elasticnet::ElasticNet as LinfaElasticNet;
@@ -13,9 +15,10 @@ use linfa_ftrl::Ftrl as LinfaFtrl;
 use linfa_linear::LinearRegression as LinfaLinearRegression;
 use linfa_logistic::{LogisticRegression as LinfaLogisticRegression, MultiLogisticRegression};
 use ndarray::{array, concatenate, s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
+use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use rand::{Rng, SeedableRng};
 
 #[pyclass]
 pub struct OLS {
@@ -1242,6 +1245,281 @@ impl FTRL {
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
             out.row_mut(i).assign(&model.get_weights());
         }
+        Ok(pyarray2_from_f64(py, &out))
+    }
+}
+
+#[pyclass]
+pub struct MEstimator {
+    max_iterations: usize,
+    tolerance: f64,
+    objective_fn: Option<Py<PyAny>>,
+    score_fn: Option<Py<PyAny>>,
+    theta: Option<Array1<f64>>,
+    data: Option<Py<PyAny>>,
+    vcov: Option<Array2<f64>>,
+}
+
+struct MEstimatorProblem {
+    objective_fn: Py<PyAny>,
+    data: Py<PyAny>,
+}
+
+impl CostFunction for MEstimatorProblem {
+    type Param = Array1<f64>;
+    type Output = f64;
+
+    fn cost(&self, theta: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+        Python::with_gil(|py| {
+            let theta_py = pyarray1_from_f64(py, theta);
+            let result = self
+                .objective_fn
+                .call1(py, (theta_py, self.data.clone_ref(py)))
+                .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
+
+            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)
+                .map_err(|_| argmin::core::Error::msg("Objective function must return (obj, grad)"))?;
+
+            if tuple.len() != 2 {
+                return Err(argmin::core::Error::msg("Objective function must return (obj, grad)"));
+            }
+
+            let obj_value: f64 = tuple.get_item(0)?
+                .extract()
+                .map_err(|e| argmin::core::Error::msg(format!("Failed to extract objective: {}", e)))?;
+
+            Ok(obj_value)
+        })
+    }
+}
+
+impl Gradient for MEstimatorProblem {
+    type Param = Array1<f64>;
+    type Gradient = Array1<f64>;
+
+    fn gradient(&self, theta: &Self::Param) -> std::result::Result<Self::Gradient, argmin::core::Error> {
+        Python::with_gil(|py| {
+            let theta_py = pyarray1_from_f64(py, theta);
+            let result = self
+                .objective_fn
+                .call1(py, (theta_py, self.data.clone_ref(py)))
+                .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
+
+            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)
+                .map_err(|_| argmin::core::Error::msg("Objective function must return (obj, grad)"))?;
+
+            if tuple.len() != 2 {
+                return Err(argmin::core::Error::msg("Objective function must return (obj, grad)"));
+            }
+
+            let grad_item = tuple.get_item(1)?;
+            let grad_py = grad_item
+                .downcast::<PyArray1<f64>>()
+                .map_err(|_| argmin::core::Error::msg("Gradient must be a numpy array"))?;
+
+            let grad = to_array1(&grad_py.readonly());
+            Ok(grad)
+        })
+    }
+}
+
+#[pymethods]
+impl MEstimator {
+    #[new]
+    #[pyo3(signature = (objective_fn, score_fn, max_iterations=100, tolerance=1e-6))]
+    fn new(
+        objective_fn: Py<PyAny>,
+        score_fn: Py<PyAny>,
+        max_iterations: usize,
+        tolerance: f64,
+    ) -> Self {
+        Self {
+            max_iterations,
+            tolerance,
+            objective_fn: Some(objective_fn),
+            score_fn: Some(score_fn),
+            theta: None,
+            data: None,
+            vcov: None,
+        }
+    }
+
+    fn fit(&mut self, py: Python, data: Py<PyAny>, theta0: PyReadonlyArray1<f64>) -> PyResult<()> {
+        let theta_init = to_array1(&theta0);
+        let objective_fn = self
+            .objective_fn
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("objective_fn not set"))?
+            .clone_ref(py);
+
+        let problem = MEstimatorProblem {
+            objective_fn,
+            data: data.clone_ref(py),
+        };
+
+        let linesearch = MoreThuenteLineSearch::new();
+        let solver = LBFGS::new(linesearch, 7);
+
+        let mut result = Executor::new(problem, solver)
+            .configure(|state| state.param(theta_init).max_iters(self.max_iterations as u64))
+            .run()
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+        let theta = result
+            .state
+            .take_best_param()
+            .ok_or_else(|| PyValueError::new_err("optimization failed to converge"))?;
+
+        self.theta = Some(theta);
+        self.data = Some(data);
+        self.vcov = None;
+
+        Ok(())
+    }
+
+    fn compute_vcov(&mut self, py: Python) -> PyResult<()> {
+        let theta = self
+            .theta
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Model not fitted"))?;
+        let data = self
+            .data
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No data stored"))?;
+        let score_fn = self
+            .score_fn
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("score_fn not set"))?;
+
+        let theta_py = pyarray1_from_f64(py, theta);
+        let scores_result = score_fn
+            .call1(py, (theta_py, data.clone_ref(py)))
+            .map_err(|e| PyValueError::new_err(format!("score_fn error: {}", e)))?;
+
+        let scores_py = scores_result
+            .downcast_bound::<PyArray2<f64>>(py)
+            .map_err(|_| PyValueError::new_err("score_fn must return 2D numpy array"))?;
+
+        let scores = to_array2(&scores_py.readonly());
+        let n = scores.nrows();
+        let k = scores.ncols();
+
+        if k != theta.len() {
+            return Err(PyValueError::new_err(format!(
+                "score dimension {} does not match theta dimension {}",
+                k,
+                theta.len()
+            )));
+        }
+
+        let b_matrix = scores.t().dot(&scores) / (n as f64);
+
+        let a_matrix = b_matrix.clone();
+
+        let a_inv = invert_matrix(&a_matrix).map_err(PyValueError::new_err)?;
+        let vcov = a_inv.dot(&b_matrix).dot(&a_inv) / (n as f64);
+
+        self.vcov = Some(vcov);
+        Ok(())
+    }
+
+    fn summary<'py>(&mut self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        if self.theta.is_none() {
+            return Err(PyValueError::new_err("Model not fitted"));
+        }
+
+        if self.vcov.is_none() {
+            self.compute_vcov(py)?;
+        }
+
+        let theta = self
+            .theta
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Model not fitted"))?;
+
+        let vcov = self
+            .vcov
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Failed to compute vcov"))?;
+
+        let se = diag_sqrt(vcov);
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("coef", pyarray1_from_f64(py, theta))?;
+        dict.set_item("se", pyarray1_from_f64(py, &se))?;
+        Ok(dict.into())
+    }
+
+    fn bootstrap<'py>(
+        &self,
+        py: Python<'py>,
+        n_bootstrap: usize,
+        seed: Option<u64>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let theta = self
+            .theta
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Model not fitted"))?;
+        let data = self
+            .data
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No data stored"))?;
+        let objective_fn = self
+            .objective_fn
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("objective_fn not set"))?;
+
+        let data_dict = data.downcast_bound::<pyo3::types::PyDict>(py)
+            .map_err(|_| PyValueError::new_err("data must be a dict with 'indices' key for bootstrap"))?;
+
+        let mut rng = match seed {
+            Some(s) => rand::rngs::StdRng::seed_from_u64(s),
+            None => rand::rngs::StdRng::from_entropy(),
+        };
+
+        let n_key = pyo3::intern!(py, "n");
+        let n: usize = data_dict
+            .get_item(n_key)?
+            .ok_or_else(|| PyValueError::new_err("data dict must have 'n' key"))?
+            .extract()?;
+
+        let mut out = Array2::<f64>::zeros((n_bootstrap, theta.len()));
+
+        for i in 0..n_bootstrap {
+            let indices: Vec<usize> = (0..n).map(|_| rng.gen_range(0..n)).collect();
+            let indices_py = PyArray1::from_vec(py, indices);
+
+            let boot_data = pyo3::types::PyDict::new(py);
+            for (key, value) in data_dict.iter() {
+                boot_data.set_item(key, value)?;
+            }
+            boot_data.set_item(pyo3::intern!(py, "indices"), indices_py)?;
+
+            let problem = MEstimatorProblem {
+                objective_fn: objective_fn.clone_ref(py),
+                data: boot_data.into(),
+            };
+
+            let linesearch = MoreThuenteLineSearch::new();
+            let solver = LBFGS::new(linesearch, 7);
+
+            let mut result = Executor::new(problem, solver)
+                .configure(|state| {
+                    state
+                        .param(theta.clone())
+                        .max_iters(self.max_iterations as u64)
+                })
+                .run()
+                .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+            let theta_boot = result
+                .state
+                .take_best_param()
+                .ok_or_else(|| PyValueError::new_err("bootstrap optimization failed"))?;
+
+            out.row_mut(i).assign(&theta_boot);
+        }
+
         Ok(pyarray2_from_f64(py, &out))
     }
 }

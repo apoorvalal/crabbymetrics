@@ -1,6 +1,8 @@
 # crabbymetrics
 
-Rust-backed econometrics models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
+
+
+Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
 
 ## Features
 - OLS, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
@@ -29,6 +31,9 @@ print(model.summary())
 ```
 
 ## Development
+
+Create a uv virtual environment.
+
 ```bash
 maturin develop
 ```
@@ -36,4 +41,4 @@ maturin develop
 Example scripts live in `examples/`.
 
 ## Wheels
-Wheels are platform-specific. Prefer publishing wheels via CI; avoid committing wheels to the repo.
+Wheels are platform-specific and included in GitHub releases. See the releases tab.
