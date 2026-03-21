@@ -5,8 +5,15 @@ build-backend = "maturin"
 [project]
 name = "crabbymetrics"
 dynamic = ["version"]
+description = "Rust-backed econometrics models with a scikit-adjacent Python API."
+readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["numpy"]
+dependencies = ["matplotlib", "numpy"]
+
+[project.urls]
+Homepage = "https://github.com/apoorvalal/crabbymetrics"
+Repository = "https://github.com/apoorvalal/crabbymetrics"
+Issues = "https://github.com/apoorvalal/crabbymetrics/issues"
 
 [tool.maturin]
 module-name = "crabbymetrics"

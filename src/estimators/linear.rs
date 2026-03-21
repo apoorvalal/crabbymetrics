@@ -2,10 +2,13 @@ use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, hc1_cov, pyarray1_from_f64, pyarray2_from_f64,
     take_rows, take_rows_u32, take_rows_vec, to_array1, to_array2, to_array2_u32,
 };
+use argmin::core::{CostFunction, Executor, Gradient};
+use argmin::solver::linesearch::MoreThuenteLineSearch;
+use argmin::solver::quasinewton::LBFGS;
 use linfa::prelude::{Fit, Predict};
 use linfa::Dataset;
 use linfa_linear::LinearRegression as LinfaLinearRegression;
-use ndarray::{concatenate, s, Array1, Array2, Axis};
+use ndarray::{concatenate, s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -15,6 +18,98 @@ struct FixedEffectsOlsFitResult {
     coef: Array1<f64>,
     x_resid: Array2<f64>,
     y_resid: Array1<f64>,
+}
+
+fn softmax_weights(theta: &Array1<f64>) -> Array1<f64> {
+    let max_theta = theta
+        .iter()
+        .fold(f64::NEG_INFINITY, |acc, value| acc.max(*value));
+    let exp_shifted = theta.mapv(|value| (value - max_theta).exp());
+    let sum = exp_shifted.sum();
+    exp_shifted / sum
+}
+
+fn synthetic_control_rmse(
+    donors: &Array2<f64>,
+    treated: &Array1<f64>,
+    weights: &Array1<f64>,
+) -> f64 {
+    let residual = donors.dot(weights) - treated;
+    (residual.mapv(|value| value * value).mean().unwrap_or(0.0)).sqrt()
+}
+
+struct SyntheticControlProblem<'a> {
+    donors: ArrayView2<'a, f64>,
+    treated: ArrayView1<'a, f64>,
+}
+
+impl CostFunction for SyntheticControlProblem<'_> {
+    type Param = Array1<f64>;
+    type Output = f64;
+
+    fn cost(&self, theta: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+        let weights = softmax_weights(theta);
+        let residual = self.donors.dot(&weights) - &self.treated;
+        let mse = 0.5 * residual.dot(&residual) / (self.donors.nrows() as f64);
+        Ok(mse)
+    }
+}
+
+impl Gradient for SyntheticControlProblem<'_> {
+    type Param = Array1<f64>;
+    type Gradient = Array1<f64>;
+
+    fn gradient(
+        &self,
+        theta: &Self::Param,
+    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
+        let weights = softmax_weights(theta);
+        let residual = self.donors.dot(&weights) - &self.treated;
+        let grad_weights = self.donors.t().dot(&residual) / (self.donors.nrows() as f64);
+        let centered = &grad_weights - weights.dot(&grad_weights);
+        Ok(weights * centered)
+    }
+}
+
+fn fit_synthetic_control_weights(
+    donors: &Array2<f64>,
+    treated: &Array1<f64>,
+    max_iterations: u64,
+) -> PyResult<Array1<f64>> {
+    if donors.nrows() != treated.len() {
+        return Err(PyValueError::new_err(
+            "donor rows must match treated length",
+        ));
+    }
+    if donors.nrows() == 0 {
+        return Err(PyValueError::new_err("need at least one pre-treatment period"));
+    }
+    if donors.ncols() == 0 {
+        return Err(PyValueError::new_err("need at least one donor series"));
+    }
+    if donors.ncols() == 1 {
+        return Ok(Array1::from_vec(vec![1.0]));
+    }
+
+    let problem = SyntheticControlProblem {
+        donors: donors.view(),
+        treated: treated.view(),
+    };
+    let theta0 = Array1::<f64>::zeros(donors.ncols());
+    let linesearch = MoreThuenteLineSearch::new();
+    let solver = LBFGS::new(linesearch, 7);
+
+    let mut result = Executor::new(problem, solver)
+        .configure(|state| state.param(theta0).max_iters(max_iterations))
+        .run()
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+    let theta = result
+        .state
+        .take_best_param()
+        .ok_or_else(|| PyValueError::new_err("synthetic control optimization failed"))?;
+
+    Ok(softmax_weights(&theta))
 }
 
 fn fit_fixed_effects_ols(
@@ -322,6 +417,111 @@ pub struct TwoSLS {
     x_exog: Option<Array2<f64>>,
     z: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
+}
+
+#[pyclass]
+pub struct SyntheticControl {
+    max_iterations: u64,
+    weights: Option<Array1<f64>>,
+    donors: Option<Array2<f64>>,
+    treated: Option<Array1<f64>>,
+}
+
+#[pymethods]
+impl SyntheticControl {
+    #[new]
+    #[pyo3(signature = (max_iterations=500))]
+    fn new(max_iterations: u64) -> Self {
+        Self {
+            max_iterations,
+            weights: None,
+            donors: None,
+            treated: None,
+        }
+    }
+
+    fn fit(
+        &mut self,
+        donors: PyReadonlyArray2<f64>,
+        treated: PyReadonlyArray1<f64>,
+    ) -> PyResult<()> {
+        let donors = to_array2(&donors);
+        let treated = to_array1(&treated);
+        let weights = fit_synthetic_control_weights(&donors, &treated, self.max_iterations)?;
+
+        self.weights = Some(weights);
+        self.donors = Some(donors);
+        self.treated = Some(treated);
+        Ok(())
+    }
+
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        donors: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let weights = self
+            .weights
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticControl model is not fitted"))?;
+        let donors = to_array2(&donors);
+        if donors.ncols() != weights.len() {
+            return Err(PyValueError::new_err(
+                "donor columns must match number of fitted weights",
+            ));
+        }
+        let pred = donors.dot(weights);
+        Ok(pyarray1_from_f64(py, &pred))
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let weights = self
+            .weights
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticControl model is not fitted"))?;
+        let donors = self
+            .donors
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let treated = self
+            .treated
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("weights", pyarray1_from_f64(py, weights))?;
+        dict.set_item("pre_rmse", synthetic_control_rmse(donors, treated, weights))?;
+        Ok(dict.into())
+    }
+
+    #[pyo3(signature = (n_bootstrap, seed=None))]
+    fn bootstrap<'py>(
+        &self,
+        py: Python<'py>,
+        n_bootstrap: usize,
+        seed: Option<u64>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let donors = self
+            .donors
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let treated = self
+            .treated
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+
+        let idxs = bootstrap_indices(donors.nrows(), n_bootstrap, seed);
+        let mut out = Array2::<f64>::zeros((n_bootstrap, donors.ncols()));
+        for (i, idx) in idxs.iter().enumerate() {
+            let donors_b = take_rows(donors, idx);
+            let treated_b = take_rows_vec(treated, idx);
+            let weights_b =
+                fit_synthetic_control_weights(&donors_b, &treated_b, self.max_iterations)?;
+            out.row_mut(i).assign(&weights_b);
+        }
+
+        Ok(pyarray2_from_f64(py, &out))
+    }
 }
 
 #[pymethods]

@@ -112,3 +112,26 @@ def test_poisson_predict_round_trip_and_satisfies_score_conditions():
         atol=1e-3,
         rtol=0.0,
     )
+
+
+def test_synthetic_control_recovers_convex_weights_and_post_path():
+    rng = np.random.default_rng(777)
+    true_weights = np.array([0.55, 0.3, 0.15])
+
+    donors_pre = rng.normal(size=(60, true_weights.size))
+    treated_pre = donors_pre @ true_weights
+    donors_post = rng.normal(size=(25, true_weights.size))
+    treated_post = donors_post @ true_weights
+
+    model = cm.SyntheticControl(max_iterations=400)
+    model.fit(donors_pre, treated_pre)
+    summary = model.summary()
+    weights = np.asarray(summary["weights"])
+    pred_post = model.predict(donors_post)
+
+    np.testing.assert_allclose(weights, true_weights, atol=1e-5, rtol=1e-5)
+    np.testing.assert_allclose(pred_post, treated_post, atol=1e-5, rtol=1e-5)
+    np.testing.assert_allclose(weights.sum(), 1.0, atol=1e-8, rtol=0.0)
+    assert np.all(weights >= 0.0)
+    assert summary["pre_rmse"] < 1e-6
+    assert model.bootstrap(4, seed=5).shape == (4, donors_pre.shape[1])

@@ -8,6 +8,8 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
+    code-fold: true
+    code-summary: "Show code"
 jupyter: python3
 execute:
   echo: true
@@ -17,7 +19,7 @@ execute:
 
 ## Overview
 
-`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: nine estimator classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` / `bootstrap` pattern.
+`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: ten estimator classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` / `bootstrap` pattern.
 
 The page below combines two things:
 
@@ -58,7 +60,7 @@ def html_table(headers, rows):
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
-- Coverage is broad for a small codebase: OLS, fixed-effects OLS, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general `MEstimator`.
+- Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general `MEstimator`.
 - The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
 - `TwoSLS` is effectively a single-endogenous implementation today, even though `x_endog` is typed as a matrix.
@@ -72,6 +74,7 @@ The table below is generated from the live module so the constructor and method 
 classes = [
     cm.OLS,
     cm.FixedEffectsOLS,
+    cm.SyntheticControl,
     cm.ElasticNet,
     cm.Logit,
     cm.MultinomialLogit,
@@ -104,6 +107,7 @@ display(HTML(html_table(["Constructor", "Methods"], rows)))
 - Input features are always 2D NumPy arrays.
 - Regression targets use `float64` arrays.
 - `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
+- `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
 - Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
 - OLS, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
@@ -131,6 +135,14 @@ reference_rows = [
         "<code>coef</code>, <code>coef_se</code>",
         "<code>(B, p)</code>",
         "Uses <code>within</code> to partial out fixed effects, then Linfa OLS with <code>fit_intercept=False</code> on the residualized design.",
+    ],
+    [
+        "<code>SyntheticControl</code>",
+        "<code>fit(donors, treated)</code>",
+        "1D float synthetic path from donor outcomes",
+        "<code>weights</code>, <code>pre_rmse</code>",
+        "<code>(B, n_donors)</code>",
+        "Fits nonnegative donor weights that sum to one by minimizing pre-treatment squared error under a simplex constraint.",
     ],
     [
         "<code>ElasticNet</code>",
@@ -249,6 +261,20 @@ model.fit(x, y)
 runtime_rows.append(
     [
         "<code>ElasticNet</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# SyntheticControl
+donors_pre = rng.normal(size=(50, 3))
+weights_true = np.array([0.5, 0.35, 0.15])
+treated_pre = donors_pre @ weights_true
+model = cm.SyntheticControl(max_iterations=300)
+model.fit(donors_pre, treated_pre)
+runtime_rows.append(
+    [
+        "<code>SyntheticControl</code>",
         ", ".join(model.summary().keys()),
         str(model.bootstrap(3, seed=1).shape),
     ]

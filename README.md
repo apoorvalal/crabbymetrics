@@ -5,7 +5,7 @@
 Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
 
 ## Features
-- OLS, FixedEffectsOLS, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
+- OLS, FixedEffectsOLS, SyntheticControl, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
 - `fit`, `predict`, `summary`, `bootstrap`
 - HC1 standard errors where applicable
 

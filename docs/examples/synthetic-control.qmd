@@ -1,0 +1,150 @@
+---
+title: "Synthetic Control Example"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This example builds a 50-unit, 20-period panel from a two-factor model. The treated unit is selected from the high end of the first principal component of the pre-treatment panel, so the raw donor average has obvious pre-trend mismatch. `SyntheticControl` reweights donors on the simplex to match the treated unit before treatment at period 15.
+
+## Generate A Factor-Model Panel
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import SyntheticControl
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+```{python}
+rng = np.random.default_rng(2027)
+
+n_units = 50
+n_periods = 20
+treatment_start = 15
+
+time = np.arange(n_periods)
+
+# Two latent time factors with different dynamics.
+factors = np.column_stack(
+    [
+        np.linspace(-1.5, 1.8, n_periods),
+        np.sin(np.linspace(0, 3 * np.pi, n_periods)),
+    ]
+)
+
+# Unit-specific loadings and mild unit trends.
+loadings = rng.normal(size=(n_units, 2))
+unit_intercepts = rng.normal(scale=0.4, size=n_units)
+unit_trends = rng.normal(scale=0.03, size=n_units)
+
+noise = rng.normal(scale=0.12, size=(n_units, n_periods))
+untreated_panel = (
+    unit_intercepts[:, None]
+    + unit_trends[:, None] * time
+    + loadings @ factors.T
+    + noise
+)
+
+pre_panel = untreated_panel[:, : treatment_start - 1]
+pre_centered = pre_panel - pre_panel.mean(axis=1, keepdims=True)
+_, _, vt = np.linalg.svd(pre_centered, full_matrices=False)
+pc1_scores = pre_centered @ vt[0]
+
+# Select the treated unit from the large-positive tail of PC1.
+treated_unit = int(np.argmax(pc1_scores))
+donor_idx = np.array([idx for idx in range(n_units) if idx != treated_unit])
+
+treated_untreated = untreated_panel[treated_unit]
+donor_panel = untreated_panel[donor_idx].T
+equal_weight_path = donor_panel.mean(axis=1)
+
+# Treatment turns on after period 14 (1-indexed treatment at period 15).
+treatment_effect = np.where(
+    time >= treatment_start - 1,
+    0.8 + 0.18 * (time - (treatment_start - 1)),
+    0.0,
+)
+treated_observed = treated_untreated + treatment_effect
+
+print("treated unit:", treated_unit)
+print("treatment begins at period:", treatment_start)
+print("treated unit PC1 score:", round(float(pc1_scores[treated_unit]), 4))
+```
+
+## Fit Synthetic Control On Pre-Treatment Periods
+
+```{python}
+pre_idx = slice(0, treatment_start - 1)
+post_idx = slice(treatment_start - 1, None)
+
+model = SyntheticControl(max_iterations=500)
+model.fit(donor_panel[pre_idx], treated_observed[pre_idx])
+summary = model.summary()
+
+synth_path = model.predict(donor_panel)
+pre_rmse_equal = np.sqrt(np.mean((treated_observed[pre_idx] - equal_weight_path[pre_idx]) ** 2))
+pre_rmse_synth = float(summary["pre_rmse"])
+
+weights = np.asarray(summary["weights"])
+top_weight_idx = np.argsort(weights)[-5:][::-1]
+
+print("equal-weight pre RMSE:", round(float(pre_rmse_equal), 4))
+print("synthetic-control pre RMSE:", round(pre_rmse_synth, 4))
+print("top donor weights:")
+for rank, idx in enumerate(top_weight_idx, start=1):
+    print(
+        f"  {rank}. donor unit {int(donor_idx[idx])}: weight={weights[idx]:.4f}"
+    )
+```
+
+## Compare Raw Trends To Synthetic Control
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), constrained_layout=True)
+
+axes[0].plot(time + 1, treated_observed, color="black", lw=2.2, label="Treated")
+axes[0].plot(time + 1, equal_weight_path, color="#d95f02", lw=1.8, label="Equal-weight donors")
+axes[0].plot(time + 1, synth_path, color="#1b9e77", lw=2.0, label="Synthetic control")
+axes[0].axvline(treatment_start, color="0.4", ls="--", lw=1)
+axes[0].set_title("Levels")
+axes[0].set_xlabel("Period")
+axes[0].set_ylabel("Outcome")
+axes[0].legend(frameon=False)
+
+axes[1].plot(
+    time + 1,
+    treated_observed - equal_weight_path,
+    color="#d95f02",
+    lw=1.8,
+    label="Treated - equal-weight donors",
+)
+axes[1].plot(
+    time + 1,
+    treated_observed - synth_path,
+    color="#1b9e77",
+    lw=2.0,
+    label="Treated - synthetic control",
+)
+axes[1].axhline(0.0, color="0.5", lw=1)
+axes[1].axvline(treatment_start, color="0.4", ls="--", lw=1)
+axes[1].set_title("Gap")
+axes[1].set_xlabel("Period")
+axes[1].set_ylabel("Difference")
+axes[1].legend(frameon=False)
+
+plt.show()
+```
+
+The treated unit was deliberately chosen from the high-positive side of the first principal component, so the naive donor average fails even before treatment. The synthetic control fit sharply reduces pre-treatment mismatch, making the post-treatment gap much easier to interpret as treatment effect rather than latent-factor imbalance.
