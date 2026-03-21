@@ -24,3 +24,6 @@ Thumbs.db
 /wheelhouse/
 *.whl
 Cargo.lock
+uv.lock
+pyfixest
+within

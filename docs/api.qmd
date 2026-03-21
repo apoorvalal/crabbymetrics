@@ -1,0 +1,406 @@
+---
+title: "crabbymetrics API Reference"
+subtitle: "Library sitrep and verified Python surface"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Overview
+
+`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: eight estimator classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` / `bootstrap` pattern.
+
+The page below combines two things:
+
+- A sitrep on the current state of the library.
+- A verified API reference rendered against the live Python module in this repository.
+
+```{python}
+import inspect
+from html import escape
+
+import numpy as np
+import crabbymetrics as cm
+from IPython.display import HTML, display
+
+
+def html_table(headers, rows):
+    parts = [
+        "<table>",
+        "<thead>",
+        "<tr>",
+        *[f"<th>{escape(str(header))}</th>" for header in headers],
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        parts.append("<tr>")
+        for cell in row:
+            parts.append(f"<td>{cell}</td>")
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+```
+
+## Sitrep
+
+- The implementation is concentrated in two Rust files: `src/lib.rs` registers the Python classes and `src/estimators.rs` holds nearly all estimator logic.
+- Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
+- Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
+- Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.12.
+- Coverage is broad for a small codebase: OLS, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general `MEstimator`.
+- The main maturity gaps are documentation and test coverage. Before this page, the user-facing contract was mostly implicit in `README.md` and the example scripts.
+- The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
+- `TwoSLS` is effectively a single-endogenous implementation today, even though `x_endog` is typed as a matrix.
+- `MEstimator` is flexible but low-level. Users are responsible for gradients, per-observation score matrices, and numerical safeguards inside their objective functions.
+
+## Public Surface
+
+The table below is generated from the live module so the constructor and method signatures match the current build.
+
+```{python}
+classes = [
+    cm.OLS,
+    cm.ElasticNet,
+    cm.Logit,
+    cm.MultinomialLogit,
+    cm.Poisson,
+    cm.TwoSLS,
+    cm.FTRL,
+    cm.MEstimator,
+]
+
+rows = []
+for cls in classes:
+    methods = []
+    for method_name in sorted(name for name in dir(cls) if not name.startswith("_")):
+        method = getattr(cls, method_name)
+        methods.append(
+            f"<code>{escape(method_name)}{escape(str(inspect.signature(method)))}</code>"
+        )
+    rows.append(
+        [
+            f"<code>{escape(cls.__name__)}{escape(str(inspect.signature(cls)))}</code>",
+            "<br>".join(methods),
+        ]
+    )
+
+display(HTML(html_table(["Constructor", "Methods"], rows)))
+```
+
+## Conventions
+
+- Input features are always 2D NumPy arrays.
+- Regression targets use `float64` arrays.
+- `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
+- Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
+- When an estimator has an intercept, bootstrap draws place it in the first column.
+- `summary()` returns dictionaries, not rich result objects. Downstream code should index by key.
+- `bootstrap(n_bootstrap, seed=None)` now accepts an omitted seed across the full public surface.
+
+## Estimator Reference
+
+```{python}
+reference_rows = [
+    [
+        "<code>OLS</code>",
+        "<code>fit(x, y)</code>",
+        "1D float predictions",
+        "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
+        "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
+        "Uses Linfa linear regression with HC1 robust standard errors.",
+    ],
+    [
+        "<code>ElasticNet</code>",
+        "<code>fit(x, y)</code>",
+        "1D float predictions",
+        "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
+        "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
+        "Regularized point estimates with HC1-style covariance built from residuals.",
+    ],
+    [
+        "<code>Logit</code>",
+        "<code>fit(x, y_int32)</code>",
+        "1D <code>int32</code> class labels",
+        "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
+        "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
+        "Binary logistic regression. Standard errors come from the Fisher information.",
+    ],
+    [
+        "<code>MultinomialLogit</code>",
+        "<code>fit(x, y_int32)</code>",
+        "1D <code>int32</code> class labels",
+        "<code>coef</code> and <code>se</code> matrices of shape <code>(classes, features_with_intercept)</code>",
+        "<code>(B, classes * features_with_intercept)</code>",
+        "Intercept and slopes are packed together by class in the summary matrix.",
+    ],
+    [
+        "<code>Poisson</code>",
+        "<code>fit(x, y)</code>",
+        "1D float mean counts",
+        "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
+        "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
+        "Custom Newton-CG Poisson MLE with optional L2 penalty via <code>alpha</code>.",
+    ],
+    [
+        "<code>TwoSLS</code>",
+        "<code>fit(x_endog, x_exog, z, y)</code>",
+        "1D float predictions from the stage-two design matrix",
+        "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
+        "<code>(B, k + 1)</code> with intercept, else <code>(B, k)</code>",
+        "Currently single-endogenous in practice. Exogenous regressors follow the endogenous block in <code>predict()</code>.",
+    ],
+    [
+        "<code>FTRL</code>",
+        "<code>fit(x, y_int32)</code>",
+        "1D float scores in <code>[0, 1]</code>",
+        "<code>coef</code>, <code>coef_se</code>",
+        "<code>(B, p)</code>",
+        "Online-style classification model with a different summary schema and no explicit intercept output.",
+    ],
+    [
+        "<code>MEstimator</code>",
+        "<code>fit(data_dict, theta0)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>coef</code>, <code>se</code>",
+        "<code>(B, p)</code>",
+        "Requires <code>objective_fn(theta, data) -&gt; (obj, grad)</code> and <code>score_fn(theta, data)</code> returning an <code>(n, p)</code> matrix.",
+    ],
+]
+
+display(
+    HTML(
+        html_table(
+            ["Estimator", "Fit", "Predict", "Summary Keys", "Bootstrap", "Notes"],
+            reference_rows,
+        )
+    )
+)
+```
+
+## Verified Runtime Snapshot
+
+The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.
+
+```{python}
+rng = np.random.default_rng(123)
+runtime_rows = []
+
+# OLS
+x = rng.normal(size=(40, 3))
+y = 0.5 + x @ np.array([1.0, -2.0, 0.3]) + rng.normal(scale=0.2, size=40)
+model = cm.OLS()
+model.fit(x, y)
+runtime_rows.append(
+    [
+        "<code>OLS</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3).shape),
+    ]
+)
+
+# ElasticNet
+model = cm.ElasticNet(penalty=0.1, l1_ratio=0.5)
+model.fit(x, y)
+runtime_rows.append(
+    [
+        "<code>ElasticNet</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# Logit
+x = rng.normal(size=(60, 3))
+eta = -0.2 + x @ np.array([0.8, -0.5, 1.2])
+prob = 1.0 / (1.0 + np.exp(-eta))
+y_bin = rng.binomial(1, prob, size=60).astype(np.int32)
+model = cm.Logit(max_iterations=200)
+model.fit(x, y_bin)
+runtime_rows.append(
+    [
+        "<code>Logit</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# MultinomialLogit
+x = rng.normal(size=(80, 2))
+coef = np.array([[0.5, -0.7], [-0.3, 0.4], [0.2, 0.6]])
+intercept = np.array([0.2, -0.1, 0.0])
+logits = x @ coef.T + intercept
+weights = np.exp(logits - logits.max(axis=1, keepdims=True))
+prob = weights / weights.sum(axis=1, keepdims=True)
+y_multi = np.array([rng.choice(3, p=row) for row in prob], dtype=np.int32)
+model = cm.MultinomialLogit(max_iterations=200)
+model.fit(x, y_multi)
+runtime_rows.append(
+    [
+        "<code>MultinomialLogit</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# Poisson
+x = rng.normal(size=(70, 2))
+mu = np.exp(0.1 + x @ np.array([0.4, -0.2]))
+y_pois = rng.poisson(mu).astype(float)
+model = cm.Poisson(max_iterations=200)
+model.fit(x, y_pois)
+runtime_rows.append(
+    [
+        "<code>Poisson</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# TwoSLS
+n = 80
+z = rng.normal(size=(n, 1))
+x_exog = rng.normal(size=(n, 1))
+u = rng.normal(size=n)
+x_endog = (0.9 * z[:, 0] + 0.2 * u + rng.normal(scale=0.1, size=n)).reshape(-1, 1)
+y_iv = 0.4 + 1.3 * x_endog[:, 0] - 0.6 * x_exog[:, 0] + u + rng.normal(scale=0.1, size=n)
+model = cm.TwoSLS()
+model.fit(x_endog, x_exog, z, y_iv)
+runtime_rows.append(
+    [
+        "<code>TwoSLS</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# FTRL
+x = rng.normal(size=(80, 4))
+eta = x @ np.array([0.7, -0.4, 0.2, 0.3])
+prob = 1.0 / (1.0 + np.exp(-eta))
+y_ftrl = rng.binomial(1, prob, size=80).astype(np.int32)
+model = cm.FTRL()
+model.fit(x, y_ftrl)
+runtime_rows.append(
+    [
+        "<code>FTRL</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# MEstimator
+def ols_objective(theta, data):
+    X = data["X"]
+    y = data["y"]
+    indices = data.get("indices", np.arange(len(y)))
+    Xb = X[indices]
+    yb = y[indices]
+    residual = yb - Xb @ theta
+    return 0.5 * np.sum(residual**2), -(Xb.T @ residual)
+
+
+def ols_scores(theta, data):
+    X = data["X"]
+    y = data["y"]
+    residual = y - X @ theta
+    return -X * residual[:, None]
+
+
+x = rng.normal(size=(50, 3))
+y = x @ np.array([1.0, -0.5, 0.2]) + rng.normal(scale=0.2, size=50)
+model = cm.MEstimator(ols_objective, ols_scores, max_iterations=200)
+model.fit({"X": x, "y": y, "n": len(y)}, np.zeros(x.shape[1]))
+runtime_rows.append(
+    [
+        "<code>MEstimator</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+display(HTML(html_table(["Estimator", "Summary Keys", "Bootstrap Shape"], runtime_rows)))
+```
+
+## Usage Examples
+
+### OLS
+
+```{python}
+rng = np.random.default_rng(0)
+x = rng.normal(size=(200, 3))
+beta = np.array([1.2, -0.7, 0.5])
+y = 0.4 + x @ beta + rng.normal(scale=0.2, size=200)
+
+model = cm.OLS(fit_intercept=True)
+model.fit(x, y)
+
+summary = model.summary()
+bootstrap_draws = model.bootstrap(5, seed=42)
+
+summary, bootstrap_draws[:2]
+```
+
+### MEstimator
+
+This is the lowest-level public interface in the library. The callback contract matters more than the optimizer choice:
+
+- `objective_fn(theta, data)` must return `(objective_value, gradient_vector)`.
+- `score_fn(theta, data)` must return an `(n_obs, n_params)` matrix of per-observation scores.
+- For bootstrap support, the `data` dictionary must include `n`, and user code should respect an optional `indices` key.
+
+```{python}
+import numpy as np
+
+
+def ols_objective(theta, data):
+    X = data["X"]
+    y = data["y"]
+    indices = data.get("indices", np.arange(len(y)))
+    Xb = X[indices]
+    yb = y[indices]
+    residual = yb - Xb @ theta
+    objective = 0.5 * np.sum(residual**2)
+    gradient = -(Xb.T @ residual)
+    return objective, gradient
+
+
+def ols_scores(theta, data):
+    X = data["X"]
+    y = data["y"]
+    residual = y - X @ theta
+    return -X * residual[:, None]
+
+
+rng = np.random.default_rng(7)
+X = rng.normal(size=(300, 2))
+y = X @ np.array([1.5, -0.4]) + rng.normal(scale=0.1, size=300)
+
+model = cm.MEstimator(
+    objective_fn=ols_objective,
+    score_fn=ols_scores,
+    max_iterations=200,
+)
+model.fit({"X": X, "y": y, "n": len(y)}, np.zeros(X.shape[1]))
+
+model.summary()
+```
+
+## Current Sharp Edges
+
+- There is still no rich result object layer. Consumers should expect raw dictionaries and NumPy arrays.
+- The library does not currently expose convergence diagnostics, fit statistics, or formula handling.
+- `TwoSLS` should be treated as a single-endogenous implementation until the stage-one and bootstrap paths are generalized.
+- `MEstimator` favors flexibility over guardrails. If your objective has fragile regions, add clipping or other stability controls inside the callback.

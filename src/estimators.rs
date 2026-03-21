@@ -115,6 +115,7 @@ impl OLS {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -267,6 +268,7 @@ impl ElasticNet {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -412,6 +414,7 @@ impl Logit {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -564,6 +567,7 @@ impl MultinomialLogit {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -838,6 +842,7 @@ impl Poisson {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -1062,12 +1067,17 @@ impl TwoSLS {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
         n_bootstrap: usize,
         seed: Option<u64>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
         let x = self
             .x_endog
             .as_ref()
@@ -1087,7 +1097,7 @@ impl TwoSLS {
         let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
         let mut out = Array2::<f64>::zeros((
             n_bootstrap,
-            x.ncols() + if self.fit_intercept { 1 } else { 0 },
+            coef.len() + if self.fit_intercept { 1 } else { 0 },
         ));
         for (i, idx) in idxs.iter().enumerate() {
             let x_endog_b = take_rows(x, idx);
@@ -1212,6 +1222,7 @@ impl FTRL {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -1277,16 +1288,21 @@ impl CostFunction for MEstimatorProblem {
                 .call1(py, (theta_py, self.data.clone_ref(py)))
                 .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
 
-            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)
-                .map_err(|_| argmin::core::Error::msg("Objective function must return (obj, grad)"))?;
+            let tuple = result
+                .downcast_bound::<pyo3::types::PyTuple>(py)
+                .map_err(|_| {
+                    argmin::core::Error::msg("Objective function must return (obj, grad)")
+                })?;
 
             if tuple.len() != 2 {
-                return Err(argmin::core::Error::msg("Objective function must return (obj, grad)"));
+                return Err(argmin::core::Error::msg(
+                    "Objective function must return (obj, grad)",
+                ));
             }
 
-            let obj_value: f64 = tuple.get_item(0)?
-                .extract()
-                .map_err(|e| argmin::core::Error::msg(format!("Failed to extract objective: {}", e)))?;
+            let obj_value: f64 = tuple.get_item(0)?.extract().map_err(|e| {
+                argmin::core::Error::msg(format!("Failed to extract objective: {}", e))
+            })?;
 
             Ok(obj_value)
         })
@@ -1297,7 +1313,10 @@ impl Gradient for MEstimatorProblem {
     type Param = Array1<f64>;
     type Gradient = Array1<f64>;
 
-    fn gradient(&self, theta: &Self::Param) -> std::result::Result<Self::Gradient, argmin::core::Error> {
+    fn gradient(
+        &self,
+        theta: &Self::Param,
+    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
         Python::with_gil(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             let result = self
@@ -1305,11 +1324,16 @@ impl Gradient for MEstimatorProblem {
                 .call1(py, (theta_py, self.data.clone_ref(py)))
                 .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
 
-            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)
-                .map_err(|_| argmin::core::Error::msg("Objective function must return (obj, grad)"))?;
+            let tuple = result
+                .downcast_bound::<pyo3::types::PyTuple>(py)
+                .map_err(|_| {
+                    argmin::core::Error::msg("Objective function must return (obj, grad)")
+                })?;
 
             if tuple.len() != 2 {
-                return Err(argmin::core::Error::msg("Objective function must return (obj, grad)"));
+                return Err(argmin::core::Error::msg(
+                    "Objective function must return (obj, grad)",
+                ));
             }
 
             let grad_item = tuple.get_item(1)?;
@@ -1361,7 +1385,11 @@ impl MEstimator {
         let solver = LBFGS::new(linesearch, 7);
 
         let mut result = Executor::new(problem, solver)
-            .configure(|state| state.param(theta_init).max_iters(self.max_iterations as u64))
+            .configure(|state| {
+                state
+                    .param(theta_init)
+                    .max_iters(self.max_iterations as u64)
+            })
             .run()
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
@@ -1450,6 +1478,7 @@ impl MEstimator {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -1469,8 +1498,11 @@ impl MEstimator {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("objective_fn not set"))?;
 
-        let data_dict = data.downcast_bound::<pyo3::types::PyDict>(py)
-            .map_err(|_| PyValueError::new_err("data must be a dict with 'indices' key for bootstrap"))?;
+        let data_dict = data
+            .downcast_bound::<pyo3::types::PyDict>(py)
+            .map_err(|_| {
+                PyValueError::new_err("data must be a dict with 'indices' key for bootstrap")
+            })?;
 
         let mut rng = match seed {
             Some(s) => rand::rngs::StdRng::seed_from_u64(s),
