@@ -1,0 +1,37 @@
+---
+title: "crabbymetrics"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: false
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. This homepage is the entry point for the standalone docs pages in `docs/`.
+
+## Main Reference
+
+- [API reference](api.html): verified public surface, library sitrep, summary schemas, and runtime smoke checks.
+
+## Self-Contained Examples
+
+- [OLS](examples/ols.html): baseline linear regression with HC1 standard errors.
+- [ElasticNet](examples/elastic-net.html): regularized linear regression.
+- [Logit](examples/logit.html): binary logistic regression.
+- [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.
+- [Poisson](examples/poisson.html): count regression.
+- [TwoSLS](examples/twosls.html): instrumental variables regression.
+- [FTRL](examples/ftrl.html): online-style binary classification.
+- [MEstimator Poisson](examples/mestimator-poisson.html): callback-driven estimation matched against built-in Poisson.
+
+## Notes
+
+- `api.qmd` remains the main documentation page and renders to `api.html`.
+- The example pages are standalone Quarto documents, not a shared website shell.
+- All pages are rendered with embedded resources so the checked-in HTML files are self-contained.

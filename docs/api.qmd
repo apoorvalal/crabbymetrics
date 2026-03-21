@@ -8,8 +8,6 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: true
-    code-summary: "Show code"
 jupyter: python3
 execute:
   echo: true
