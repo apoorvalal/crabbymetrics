@@ -55,7 +55,7 @@ logits = x @ coef.T + intercept
 probs = softmax(logits)
 y = np.array([rng.choice(c, p=probs[i]) for i in range(n)], dtype=np.int32)
 
-model = MultinomialLogit(alpha=1.0, fit_intercept=True, max_iterations=200)
+model = MultinomialLogit(alpha=1.0, max_iterations=200)
 model.fit(x, y)
 
 print("true intercept:", intercept)

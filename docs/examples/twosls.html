@@ -4777,6 +4777,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -4851,7 +4855,7 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/twosls_example.py</code>.</p>
 <section id="fit-an-instrumental-variables-model" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-an-instrumental-variables-model"><span class="header-section-number">1</span> Fit An Instrumental Variables Model</h2>
-<div id="21eaab2e" class="cell" data-execution_count="1">
+<div id="6a598100" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4859,7 +4863,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="21cb1187" class="cell" data-execution_count="2">
+<div id="d3f2347a" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">800</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4879,7 +4883,7 @@ vertical-align: -.125em;
 <span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> x_endog.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> TwoSLS(fit_intercept<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> TwoSLS()</span>
 <span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y)</span>
 <span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true intercept:&quot;</span>, intercept)</span>

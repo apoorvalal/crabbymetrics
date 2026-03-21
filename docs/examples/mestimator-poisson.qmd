@@ -75,16 +75,20 @@ def poisson_scores(theta, data):
 rng = np.random.default_rng(42)
 n = 700
 k = 3
+intercept_true = 0.15
 beta_true = np.array([0.2, 0.4, -0.6])
 
-X = rng.normal(size=(n, k))
-eta = X @ beta_true
+X_raw = rng.normal(size=(n, k))
+X = np.column_stack([np.ones(n), X_raw])
+theta_true = np.concatenate([[intercept_true], beta_true])
+eta = X @ theta_true
 mu = np.exp(eta)
 y = rng.poisson(mu).astype(float)
 
 print("=" * 60)
 print("Poisson Regression Comparison")
 print("=" * 60)
+print(f"True intercept:    {intercept_true}")
 print(f"True coefficients: {beta_true}")
 print()
 
@@ -92,7 +96,7 @@ print("1. Using MEstimator (general M-estimation framework)")
 print("-" * 60)
 
 data = {"X": X, "y": y, "n": n}
-theta0 = np.ones(k) * 0.1
+theta0 = np.concatenate([[np.log(np.maximum(y.mean(), 1e-12))], np.full(k, 0.1)])
 
 obj_init, grad_init = poisson_objective(theta0, data)
 print(f"  Initial objective: {obj_init:.4f}")
@@ -115,28 +119,32 @@ print()
 print("2. Using built-in Poisson estimator")
 print("-" * 60)
 
-poisson_model = Poisson(alpha=0.0, fit_intercept=False, max_iterations=200)
-poisson_model.fit(X, y)
+poisson_model = Poisson(alpha=0.0, max_iterations=200)
+poisson_model.fit(X_raw, y)
 summary_p = poisson_model.summary()
 
+coef_p = np.concatenate([[summary_p["intercept"]], summary_p["coef"]])
+se_p = np.concatenate([[summary_p["intercept_se"]], summary_p["coef_se"]])
+
+print(f"Estimated intercept:    {summary_p['intercept']}")
 print(f"Estimated coefficients: {summary_p['coef']}")
-print(f"Standard errors:        {summary_p['coef_se']}")
+print(f"Standard errors:        {se_p}")
 print()
 
 print("3. Comparison")
 print("-" * 60)
-coef_diff = np.abs(summary_m["coef"] - summary_p["coef"])
-se_diff = np.abs(summary_m["se"] - summary_p["coef_se"])
+coef_diff = np.abs(summary_m["coef"] - coef_p)
+se_diff = np.abs(summary_m["se"] - se_p)
 
 print(f"Max coefficient difference: {np.max(coef_diff):.2e}")
 print(f"Max SE difference:          {np.max(se_diff):.2e}")
 print(
     f"Max relative coef error:    "
-    f"{np.max(coef_diff / np.abs(summary_p['coef'])):.2%}"
+    f"{np.max(coef_diff / np.maximum(np.abs(coef_p), 1e-12)):.2%}"
 )
-print(f"Max relative SE error:      {np.max(se_diff / summary_p['coef_se']):.2%}")
+print(f"Max relative SE error:      {np.max(se_diff / se_p):.2%}")
 
-if np.max(coef_diff) < 1e-3 and np.max(se_diff / summary_p["coef_se"]) < 0.05:
+if np.max(coef_diff) < 1e-3 and np.max(se_diff / se_p) < 0.05:
     print("\\nSUCCESS: MEstimator matches built-in Poisson!")
 else:
     print("\\nWARNING: Results differ more than expected")

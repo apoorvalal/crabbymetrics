@@ -13,15 +13,16 @@ execute:
   message: false
 ---
 
-`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. This homepage is the entry point for the standalone docs pages in `docs/`.
+`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. This homepage is the entry point for the Quarto docs site in `docs/`.
 
 ## Main Reference
 
 - [API reference](api.html): verified public surface, library sitrep, summary schemas, and runtime smoke checks.
 
-## Self-Contained Examples
+## Examples
 
 - [OLS](examples/ols.html): baseline linear regression with HC1 standard errors.
+- [Fixed Effects OLS](examples/fixed-effects-ols.html): partial out one-way or multi-way categorical fixed effects with `within`, then estimate slopes without an intercept.
 - [ElasticNet](examples/elastic-net.html): regularized linear regression.
 - [Logit](examples/logit.html): binary logistic regression.
 - [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.
@@ -33,5 +34,5 @@ execute:
 ## Notes
 
 - `api.qmd` remains the main documentation page and renders to `api.html`.
-- The example pages are standalone Quarto documents, not a shared website shell.
-- All pages are rendered with embedded resources so the checked-in HTML files are self-contained.
+- The site is a Quarto website, so shared navigation and search are generated under `docs/`.
+- All pages are rendered with embedded resources so the checked-in HTML files remain self-contained.

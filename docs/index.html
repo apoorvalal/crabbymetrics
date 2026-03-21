@@ -4743,6 +4743,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -4789,7 +4793,7 @@ vertical-align: -.125em;
    
   <ul class="collapse">
   <li><a href="#main-reference" id="toc-main-reference" class="nav-link active" data-scroll-target="#main-reference">Main Reference</a></li>
-  <li><a href="#self-contained-examples" id="toc-self-contained-examples" class="nav-link" data-scroll-target="#self-contained-examples">Self-Contained Examples</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   </ul>
 </nav>
@@ -4816,17 +4820,18 @@ vertical-align: -.125em;
 </header>
 
 
-<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. This homepage is the entry point for the standalone docs pages in <code>docs/</code>.</p>
+<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. This homepage is the entry point for the Quarto docs site in <code>docs/</code>.</p>
 <section id="main-reference" class="level2">
 <h2 class="anchored" data-anchor-id="main-reference">Main Reference</h2>
 <ul>
 <li><a href="api.html">API reference</a>: verified public surface, library sitrep, summary schemas, and runtime smoke checks.</li>
 </ul>
 </section>
-<section id="self-contained-examples" class="level2">
-<h2 class="anchored" data-anchor-id="self-contained-examples">Self-Contained Examples</h2>
+<section id="examples" class="level2">
+<h2 class="anchored" data-anchor-id="examples">Examples</h2>
 <ul>
 <li><a href="examples/ols.html">OLS</a>: baseline linear regression with HC1 standard errors.</li>
+<li><a href="examples/fixed-effects-ols.html">Fixed Effects OLS</a>: partial out one-way or multi-way categorical fixed effects with <code>within</code>, then estimate slopes without an intercept.</li>
 <li><a href="examples/elastic-net.html">ElasticNet</a>: regularized linear regression.</li>
 <li><a href="examples/logit.html">Logit</a>: binary logistic regression.</li>
 <li><a href="examples/multinomial-logit.html">Multinomial Logit</a>: multiclass classification.</li>
@@ -4840,8 +4845,8 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="notes">Notes</h2>
 <ul>
 <li><code>api.qmd</code> remains the main documentation page and renders to <code>api.html</code>.</li>
-<li>The example pages are standalone Quarto documents, not a shared website shell.</li>
-<li>All pages are rendered with embedded resources so the checked-in HTML files are self-contained.</li>
+<li>The site is a Quarto website, so shared navigation and search are generated under <code>docs/</code>.</li>
+<li>All pages are rendered with embedded resources so the checked-in HTML files remain self-contained.</li>
 </ul>
 
 

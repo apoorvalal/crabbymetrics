@@ -18,6 +18,8 @@ website:
         menu:
           - href: examples/ols.qmd
             text: OLS
+          - href: examples/fixed-effects-ols.qmd
+            text: Fixed Effects OLS
           - href: examples/elastic-net.qmd
             text: ElasticNet
           - href: examples/logit.qmd

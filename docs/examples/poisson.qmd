@@ -42,7 +42,7 @@ logits = intercept + x @ beta
 mu = np.exp(logits)
 y = rng.poisson(mu).astype(float)
 
-model = Poisson(alpha=0.0, fit_intercept=True, max_iterations=200)
+model = Poisson(alpha=0.0, max_iterations=200)
 model.fit(x, y)
 
 print("true intercept:", intercept)

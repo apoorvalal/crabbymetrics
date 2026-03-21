@@ -40,7 +40,7 @@ intercept = 0.7
 x = rng.normal(size=(n, k))
 y = intercept + x @ beta + rng.normal(scale=0.5, size=n)
 
-model = OLS(fit_intercept=True)
+model = OLS()
 model.fit(x, y)
 
 print("true intercept:", intercept)

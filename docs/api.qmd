@@ -17,7 +17,7 @@ execute:
 
 ## Overview
 
-`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: eight estimator classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` / `bootstrap` pattern.
+`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: nine estimator classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` / `bootstrap` pattern.
 
 The page below combines two things:
 
@@ -57,9 +57,9 @@ def html_table(headers, rows):
 - The implementation is concentrated in two Rust files: `src/lib.rs` registers the Python classes and `src/estimators.rs` holds nearly all estimator logic.
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
-- Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.12.
-- Coverage is broad for a small codebase: OLS, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general `MEstimator`.
-- The main maturity gaps are documentation and test coverage. Before this page, the user-facing contract was mostly implicit in `README.md` and the example scripts.
+- Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
+- Coverage is broad for a small codebase: OLS, fixed-effects OLS, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general `MEstimator`.
+- The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
 - `TwoSLS` is effectively a single-endogenous implementation today, even though `x_endog` is typed as a matrix.
 - `MEstimator` is flexible but low-level. Users are responsible for gradients, per-observation score matrices, and numerical safeguards inside their objective functions.
@@ -71,6 +71,7 @@ The table below is generated from the live module so the constructor and method 
 ```{python}
 classes = [
     cm.OLS,
+    cm.FixedEffectsOLS,
     cm.ElasticNet,
     cm.Logit,
     cm.MultinomialLogit,
@@ -102,8 +103,11 @@ display(HTML(html_table(["Constructor", "Methods"], rows)))
 
 - Input features are always 2D NumPy arrays.
 - Regression targets use `float64` arrays.
+- `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
 - Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
+- OLS, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
+- `FixedEffectsOLS` deliberately has no `predict()` method. It stores slope coefficients and uses the absorbed-effects representation only for estimation and bootstrap.
 - When an estimator has an intercept, bootstrap draws place it in the first column.
 - `summary()` returns dictionaries, not rich result objects. Downstream code should index by key.
 - `bootstrap(n_bootstrap, seed=None)` now accepts an omitted seed across the full public surface.
@@ -119,6 +123,14 @@ reference_rows = [
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
         "Uses Linfa linear regression with HC1 robust standard errors.",
+    ],
+    [
+        "<code>FixedEffectsOLS</code>",
+        "<code>fit(x, fe_uint32, y)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>coef</code>, <code>coef_se</code>",
+        "<code>(B, p)</code>",
+        "Uses <code>within</code> to partial out fixed effects, then Linfa OLS with <code>fit_intercept=False</code> on the residualized design.",
     ],
     [
         "<code>ElasticNet</code>",
@@ -206,6 +218,28 @@ runtime_rows.append(
         "<code>OLS</code>",
         ", ".join(model.summary().keys()),
         str(model.bootstrap(3).shape),
+    ]
+)
+
+# FixedEffectsOLS
+n = 120
+x = rng.normal(size=(n, 2))
+worker = rng.integers(0, 20, size=n, dtype=np.uint32)
+firm = rng.integers(0, 12, size=n, dtype=np.uint32)
+fe = np.column_stack([worker, firm]).astype(np.uint32)
+y = (
+    x @ np.array([1.1, -0.4])
+    + rng.normal(size=20)[worker]
+    + rng.normal(size=12)[firm]
+    + rng.normal(scale=0.2, size=n)
+)
+model = cm.FixedEffectsOLS()
+model.fit(x, fe, y)
+runtime_rows.append(
+    [
+        "<code>FixedEffectsOLS</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
     ]
 )
 
@@ -342,13 +376,38 @@ x = rng.normal(size=(200, 3))
 beta = np.array([1.2, -0.7, 0.5])
 y = 0.4 + x @ beta + rng.normal(scale=0.2, size=200)
 
-model = cm.OLS(fit_intercept=True)
+model = cm.OLS()
 model.fit(x, y)
 
 summary = model.summary()
 bootstrap_draws = model.bootstrap(5, seed=42)
 
 summary, bootstrap_draws[:2]
+```
+
+### FixedEffectsOLS
+
+This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with `within`, then regress the residualized outcome on the residualized regressors with no intercept.
+
+```{python}
+rng = np.random.default_rng(12)
+n = 400
+x = rng.normal(size=(n, 2))
+worker = rng.integers(0, 30, size=n, dtype=np.uint32)
+firm = rng.integers(0, 15, size=n, dtype=np.uint32)
+fe = np.column_stack([worker, firm]).astype(np.uint32)
+beta = np.array([1.0, -0.6])
+y = (
+    x @ beta
+    + rng.normal(scale=0.8, size=30)[worker]
+    + rng.normal(scale=0.5, size=15)[firm]
+    + rng.normal(scale=0.15, size=n)
+)
+
+model = cm.FixedEffectsOLS()
+model.fit(x, fe, y)
+
+model.summary()
 ```
 
 ### MEstimator
@@ -399,6 +458,6 @@ model.summary()
 ## Current Sharp Edges
 
 - There is still no rich result object layer. Consumers should expect raw dictionaries and NumPy arrays.
-- The library does not currently expose convergence diagnostics, fit statistics, or formula handling.
+- Most estimators do not expose fit statistics or formula handling.
 - `TwoSLS` should be treated as a single-endogenous implementation until the stage-one and bootstrap paths are generalized.
 - `MEstimator` favors flexibility over guardrails. If your objective has fragile regions, add clipping or other stability controls inside the callback.

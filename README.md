@@ -5,7 +5,7 @@
 Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
 
 ## Features
-- OLS, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
+- OLS, FixedEffectsOLS, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
 - `fit`, `predict`, `summary`, `bootstrap`
 - HC1 standard errors where applicable
 
@@ -25,20 +25,25 @@ x = np.random.randn(200, 3)
 beta = np.array([1.0, -2.0, 0.5])
 y = 0.3 + x @ beta + np.random.randn(200) * 0.1
 
-model = OLS(fit_intercept=True)
+model = OLS()
 model.fit(x, y)
 print(model.summary())
 ```
 
 ## Development
 
-Create a uv virtual environment.
+Create and populate the project virtual environment, then build the extension into that venv.
 
 ```bash
-maturin develop
+uv sync
+uv run maturin develop
 ```
 
-Example scripts live in `examples/`.
+`uv run maturin develop` is sufficient for rebuilding and reinstalling the package in `.venv` once the environment exists. If you change Python dependencies or the `pyproject.toml` metadata, run `uv sync` again first.
+
+Package versioning is sourced from `Cargo.toml`. The Python package metadata is dynamic, and `commit_tag_release.sh` reads the crate version directly before creating the `vX.Y.Z` tag.
+
+Rendered examples and API docs live under `docs/`. Rebuild the site with `quarto render docs`.
 
 ## Wheels
 Wheels are platform-specific and included in GitHub releases. See the releases tab.

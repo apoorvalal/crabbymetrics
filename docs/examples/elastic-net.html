@@ -4777,6 +4777,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -4851,7 +4855,7 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/elastic_net_example.py</code>.</p>
 <section id="fit-a-regularized-linear-model" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-a-regularized-linear-model"><span class="header-section-number">1</span> Fit A Regularized Linear Model</h2>
-<div id="70ddf18f" class="cell" data-execution_count="1">
+<div id="feb8af0d" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4859,7 +4863,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="6d339f31" class="cell" data-execution_count="2">
+<div id="1eab5a34" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">1</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">600</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">6</span></span>
@@ -4869,7 +4873,7 @@ vertical-align: -.125em;
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, k))</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> intercept <span class="op">+</span> x <span class="op">@</span> beta <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.7</span>, size<span class="op">=</span>n)</span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> ElasticNet(penalty<span class="op">=</span><span class="fl">0.1</span>, l1_ratio<span class="op">=</span><span class="fl">0.5</span>, fit_intercept<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> ElasticNet(penalty<span class="op">=</span><span class="fl">0.1</span>, l1_ratio<span class="op">=</span><span class="fl">0.5</span>)</span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true intercept:&quot;</span>, intercept)</span>

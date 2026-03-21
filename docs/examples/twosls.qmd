@@ -50,7 +50,7 @@ y = intercept + beta_endog * x_endog + beta_exog * x_exog[:, 0] + u + rng.normal
 
 x_endog = x_endog.reshape(-1, 1)
 
-model = TwoSLS(fit_intercept=True)
+model = TwoSLS()
 model.fit(x_endog, x_exog, z, y)
 
 print("true intercept:", intercept)

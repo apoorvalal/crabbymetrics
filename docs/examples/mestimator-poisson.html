@@ -4777,6 +4777,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -4853,13 +4857,13 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/mestimator_poisson_example.py</code> and shows how to match the built-in Poisson estimator with custom objective and score callbacks.</p>
 <section id="define-the-objective-and-scores" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="define-the-objective-and-scores"><span class="header-section-number">1</span> Define The Objective And Scores</h2>
-<div id="18c57cfd" class="cell" data-execution_count="1">
+<div id="f0cbee6f" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> crabbymetrics <span class="im">import</span> MEstimator, Poisson</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="b9e2d672" class="cell" data-execution_count="2">
+<div id="98f586d2" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>call_counter <span class="op">=</span> {<span class="st">&quot;n&quot;</span>: <span class="dv">0</span>}</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4902,113 +4906,123 @@ vertical-align: -.125em;
 </section>
 <section id="compare-mestimator-to-built-in-poisson" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="compare-mestimator-to-built-in-poisson"><span class="header-section-number">2</span> Compare MEstimator To Built-In Poisson</h2>
-<div id="6f380d2d" class="cell" data-execution_count="3">
+<div id="328012c8" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">700</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">3</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">0.2</span>, <span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.6</span>])</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, k))</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> X <span class="op">@</span> beta_true</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(eta)</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(mu).astype(<span class="bu">float</span>)</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;=&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Poisson Regression Comparison&quot;</span>)</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;=&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;True coefficients: </span><span class="sc">{</span>beta_true<span class="sc">}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;1. Using MEstimator (general M-estimation framework)&quot;</span>)</span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> {<span class="st">&quot;X&quot;</span>: X, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: n}</span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>theta0 <span class="op">=</span> np.ones(k) <span class="op">*</span> <span class="fl">0.1</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>obj_init, grad_init <span class="op">=</span> poisson_objective(theta0, data)</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;  Initial objective: </span><span class="sc">{</span>obj_init<span class="sc">:.4f}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;  Initial gradient norm: </span><span class="sc">{</span>np<span class="sc">.</span>linalg<span class="sc">.</span>norm(grad_init)<span class="sc">:.4f}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>intercept_true <span class="op">=</span> <span class="fl">0.15</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">0.2</span>, <span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.6</span>])</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>X_raw <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, k))</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> np.column_stack([np.ones(n), X_raw])</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>theta_true <span class="op">=</span> np.concatenate([[intercept_true], beta_true])</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> X <span class="op">@</span> theta_true</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(eta)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(mu).astype(<span class="bu">float</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;=&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Poisson Regression Comparison&quot;</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;=&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;True intercept:    </span><span class="sc">{</span>intercept_true<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;True coefficients: </span><span class="sc">{</span>beta_true<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;1. Using MEstimator (general M-estimation framework)&quot;</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> {<span class="st">&quot;X&quot;</span>: X, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: n}</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>theta0 <span class="op">=</span> np.concatenate([[np.log(np.maximum(y.mean(), <span class="fl">1e-12</span>))], np.full(k, <span class="fl">0.1</span>)])</span>
 <span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>mestim <span class="op">=</span> MEstimator(</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    objective_fn<span class="op">=</span>poisson_objective,</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    score_fn<span class="op">=</span>poisson_scores,</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">200</span>,</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    tolerance<span class="op">=</span><span class="fl">1e-6</span>,</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>mestim.fit(data, theta0)</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>summary_m <span class="op">=</span> mestim.summary()</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Estimated coefficients: </span><span class="sc">{</span>summary_m[<span class="st">&#39;coef&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Standard errors:        </span><span class="sc">{</span>summary_m[<span class="st">&#39;se&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>obj_init, grad_init <span class="op">=</span> poisson_objective(theta0, data)</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;  Initial objective: </span><span class="sc">{</span>obj_init<span class="sc">:.4f}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;  Initial gradient norm: </span><span class="sc">{</span>np<span class="sc">.</span>linalg<span class="sc">.</span>norm(grad_init)<span class="sc">:.4f}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>mestim <span class="op">=</span> MEstimator(</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    objective_fn<span class="op">=</span>poisson_objective,</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    score_fn<span class="op">=</span>poisson_scores,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">200</span>,</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    tolerance<span class="op">=</span><span class="fl">1e-6</span>,</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>mestim.fit(data, theta0)</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>summary_m <span class="op">=</span> mestim.summary()</span>
 <span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;2. Using built-in Poisson estimator&quot;</span>)</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>poisson_model <span class="op">=</span> Poisson(alpha<span class="op">=</span><span class="fl">0.0</span>, fit_intercept<span class="op">=</span><span class="va">False</span>, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>poisson_model.fit(X, y)</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>summary_p <span class="op">=</span> poisson_model.summary()</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Estimated coefficients: </span><span class="sc">{</span>summary_m[<span class="st">&#39;coef&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Standard errors:        </span><span class="sc">{</span>summary_m[<span class="st">&#39;se&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;2. Using built-in Poisson estimator&quot;</span>)</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
 <span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Estimated coefficients: </span><span class="sc">{</span>summary_p[<span class="st">&#39;coef&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Standard errors:        </span><span class="sc">{</span>summary_p[<span class="st">&#39;coef_se&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>poisson_model <span class="op">=</span> Poisson(alpha<span class="op">=</span><span class="fl">0.0</span>, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>poisson_model.fit(X_raw, y)</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>summary_p <span class="op">=</span> poisson_model.summary()</span>
 <span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;3. Comparison&quot;</span>)</span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>coef_diff <span class="op">=</span> np.<span class="bu">abs</span>(summary_m[<span class="st">&quot;coef&quot;</span>] <span class="op">-</span> summary_p[<span class="st">&quot;coef&quot;</span>])</span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>se_diff <span class="op">=</span> np.<span class="bu">abs</span>(summary_m[<span class="st">&quot;se&quot;</span>] <span class="op">-</span> summary_p[<span class="st">&quot;coef_se&quot;</span>])</span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Max coefficient difference: </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(coef_diff)<span class="sc">:.2e}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Max SE difference:          </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(se_diff)<span class="sc">:.2e}</span><span class="ss">&quot;</span>)</span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f&quot;Max relative coef error:    &quot;</span></span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f&quot;</span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(coef_diff <span class="op">/</span> np.<span class="bu">abs</span>(summary_p[<span class="st">&#39;coef&#39;</span>]))<span class="sc">:.2%}</span><span class="ss">&quot;</span></span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Max relative SE error:      </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(se_diff <span class="op">/</span> summary_p[<span class="st">&#39;coef_se&#39;</span>])<span class="sc">:.2%}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>coef_p <span class="op">=</span> np.concatenate([[summary_p[<span class="st">&quot;intercept&quot;</span>]], summary_p[<span class="st">&quot;coef&quot;</span>]])</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>se_p <span class="op">=</span> np.concatenate([[summary_p[<span class="st">&quot;intercept_se&quot;</span>]], summary_p[<span class="st">&quot;coef_se&quot;</span>]])</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Estimated intercept:    </span><span class="sc">{</span>summary_p[<span class="st">&#39;intercept&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Estimated coefficients: </span><span class="sc">{</span>summary_p[<span class="st">&#39;coef&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Standard errors:        </span><span class="sc">{</span>se_p<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;3. Comparison&quot;</span>)</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>coef_diff <span class="op">=</span> np.<span class="bu">abs</span>(summary_m[<span class="st">&quot;coef&quot;</span>] <span class="op">-</span> coef_p)</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>se_diff <span class="op">=</span> np.<span class="bu">abs</span>(summary_m[<span class="st">&quot;se&quot;</span>] <span class="op">-</span> se_p)</span>
 <span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> np.<span class="bu">max</span>(coef_diff) <span class="op">&lt;</span> <span class="fl">1e-3</span> <span class="kw">and</span> np.<span class="bu">max</span>(se_diff <span class="op">/</span> summary_p[<span class="st">&quot;coef_se&quot;</span>]) <span class="op">&lt;</span> <span class="fl">0.05</span>:</span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;</span><span class="ch">\\</span><span class="st">nSUCCESS: MEstimator matches built-in Poisson!&quot;</span>)</span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;</span><span class="ch">\\</span><span class="st">nWARNING: Results differ more than expected&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Max coefficient difference: </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(coef_diff)<span class="sc">:.2e}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Max SE difference:          </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(se_diff)<span class="sc">:.2e}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f&quot;Max relative coef error:    &quot;</span></span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f&quot;</span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(coef_diff <span class="op">/</span> np.maximum(np.<span class="bu">abs</span>(coef_p), <span class="fl">1e-12</span>))<span class="sc">:.2%}</span><span class="ss">&quot;</span></span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Max relative SE error:      </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">max</span>(se_diff <span class="op">/</span> se_p)<span class="sc">:.2%}</span><span class="ss">&quot;</span>)</span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> np.<span class="bu">max</span>(coef_diff) <span class="op">&lt;</span> <span class="fl">1e-3</span> <span class="kw">and</span> np.<span class="bu">max</span>(se_diff <span class="op">/</span> se_p) <span class="op">&lt;</span> <span class="fl">0.05</span>:</span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;</span><span class="ch">\\</span><span class="st">nSUCCESS: MEstimator matches built-in Poisson!&quot;</span>)</span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;</span><span class="ch">\\</span><span class="st">nWARNING: Results differ more than expected&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>============================================================
 Poisson Regression Comparison
 ============================================================
+True intercept:    0.15
 True coefficients: [ 0.2  0.4 -0.6]
 
 1. Using MEstimator (general M-estimation framework)
 ------------------------------------------------------------
-    Call 1: theta=[0.1 0.1 0.1], obj=706.47, |grad|=637.84
-  Initial objective: 706.4695
-  Initial gradient norm: 637.8416
-    Call 2: theta=[0.1 0.1 0.1], obj=706.47, |grad|=637.84
-    Call 3: theta=[0.1 0.1 0.1], obj=706.47, |grad|=637.84
-    Call 4: theta=[  76.2919  304.9303 -554.9812], obj=167595826440.12, |grad|=141810668441.34
-    Call 5: theta=[  76.2919  304.9303 -554.9812], obj=167595826440.12, |grad|=141810668441.34
-    Call 20: theta=[ 0.1723  0.4634 -0.5647], obj=444.69, |grad|=30.15
-    Call 40: theta=[ 0.171   0.4532 -0.544 ], obj=444.34, |grad|=0.00
-Estimated coefficients: [ 0.171   0.4532 -0.544 ]
-Standard errors:        [0.0329 0.0328 0.0282]
+    Call 1: theta=[0.4474 0.1    0.1    0.1   ], obj=624.59, |grad|=781.46
+  Initial objective: 624.5944
+  Initial gradient norm: 781.4648
+    Call 2: theta=[0.4474 0.1    0.1    0.1   ], obj=624.59, |grad|=781.46
+    Call 3: theta=[0.4474 0.1    0.1    0.1   ], obj=624.59, |grad|=781.46
+    Call 4: theta=[   1.0535   79.3389  279.85   -725.2606], obj=169820124863.99, |grad|=223113598379.23
+    Call 5: theta=[   1.0535   79.3389  279.85   -725.2606], obj=169820124863.99, |grad|=223113598379.23
+    Call 20: theta=[ 0.2757  0.1558  0.3222 -0.4638], obj=343.69, |grad|=142.34
+    Call 40: theta=[ 0.173   0.1807  0.3903 -0.5907], obj=332.98, |grad|=0.00
+Estimated coefficients: [ 0.173   0.1807  0.3903 -0.5907]
+Standard errors:        [0.0374 0.0307 0.0318 0.03  ]
 
 2. Using built-in Poisson estimator
 ------------------------------------------------------------
-Estimated coefficients: [ 0.1709  0.4532 -0.544 ]
-Standard errors:        [0.0332 0.0318 0.0292]
+Estimated intercept:    0.1731653097473674
+Estimated coefficients: [ 0.1807  0.3902 -0.5905]
+Standard errors:        [0.0379 0.0305 0.0307 0.0309]
 
 3. Comparison
 ------------------------------------------------------------
-Max coefficient difference: 2.20e-05
-Max SE difference:          1.02e-03
-Max relative coef error:    0.01%
-Max relative SE error:      3.42%
+Max coefficient difference: 2.35e-04
+Max SE difference:          1.14e-03
+Max relative coef error:    0.12%
+Max relative SE error:      3.73%
 \nSUCCESS: MEstimator matches built-in Poisson!</code></pre>
 </div>
 </div>
 </section>
 <section id="bootstrap-the-custom-estimator" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="bootstrap-the-custom-estimator"><span class="header-section-number">3</span> Bootstrap The Custom Estimator</h2>
-<div id="2c6e5228" class="cell" data-execution_count="4">
+<div id="132b9342" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;4. Testing bootstrap (5 iterations)&quot;</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;-&quot;</span> <span class="op">*</span> <span class="dv">60</span>)</span>
@@ -5020,17 +5034,21 @@ Max relative SE error:      3.42%
 <pre><code>
 4. Testing bootstrap (5 iterations)
 ------------------------------------------------------------
-    Call 60: theta=[ 0.2078  0.4706 -0.5107], obj=436.10, |grad|=0.84
-    Call 80: theta=[10.4006 -1.5618 -8.1851], obj=23740829964.09, |grad|=44944894720.52
-    Call 100: theta=[ 0.2043  0.4397 -0.5694], obj=427.68, |grad|=0.00
-    Call 120: theta=[ 0.1429  0.4572 -0.5584], obj=420.47, |grad|=0.95
-    Call 140: theta=[ -5.7409  40.9367 -29.7048], obj=117252990998.23, |grad|=122678638301.82
-    Call 160: theta=[ 0.1605  0.4879 -0.567 ], obj=435.82, |grad|=0.01
-    Call 180: theta=[ 0.1169 -4.124  -5.8731], obj=1644195888.16, |grad|=4443514307.20
-    Call 200: theta=[ 0.173   0.3931 -0.5905], obj=451.20, |grad|=0.00
-Bootstrap draws shape: (5, 3)
-Bootstrap mean: [ 0.1777  0.4499 -0.5592]
-Bootstrap std:  [0.0253 0.0325 0.0263]</code></pre>
+    Call 60: theta=[ 0.1817  0.1899  0.4001 -0.5876], obj=307.03, |grad|=3.10
+    Call 80: theta=[ 0.186   0.1894  0.3988 -0.5841], obj=307.02, |grad|=0.00
+    Call 100: theta=[ 0.1933  0.1674  0.3994 -0.576 ], obj=336.76, |grad|=5.15
+    Call 120: theta=[ 0.1996  0.1683  0.3946 -0.5726], obj=336.74, |grad|=0.00
+    Call 140: theta=[ 0.1821  0.2107  0.3564 -0.624 ], obj=290.03, |grad|=2.90
+    Call 160: theta=[ 0.1788  0.2125  0.3579 -0.6255], obj=290.03, |grad|=0.00
+    Call 180: theta=[ 0.1788  0.2125  0.3579 -0.6255], obj=290.03, |grad|=0.00
+    Call 200: theta=[ 0.1788  0.2125  0.3579 -0.6255], obj=290.03, |grad|=0.00
+    Call 220: theta=[ 1.0819  0.6115 -0.421  -0.7755], obj=1967.77, |grad|=4099.39
+    Call 240: theta=[ 0.2156  0.1933  0.3563 -0.5809], obj=379.07, |grad|=0.01
+    Call 260: theta=[ 0.127   0.1761  0.3481 -0.5477], obj=405.09, |grad|=60.24
+    Call 280: theta=[ 0.1443  0.1801  0.3494 -0.5741], obj=404.13, |grad|=0.00
+Bootstrap draws shape: (5, 4)
+Bootstrap mean: [ 0.1848  0.1887  0.3714 -0.5875]
+Bootstrap std:  [0.0238 0.0147 0.0209 0.0195]</code></pre>
 </div>
 </div>
 

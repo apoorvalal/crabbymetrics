@@ -42,7 +42,7 @@ logits = intercept + x @ beta
 probs = 1.0 / (1.0 + np.exp(-logits))
 y = rng.binomial(1, probs).astype(np.int32)
 
-model = Logit(alpha=1.0, fit_intercept=True, max_iterations=200)
+model = Logit(alpha=1.0, max_iterations=200)
 model.fit(x, y)
 
 print("true intercept:", intercept)
