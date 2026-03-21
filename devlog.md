@@ -327,7 +327,7 @@ Each script:
 
 ## CI and releases
 
-- `wheels.yml` builds wheels for Linux/macOS/Windows and Python 3.10–3.12.
+- `wheels.yml` builds wheels for Linux/macOS and Python 3.10–3.14.
 - Tagging `vX.Y.Z` triggers release and attaches wheels to a GitHub Release.
 - Workflow includes `permissions: contents: write` so the GITHUB_TOKEN can create releases.
 

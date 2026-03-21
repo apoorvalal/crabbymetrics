@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "crabbymetrics"
 dynamic = ["version"]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = ["numpy"]
 
 [tool.maturin]

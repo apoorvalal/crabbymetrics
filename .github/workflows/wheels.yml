@@ -2,9 +2,10 @@ name: Build wheels
 
 on:
   push:
+    branches:
+      - master
     tags:
       - "v*"
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -12,6 +13,7 @@ permissions:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,12 +27,20 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Build wheels
+      - name: Build wheels (Linux)
+        if: runner.os == 'Linux'
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --interpreter python${{ matrix.python }}
+          manylinux: auto
+
+      - name: Build wheels (macOS)
+        if: runner.os == 'macOS'
         uses: PyO3/maturin-action@v1
         with:
           command: build
           args: --release --out dist
-          manylinux: auto
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
