@@ -19,11 +19,17 @@ execute:
 
 - [API reference](api.html): verified public surface, library sitrep, summary schemas, and runtime smoke checks.
 
+## Highlights
+
+- `PCA` and `KernelBasis` let you build richer right-hand sides before fitting the regression estimators.
+
 ## Examples
 
 - [OLS](examples/ols.html): baseline linear regression with HC1 standard errors.
 - [Fixed Effects OLS](examples/fixed-effects-ols.html): partial out one-way or multi-way categorical fixed effects with `within`, then estimate slopes without an intercept.
 - [Synthetic Control](examples/synthetic-control.html): simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.
+- [PCA And Kernel Basis](examples/pca-and-kernel-basis.html): linear low-rank compression for factor-style designs, plus nonlinear kernel features on a swiss roll.
+- [Richer Regression](examples/richer-regression.html): use `KernelBasis` and `PCA` to build a nonlinear right-hand side that beats raw OLS on a held-out test set.
 - [ElasticNet](examples/elastic-net.html): regularized linear regression.
 - [Logit](examples/logit.html): binary logistic regression.
 - [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.

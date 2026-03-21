@@ -22,6 +22,10 @@ website:
             text: Fixed Effects OLS
           - href: examples/synthetic-control.qmd
             text: Synthetic Control
+          - href: examples/pca-and-kernel-basis.qmd
+            text: PCA And Kernel Basis
+          - href: examples/richer-regression.qmd
+            text: Richer Regression
           - href: examples/elastic-net.qmd
             text: ElasticNet
           - href: examples/logit.qmd

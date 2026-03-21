@@ -19,7 +19,7 @@ execute:
 
 ## Overview
 
-`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: ten estimator classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` / `bootstrap` pattern.
+`crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: ten estimator classes, two transformer classes, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` pattern.
 
 The page below combines two things:
 
@@ -60,7 +60,7 @@ def html_table(headers, rows):
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
-- Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general `MEstimator`.
+- Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a callback-driven general `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
 - The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
 - `TwoSLS` is effectively a single-endogenous implementation today, even though `x_endog` is typed as a matrix.
@@ -82,6 +82,8 @@ classes = [
     cm.TwoSLS,
     cm.FTRL,
     cm.MEstimator,
+    cm.PCA,
+    cm.KernelBasis,
 ]
 
 rows = []
@@ -106,6 +108,7 @@ display(HTML(html_table(["Constructor", "Methods"], rows)))
 
 - Input features are always 2D NumPy arrays.
 - Regression targets use `float64` arrays.
+- `PCA` and `KernelBasis` fit on `x` alone and return transformed feature matrices that can be passed into the regression estimators.
 - `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
 - `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
@@ -207,6 +210,36 @@ display(
         html_table(
             ["Estimator", "Fit", "Predict", "Summary Keys", "Bootstrap", "Notes"],
             reference_rows,
+        )
+    )
+)
+```
+
+## Transformer Reference
+
+```{python}
+transformer_rows = [
+    [
+        "<code>PCA</code>",
+        "<code>fit(x)</code>",
+        "<code>transform(x)</code>, <code>fit_transform(x)</code>, <code>inverse_transform(scores)</code>",
+        "<code>n_components</code>, <code>n_features</code>, <code>whiten</code>, <code>components</code>, <code>mean</code>, <code>explained_variance</code>, <code>explained_variance_ratio</code>, <code>singular_values</code>",
+        "Principal-components basis estimated from <code>x</code> alone. Useful for principal-components regression and other low-rank pipelines.",
+    ],
+    [
+        "<code>KernelBasis</code>",
+        "<code>fit(x)</code>",
+        "<code>transform(x)</code>, <code>fit_transform(x)</code>",
+        "<code>kernel</code>, <code>n_train</code>, <code>n_features</code>, <code>bandwidth</code>, <code>coef0</code>, <code>degree</code>, <code>diagonal</code>",
+        "Stores the fitted training design and returns kernel features against that basis, so downstream regressions can work on nonlinear right-hand sides.",
+    ],
+]
+
+display(
+    HTML(
+        html_table(
+            ["Transformer", "Fit", "Transform", "Summary Keys", "Notes"],
+            transformer_rows,
         )
     )
 )

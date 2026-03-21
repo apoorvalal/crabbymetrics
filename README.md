@@ -6,6 +6,7 @@ Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focu
 
 ## Features
 - OLS, FixedEffectsOLS, SyntheticControl, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
+- PCA and KernelBasis for feature engineering before regression-style estimation
 - `fit`, `predict`, `summary`, `bootstrap`
 - HC1 standard errors where applicable
 
@@ -44,6 +45,7 @@ uv run maturin develop
 Package versioning is sourced from `Cargo.toml`. The Python package metadata is dynamic, and `commit_tag_release.sh` reads the crate version directly before creating the `vX.Y.Z` tag.
 
 Rendered examples and API docs live under `docs/`. Rebuild the site with `quarto render docs`.
+For the plotting examples, install the docs extra first: `uv sync --extra docs`.
 
 ## Wheels
 Wheels are platform-specific and included in GitHub releases. See the releases tab.

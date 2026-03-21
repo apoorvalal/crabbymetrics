@@ -3845,6 +3845,14 @@ vertical-align: -.125em;
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -3891,6 +3899,7 @@ vertical-align: -.125em;
    
   <ul class="collapse">
   <li><a href="#main-reference" id="toc-main-reference" class="nav-link active" data-scroll-target="#main-reference">Main Reference</a></li>
+  <li><a href="#highlights" id="toc-highlights" class="nav-link" data-scroll-target="#highlights">Highlights</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   </ul>
@@ -3925,12 +3934,20 @@ vertical-align: -.125em;
 <li><a href="api.html">API reference</a>: verified public surface, library sitrep, summary schemas, and runtime smoke checks.</li>
 </ul>
 </section>
+<section id="highlights" class="level2">
+<h2 class="anchored" data-anchor-id="highlights">Highlights</h2>
+<ul>
+<li><code>PCA</code> and <code>KernelBasis</code> let you build richer right-hand sides before fitting the regression estimators.</li>
+</ul>
+</section>
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>
 <ul>
 <li><a href="examples/ols.html">OLS</a>: baseline linear regression with HC1 standard errors.</li>
 <li><a href="examples/fixed-effects-ols.html">Fixed Effects OLS</a>: partial out one-way or multi-way categorical fixed effects with <code>within</code>, then estimate slopes without an intercept.</li>
 <li><a href="examples/synthetic-control.html">Synthetic Control</a>: simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.</li>
+<li><a href="examples/pca-and-kernel-basis.html">PCA And Kernel Basis</a>: linear low-rank compression for factor-style designs, plus nonlinear kernel features on a swiss roll.</li>
+<li><a href="examples/richer-regression.html">Richer Regression</a>: use <code>KernelBasis</code> and <code>PCA</code> to build a nonlinear right-hand side that beats raw OLS on a held-out test set.</li>
 <li><a href="examples/elastic-net.html">ElasticNet</a>: regularized linear regression.</li>
 <li><a href="examples/logit.html">Logit</a>: binary logistic regression.</li>
 <li><a href="examples/multinomial-logit.html">Multinomial Logit</a>: multiclass classification.</li>

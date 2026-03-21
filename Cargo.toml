@@ -1,6 +1,6 @@
 [package]
 name = "crabbymetrics"
-version = "0.3.1"
+version = "0.3.5"
 edition = "2021"
 
 [lib]
@@ -16,6 +16,8 @@ linfa-linear = "0.8.1"
 linfa-logistic = "0.8.1"
 linfa-elasticnet = "0.8.1"
 linfa-ftrl = "0.8.1"
+linfa-kernel = "0.8.1"
+linfa-reduction = "0.8.1"
 rand = "0.8"
 nalgebra = "0.33"
 argmin = "0.11"

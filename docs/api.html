@@ -3896,6 +3896,14 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -3946,14 +3954,15 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
   <li><a href="#public-surface" id="toc-public-surface" class="nav-link" data-scroll-target="#public-surface"><span class="header-section-number">3</span> Public Surface</a></li>
   <li><a href="#conventions" id="toc-conventions" class="nav-link" data-scroll-target="#conventions"><span class="header-section-number">4</span> Conventions</a></li>
   <li><a href="#estimator-reference" id="toc-estimator-reference" class="nav-link" data-scroll-target="#estimator-reference"><span class="header-section-number">5</span> Estimator Reference</a></li>
-  <li><a href="#verified-runtime-snapshot" id="toc-verified-runtime-snapshot" class="nav-link" data-scroll-target="#verified-runtime-snapshot"><span class="header-section-number">6</span> Verified Runtime Snapshot</a></li>
-  <li><a href="#usage-examples" id="toc-usage-examples" class="nav-link" data-scroll-target="#usage-examples"><span class="header-section-number">7</span> Usage Examples</a>
+  <li><a href="#transformer-reference" id="toc-transformer-reference" class="nav-link" data-scroll-target="#transformer-reference"><span class="header-section-number">6</span> Transformer Reference</a></li>
+  <li><a href="#verified-runtime-snapshot" id="toc-verified-runtime-snapshot" class="nav-link" data-scroll-target="#verified-runtime-snapshot"><span class="header-section-number">7</span> Verified Runtime Snapshot</a></li>
+  <li><a href="#usage-examples" id="toc-usage-examples" class="nav-link" data-scroll-target="#usage-examples"><span class="header-section-number">8</span> Usage Examples</a>
   <ul class="collapse">
-  <li><a href="#ols" id="toc-ols" class="nav-link" data-scroll-target="#ols"><span class="header-section-number">7.1</span> OLS</a></li>
-  <li><a href="#fixedeffectsols" id="toc-fixedeffectsols" class="nav-link" data-scroll-target="#fixedeffectsols"><span class="header-section-number">7.2</span> FixedEffectsOLS</a></li>
-  <li><a href="#mestimator" id="toc-mestimator" class="nav-link" data-scroll-target="#mestimator"><span class="header-section-number">7.3</span> MEstimator</a></li>
+  <li><a href="#ols" id="toc-ols" class="nav-link" data-scroll-target="#ols"><span class="header-section-number">8.1</span> OLS</a></li>
+  <li><a href="#fixedeffectsols" id="toc-fixedeffectsols" class="nav-link" data-scroll-target="#fixedeffectsols"><span class="header-section-number">8.2</span> FixedEffectsOLS</a></li>
+  <li><a href="#mestimator" id="toc-mestimator" class="nav-link" data-scroll-target="#mestimator"><span class="header-section-number">8.3</span> MEstimator</a></li>
   </ul></li>
-  <li><a href="#current-sharp-edges" id="toc-current-sharp-edges" class="nav-link" data-scroll-target="#current-sharp-edges"><span class="header-section-number">8</span> Current Sharp Edges</a></li>
+  <li><a href="#current-sharp-edges" id="toc-current-sharp-edges" class="nav-link" data-scroll-target="#current-sharp-edges"><span class="header-section-number">9</span> Current Sharp Edges</a></li>
   </ul>
 </nav>
     </div>
@@ -3982,13 +3991,13 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 <section id="overview" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="overview"><span class="header-section-number">1</span> Overview</h2>
-<p><code>crabbymetrics</code> is a compact Rust-backed econometrics library exposed to Python through <code>pyo3</code> and packaged with <code>maturin</code>. The public API is intentionally small: ten estimator classes, <code>numpy</code> arrays as the only runtime dependency, and a scikit-adjacent <code>fit</code> / <code>predict</code> / <code>summary</code> / <code>bootstrap</code> pattern.</p>
+<p><code>crabbymetrics</code> is a compact Rust-backed econometrics library exposed to Python through <code>pyo3</code> and packaged with <code>maturin</code>. The public API is intentionally small: ten estimator classes, two transformer classes, <code>numpy</code> arrays as the only runtime dependency, and a scikit-adjacent <code>fit</code> / <code>predict</code> / <code>summary</code> pattern.</p>
 <p>The page below combines two things:</p>
 <ul>
 <li>A sitrep on the current state of the library.</li>
 <li>A verified API reference rendered against the live Python module in this repository.</li>
 </ul>
-<div id="462f9926" class="cell" data-execution_count="1">
+<div id="ba1f9993" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -4026,7 +4035,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li>Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in <code>src/utils.rs</code>.</li>
 <li>Packaging is lean. The Python package declares only <code>numpy</code> at runtime, while native builds are handled by <code>maturin</code>.</li>
 <li>Release automation already exists in <code>.github/workflows/wheels.yml</code> for Linux and macOS wheels across Python 3.10 to 3.14.</li>
-<li>Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, and a callback-driven general <code>MEstimator</code>.</li>
+<li>Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a callback-driven general <code>MEstimator</code>, plus <code>PCA</code> and <code>KernelBasis</code> as design-matrix preprocessors.</li>
 <li>The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.</li>
 <li>The public API is consistent, but not fully uniform. <code>summary()</code> always returns a plain Python <code>dict</code>, yet the exact keys vary by estimator.</li>
 <li><code>TwoSLS</code> is effectively a single-endogenous implementation today, even though <code>x_endog</code> is typed as a matrix.</li>
@@ -4036,7 +4045,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="public-surface" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="public-surface"><span class="header-section-number">3</span> Public Surface</h2>
 <p>The table below is generated from the live module so the constructor and method signatures match the current build.</p>
-<div id="5ac4c081" class="cell" data-execution_count="2">
+<div id="5bc576ba" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>classes <span class="op">=</span> [</span>
@@ -4050,24 +4059,26 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    cm.TwoSLS,</span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    cm.FTRL,</span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    cm.MEstimator,</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> classes:</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> []</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method_name <span class="kw">in</span> <span class="bu">sorted</span>(name <span class="cf">for</span> name <span class="kw">in</span> <span class="bu">dir</span>(cls) <span class="cf">if</span> <span class="kw">not</span> name.startswith(<span class="st">&quot;_&quot;</span>)):</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        method <span class="op">=</span> <span class="bu">getattr</span>(cls, method_name)</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>        methods.append(</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(method_name)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(method)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        [</span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(cls.<span class="va">__name__</span>)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(cls)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span>,</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;&lt;br&gt;&quot;</span>.join(methods),</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>        ]</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>], rows)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    cm.PCA,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    cm.KernelBasis,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> classes:</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> []</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method_name <span class="kw">in</span> <span class="bu">sorted</span>(name <span class="cf">for</span> name <span class="kw">in</span> <span class="bu">dir</span>(cls) <span class="cf">if</span> <span class="kw">not</span> name.startswith(<span class="st">&quot;_&quot;</span>)):</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        method <span class="op">=</span> <span class="bu">getattr</span>(cls, method_name)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>        methods.append(</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(method_name)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(method)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(cls.<span class="va">__name__</span>)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(cls)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span>,</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;&lt;br&gt;&quot;</span>.join(methods),</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>], rows)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -4151,6 +4162,21 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <code>fit(self, /, data, theta0)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
+<tr class="odd">
+<td><code>PCA(n_components, whiten=False)</code></td>
+<td><code>fit(self, /, x)</code><br>
+<code>fit_transform(self, /, x)</code><br>
+<code>inverse_transform(self, /, scores)</code><br>
+<code>summary(self, /)</code><br>
+<code>transform(self, /, x)</code></td>
+</tr>
+<tr class="even">
+<td><code>KernelBasis(kernel=&#39;gaussian&#39;, bandwidth=0.5, coef0=1.0, degree=2.0)</code></td>
+<td><code>fit(self, /, x)</code><br>
+<code>fit_transform(self, /, x)</code><br>
+<code>summary(self, /)</code><br>
+<code>transform(self, /, x)</code></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -4161,6 +4187,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <ul>
 <li>Input features are always 2D NumPy arrays.</li>
 <li>Regression targets use <code>float64</code> arrays.</li>
+<li><code>PCA</code> and <code>KernelBasis</code> fit on <code>x</code> alone and return transformed feature matrices that can be passed into the regression estimators.</li>
 <li><code>FixedEffectsOLS.fit(x, fe, y)</code> expects <code>fe</code> to be a 2D <code>uint32</code> matrix of zero-based category codes, one column per factor.</li>
 <li><code>SyntheticControl.fit(donors, treated)</code> expects donor outcomes in an <code>(n_periods, n_donors)</code> matrix and a treated pre-period outcome vector of length <code>n_periods</code>.</li>
 <li><code>Logit</code>, <code>MultinomialLogit</code>, and <code>FTRL</code> expect integer class labels at fit time.</li>
@@ -4174,7 +4201,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="estimator-reference" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="estimator-reference"><span class="header-section-number">5</span> Estimator Reference</h2>
-<div id="7be47e2b" class="cell" data-execution_count="3">
+<div id="b6687141" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>reference_rows <span class="op">=</span> [</span>
@@ -4367,185 +4394,247 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </section>
-<section id="verified-runtime-snapshot" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">6</span> Verified Runtime Snapshot</h2>
-<p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
-<div id="52dd748a" class="cell" data-execution_count="4">
+<section id="transformer-reference" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="transformer-reference"><span class="header-section-number">6</span> Transformer Reference</h2>
+<div id="fd602529" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>runtime_rows <span class="op">=</span> []</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># OLS</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">40</span>, <span class="dv">3</span>))</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">2.0</span>, <span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">40</span>)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.OLS()</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;OLS&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>).shape),</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co"># FixedEffectsOLS</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">120</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>worker <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">20</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">12</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    x <span class="op">@</span> np.array([<span class="fl">1.1</span>, <span class="op">-</span><span class="fl">0.4</span>])</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">20</span>)[worker]</span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">12</span>)[firm]</span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span>n)</span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FixedEffectsOLS&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="co"># ElasticNet</span></span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.ElasticNet(penalty<span class="op">=</span><span class="fl">0.1</span>, l1_ratio<span class="op">=</span><span class="fl">0.5</span>)</span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ElasticNet&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a><span class="co"># SyntheticControl</span></span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>donors_pre <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">50</span>, <span class="dv">3</span>))</span>
-<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>weights_true <span class="op">=</span> np.array([<span class="fl">0.5</span>, <span class="fl">0.35</span>, <span class="fl">0.15</span>])</span>
-<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>treated_pre <span class="op">=</span> donors_pre <span class="op">@</span> weights_true</span>
-<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.SyntheticControl(max_iterations<span class="op">=</span><span class="dv">300</span>)</span>
-<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>model.fit(donors_pre, treated_pre)</span>
-<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;SyntheticControl&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Logit</span></span>
-<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">60</span>, <span class="dv">3</span>))</span>
-<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> <span class="op">-</span><span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.8</span>, <span class="op">-</span><span class="fl">0.5</span>, <span class="fl">1.2</span>])</span>
-<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>eta))</span>
-<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>y_bin <span class="op">=</span> rng.binomial(<span class="dv">1</span>, prob, size<span class="op">=</span><span class="dv">60</span>).astype(np.int32)</span>
-<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Logit(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_bin)</span>
-<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Logit&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a><span class="co"># MultinomialLogit</span></span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">2</span>))</span>
-<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> np.array([[<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.7</span>], [<span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.4</span>], [<span class="fl">0.2</span>, <span class="fl">0.6</span>]])</span>
-<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>intercept <span class="op">=</span> np.array([<span class="fl">0.2</span>, <span class="op">-</span><span class="fl">0.1</span>, <span class="fl">0.0</span>])</span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>logits <span class="op">=</span> x <span class="op">@</span> coef.T <span class="op">+</span> intercept</span>
-<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>weights <span class="op">=</span> np.exp(logits <span class="op">-</span> logits.<span class="bu">max</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>))</span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> weights <span class="op">/</span> weights.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>y_multi <span class="op">=</span> np.array([rng.choice(<span class="dv">3</span>, p<span class="op">=</span>row) <span class="cf">for</span> row <span class="kw">in</span> prob], dtype<span class="op">=</span>np.int32)</span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MultinomialLogit(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_multi)</span>
-<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MultinomialLogit&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a><span class="co"># Poisson</span></span>
-<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">70</span>, <span class="dv">2</span>))</span>
-<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(<span class="fl">0.1</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.2</span>]))</span>
-<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>y_pois <span class="op">=</span> rng.poisson(mu).astype(<span class="bu">float</span>)</span>
-<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_pois)</span>
-<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Poisson&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a><span class="co"># TwoSLS</span></span>
-<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">80</span></span>
-<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
-<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>x_exog <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
-<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
-<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> (<span class="fl">0.9</span> <span class="op">*</span> z[:, <span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> u <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span>n)).reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
-<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>y_iv <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> <span class="fl">1.3</span> <span class="op">*</span> x_endog[:, <span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.6</span> <span class="op">*</span> x_exog[:, <span class="dv">0</span>] <span class="op">+</span> u <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span>n)</span>
-<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.TwoSLS()</span>
-<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y_iv)</span>
-<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;TwoSLS&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a><span class="co"># FTRL</span></span>
-<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">4</span>))</span>
-<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> x <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>, <span class="fl">0.3</span>])</span>
-<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>eta))</span>
-<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>y_ftrl <span class="op">=</span> rng.binomial(<span class="dv">1</span>, prob, size<span class="op">=</span><span class="dv">80</span>).astype(np.int32)</span>
-<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FTRL()</span>
-<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_ftrl)</span>
-<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FTRL&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a><span class="co"># MEstimator</span></span>
-<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_objective(theta, data):</span>
-<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
-<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>    indices <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
-<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a>    Xb <span class="op">=</span> X[indices]</span>
-<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a>    yb <span class="op">=</span> y[indices]</span>
-<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> yb <span class="op">-</span> Xb <span class="op">@</span> theta</span>
-<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(residual<span class="op">**</span><span class="dv">2</span>), <span class="op">-</span>(Xb.T <span class="op">@</span> residual)</span>
-<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_scores(theta, data):</span>
-<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
-<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> y <span class="op">-</span> X <span class="op">@</span> theta</span>
-<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>X <span class="op">*</span> residual[:, <span class="va">None</span>]</span>
-<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">50</span>, <span class="dv">3</span>))</span>
-<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">50</span>)</span>
-<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(ols_objective, ols_scores, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;X&quot;</span>: x, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: <span class="bu">len</span>(y)}, np.zeros(x.shape[<span class="dv">1</span>]))</span>
-<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
-<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MEstimator&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
-<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
-<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Estimator&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Bootstrap Shape&quot;</span>], runtime_rows)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>transformer_rows <span class="op">=</span> [</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;PCA&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;transform(x)&lt;/code&gt;, &lt;code&gt;fit_transform(x)&lt;/code&gt;, &lt;code&gt;inverse_transform(scores)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;n_components&lt;/code&gt;, &lt;code&gt;n_features&lt;/code&gt;, &lt;code&gt;whiten&lt;/code&gt;, &lt;code&gt;components&lt;/code&gt;, &lt;code&gt;mean&lt;/code&gt;, &lt;code&gt;explained_variance&lt;/code&gt;, &lt;code&gt;explained_variance_ratio&lt;/code&gt;, &lt;code&gt;singular_values&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Principal-components basis estimated from &lt;code&gt;x&lt;/code&gt; alone. Useful for principal-components regression and other low-rank pipelines.&quot;</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;KernelBasis&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;transform(x)&lt;/code&gt;, &lt;code&gt;fit_transform(x)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;kernel&lt;/code&gt;, &lt;code&gt;n_train&lt;/code&gt;, &lt;code&gt;n_features&lt;/code&gt;, &lt;code&gt;bandwidth&lt;/code&gt;, &lt;code&gt;coef0&lt;/code&gt;, &lt;code&gt;degree&lt;/code&gt;, &lt;code&gt;diagonal&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Stores the fitted training design and returns kernel features against that basis, so downstream regressions can work on nonlinear right-hand sides.&quot;</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>            [<span class="st">&quot;Transformer&quot;</span>, <span class="st">&quot;Fit&quot;</span>, <span class="st">&quot;Transform&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Notes&quot;</span>],</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>            transformer_rows,</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">Transformer</th>
+<th data-quarto-table-cell-role="th">Fit</th>
+<th data-quarto-table-cell-role="th">Transform</th>
+<th data-quarto-table-cell-role="th">Summary Keys</th>
+<th data-quarto-table-cell-role="th">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>PCA</code></td>
+<td><code>fit(x)</code></td>
+<td><code>transform(x)</code>, <code>fit_transform(x)</code>, <code>inverse_transform(scores)</code></td>
+<td><code>n_components</code>, <code>n_features</code>, <code>whiten</code>, <code>components</code>, <code>mean</code>, <code>explained_variance</code>, <code>explained_variance_ratio</code>, <code>singular_values</code></td>
+<td>Principal-components basis estimated from <code>x</code> alone. Useful for principal-components regression and other low-rank pipelines.</td>
+</tr>
+<tr class="even">
+<td><code>KernelBasis</code></td>
+<td><code>fit(x)</code></td>
+<td><code>transform(x)</code>, <code>fit_transform(x)</code></td>
+<td><code>kernel</code>, <code>n_train</code>, <code>n_features</code>, <code>bandwidth</code>, <code>coef0</code>, <code>degree</code>, <code>diagonal</code></td>
+<td>Stores the fitted training design and returns kernel features against that basis, so downstream regressions can work on nonlinear right-hand sides.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="verified-runtime-snapshot" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">7</span> Verified Runtime Snapshot</h2>
+<p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
+<div id="ddb691aa" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>runtime_rows <span class="op">=</span> []</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># OLS</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">40</span>, <span class="dv">3</span>))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">2.0</span>, <span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">40</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.OLS()</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;OLS&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>).shape),</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co"># FixedEffectsOLS</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">120</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>worker <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">20</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">12</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    x <span class="op">@</span> np.array([<span class="fl">1.1</span>, <span class="op">-</span><span class="fl">0.4</span>])</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">20</span>)[worker]</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">12</span>)[firm]</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span>n)</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FixedEffectsOLS&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="co"># ElasticNet</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.ElasticNet(penalty<span class="op">=</span><span class="fl">0.1</span>, l1_ratio<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ElasticNet&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="co"># SyntheticControl</span></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>donors_pre <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">50</span>, <span class="dv">3</span>))</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>weights_true <span class="op">=</span> np.array([<span class="fl">0.5</span>, <span class="fl">0.35</span>, <span class="fl">0.15</span>])</span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a>treated_pre <span class="op">=</span> donors_pre <span class="op">@</span> weights_true</span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.SyntheticControl(max_iterations<span class="op">=</span><span class="dv">300</span>)</span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>model.fit(donors_pre, treated_pre)</span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;SyntheticControl&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Logit</span></span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">60</span>, <span class="dv">3</span>))</span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> <span class="op">-</span><span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.8</span>, <span class="op">-</span><span class="fl">0.5</span>, <span class="fl">1.2</span>])</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>eta))</span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>y_bin <span class="op">=</span> rng.binomial(<span class="dv">1</span>, prob, size<span class="op">=</span><span class="dv">60</span>).astype(np.int32)</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Logit(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_bin)</span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Logit&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a><span class="co"># MultinomialLogit</span></span>
+<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">2</span>))</span>
+<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> np.array([[<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.7</span>], [<span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.4</span>], [<span class="fl">0.2</span>, <span class="fl">0.6</span>]])</span>
+<span id="cb5-82"><a href="#cb5-82" aria-hidden="true" tabindex="-1"></a>intercept <span class="op">=</span> np.array([<span class="fl">0.2</span>, <span class="op">-</span><span class="fl">0.1</span>, <span class="fl">0.0</span>])</span>
+<span id="cb5-83"><a href="#cb5-83" aria-hidden="true" tabindex="-1"></a>logits <span class="op">=</span> x <span class="op">@</span> coef.T <span class="op">+</span> intercept</span>
+<span id="cb5-84"><a href="#cb5-84" aria-hidden="true" tabindex="-1"></a>weights <span class="op">=</span> np.exp(logits <span class="op">-</span> logits.<span class="bu">max</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>))</span>
+<span id="cb5-85"><a href="#cb5-85" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> weights <span class="op">/</span> weights.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-86"><a href="#cb5-86" aria-hidden="true" tabindex="-1"></a>y_multi <span class="op">=</span> np.array([rng.choice(<span class="dv">3</span>, p<span class="op">=</span>row) <span class="cf">for</span> row <span class="kw">in</span> prob], dtype<span class="op">=</span>np.int32)</span>
+<span id="cb5-87"><a href="#cb5-87" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MultinomialLogit(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb5-88"><a href="#cb5-88" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_multi)</span>
+<span id="cb5-89"><a href="#cb5-89" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-90"><a href="#cb5-90" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-91"><a href="#cb5-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MultinomialLogit&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-92"><a href="#cb5-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-93"><a href="#cb5-93" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-94"><a href="#cb5-94" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-95"><a href="#cb5-95" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-96"><a href="#cb5-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-97"><a href="#cb5-97" aria-hidden="true" tabindex="-1"></a><span class="co"># Poisson</span></span>
+<span id="cb5-98"><a href="#cb5-98" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">70</span>, <span class="dv">2</span>))</span>
+<span id="cb5-99"><a href="#cb5-99" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(<span class="fl">0.1</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.2</span>]))</span>
+<span id="cb5-100"><a href="#cb5-100" aria-hidden="true" tabindex="-1"></a>y_pois <span class="op">=</span> rng.poisson(mu).astype(<span class="bu">float</span>)</span>
+<span id="cb5-101"><a href="#cb5-101" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb5-102"><a href="#cb5-102" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_pois)</span>
+<span id="cb5-103"><a href="#cb5-103" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-104"><a href="#cb5-104" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-105"><a href="#cb5-105" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Poisson&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-106"><a href="#cb5-106" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-107"><a href="#cb5-107" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-108"><a href="#cb5-108" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-109"><a href="#cb5-109" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-110"><a href="#cb5-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-111"><a href="#cb5-111" aria-hidden="true" tabindex="-1"></a><span class="co"># TwoSLS</span></span>
+<span id="cb5-112"><a href="#cb5-112" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">80</span></span>
+<span id="cb5-113"><a href="#cb5-113" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
+<span id="cb5-114"><a href="#cb5-114" aria-hidden="true" tabindex="-1"></a>x_exog <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
+<span id="cb5-115"><a href="#cb5-115" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb5-116"><a href="#cb5-116" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> (<span class="fl">0.9</span> <span class="op">*</span> z[:, <span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> u <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span>n)).reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb5-117"><a href="#cb5-117" aria-hidden="true" tabindex="-1"></a>y_iv <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> <span class="fl">1.3</span> <span class="op">*</span> x_endog[:, <span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.6</span> <span class="op">*</span> x_exog[:, <span class="dv">0</span>] <span class="op">+</span> u <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span>n)</span>
+<span id="cb5-118"><a href="#cb5-118" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.TwoSLS()</span>
+<span id="cb5-119"><a href="#cb5-119" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y_iv)</span>
+<span id="cb5-120"><a href="#cb5-120" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-121"><a href="#cb5-121" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-122"><a href="#cb5-122" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;TwoSLS&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-123"><a href="#cb5-123" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-124"><a href="#cb5-124" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-125"><a href="#cb5-125" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-126"><a href="#cb5-126" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-127"><a href="#cb5-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-128"><a href="#cb5-128" aria-hidden="true" tabindex="-1"></a><span class="co"># FTRL</span></span>
+<span id="cb5-129"><a href="#cb5-129" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">4</span>))</span>
+<span id="cb5-130"><a href="#cb5-130" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> x <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>, <span class="fl">0.3</span>])</span>
+<span id="cb5-131"><a href="#cb5-131" aria-hidden="true" tabindex="-1"></a>prob <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>eta))</span>
+<span id="cb5-132"><a href="#cb5-132" aria-hidden="true" tabindex="-1"></a>y_ftrl <span class="op">=</span> rng.binomial(<span class="dv">1</span>, prob, size<span class="op">=</span><span class="dv">80</span>).astype(np.int32)</span>
+<span id="cb5-133"><a href="#cb5-133" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FTRL()</span>
+<span id="cb5-134"><a href="#cb5-134" aria-hidden="true" tabindex="-1"></a>model.fit(x, y_ftrl)</span>
+<span id="cb5-135"><a href="#cb5-135" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-136"><a href="#cb5-136" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-137"><a href="#cb5-137" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FTRL&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-138"><a href="#cb5-138" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-139"><a href="#cb5-139" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-140"><a href="#cb5-140" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-141"><a href="#cb5-141" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-142"><a href="#cb5-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-143"><a href="#cb5-143" aria-hidden="true" tabindex="-1"></a><span class="co"># MEstimator</span></span>
+<span id="cb5-144"><a href="#cb5-144" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_objective(theta, data):</span>
+<span id="cb5-145"><a href="#cb5-145" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
+<span id="cb5-146"><a href="#cb5-146" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb5-147"><a href="#cb5-147" aria-hidden="true" tabindex="-1"></a>    indices <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
+<span id="cb5-148"><a href="#cb5-148" aria-hidden="true" tabindex="-1"></a>    Xb <span class="op">=</span> X[indices]</span>
+<span id="cb5-149"><a href="#cb5-149" aria-hidden="true" tabindex="-1"></a>    yb <span class="op">=</span> y[indices]</span>
+<span id="cb5-150"><a href="#cb5-150" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> yb <span class="op">-</span> Xb <span class="op">@</span> theta</span>
+<span id="cb5-151"><a href="#cb5-151" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(residual<span class="op">**</span><span class="dv">2</span>), <span class="op">-</span>(Xb.T <span class="op">@</span> residual)</span>
+<span id="cb5-152"><a href="#cb5-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-153"><a href="#cb5-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-154"><a href="#cb5-154" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_scores(theta, data):</span>
+<span id="cb5-155"><a href="#cb5-155" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
+<span id="cb5-156"><a href="#cb5-156" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb5-157"><a href="#cb5-157" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> y <span class="op">-</span> X <span class="op">@</span> theta</span>
+<span id="cb5-158"><a href="#cb5-158" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>X <span class="op">*</span> residual[:, <span class="va">None</span>]</span>
+<span id="cb5-159"><a href="#cb5-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-160"><a href="#cb5-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-161"><a href="#cb5-161" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">50</span>, <span class="dv">3</span>))</span>
+<span id="cb5-162"><a href="#cb5-162" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">50</span>)</span>
+<span id="cb5-163"><a href="#cb5-163" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(ols_objective, ols_scores, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb5-164"><a href="#cb5-164" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;X&quot;</span>: x, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: <span class="bu">len</span>(y)}, np.zeros(x.shape[<span class="dv">1</span>]))</span>
+<span id="cb5-165"><a href="#cb5-165" aria-hidden="true" tabindex="-1"></a>runtime_rows.append(</span>
+<span id="cb5-166"><a href="#cb5-166" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb5-167"><a href="#cb5-167" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MEstimator&lt;/code&gt;&quot;</span>,</span>
+<span id="cb5-168"><a href="#cb5-168" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;, &quot;</span>.join(model.summary().keys()),</span>
+<span id="cb5-169"><a href="#cb5-169" aria-hidden="true" tabindex="-1"></a>        <span class="bu">str</span>(model.bootstrap(<span class="dv">3</span>, seed<span class="op">=</span><span class="dv">1</span>).shape),</span>
+<span id="cb5-170"><a href="#cb5-170" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-171"><a href="#cb5-171" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-172"><a href="#cb5-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-173"><a href="#cb5-173" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Estimator&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Bootstrap Shape&quot;</span>], runtime_rows)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -4612,27 +4701,27 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </section>
-<section id="usage-examples" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">7</span> Usage Examples</h2>
-<section id="ols" class="level3" data-number="7.1">
-<h3 data-number="7.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">7.1</span> OLS</h3>
-<div id="1f847f47" class="cell" data-execution_count="5">
+<section id="usage-examples" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">8</span> Usage Examples</h2>
+<section id="ols" class="level3" data-number="8.1">
+<h3 data-number="8.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">8.1</span> OLS</h3>
+<div id="45a406e6" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">200</span>, <span class="dv">3</span>))</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.5</span>])</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> x <span class="op">@</span> beta <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.OLS()</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>bootstrap_draws <span class="op">=</span> model.bootstrap(<span class="dv">5</span>, seed<span class="op">=</span><span class="dv">42</span>)</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>summary, bootstrap_draws[:<span class="dv">2</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">200</span>, <span class="dv">3</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.5</span>])</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> x <span class="op">@</span> beta <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.OLS()</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>bootstrap_draws <span class="op">=</span> model.bootstrap(<span class="dv">5</span>, seed<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>summary, bootstrap_draws[:<span class="dv">2</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="5">
+<div class="cell-output cell-output-display" data-execution_count="6">
 <pre><code>({&#39;intercept&#39;: 0.39277223269364075,
   &#39;coef&#39;: array([ 1.18200348, -0.71923052,  0.51060512]),
   &#39;intercept_se&#39;: 0.014288725808334476,
@@ -4642,92 +4731,92 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </section>
-<section id="fixedeffectsols" class="level3" data-number="7.2">
-<h3 data-number="7.2" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">7.2</span> FixedEffectsOLS</h3>
+<section id="fixedeffectsols" class="level3" data-number="8.2">
+<h3 data-number="8.2" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">8.2</span> FixedEffectsOLS</h3>
 <p>This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with <code>within</code>, then regress the residualized outcome on the residualized regressors with no intercept.</p>
-<div id="c30b1132" class="cell" data-execution_count="6">
+<div id="8dcf93b7" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>worker <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">30</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">15</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.6</span>])</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    x <span class="op">@</span> beta</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">30</span>)[worker]</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span><span class="dv">15</span>)[firm]</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.15</span>, size<span class="op">=</span>n)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>model.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>worker <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">30</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">15</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.6</span>])</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    x <span class="op">@</span> beta</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">30</span>)[worker]</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span><span class="dv">15</span>)[firm]</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.15</span>, size<span class="op">=</span>n)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>model.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="6">
+<div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{&#39;coef&#39;: array([ 1.01369715, -0.60410017]),
  &#39;coef_se&#39;: array([0.00809961, 0.00688549])}</code></pre>
 </div>
 </div>
 </section>
-<section id="mestimator" class="level3" data-number="7.3">
-<h3 data-number="7.3" class="anchored" data-anchor-id="mestimator"><span class="header-section-number">7.3</span> MEstimator</h3>
+<section id="mestimator" class="level3" data-number="8.3">
+<h3 data-number="8.3" class="anchored" data-anchor-id="mestimator"><span class="header-section-number">8.3</span> MEstimator</h3>
 <p>This is the lowest-level public interface in the library. The callback contract matters more than the optimizer choice:</p>
 <ul>
 <li><code>objective_fn(theta, data)</code> must return <code>(objective_value, gradient_vector)</code>.</li>
 <li><code>score_fn(theta, data)</code> must return an <code>(n_obs, n_params)</code> matrix of per-observation scores.</li>
 <li>For bootstrap support, the <code>data</code> dictionary must include <code>n</code>, and user code should respect an optional <code>indices</code> key.</li>
 </ul>
-<div id="c5ec259f" class="cell" data-execution_count="7">
+<div id="e2bd80b2" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_objective(theta, data):</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    indices <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    Xb <span class="op">=</span> X[indices]</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    yb <span class="op">=</span> y[indices]</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> yb <span class="op">-</span> Xb <span class="op">@</span> theta</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    objective <span class="op">=</span> <span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(residual<span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    gradient <span class="op">=</span> <span class="op">-</span>(Xb.T <span class="op">@</span> residual)</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> objective, gradient</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_scores(theta, data):</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> y <span class="op">-</span> X <span class="op">@</span> theta</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>X <span class="op">*</span> residual[:, <span class="va">None</span>]</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">2</span>))</span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">@</span> np.array([<span class="fl">1.5</span>, <span class="op">-</span><span class="fl">0.4</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(</span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    objective_fn<span class="op">=</span>ols_objective,</span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>    score_fn<span class="op">=</span>ols_scores,</span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">200</span>,</span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;X&quot;</span>: X, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: <span class="bu">len</span>(y)}, np.zeros(X.shape[<span class="dv">1</span>]))</span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>model.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_objective(theta, data):</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    indices <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    Xb <span class="op">=</span> X[indices]</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    yb <span class="op">=</span> y[indices]</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> yb <span class="op">-</span> Xb <span class="op">@</span> theta</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    objective <span class="op">=</span> <span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(residual<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    gradient <span class="op">=</span> <span class="op">-</span>(Xb.T <span class="op">@</span> residual)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> objective, gradient</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_scores(theta, data):</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> y <span class="op">-</span> X <span class="op">@</span> theta</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>X <span class="op">*</span> residual[:, <span class="va">None</span>]</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">2</span>))</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">@</span> np.array([<span class="fl">1.5</span>, <span class="op">-</span><span class="fl">0.4</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    objective_fn<span class="op">=</span>ols_objective,</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    score_fn<span class="op">=</span>ols_scores,</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">200</span>,</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;X&quot;</span>: X, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: <span class="bu">len</span>(y)}, np.zeros(X.shape[<span class="dv">1</span>]))</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>model.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="7">
+<div class="cell-output cell-output-display" data-execution_count="8">
 <pre><code>{&#39;coef&#39;: array([ 1.49784531, -0.39974307]),
  &#39;se&#39;: array([0.60847816, 0.63437929])}</code></pre>
 </div>
 </div>
 </section>
 </section>
-<section id="current-sharp-edges" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="current-sharp-edges"><span class="header-section-number">8</span> Current Sharp Edges</h2>
+<section id="current-sharp-edges" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="current-sharp-edges"><span class="header-section-number">9</span> Current Sharp Edges</h2>
 <ul>
 <li>There is still no rich result object layer. Consumers should expect raw dictionaries and NumPy arrays.</li>
 <li>Most estimators do not expose fit statistics or formula handling.</li>

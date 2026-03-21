@@ -2,8 +2,6 @@
 title: "Multinomial Logit Example"
 format:
   html:
-    toc: true
-    toc-depth: 3
     number-sections: true
     embed-resources: true
     page-layout: full

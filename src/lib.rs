@@ -3,7 +3,7 @@ mod utils;
 
 use crate::estimators::{
     ElasticNet, FixedEffectsOLS, Logit, MEstimator, MultinomialLogit, Poisson,
-    SyntheticControl, TwoSLS, FTRL, OLS,
+    SyntheticControl, TwoSLS, FTRL, KernelBasis, OLS, PcaTransformer,
 };
 use pyo3::prelude::*;
 
@@ -19,5 +19,7 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SyntheticControl>()?;
     m.add_class::<FTRL>()?;
     m.add_class::<MEstimator>()?;
+    m.add_class::<PcaTransformer>()?;
+    m.add_class::<KernelBasis>()?;
     Ok(())
 }
