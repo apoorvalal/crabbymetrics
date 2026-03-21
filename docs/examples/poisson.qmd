@@ -1,0 +1,51 @@
+---
+title: "Poisson Example"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page mirrors `examples/poisson_example.py`.
+
+## Fit A Poisson Model
+
+```{python}
+import numpy as np
+from pprint import pprint
+
+from crabbymetrics import Poisson
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+
+
+
+```{python}
+rng = np.random.default_rng(4)
+n = 700
+k = 2
+beta = np.array([0.4, -0.6])
+intercept = 0.2
+
+x = rng.normal(size=(n, k))
+logits = intercept + x @ beta
+mu = np.exp(logits)
+y = rng.poisson(mu).astype(float)
+
+model = Poisson(alpha=0.0, max_iterations=200)
+model.fit(x, y)
+
+print("true intercept:", intercept)
+print("true coef:", beta)
+pprint(model.summary())
+```

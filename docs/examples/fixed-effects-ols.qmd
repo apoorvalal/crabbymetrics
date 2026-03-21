@@ -1,0 +1,84 @@
+---
+title: "Fixed Effects OLS Example"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page shows how to estimate slope coefficients after partialling out one-way or multi-way categorical fixed effects with `within`.
+
+## Simulate A Two-Way Fixed Effects Problem
+
+```{python}
+import numpy as np
+from pprint import pprint
+
+from crabbymetrics import FixedEffectsOLS, OLS
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+```{python}
+rng = np.random.default_rng(11)
+n = 800
+beta_true = np.array([1.2, -0.9])
+
+worker = rng.integers(0, 40, size=n, dtype=np.uint32)
+firm = rng.integers(0, 18, size=n, dtype=np.uint32)
+fe = np.column_stack([worker, firm]).astype(np.uint32)
+
+x = rng.normal(size=(n, 2))
+worker_effect = rng.normal(scale=0.8, size=40)
+firm_effect = rng.normal(scale=0.5, size=18)
+y = (
+    x @ beta_true
+    + worker_effect[worker]
+    + firm_effect[firm]
+    + rng.normal(scale=0.1, size=n)
+)
+
+model = FixedEffectsOLS()
+model.fit(x, fe, y)
+
+print("true coef:", beta_true)
+pprint(model.summary())
+```
+
+## Compare To Explicit Dummy OLS
+
+`FixedEffectsOLS` is doing the Frisch-Waugh-Lovell version of the same regression. A useful check is to compare it against an OLS fit with worker and firm dummies added directly to the design matrix.
+
+```{python}
+def dummy_block(levels):
+    n_levels = int(levels.max()) + 1
+    block = np.zeros((levels.shape[0], max(n_levels - 1, 0)))
+    for level in range(1, n_levels):
+        block[:, level - 1] = (levels == level).astype(float)
+    return block
+
+
+dummy_design = np.column_stack([x, dummy_block(worker), dummy_block(firm)])
+
+baseline = OLS()
+baseline.fit(dummy_design, y)
+baseline_summary = baseline.summary()
+
+print("FixedEffectsOLS slopes:", model.summary()["coef"])
+print("Dummy OLS slopes:      ", baseline_summary["coef"][: x.shape[1]])
+print("Absolute difference:   ", np.abs(model.summary()["coef"] - baseline_summary["coef"][: x.shape[1]]))
+```
+
+## Notes
+
+- `fe` must be a 2D `uint32` matrix with one column per factor.
+- Category codes should be zero-based and contiguous within each factor.
+- The estimator absorbs the constant, so there is no intercept in the summary and no `predict()` method.

@@ -1,0 +1,36 @@
+project:
+  type: website
+  output-dir: .
+  render:
+    - index.qmd
+    - api.qmd
+    - examples/*.qmd
+
+website:
+  title: "crabbymetrics"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: api.qmd
+        text: API
+      - text: Examples
+        menu:
+          - href: examples/ols.qmd
+            text: OLS
+          - href: examples/fixed-effects-ols.qmd
+            text: Fixed Effects OLS
+          - href: examples/elastic-net.qmd
+            text: ElasticNet
+          - href: examples/logit.qmd
+            text: Logit
+          - href: examples/multinomial-logit.qmd
+            text: Multinomial Logit
+          - href: examples/poisson.qmd
+            text: Poisson
+          - href: examples/twosls.qmd
+            text: TwoSLS
+          - href: examples/ftrl.qmd
+            text: FTRL
+          - href: examples/mestimator-poisson.qmd
+            text: MEstimator Poisson

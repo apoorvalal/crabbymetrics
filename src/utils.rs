@@ -1,5 +1,5 @@
-use ndarray::{concatenate, Array1, Array2, Axis};
 use nalgebra::DMatrix;
+use ndarray::{concatenate, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
@@ -17,7 +17,9 @@ pub fn invert_matrix(a: &Array2<f64>) -> Result<Array2<f64>, String> {
     }
     let data: Vec<f64> = a.iter().copied().collect();
     let mat = DMatrix::from_row_slice(n, n, &data);
-    let inv = mat.try_inverse().ok_or_else(|| "matrix is singular".to_string())?;
+    let inv = mat
+        .try_inverse()
+        .ok_or_else(|| "matrix is singular".to_string())?;
     let mut out = Array2::<f64>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
@@ -180,6 +182,14 @@ pub fn take_rows_vec(y: &Array1<f64>, idx: &[usize]) -> Array1<f64> {
     out
 }
 
+pub fn take_rows_u32(x: &Array2<u32>, idx: &[usize]) -> Array2<u32> {
+    let mut out = Array2::<u32>::zeros((idx.len(), x.ncols()));
+    for (i, &row) in idx.iter().enumerate() {
+        out.row_mut(i).assign(&x.row(row));
+    }
+    out
+}
+
 pub fn take_rows_i32(y: &Array1<i32>, idx: &[usize]) -> Array1<i32> {
     let mut out = Array1::<i32>::zeros(idx.len());
     for (i, &row) in idx.iter().enumerate() {
@@ -197,6 +207,15 @@ pub fn to_array1_i32(x: &PyReadonlyArray1<i32>) -> Array1<i32> {
 }
 
 pub fn to_array2(x: &PyReadonlyArray2<f64>) -> Array2<f64> {
+    let shape = x.shape();
+    let mut data = Vec::with_capacity(shape[0] * shape[1]);
+    for v in x.as_array().iter() {
+        data.push(*v);
+    }
+    Array2::from_shape_vec((shape[0], shape[1]), data).expect("invalid shape")
+}
+
+pub fn to_array2_u32(x: &PyReadonlyArray2<u32>) -> Array2<u32> {
     let shape = x.shape();
     let mut data = Vec::with_capacity(shape[0] * shape[1]);
     for v in x.as_array().iter() {

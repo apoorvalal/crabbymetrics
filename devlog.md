@@ -367,4 +367,4 @@ maturin develop
 ## Release helper script
 
 `commit_tag_release.sh`:
-- `./commit_tag_release.sh 0.0.1` will commit, push, tag `v0.0.1`, and push the tag to trigger release.
+- `./commit_tag_release.sh` reads the version from `Cargo.toml`, creates the matching `vX.Y.Z` tag, and pushes that tag to trigger release.

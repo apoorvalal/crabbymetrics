@@ -1,316 +1,20 @@
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, fisher_cov_multinomial,
-    fisher_cov_poisson, hc1_cov, invert_matrix, pyarray1_from_f64, pyarray1_from_i32,
-    pyarray2_from_f64, take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32,
-    to_array2,
+    fisher_cov_poisson, invert_matrix, pyarray1_from_f64, pyarray1_from_i32, pyarray2_from_f64,
+    take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32, to_array2,
 };
 use argmin::core::{CostFunction, Executor, Gradient, Hessian};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::newton::NewtonCG;
 use argmin::solver::quasinewton::LBFGS;
-use linfa::prelude::{Fit, FitWith, Predict};
+use linfa::prelude::{Fit, Predict};
 use linfa::Dataset;
-use linfa_elasticnet::ElasticNet as LinfaElasticNet;
-use linfa_ftrl::Ftrl as LinfaFtrl;
-use linfa_linear::LinearRegression as LinfaLinearRegression;
 use linfa_logistic::{LogisticRegression as LinfaLogisticRegression, MultiLogisticRegression};
 use ndarray::{array, concatenate, s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rand::{Rng, SeedableRng};
-
-#[pyclass]
-pub struct OLS {
-    fit_intercept: bool,
-    model: Option<linfa_linear::FittedLinearRegression<f64>>,
-    x: Option<Array2<f64>>,
-    y: Option<Array1<f64>>,
-}
-
-#[pymethods]
-impl OLS {
-    #[new]
-    #[pyo3(signature = (fit_intercept=true))]
-    fn new(fit_intercept: bool) -> Self {
-        Self {
-            fit_intercept,
-            model: None,
-            x: None,
-            y: None,
-        }
-    }
-
-    fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
-        let x = to_array2(&x);
-        let y = to_array1(&y);
-        if x.nrows() != y.len() {
-            return Err(PyValueError::new_err("x rows must match y length"));
-        }
-        let dataset = Dataset::new(x.clone(), y.clone());
-        let model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&dataset)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        self.model = Some(model);
-        self.x = Some(x);
-        self.y = Some(y);
-        Ok(())
-    }
-
-    fn predict<'py>(
-        &self,
-        py: Python<'py>,
-        x: PyReadonlyArray2<f64>,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("OLS model is not fitted"))?;
-        let x = to_array2(&x);
-        let pred = model.predict(&x);
-        Ok(pyarray1_from_f64(py, &pred))
-    }
-
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("OLS model is not fitted"))?;
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-
-        let y_hat = model.predict(x);
-        let residuals = y - &y_hat;
-        let design = if self.fit_intercept {
-            add_intercept(x)
-        } else {
-            x.clone()
-        };
-        let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
-
-        let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
-            (
-                model.intercept(),
-                model.params().to_owned(),
-                Some(se_all[0]),
-                se_all.slice(s![1..]).to_owned(),
-            )
-        } else {
-            (0.0, model.params().to_owned(), None, se_all)
-        };
-
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
-        dict.set_item("intercept_se", intercept_se)?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
-        Ok(dict.into())
-    }
-
-    fn bootstrap<'py>(
-        &self,
-        py: Python<'py>,
-        n_bootstrap: usize,
-        seed: Option<u64>,
-    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
-        let mut out = Array2::<f64>::zeros((
-            n_bootstrap,
-            x.ncols() + if self.fit_intercept { 1 } else { 0 },
-        ));
-        for (i, idx) in idxs.iter().enumerate() {
-            let xb = take_rows(x, idx);
-            let yb = take_rows_vec(y, idx);
-            let dataset = Dataset::new(xb, yb);
-            let model = LinfaLinearRegression::new()
-                .with_intercept(self.fit_intercept)
-                .fit(&dataset)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            if self.fit_intercept {
-                out[[i, 0]] = model.intercept();
-                out.row_mut(i).slice_mut(s![1..]).assign(&model.params());
-            } else {
-                out.row_mut(i).assign(&model.params());
-            }
-        }
-        Ok(pyarray2_from_f64(py, &out))
-    }
-}
-
-#[pyclass]
-pub struct ElasticNet {
-    penalty: f64,
-    l1_ratio: f64,
-    fit_intercept: bool,
-    tolerance: f64,
-    max_iterations: u32,
-    model: Option<linfa_elasticnet::ElasticNet<f64>>,
-    x: Option<Array2<f64>>,
-    y: Option<Array1<f64>>,
-}
-
-#[pymethods]
-impl ElasticNet {
-    #[new]
-    #[pyo3(signature = (penalty=1.0, l1_ratio=0.5, fit_intercept=true, tolerance=1e-4, max_iterations=1000))]
-    fn new(
-        penalty: f64,
-        l1_ratio: f64,
-        fit_intercept: bool,
-        tolerance: f64,
-        max_iterations: u32,
-    ) -> Self {
-        Self {
-            penalty,
-            l1_ratio,
-            fit_intercept,
-            tolerance,
-            max_iterations,
-            model: None,
-            x: None,
-            y: None,
-        }
-    }
-
-    fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
-        let x = to_array2(&x);
-        let y = to_array1(&y);
-        if x.nrows() != y.len() {
-            return Err(PyValueError::new_err("x rows must match y length"));
-        }
-        let dataset = Dataset::new(x.clone(), y.clone());
-        let params = LinfaElasticNet::params()
-            .penalty(self.penalty)
-            .l1_ratio(self.l1_ratio)
-            .with_intercept(self.fit_intercept)
-            .tolerance(self.tolerance)
-            .max_iterations(self.max_iterations);
-        let model = params
-            .fit(&dataset)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        self.model = Some(model);
-        self.x = Some(x);
-        self.y = Some(y);
-        Ok(())
-    }
-
-    fn predict<'py>(
-        &self,
-        py: Python<'py>,
-        x: PyReadonlyArray2<f64>,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("ElasticNet model is not fitted"))?;
-        let x = to_array2(&x);
-        let pred = model.predict(&x);
-        Ok(pyarray1_from_f64(py, &pred))
-    }
-
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("ElasticNet model is not fitted"))?;
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-
-        let y_hat = model.predict(x);
-        let residuals = y - &y_hat;
-        let design = if self.fit_intercept {
-            add_intercept(x)
-        } else {
-            x.clone()
-        };
-        let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
-
-        let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
-            (
-                model.intercept(),
-                model.hyperplane().to_owned(),
-                Some(se_all[0]),
-                se_all.slice(s![1..]).to_owned(),
-            )
-        } else {
-            (0.0, model.hyperplane().to_owned(), None, se_all)
-        };
-
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
-        dict.set_item("intercept_se", intercept_se)?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
-        Ok(dict.into())
-    }
-
-    fn bootstrap<'py>(
-        &self,
-        py: Python<'py>,
-        n_bootstrap: usize,
-        seed: Option<u64>,
-    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
-        let mut out = Array2::<f64>::zeros((
-            n_bootstrap,
-            x.ncols() + if self.fit_intercept { 1 } else { 0 },
-        ));
-        for (i, idx) in idxs.iter().enumerate() {
-            let xb = take_rows(x, idx);
-            let yb = take_rows_vec(y, idx);
-            let dataset = Dataset::new(xb, yb);
-            let params = LinfaElasticNet::params()
-                .penalty(self.penalty)
-                .l1_ratio(self.l1_ratio)
-                .with_intercept(self.fit_intercept)
-                .tolerance(self.tolerance)
-                .max_iterations(self.max_iterations);
-            let model = params
-                .fit(&dataset)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            if self.fit_intercept {
-                out[[i, 0]] = model.intercept();
-                out.row_mut(i)
-                    .slice_mut(s![1..])
-                    .assign(&model.hyperplane());
-            } else {
-                out.row_mut(i).assign(&model.hyperplane());
-            }
-        }
-        Ok(pyarray2_from_f64(py, &out))
-    }
-}
 
 #[pyclass]
 pub struct Logit {
@@ -326,11 +30,11 @@ pub struct Logit {
 #[pymethods]
 impl Logit {
     #[new]
-    #[pyo3(signature = (alpha=1.0, fit_intercept=true, max_iterations=100, gradient_tolerance=1e-4))]
-    fn new(alpha: f64, fit_intercept: bool, max_iterations: u64, gradient_tolerance: f64) -> Self {
+    #[pyo3(signature = (alpha=1.0, max_iterations=100, gradient_tolerance=1e-4))]
+    fn new(alpha: f64, max_iterations: u64, gradient_tolerance: f64) -> Self {
         Self {
             alpha,
-            fit_intercept,
+            fit_intercept: true,
             max_iterations,
             gradient_tolerance,
             model: None,
@@ -412,6 +116,7 @@ impl Logit {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -468,11 +173,11 @@ pub struct MultinomialLogit {
 #[pymethods]
 impl MultinomialLogit {
     #[new]
-    #[pyo3(signature = (alpha=1.0, fit_intercept=true, max_iterations=100, gradient_tolerance=1e-4))]
-    fn new(alpha: f64, fit_intercept: bool, max_iterations: u64, gradient_tolerance: f64) -> Self {
+    #[pyo3(signature = (alpha=1.0, max_iterations=100, gradient_tolerance=1e-4))]
+    fn new(alpha: f64, max_iterations: u64, gradient_tolerance: f64) -> Self {
         Self {
             alpha,
-            fit_intercept,
+            fit_intercept: true,
             max_iterations,
             gradient_tolerance,
             model: None,
@@ -564,6 +269,7 @@ impl MultinomialLogit {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -727,11 +433,11 @@ impl Hessian for PoissonProblem<'_> {
 #[pymethods]
 impl Poisson {
     #[new]
-    #[pyo3(signature = (alpha=0.0, fit_intercept=true, max_iterations=100, tolerance=1e-4))]
-    fn new(alpha: f64, fit_intercept: bool, max_iterations: usize, tolerance: f64) -> Self {
+    #[pyo3(signature = (alpha=0.0, max_iterations=100, tolerance=1e-4))]
+    fn new(alpha: f64, max_iterations: usize, tolerance: f64) -> Self {
         Self {
             alpha,
-            fit_intercept,
+            fit_intercept: true,
             max_iterations,
             tolerance,
             coef: None,
@@ -838,6 +544,7 @@ impl Poisson {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -898,358 +605,6 @@ impl Poisson {
 }
 
 #[pyclass]
-// TODO: Extend to multi-endogenous and GMM via g(Z; theta)' W g(Z; theta).
-pub struct TwoSLS {
-    fit_intercept: bool,
-    coef: Option<Array1<f64>>,
-    intercept: f64,
-    x_endog: Option<Array2<f64>>,
-    x_exog: Option<Array2<f64>>,
-    z: Option<Array2<f64>>,
-    y: Option<Array1<f64>>,
-}
-
-#[pymethods]
-impl TwoSLS {
-    #[new]
-    #[pyo3(signature = (fit_intercept=true))]
-    fn new(fit_intercept: bool) -> Self {
-        Self {
-            fit_intercept,
-            coef: None,
-            intercept: 0.0,
-            x_endog: None,
-            x_exog: None,
-            z: None,
-            y: None,
-        }
-    }
-
-    fn fit(
-        &mut self,
-        x_endog: PyReadonlyArray2<f64>,
-        x_exog: PyReadonlyArray2<f64>,
-        z: PyReadonlyArray2<f64>,
-        y: PyReadonlyArray1<f64>,
-    ) -> PyResult<()> {
-        let x_endog = to_array2(&x_endog);
-        let x_exog = to_array2(&x_exog);
-        let z = to_array2(&z);
-        let y = to_array1(&y);
-
-        if x_endog.nrows() != y.len() || x_exog.nrows() != y.len() || z.nrows() != y.len() {
-            return Err(PyValueError::new_err("row count mismatch"));
-        }
-
-        let z_full = if x_exog.ncols() > 0 {
-            concatenate(Axis(1), &[x_exog.view(), z.view()])
-                .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
-        } else {
-            z.clone()
-        };
-
-        let stage1 = Dataset::new(z_full.clone(), x_endog.column(0).to_owned());
-        let stage1_model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&stage1)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        let x_endog_hat = stage1_model.predict(&z_full);
-
-        let x_hat = if x_exog.ncols() > 0 {
-            concatenate(
-                Axis(1),
-                &[x_endog_hat.view().insert_axis(Axis(1)), x_exog.view()],
-            )
-            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-        } else {
-            x_endog_hat.view().insert_axis(Axis(1)).to_owned()
-        };
-
-        let stage2 = Dataset::new(x_hat.clone(), y.clone());
-        let stage2_model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&stage2)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-        self.coef = Some(stage2_model.params().to_owned());
-        self.intercept = stage2_model.intercept();
-        self.x_endog = Some(x_endog);
-        self.x_exog = Some(x_exog);
-        self.z = Some(z);
-        self.y = Some(y);
-        Ok(())
-    }
-
-    fn predict<'py>(
-        &self,
-        py: Python<'py>,
-        x: PyReadonlyArray2<f64>,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let coef = self
-            .coef
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
-        let x = to_array2(&x);
-        let pred: Array1<f64> = x.dot(coef) + self.intercept;
-        Ok(pyarray1_from_f64(py, &pred))
-    }
-
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let coef = self
-            .coef
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
-        let x_endog = self
-            .x_endog
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let x_exog = self
-            .x_exog
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let z = self
-            .z
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-
-        let z_full = if x_exog.ncols() > 0 {
-            concatenate(Axis(1), &[x_exog.view(), z.view()])
-                .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
-        } else {
-            z.clone()
-        };
-        let stage1 = Dataset::new(z_full.clone(), x_endog.column(0).to_owned());
-        let stage1_model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&stage1)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        let x_endog_hat = stage1_model.predict(&z_full);
-        let x_hat = if x_exog.ncols() > 0 {
-            concatenate(
-                Axis(1),
-                &[x_endog_hat.view().insert_axis(Axis(1)), x_exog.view()],
-            )
-            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-        } else {
-            x_endog_hat.view().insert_axis(Axis(1)).to_owned()
-        };
-
-        let y_hat = x_hat.dot(coef) + self.intercept;
-        let residuals = y - &y_hat;
-        let design = if self.fit_intercept {
-            add_intercept(&x_hat)
-        } else {
-            x_hat.clone()
-        };
-        let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
-
-        let (intercept_se, coef_se) = if self.fit_intercept {
-            (Some(se_all[0]), se_all.slice(s![1..]).to_owned())
-        } else {
-            (None, se_all)
-        };
-
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", self.intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, coef))?;
-        dict.set_item("intercept_se", intercept_se)?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
-        Ok(dict.into())
-    }
-
-    fn bootstrap<'py>(
-        &self,
-        py: Python<'py>,
-        n_bootstrap: usize,
-        seed: Option<u64>,
-    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let x = self
-            .x_endog
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let x_exog = self
-            .x_exog
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let z = self
-            .z
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
-        let mut out = Array2::<f64>::zeros((
-            n_bootstrap,
-            x.ncols() + if self.fit_intercept { 1 } else { 0 },
-        ));
-        for (i, idx) in idxs.iter().enumerate() {
-            let x_endog_b = take_rows(x, idx);
-            let x_exog_b = take_rows(x_exog, idx);
-            let z_b = take_rows(z, idx);
-            let yb = take_rows_vec(y, idx);
-
-            let z_full = if x_exog_b.ncols() > 0 {
-                concatenate(Axis(1), &[x_exog_b.view(), z_b.view()])
-                    .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
-            } else {
-                z_b
-            };
-            let stage1 = Dataset::new(z_full.clone(), x_endog_b.column(0).to_owned());
-            let stage1_model = LinfaLinearRegression::new()
-                .with_intercept(self.fit_intercept)
-                .fit(&stage1)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            let x_endog_hat = stage1_model.predict(&z_full);
-            let x_hat = if x_exog_b.ncols() > 0 {
-                concatenate(
-                    Axis(1),
-                    &[x_endog_hat.view().insert_axis(Axis(1)), x_exog_b.view()],
-                )
-                .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-            } else {
-                x_endog_hat.view().insert_axis(Axis(1)).to_owned()
-            };
-            let stage2 = Dataset::new(x_hat, yb);
-            let model = LinfaLinearRegression::new()
-                .with_intercept(self.fit_intercept)
-                .fit(&stage2)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            if self.fit_intercept {
-                out[[i, 0]] = model.intercept();
-                out.row_mut(i).slice_mut(s![1..]).assign(&model.params());
-            } else {
-                out.row_mut(i).assign(&model.params());
-            }
-        }
-        Ok(pyarray2_from_f64(py, &out))
-    }
-}
-
-#[pyclass]
-pub struct FTRL {
-    alpha: f64,
-    beta: f64,
-    l1_ratio: f64,
-    l2_ratio: f64,
-    model: Option<LinfaFtrl<f64>>,
-    x: Option<Array2<f64>>,
-    y: Option<Array1<bool>>,
-}
-
-#[pymethods]
-impl FTRL {
-    #[new]
-    #[pyo3(signature = (alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0))]
-    fn new(alpha: f64, beta: f64, l1_ratio: f64, l2_ratio: f64) -> Self {
-        Self {
-            alpha,
-            beta,
-            l1_ratio,
-            l2_ratio,
-            model: None,
-            x: None,
-            y: None,
-        }
-    }
-
-    fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<i32>) -> PyResult<()> {
-        let x = to_array2(&x);
-        let y = to_array1_i32(&y).mapv(|v| v != 0);
-        let dataset = Dataset::new(x.clone(), y.clone());
-        let params = linfa_ftrl::Ftrl::params()
-            .alpha(self.alpha)
-            .beta(self.beta)
-            .l1_ratio(self.l1_ratio)
-            .l2_ratio(self.l2_ratio);
-        let model = params
-            .fit_with(None, &dataset)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        self.model = Some(model);
-        self.x = Some(x);
-        self.y = Some(y);
-        Ok(())
-    }
-
-    fn predict<'py>(
-        &self,
-        py: Python<'py>,
-        x: PyReadonlyArray2<f64>,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-        let x = to_array2(&x);
-        let probs = model.predict(&x).mapv(|v| f64::from(*v));
-        Ok(pyarray1_from_f64(py, &probs))
-    }
-
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-
-        let weights = model.get_weights();
-        let probs = model.predict(x).mapv(|v| f64::from(*v));
-        let cov = fisher_cov_binary(x, &probs).map_err(PyValueError::new_err)?;
-        let se = diag_sqrt(&cov);
-
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("coef", pyarray1_from_f64(py, &weights))?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &se))?;
-        Ok(dict.into())
-    }
-
-    fn bootstrap<'py>(
-        &self,
-        py: Python<'py>,
-        n_bootstrap: usize,
-        seed: Option<u64>,
-    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
-        let mut out = Array2::<f64>::zeros((n_bootstrap, x.ncols()));
-        for (i, idx) in idxs.iter().enumerate() {
-            let xb = take_rows(x, idx);
-            let mut yb = Array1::from_elem(idx.len(), false);
-            for (j, &row) in idx.iter().enumerate() {
-                yb[j] = y[row];
-            }
-            let dataset = Dataset::new(xb, yb);
-            let params = linfa_ftrl::Ftrl::params()
-                .alpha(self.alpha)
-                .beta(self.beta)
-                .l1_ratio(self.l1_ratio)
-                .l2_ratio(self.l2_ratio);
-            let model = params
-                .fit_with(None, &dataset)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            out.row_mut(i).assign(&model.get_weights());
-        }
-        Ok(pyarray2_from_f64(py, &out))
-    }
-}
-
-#[pyclass]
 pub struct MEstimator {
     max_iterations: usize,
     tolerance: f64,
@@ -1277,16 +632,21 @@ impl CostFunction for MEstimatorProblem {
                 .call1(py, (theta_py, self.data.clone_ref(py)))
                 .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
 
-            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)
-                .map_err(|_| argmin::core::Error::msg("Objective function must return (obj, grad)"))?;
+            let tuple = result
+                .downcast_bound::<pyo3::types::PyTuple>(py)
+                .map_err(|_| {
+                    argmin::core::Error::msg("Objective function must return (obj, grad)")
+                })?;
 
             if tuple.len() != 2 {
-                return Err(argmin::core::Error::msg("Objective function must return (obj, grad)"));
+                return Err(argmin::core::Error::msg(
+                    "Objective function must return (obj, grad)",
+                ));
             }
 
-            let obj_value: f64 = tuple.get_item(0)?
-                .extract()
-                .map_err(|e| argmin::core::Error::msg(format!("Failed to extract objective: {}", e)))?;
+            let obj_value: f64 = tuple.get_item(0)?.extract().map_err(|e| {
+                argmin::core::Error::msg(format!("Failed to extract objective: {}", e))
+            })?;
 
             Ok(obj_value)
         })
@@ -1297,7 +657,10 @@ impl Gradient for MEstimatorProblem {
     type Param = Array1<f64>;
     type Gradient = Array1<f64>;
 
-    fn gradient(&self, theta: &Self::Param) -> std::result::Result<Self::Gradient, argmin::core::Error> {
+    fn gradient(
+        &self,
+        theta: &Self::Param,
+    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
         Python::with_gil(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             let result = self
@@ -1305,11 +668,16 @@ impl Gradient for MEstimatorProblem {
                 .call1(py, (theta_py, self.data.clone_ref(py)))
                 .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
 
-            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)
-                .map_err(|_| argmin::core::Error::msg("Objective function must return (obj, grad)"))?;
+            let tuple = result
+                .downcast_bound::<pyo3::types::PyTuple>(py)
+                .map_err(|_| {
+                    argmin::core::Error::msg("Objective function must return (obj, grad)")
+                })?;
 
             if tuple.len() != 2 {
-                return Err(argmin::core::Error::msg("Objective function must return (obj, grad)"));
+                return Err(argmin::core::Error::msg(
+                    "Objective function must return (obj, grad)",
+                ));
             }
 
             let grad_item = tuple.get_item(1)?;
@@ -1361,7 +729,11 @@ impl MEstimator {
         let solver = LBFGS::new(linesearch, 7);
 
         let mut result = Executor::new(problem, solver)
-            .configure(|state| state.param(theta_init).max_iters(self.max_iterations as u64))
+            .configure(|state| {
+                state
+                    .param(theta_init)
+                    .max_iters(self.max_iterations as u64)
+            })
             .run()
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
@@ -1413,9 +785,7 @@ impl MEstimator {
         }
 
         let b_matrix = scores.t().dot(&scores) / (n as f64);
-
         let a_matrix = b_matrix.clone();
-
         let a_inv = invert_matrix(&a_matrix).map_err(PyValueError::new_err)?;
         let vcov = a_inv.dot(&b_matrix).dot(&a_inv) / (n as f64);
 
@@ -1450,6 +820,7 @@ impl MEstimator {
         Ok(dict.into())
     }
 
+    #[pyo3(signature = (n_bootstrap, seed=None))]
     fn bootstrap<'py>(
         &self,
         py: Python<'py>,
@@ -1469,8 +840,11 @@ impl MEstimator {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("objective_fn not set"))?;
 
-        let data_dict = data.downcast_bound::<pyo3::types::PyDict>(py)
-            .map_err(|_| PyValueError::new_err("data must be a dict with 'indices' key for bootstrap"))?;
+        let data_dict = data
+            .downcast_bound::<pyo3::types::PyDict>(py)
+            .map_err(|_| {
+                PyValueError::new_err("data must be a dict with 'indices' key for bootstrap")
+            })?;
 
         let mut rng = match seed {
             Some(s) => rand::rngs::StdRng::seed_from_u64(s),

@@ -4,10 +4,17 @@ build-backend = "maturin"
 
 [project]
 name = "crabbymetrics"
-version = "0.1.0"
+dynamic = ["version"]
 requires-python = ">=3.8"
 dependencies = ["numpy"]
 
 [tool.maturin]
 module-name = "crabbymetrics"
 features = ["pyo3/extension-module"]
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.1.1",
+    "maturin>=1.12.6",
+    "pytest>=8.3.5",
+]
