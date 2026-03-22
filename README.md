@@ -6,6 +6,7 @@ Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focu
 
 ## Features
 - OLS, FixedEffectsOLS, SyntheticControl, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
+- `ElasticNet` spans the ridge and lasso corners: use `l1_ratio=0.0` for ridge-style shrinkage and `l1_ratio=1.0` for lasso-style shrinkage
 - PCA and KernelBasis for feature engineering before regression-style estimation
 - `Optimizers` namespace exposing LBFGS, BFGS, NonlinearConjugateGradient, Gauss-Newton least squares, and SimulatedAnnealing
 - `fit`, `predict`, `summary`, `bootstrap`
@@ -47,6 +48,18 @@ def gradient(theta):
 result = Optimizers.minimize_lbfgs(objective, np.array([4.0, 3.0]), gradient)
 print(result["x"], result["fun"])
 ```
+
+## Benchmarks
+
+The latest cross-library runtime snapshot is checked into [`benchmarks/runtime_comparison.csv`](benchmarks/runtime_comparison.csv) with the corresponding plot in [`benchmarks/runtime_comparison.png`](benchmarks/runtime_comparison.png).
+
+![Runtime comparison across crabbymetrics, scikit-learn, and statsmodels](benchmarks/runtime_comparison.png)
+
+This benchmark used synthetic problems with `p=5`, sample sizes from `10^3` to `10^6`, fit-only timing, and a 45-second per-fit timeout.
+
+- `OLS` is competitive already and was faster than both scikit-learn and statsmodels at `n=10^6`.
+- `Poisson` beats statsmodels comfortably but still trails scikit-learn at larger `n`.
+- `Logit` and especially `MultinomialLogit` are the main performance gaps to close before adding more iterative GLM-style estimators.
 
 ## Development
 
