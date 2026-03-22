@@ -3879,6 +3879,25 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <span class="menu-text">API</span></a>
   </li>  
   <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-mechanics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Mechanics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-mechanics">    
+        <li>
+    <a class="dropdown-item" href="./mechanics-ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./mechanics-poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./mechanics-mestimator.html">
+ <span class="dropdown-text">MEstimator</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Examples</span>
     </a>
@@ -4003,7 +4022,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li>A sitrep on the current state of the library.</li>
 <li>A verified API reference rendered against the live Python module in this repository.</li>
 </ul>
-<div id="596fa861" class="cell" data-execution_count="1">
+<div id="4b86cb34" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -4052,7 +4071,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="public-surface" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="public-surface"><span class="header-section-number">3</span> Public Surface</h2>
 <p>The table below is generated from the live module so the constructor and method signatures match the current build.</p>
-<div id="cb9a0936" class="cell" data-execution_count="2">
+<div id="f0eb9600" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>classes <span class="op">=</span> [</span>
@@ -4201,7 +4220,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="optimizer-surface" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="optimizer-surface"><span class="header-section-number">4</span> Optimizer Surface</h2>
 <p>The optimizer helpers live under <code>cm.Optimizers</code> as static methods. They mirror the usual scipy pattern: pass a Python callback, a starting value, and any derivative information the method needs, then receive a plain dictionary with <code>x</code>, <code>fun</code>, <code>nit</code>, <code>success</code>, <code>message</code>, and <code>method</code>.</p>
-<div id="dd14a3b0" class="cell" data-execution_count="3">
+<div id="6e7bca6f" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>optimizer_rows <span class="op">=</span> []</span>
@@ -4261,7 +4280,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="estimator-reference" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="estimator-reference"><span class="header-section-number">6</span> Estimator Reference</h2>
-<div id="b3d261a2" class="cell" data-execution_count="4">
+<div id="20b03003" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>reference_rows <span class="op">=</span> [</span>
@@ -4456,7 +4475,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="transformer-reference" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="transformer-reference"><span class="header-section-number">7</span> Transformer Reference</h2>
-<div id="e362c21f" class="cell" data-execution_count="5">
+<div id="dc29b341" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>transformer_rows <span class="op">=</span> [</span>
@@ -4518,7 +4537,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="optimizer-reference" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="optimizer-reference"><span class="header-section-number">8</span> Optimizer Reference</h2>
-<div id="d97660c7" class="cell" data-execution_count="6">
+<div id="c6895a34" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>optimizer_reference_rows <span class="op">=</span> [</span>
@@ -4612,7 +4631,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="verified-runtime-snapshot" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">9</span> Verified Runtime Snapshot</h2>
 <p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
-<div id="1294897f" class="cell" data-execution_count="7">
+<div id="e08a0dbe" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
@@ -4858,7 +4877,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <h2 data-number="10" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">10</span> Usage Examples</h2>
 <section id="ols" class="level3" data-number="10.1">
 <h3 data-number="10.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">10.1</span> OLS</h3>
-<div id="8a716916" class="cell" data-execution_count="8">
+<div id="3e4db82b" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
@@ -4887,7 +4906,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="fixedeffectsols" class="level3" data-number="10.2">
 <h3 data-number="10.2" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">10.2</span> FixedEffectsOLS</h3>
 <p>This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with <code>within</code>, then regress the residualized outcome on the residualized regressors with no intercept.</p>
-<div id="ec4f57c5" class="cell" data-execution_count="9">
+<div id="b2df31dd" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
@@ -4923,7 +4942,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li><code>score_fn(theta, data)</code> must return an <code>(n_obs, n_params)</code> matrix of per-observation scores.</li>
 <li>For bootstrap support, the <code>data</code> dictionary must include <code>n</code>, and user code should respect an optional <code>indices</code> key.</li>
 </ul>
-<div id="370281df" class="cell" data-execution_count="10">
+<div id="890041fa" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>

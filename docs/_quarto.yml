@@ -4,6 +4,9 @@ project:
   render:
     - index.qmd
     - api.qmd
+    - mechanics-ols.qmd
+    - mechanics-poisson.qmd
+    - mechanics-mestimator.qmd
     - examples/*.qmd
 
 website:
@@ -14,6 +17,14 @@ website:
         text: Home
       - href: api.qmd
         text: API
+      - text: Mechanics
+        menu:
+          - href: mechanics-ols.qmd
+            text: OLS
+          - href: mechanics-poisson.qmd
+            text: Poisson
+          - href: mechanics-mestimator.qmd
+            text: MEstimator
       - text: Examples
         menu:
           - href: examples/ols.qmd

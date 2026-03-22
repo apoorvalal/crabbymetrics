@@ -3828,6 +3828,25 @@ vertical-align: -.125em;
 <span class="menu-text">API</span></a>
   </li>  
   <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-mechanics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Mechanics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-mechanics">    
+        <li>
+    <a class="dropdown-item" href="./mechanics-ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./mechanics-poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./mechanics-mestimator.html">
+ <span class="dropdown-text">MEstimator</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Examples</span>
     </a>
@@ -3903,6 +3922,7 @@ vertical-align: -.125em;
    
   <ul class="collapse">
   <li><a href="#main-reference" id="toc-main-reference" class="nav-link active" data-scroll-target="#main-reference">Main Reference</a></li>
+  <li><a href="#mechanics" id="toc-mechanics" class="nav-link" data-scroll-target="#mechanics">Mechanics</a></li>
   <li><a href="#highlights" id="toc-highlights" class="nav-link" data-scroll-target="#highlights">Highlights</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
@@ -3936,6 +3956,14 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="main-reference">Main Reference</h2>
 <ul>
 <li><a href="api.html">API reference</a>: verified public surface, library sitrep, summary schemas, and runtime smoke checks.</li>
+</ul>
+</section>
+<section id="mechanics" class="level2">
+<h2 class="anchored" data-anchor-id="mechanics">Mechanics</h2>
+<ul>
+<li><a href="mechanics-ols.html">Mechanics: OLS</a>: a walkthrough of the straight <code>linfa</code> wrapper pattern, from NumPy conversion to <code>linfa_linear::LinearRegression</code> and back.</li>
+<li><a href="mechanics-poisson.html">Mechanics: Poisson</a>: a walkthrough of the clean built-in estimator pattern from <code>#[pyclass]</code> to <code>argmin</code> solver to Python arrays and dicts.</li>
+<li><a href="mechanics-mestimator.html">Mechanics: MEstimator</a>: a walkthrough of the callback-driven bridge where Rust owns optimization and Python supplies the objective and score functions.</li>
 </ul>
 </section>
 <section id="highlights" class="level2">

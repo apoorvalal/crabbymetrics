@@ -3863,6 +3863,25 @@ vertical-align: -.125em;
 <span class="menu-text">API</span></a>
   </li>  
   <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-mechanics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Mechanics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-mechanics">    
+        <li>
+    <a class="dropdown-item" href="../mechanics-ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../mechanics-poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../mechanics-mestimator.html">
+ <span class="dropdown-text">MEstimator</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Examples</span>
     </a>
@@ -3958,7 +3977,7 @@ vertical-align: -.125em;
 <p>This page shows how to estimate slope coefficients after partialling out one-way or multi-way categorical fixed effects with <code>within</code>.</p>
 <section id="simulate-a-two-way-fixed-effects-problem" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-two-way-fixed-effects-problem"><span class="header-section-number">1</span> Simulate A Two-Way Fixed Effects Problem</h2>
-<div id="885b70d4" class="cell" data-execution_count="1">
+<div id="eff6d3c4" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -3966,7 +3985,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="7cb9ebfe" class="cell" data-execution_count="2">
+<div id="3083c014" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">800</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.9</span>])</span>
@@ -3999,7 +4018,7 @@ vertical-align: -.125em;
 <section id="compare-to-explicit-dummy-ols" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="compare-to-explicit-dummy-ols"><span class="header-section-number">2</span> Compare To Explicit Dummy OLS</h2>
 <p><code>FixedEffectsOLS</code> is doing the Frisch-Waugh-Lovell version of the same regression. A useful check is to compare it against an OLS fit with worker and firm dummies added directly to the design matrix.</p>
-<div id="b2b2d009" class="cell" data-execution_count="3">
+<div id="c0552881" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dummy_block(levels):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    n_levels <span class="op">=</span> <span class="bu">int</span>(levels.<span class="bu">max</span>()) <span class="op">+</span> <span class="dv">1</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    block <span class="op">=</span> np.zeros((levels.shape[<span class="dv">0</span>], <span class="bu">max</span>(n_levels <span class="op">-</span> <span class="dv">1</span>, <span class="dv">0</span>)))</span>

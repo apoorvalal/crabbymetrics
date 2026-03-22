@@ -19,6 +19,12 @@ execute:
 
 - [API reference](api.html): verified public surface, library sitrep, summary schemas, and runtime smoke checks.
 
+## Mechanics
+
+- [Mechanics: OLS](mechanics-ols.html): a walkthrough of the straight `linfa` wrapper pattern, from NumPy conversion to `linfa_linear::LinearRegression` and back.
+- [Mechanics: Poisson](mechanics-poisson.html): a walkthrough of the clean built-in estimator pattern from `#[pyclass]` to `argmin` solver to Python arrays and dicts.
+- [Mechanics: MEstimator](mechanics-mestimator.html): a walkthrough of the callback-driven bridge where Rust owns optimization and Python supplies the objective and score functions.
+
 ## Highlights
 
 - `PCA` and `KernelBasis` let you build richer right-hand sides before fitting the regression estimators.
