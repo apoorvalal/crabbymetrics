@@ -1,0 +1,243 @@
+---
+title: "Optimizer Examples"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page shows the direct optimizer wrappers in the style they are meant to be used: a Python callback for the objective, a starting value, optional derivative callbacks, and a plain dictionary back with the minimizer and objective value. The first section rebuilds a Bernoulli logit fit from its likelihood, then the page moves to two rougher test functions where nonlinear conjugate gradient and simulated annealing are more natural tools.
+
+## Imports
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import (
+    Logit,
+    Optimizers,
+)
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## BFGS On A Bernoulli Logit Likelihood
+
+The built-in `Logit` class reports coefficients for the lower-coded class. To line up with that convention exactly, the synthetic data below are generated from the class-0 probability
+
+`Pr(y = 0 | x) = sigmoid(theta_0 + x @ theta)`.
+
+We then minimize the negative Bernoulli log-likelihood directly with `Optimizers.minimize_bfgs` and compare the optimizer output with the built-in regression.
+
+```{python}
+rng = np.random.default_rng(7)
+n = 1200
+k = 3
+
+theta_true = np.array([0.35, -0.95, 0.9, -0.4])
+x = rng.normal(size=(n, k))
+X = np.column_stack([np.ones(n), x])
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
+
+prob_zero = sigmoid(X @ theta_true)
+y = rng.binomial(1, 1.0 - prob_zero).astype(np.int32)
+y_zero = 1.0 - y.astype(np.float64)
+
+def bernoulli_nll(theta):
+    eta = X @ theta
+    return float(np.sum(np.logaddexp(0.0, eta) - y_zero * eta))
+
+def bernoulli_grad(theta):
+    eta = X @ theta
+    return X.T @ (sigmoid(eta) - y_zero)
+
+bfgs_result = Optimizers.minimize_bfgs(
+    bernoulli_nll,
+    np.zeros(k + 1),
+    bernoulli_grad,
+    max_iterations=300,
+)
+
+logit = Logit(alpha=0.0, max_iterations=300)
+logit.fit(x, y)
+logit_summary = logit.summary()
+logit_theta = np.concatenate(
+    [[logit_summary["intercept"]], np.asarray(logit_summary["coef"])]
+)
+
+print("true theta:", theta_true)
+print("BFGS theta:", bfgs_result["x"])
+print("Logit theta:", logit_theta)
+print("max |BFGS - Logit|:", round(float(np.max(np.abs(bfgs_result["x"] - logit_theta))), 8))
+print("BFGS objective:", round(float(bfgs_result["fun"]), 6))
+```
+
+```{python}
+prob_zero_bfgs = sigmoid(X @ bfgs_result["x"])
+prob_zero_logit = sigmoid(X @ logit_theta)
+
+labels = ["intercept", "x1", "x2", "x3"]
+positions = np.arange(len(labels))
+width = 0.25
+
+fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.8), constrained_layout=True)
+
+axes[0].bar(positions - width, theta_true, width=width, label="true")
+axes[0].bar(positions, bfgs_result["x"], width=width, label="BFGS")
+axes[0].bar(positions + width, logit_theta, width=width, label="Logit")
+axes[0].set_xticks(positions)
+axes[0].set_xticklabels(labels)
+axes[0].set_title("Same Bernoulli likelihood, same coefficients")
+axes[0].set_ylabel("coefficient")
+axes[0].legend()
+
+axes[1].scatter(prob_zero_bfgs, prob_zero_logit, s=12, alpha=0.55)
+axes[1].plot([0, 1], [0, 1], color="black", linewidth=1.0)
+axes[1].set_title("Class-0 fitted probabilities")
+axes[1].set_xlabel("BFGS")
+axes[1].set_ylabel("Logit")
+
+plt.show()
+```
+
+This is the simplest pattern for custom M-estimation in the package today: write the objective and gradient, run a direct optimizer, and treat the returned `x` as the estimate. For smooth likelihoods, `BFGS` is a strong default.
+
+## Nonlinear Conjugate Gradient On Beale's Function
+
+The Beale function is a good stress test for deterministic gradient-based methods. It is smooth, but the surface bends sharply and the minimum sits in a narrow basin at `(3, 0.5)`.
+
+```{python}
+def beale(theta):
+    x1, x2 = theta
+    return float(
+        (1.5 - x1 + x1 * x2) ** 2
+        + (2.25 - x1 + x1 * x2**2) ** 2
+        + (2.625 - x1 + x1 * x2**3) ** 2
+    )
+
+def beale_grad(theta):
+    x1, x2 = theta
+    a = 1.5 - x1 + x1 * x2
+    b = 2.25 - x1 + x1 * x2**2
+    c = 2.625 - x1 + x1 * x2**3
+    dfdx1 = 2 * a * (-1 + x2) + 2 * b * (-1 + x2**2) + 2 * c * (-1 + x2**3)
+    dfdx2 = 2 * a * x1 + 4 * b * x1 * x2 + 6 * c * x1 * x2**2
+    return np.array([dfdx1, dfdx2])
+
+cg_start = np.array([1.0, 1.0])
+cg_result = Optimizers.minimize_nonlinear_cg(
+    beale,
+    cg_start,
+    beale_grad,
+    max_iterations=2000,
+    restart_iters=20,
+    tolerance=1e-6,
+)
+
+print(cg_result)
+```
+
+```{python}
+x1 = np.linspace(-1.0, 4.5, 320)
+x2 = np.linspace(-0.5, 1.5, 280)
+xx1, xx2 = np.meshgrid(x1, x2)
+zz = (
+    (1.5 - xx1 + xx1 * xx2) ** 2
+    + (2.25 - xx1 + xx1 * xx2**2) ** 2
+    + (2.625 - xx1 + xx1 * xx2**3) ** 2
+)
+
+fig, ax = plt.subplots(figsize=(7.4, 5.4), constrained_layout=True)
+contours = ax.contourf(xx1, xx2, np.log1p(zz), levels=40, cmap="cividis")
+ax.scatter(cg_start[0], cg_start[1], s=70, color="white", edgecolor="black", label="start")
+ax.scatter(
+    cg_result["x"][0],
+    cg_result["x"][1],
+    s=90,
+    color="#e4572e",
+    edgecolor="black",
+    label="nonlinear CG solution",
+)
+ax.scatter(3.0, 0.5, s=70, color="#4c956c", edgecolor="black", label="global minimum")
+ax.set_title("Beale function")
+ax.set_xlabel("x1")
+ax.set_ylabel("x2")
+ax.legend(loc="upper left")
+fig.colorbar(contours, ax=ax, label="log(1 + f(x))")
+
+plt.show()
+```
+
+This is still a local optimizer. It works well here because the problem is smooth and we supplied the exact gradient, but the surface is already irregular enough that a cheap first-order method would spend much longer wandering around the valley.
+
+## Simulated Annealing On Rastrigin's Function
+
+Rastrigin's function is the opposite kind of problem: a simple global minimum at the origin, but with a dense field of local minima. That is the setting where a stochastic global method is much more natural than a deterministic descent method.
+
+```{python}
+def rastrigin(theta):
+    a = 10.0
+    return float(a * theta.size + np.sum(theta**2 - a * np.cos(2.0 * np.pi * theta)))
+
+sa_start = np.array([4.0, -3.5])
+sa_result = Optimizers.minimize_simulated_annealing(
+    rastrigin,
+    sa_start,
+    lower=np.array([-5.12, -5.12]),
+    upper=np.array([5.12, 5.12]),
+    temp=12.0,
+    step_size=0.6,
+    max_iterations=8000,
+    seed=123,
+)
+
+print(sa_result)
+```
+
+```{python}
+x1 = np.linspace(-5.12, 5.12, 320)
+x2 = np.linspace(-5.12, 5.12, 320)
+xx1, xx2 = np.meshgrid(x1, x2)
+zz = 20.0 + (xx1**2 - 10.0 * np.cos(2.0 * np.pi * xx1)) + (
+    xx2**2 - 10.0 * np.cos(2.0 * np.pi * xx2)
+)
+
+fig, ax = plt.subplots(figsize=(7.4, 5.6), constrained_layout=True)
+contours = ax.contourf(xx1, xx2, zz, levels=70, cmap="magma")
+ax.scatter(sa_start[0], sa_start[1], s=75, color="white", edgecolor="black", label="start")
+ax.scatter(
+    sa_result["x"][0],
+    sa_result["x"][1],
+    s=95,
+    color="#7bd389",
+    edgecolor="black",
+    label="annealed solution",
+)
+ax.scatter(0.0, 0.0, s=80, color="#4c78a8", edgecolor="black", label="global minimum")
+ax.set_title("Rastrigin function")
+ax.set_xlabel("x1")
+ax.set_ylabel("x2")
+ax.legend(loc="upper right")
+fig.colorbar(contours, ax=ax, label="f(x)")
+
+plt.show()
+```
+
+Here the annealer starts far from the origin and still finds a point essentially on top of the global solution. It is slower and noisier than the deterministic methods above, but it is solving a different problem: escaping local traps rather than exploiting a smooth local basin.
+
+## Takeaway
+
+- Use `Optimizers.minimize_bfgs` or `Optimizers.minimize_lbfgs` for smooth likelihood-style objectives when you can write a stable gradient.
+- Use `Optimizers.minimize_nonlinear_cg` when memory is tighter and you still have a reliable gradient for a smooth but awkward surface.
+- Use `Optimizers.minimize_simulated_annealing` when the real problem is multimodality rather than local curvature.
+
+These wrappers are intentionally low-level. They are the right tool when you want to build a custom estimator, a GMM objective, or a likelihood that the package does not yet expose as a first-class model.

@@ -7,6 +7,7 @@ Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focu
 ## Features
 - OLS, FixedEffectsOLS, SyntheticControl, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
 - PCA and KernelBasis for feature engineering before regression-style estimation
+- `Optimizers` namespace exposing LBFGS, BFGS, NonlinearConjugateGradient, Gauss-Newton least squares, and SimulatedAnnealing
 - `fit`, `predict`, `summary`, `bootstrap`
 - HC1 standard errors where applicable
 
@@ -29,6 +30,22 @@ y = 0.3 + x @ beta + np.random.randn(200) * 0.1
 model = OLS()
 model.fit(x, y)
 print(model.summary())
+```
+
+The direct optimizer wrappers live under `Optimizers` and follow a lightweight scipy-style interface:
+
+```python
+import numpy as np
+from crabbymetrics import Optimizers
+
+def objective(theta):
+    return float((theta[0] - 1.0) ** 2 + 2.0 * (theta[1] + 2.0) ** 2)
+
+def gradient(theta):
+    return np.array([2.0 * (theta[0] - 1.0), 4.0 * (theta[1] + 2.0)])
+
+result = Optimizers.minimize_lbfgs(objective, np.array([4.0, 3.0]), gradient)
+print(result["x"], result["fun"])
 ```
 
 ## Development

@@ -3853,6 +3853,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">Richer Regression</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
@@ -3938,6 +3942,7 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="highlights">Highlights</h2>
 <ul>
 <li><code>PCA</code> and <code>KernelBasis</code> let you build richer right-hand sides before fitting the regression estimators.</li>
+<li><code>Optimizers</code> exposes low-level minimizers directly for custom M-estimation and GMM-style workflows.</li>
 </ul>
 </section>
 <section id="examples" class="level2">
@@ -3948,6 +3953,7 @@ vertical-align: -.125em;
 <li><a href="examples/synthetic-control.html">Synthetic Control</a>: simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.</li>
 <li><a href="examples/pca-and-kernel-basis.html">PCA And Kernel Basis</a>: linear low-rank compression for factor-style designs, plus nonlinear kernel features on a swiss roll.</li>
 <li><a href="examples/richer-regression.html">Richer Regression</a>: use <code>KernelBasis</code> and <code>PCA</code> to build a nonlinear right-hand side that beats raw OLS on a held-out test set.</li>
+<li><a href="examples/optimizers.html">Optimizers</a>: recover a Bernoulli logit fit with <code>Optimizers.minimize_bfgs</code>, then use nonlinear CG and simulated annealing on rougher objective surfaces.</li>
 <li><a href="examples/elastic-net.html">ElasticNet</a>: regularized linear regression.</li>
 <li><a href="examples/logit.html">Logit</a>: binary logistic regression.</li>
 <li><a href="examples/multinomial-logit.html">Multinomial Logit</a>: multiclass classification.</li>

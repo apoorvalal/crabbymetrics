@@ -26,6 +26,8 @@ website:
             text: PCA And Kernel Basis
           - href: examples/richer-regression.qmd
             text: Richer Regression
+          - href: examples/optimizers.qmd
+            text: Optimizers
           - href: examples/elastic-net.qmd
             text: ElasticNet
           - href: examples/logit.qmd
