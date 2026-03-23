@@ -60,12 +60,13 @@ def html_table(headers, rows):
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
-- Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a callback-driven general `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
+- Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
 - The module also exposes an `Optimizers` class with static methods for LBFGS, BFGS, nonlinear conjugate gradient, Gauss-Newton least squares, and simulated annealing.
 - The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
-- `TwoSLS` is effectively a single-endogenous implementation today, even though `x_endog` is typed as a matrix.
-- `MEstimator` is flexible but low-level. Users are responsible for gradients, per-observation score matrices, and numerical safeguards inside their objective functions.
+- `TwoSLS` now uses the closed-form linear IV / 2SLS estimator and accepts matrix-valued endogenous regressors and excluded instruments.
+- `GMM` now sits between the built-in estimators and `MEstimator`: users supply per-observation moments, optionally a sample Jacobian, and the class handles just-identified versus two-step fitting plus summary-time covariance choices.
+- `MEstimator` is still the lowest-level likelihood-style interface. Users are responsible for gradients, per-observation score matrices, and numerical safeguards inside their objective functions.
 
 ## Public Surface
 
@@ -81,6 +82,7 @@ classes = [
     cm.MultinomialLogit,
     cm.Poisson,
     cm.TwoSLS,
+    cm.GMM,
     cm.FTRL,
     cm.MEstimator,
     cm.PCA,
@@ -132,7 +134,7 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
 - Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
 - OLS, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
-- `FixedEffectsOLS` deliberately has no `predict()` method. It stores slope coefficients and uses the absorbed-effects representation only for estimation and bootstrap.
+- `FixedEffectsOLS`, `GMM`, and `MEstimator` deliberately have no `predict()` method. They are estimation-first interfaces.
 - When an estimator has an intercept, bootstrap draws place it in the first column.
 - `summary()` returns dictionaries, not rich result objects. Downstream code should index by key.
 - `bootstrap(n_bootstrap, seed=None)` now accepts an omitted seed across the full public surface.
@@ -147,7 +149,7 @@ reference_rows = [
         "1D float predictions",
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
-        "Uses Linfa linear regression with HC1 robust standard errors.",
+        "Uses Linfa linear regression; <code>summary(vcov='hc1')</code> is default and <code>summary(vcov='vanilla')</code> exposes homoskedastic standard errors.",
     ],
     [
         "<code>FixedEffectsOLS</code>",
@@ -195,7 +197,7 @@ reference_rows = [
         "1D float mean counts",
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
-        "Custom Newton-CG Poisson MLE with optional L2 penalty via <code>alpha</code>.",
+        "Custom Newton-CG Poisson MLE with optional L2 penalty via <code>alpha</code>; <code>summary(vcov='vanilla')</code> gives Fisher SEs and <code>summary(vcov='sandwich')</code> gives QMLE sandwich SEs.",
     ],
     [
         "<code>TwoSLS</code>",
@@ -203,7 +205,7 @@ reference_rows = [
         "1D float predictions from the stage-two design matrix",
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, k + 1)</code> with intercept, else <code>(B, k)</code>",
-        "Currently single-endogenous in practice. Exogenous regressors follow the endogenous block in <code>predict()</code>.",
+        "Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors; exogenous regressors follow the endogenous block in <code>predict()</code>.",
     ],
     [
         "<code>FTRL</code>",
@@ -212,6 +214,14 @@ reference_rows = [
         "<code>coef</code>, <code>coef_se</code>",
         "<code>(B, p)</code>",
         "Online-style classification model with a different summary schema and no explicit intercept output.",
+    ],
+    [
+        "<code>GMM</code>",
+        "<code>fit(data_dict, theta0, weighting='auto')</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>coef</code>, <code>se</code>, <code>vcov</code>, <code>criterion</code>, <code>nit</code>, <code>weighting</code>, <code>vcov_type</code>, <code>omega_type</code>, <code>weight_matrix</code>, <code>nobs</code>, <code>n_moments</code>, <code>j_stat</code>, <code>j_df</code>",
+        "No bootstrap method",
+        "Requires <code>moment_fn(theta, data)</code> returning an <code>(n, m)</code> matrix of per-observation moments and optionally <code>jacobian_fn(theta, data)</code> returning the sample Jacobian of shape <code>(m, p)</code>.",
     ],
     [
         "<code>MEstimator</code>",
@@ -426,11 +436,12 @@ runtime_rows.append(
 
 # TwoSLS
 n = 80
-z = rng.normal(size=(n, 1))
+z = rng.normal(size=(n, 2))
 x_exog = rng.normal(size=(n, 1))
-u = rng.normal(size=n)
-x_endog = (0.9 * z[:, 0] + 0.2 * u + rng.normal(scale=0.1, size=n)).reshape(-1, 1)
-y_iv = 0.4 + 1.3 * x_endog[:, 0] - 0.6 * x_exog[:, 0] + u + rng.normal(scale=0.1, size=n)
+v = rng.normal(size=(n, 2))
+u = 0.5 * v[:, 0] - 0.35 * v[:, 1] + rng.normal(scale=0.1, size=n)
+x_endog = z @ np.array([[0.9, 0.1], [-0.25, 0.8]]) + 0.2 * x_exog + v
+y_iv = 0.4 + x_endog @ np.array([1.3, -0.7]) - 0.6 * x_exog[:, 0] + u
 model = cm.TwoSLS()
 model.fit(x_endog, x_exog, z, y_iv)
 runtime_rows.append(
@@ -453,6 +464,41 @@ runtime_rows.append(
         "<code>FTRL</code>",
         ", ".join(model.summary().keys()),
         str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# GMM
+def gmm_moments(theta, data):
+    X = data["X"]
+    y = data["y"]
+    centered = X[:, 0] - theta[0]
+    resid = y - theta[1] - theta[2] * centered
+    return np.column_stack([X[:, 0] - theta[0], resid, centered * resid])
+
+
+def gmm_jacobian(theta, data):
+    X = data["X"]
+    y = data["y"]
+    centered = X[:, 0] - theta[0]
+    resid = y - theta[1] - theta[2] * centered
+    return np.array(
+        [
+            [-1.0, 0.0, 0.0],
+            [theta[2], -1.0, -centered.mean()],
+            [(-resid + theta[2] * centered).mean(), -centered.mean(), -(centered**2).mean()],
+        ]
+    )
+
+
+x = rng.normal(size=(60, 1))
+y = 1.2 + 0.8 * (x[:, 0] - x[:, 0].mean()) + rng.normal(scale=0.2, size=60)
+model = cm.GMM(gmm_moments, jacobian_fn=gmm_jacobian, max_iterations=200)
+model.fit({"X": x, "y": y}, np.zeros(3))
+runtime_rows.append(
+    [
+        "<code>GMM</code>",
+        ", ".join(model.summary().keys()),
+        "n/a",
     ]
 )
 
@@ -503,9 +549,57 @@ model = cm.OLS()
 model.fit(x, y)
 
 summary = model.summary()
+summary_vanilla = model.summary(vcov="vanilla")
 bootstrap_draws = model.bootstrap(5, seed=42)
 
-summary, bootstrap_draws[:2]
+summary["coef"], summary_vanilla["coef_se"], bootstrap_draws[:2]
+```
+
+### Poisson
+
+```{python}
+rng = np.random.default_rng(4)
+x = rng.normal(size=(300, 2))
+mu = np.exp(0.2 + x @ np.array([0.5, -0.25]))
+y = rng.poisson(mu).astype(float)
+
+model = cm.Poisson(max_iterations=200, tolerance=1e-8)
+model.fit(x, y)
+
+vanilla = model.summary(vcov="vanilla")
+sandwich = model.summary(vcov="sandwich")
+
+vanilla["coef"], sandwich["coef_se"]
+```
+
+### GMM
+
+```{python}
+def simple_iv_moments(theta, data):
+    resid = data["y"] - data["x"] * theta[0]
+    return data["z"] * resid[:, None]
+
+
+def simple_iv_jacobian(theta, data):
+    del theta
+    return -(data["z"].T @ data["x"][:, None]) / data["x"].shape[0]
+
+
+rng = np.random.default_rng(9)
+n = 500
+z = rng.normal(size=(n, 3))
+v = rng.normal(size=n)
+eps = rng.normal(size=n)
+x = z @ np.array([0.9, 0.4, -0.3]) + v
+y = 1.0 * x + 0.5 * v + 0.3 * eps
+
+model = cm.GMM(simple_iv_moments, jacobian_fn=simple_iv_jacobian, max_iterations=200)
+model.fit({"x": x, "y": y, "z": z}, np.array([0.0]), weighting="identity")
+
+vanilla = model.summary(vcov="vanilla")
+sandwich = model.summary(vcov="sandwich", omega="iid")
+
+vanilla["coef"], sandwich["se"]
 ```
 
 ### FixedEffectsOLS
@@ -582,5 +676,5 @@ model.summary()
 
 - There is still no rich result object layer. Consumers should expect raw dictionaries and NumPy arrays.
 - Most estimators do not expose fit statistics or formula handling.
-- `TwoSLS` should be treated as a single-endogenous implementation until the stage-one and bootstrap paths are generalized.
+- `GMM` is intentionally narrow: closed-form linear IV still lives in `TwoSLS`, and the generic class only does just-identified Gauss-Newton or two-step overidentified weighting.
 - `MEstimator` favors flexibility over guardrails. If your objective has fragile regions, add clipping or other stability controls inside the callback.

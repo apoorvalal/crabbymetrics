@@ -1,5 +1,5 @@
 ---
-title: "Mechanics: MEstimator"
+title: "Binding Internals: MEstimator"
 format:
   html:
     toc: false
@@ -12,7 +12,7 @@ execute:
   message: false
 ---
 
-This page walks through `MEstimator`, which is the most flexible estimator interface in the library. Unlike `Poisson`, the objective is not hard-coded in Rust. Instead, Rust owns the optimizer loop while Python supplies callbacks for the objective, gradient, and scores.
+This page is the callback-heavy binding-internals follow-on to the OLS crash course. It walks through `MEstimator`, which is the most flexible estimator interface in the library. Unlike `Poisson`, the objective is not hard-coded in Rust. Instead, Rust owns the optimizer loop while Python supplies callbacks for the objective, gradient, and scores.
 
 ## Module Export
 

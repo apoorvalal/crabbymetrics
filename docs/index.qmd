@@ -13,38 +13,48 @@ execute:
   message: false
 ---
 
-`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. This homepage is the entry point for the Quarto docs site in `docs/`.
+`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public estimator surface, a single binding crash course, focused numerical ablations, and a small set of supporting internals pages.
 
-## Main Reference
+## Start Here
 
-- [API reference](api.html): verified public surface, library sitrep, summary schemas, and runtime smoke checks.
+- [API reference](api.html): verified public surface, summary schemas, optimizer catalog, and runtime smoke checks.
+- [Binding Crash Course: OLS](mechanics-ols.html): the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase.
 
-## Mechanics
+## Estimator Examples
 
-- [Mechanics: OLS](mechanics-ols.html): a walkthrough of the straight `linfa` wrapper pattern, from NumPy conversion to `linfa_linear::LinearRegression` and back.
-- [Mechanics: Poisson](mechanics-poisson.html): a walkthrough of the clean built-in estimator pattern from `#[pyclass]` to `argmin` solver to Python arrays and dicts.
-- [Mechanics: MEstimator](mechanics-mestimator.html): a walkthrough of the callback-driven bridge where Rust owns optimization and Python supplies the objective and score functions.
-
-## Highlights
-
-- `PCA` and `KernelBasis` let you build richer right-hand sides before fitting the regression estimators.
-- `Optimizers` exposes low-level minimizers directly for custom M-estimation and GMM-style workflows.
-
-## Examples
-
-- [OLS](examples/ols.html): baseline linear regression with HC1 standard errors.
+- [OLS](examples/ols.html): baseline linear regression with switchable vanilla and HC1 covariance estimators.
 - [Fixed Effects OLS](examples/fixed-effects-ols.html): partial out one-way or multi-way categorical fixed effects with `within`, then estimate slopes without an intercept.
-- [Synthetic Control](examples/synthetic-control.html): simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.
-- [PCA And Kernel Basis](examples/pca-and-kernel-basis.html): linear low-rank compression for factor-style designs, plus nonlinear kernel features on a swiss roll.
-- [Richer Regression](examples/richer-regression.html): use `KernelBasis` and `PCA` to build a nonlinear right-hand side that beats raw OLS on a held-out test set.
-- [Optimizers](examples/optimizers.html): recover a Bernoulli logit fit with `Optimizers.minimize_bfgs`, then use nonlinear CG and simulated annealing on rougher objective surfaces.
 - [ElasticNet](examples/elastic-net.html): regularized linear regression.
+- [Synthetic Control](examples/synthetic-control.html): simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.
 - [Logit](examples/logit.html): binary logistic regression.
 - [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.
-- [Poisson](examples/poisson.html): count regression.
-- [TwoSLS](examples/twosls.html): instrumental variables regression.
+- [Poisson](examples/poisson.html): count regression, with model-based or QMLE sandwich inference available from `summary(vcov=...)`.
+- [TwoSLS](examples/twosls.html): instrumental variables regression, including multiple endogenous regressors and multiple excluded instruments.
+- [GMM](examples/gmm.html): fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class `GMM` estimator.
 - [FTRL](examples/ftrl.html): online-style binary classification.
-- [MEstimator Poisson](examples/mestimator-poisson.html): callback-driven estimation matched against built-in Poisson.
+- [MEstimator Poisson](examples/mestimator-poisson.html): callback-driven estimation matched against the built-in Poisson estimator.
+
+## Ablations
+
+- [Variance Estimators](ablations/variance-estimators.html): cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.
+
+## Optimization
+
+- [Optimizers](examples/optimizers.html): direct optimizer usage for smooth likelihoods, rougher objective surfaces, and solver behavior comparisons.
+- [GMM With Optimizers](examples/gmm-with-optimizers.html): the lower-level notebook that motivated the first-class `GMM` estimator and still shows the residual-collection view directly.
+
+## Supporting Pages
+
+- [Binding Internals: Poisson](mechanics-poisson.html): a deeper built-in-estimator walkthrough after the OLS crash course.
+- [Binding Internals: MEstimator](mechanics-mestimator.html): the callback-heavy bridge where Rust owns optimization and Python supplies the objective and scores.
+- [PCA And Kernel Basis](examples/pca-and-kernel-basis.html): transformer examples for richer design matrices.
+- [Richer Regression With Transformer Pipelines](examples/richer-regression.html): a longer transformer-based modeling example built on `KernelBasis` and `PCA`.
+
+## Runtime Snapshot
+
+![Repo-level runtime comparison for OLS, Logit, Poisson, and MultinomialLogit across `crabbymetrics`, `scikit-learn`, and `statsmodels`. Lower is faster.](../benchmarks/runtime_comparison.png){fig-alt="Runtime comparison benchmark across crabbymetrics, scikit-learn, and statsmodels" width="100%"}
+
+The benchmark figure is generated from the repo-level benchmark assets in `benchmarks/` and gives a quick scale check for the estimators that overlap cleanly with mainstream Python baselines.
 
 ## Notes
 

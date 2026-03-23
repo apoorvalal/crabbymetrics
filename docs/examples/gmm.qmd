@@ -1,0 +1,251 @@
+---
+title: "GMM Example"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page shows the first-class `crabbymetrics.GMM` estimator. The public contract is deliberately small:
+
+- `moment_fn(theta, data)` must return an `(n_obs, n_moments)` matrix of per-observation moments.
+- `jacobian_fn(theta, data)` is optional and, when provided, must return the sample Jacobian of the averaged moments with shape `(n_moments, n_params)`.
+- `fit(..., weighting="auto")` uses identity weighting in just-identified problems and two-step GMM in overidentified ones.
+
+At the algebra level, the class is solving
+
+$$
+\bar g(\theta) = \frac{1}{n} \sum_{i=1}^n g_i(\theta)
+$$
+
+and minimizing the quadratic criterion
+
+$$
+Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
+$$
+
+In just-identified problems, the default path is vanilla Gauss-Newton with identity weighting. In overidentified problems, the class first fits with \(W = I\), estimates
+
+$$
+\hat{\Omega} = \frac{1}{n} \sum_{i=1}^n g_i(\hat{\theta}_1) g_i(\hat{\theta}_1)^\top,
+$$
+
+sets \(W = \hat{\Omega}^{-1}\), and refits.
+
+## Imports
+
+```{python}
+import numpy as np
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Just-Identified Score GMM
+
+MLE score equations are a clean just-identified GMM use case. For Poisson regression with a log link, the score moments are
+
+$$
+g_i(\theta) = x_i \left(y_i - \exp(x_i^\top \theta)\right).
+$$
+
+```{python}
+rng = np.random.default_rng(123)
+n = 900
+x_raw = rng.normal(size=(n, 2))
+x = np.column_stack([np.ones(n), x_raw])
+theta_true = np.array([0.15, 0.3, -0.25])
+y = rng.poisson(np.exp(x @ theta_true)).astype(float)
+
+
+def poisson_score_moments(theta, data):
+    design = data["x"]
+    outcome = data["y"]
+    mean = np.exp(np.clip(design @ theta, -20.0, 20.0))
+    return design * (outcome - mean)[:, None]
+
+
+gmm = cm.GMM(poisson_score_moments, max_iterations=200, tolerance=1e-8, fd_eps=1e-5)
+gmm.fit({"x": x, "y": y}, np.zeros(x.shape[1]))
+gmm_summary = gmm.summary()
+
+poisson = cm.Poisson(alpha=0.0, max_iterations=200, tolerance=1e-8)
+poisson.fit(x_raw, y)
+poisson_summary = poisson.summary()
+
+theta_poisson = np.concatenate([[poisson_summary["intercept"]], poisson_summary["coef"]])
+
+print("GMM score estimate:", np.round(gmm_summary["coef"], 4))
+print("Poisson MLE estimate:", np.round(theta_poisson, 4))
+print("GMM score SE:", np.round(gmm_summary["se"], 4))
+```
+
+## Overidentified Linear IV GMM
+
+For linear IV moments with more instruments than parameters,
+
+$$
+g_i(\theta) = z_i \left(y_i - x_i^\top \theta\right),
+$$
+
+the first step uses \(W = I\), then the class updates the weighting matrix with the inverse outer product of moments.
+
+```{python}
+rng = np.random.default_rng(20260322)
+n = 3000
+
+beta_true = np.array([1.25, -0.85])
+z = rng.normal(size=(n, 5))
+v = rng.normal(size=(n, 2))
+eps = rng.normal(size=n)
+pi = np.array(
+    [
+        [0.9, 0.1],
+        [0.5, -0.3],
+        [-0.4, 0.8],
+        [0.3, 0.2],
+        [-0.2, 0.5],
+    ]
+)
+
+x = z @ pi + v
+u = 0.7 * v[:, 0] - 0.55 * v[:, 1] + 0.35 * eps
+y = x @ beta_true + u
+
+
+def iv_moments(theta, data):
+    design = data["x"]
+    outcome = data["y"]
+    instruments = data["z"]
+    resid = outcome - design @ theta
+    return instruments * resid[:, None]
+
+
+def iv_jacobian(theta, data):
+    del theta
+    design = data["x"]
+    instruments = data["z"]
+    return -(instruments.T @ design) / design.shape[0]
+
+
+iv_gmm = cm.GMM(iv_moments, jacobian_fn=iv_jacobian, max_iterations=200, tolerance=1e-10)
+iv_gmm.fit({"x": x, "y": y, "z": z}, np.zeros(x.shape[1]))
+iv_summary = iv_gmm.summary()
+
+print("true beta:", beta_true)
+print("two-step GMM beta:", np.round(iv_summary["coef"], 4))
+print("two-step GMM SE:", np.round(iv_summary["se"], 4))
+print("weighting:", iv_summary["weighting"])
+print("J-statistic:", round(float(iv_summary["j_stat"]), 4), "with df =", iv_summary["j_df"])
+```
+
+## Lin (2013) As A Stacked Moment System
+
+Stacking matters most when later moments depend on nuisance parameters estimated from the data. In Lin's centered regression adjustment with one covariate,
+
+$$
+Y_i = \alpha + \tau W_i + \beta (X_i - \mu_x) + \gamma W_i (X_i - \mu_x) + \varepsilon_i,
+$$
+
+the unknown centering parameter \(\mu_x\) belongs in the parameter vector:
+
+$$
+\theta = (\mu_x, \alpha, \tau, \beta, \gamma).
+$$
+
+That means the just-identified stack needs five moments, not three:
+
+$$
+g_i(\theta) =
+\begin{bmatrix}
+X_i - \mu_x \\
+u_i(\theta) \\
+W_i u_i(\theta) \\
+(X_i - \mu_x) u_i(\theta) \\
+W_i (X_i - \mu_x) u_i(\theta)
+\end{bmatrix},
+\qquad
+u_i(\theta) = Y_i - \alpha - \tau W_i - \beta (X_i - \mu_x) - \gamma W_i (X_i - \mu_x).
+$$
+
+The first block estimates the centering parameter. The remaining four blocks are the normal equations for the interacted regression.
+
+```{python}
+rng = np.random.default_rng(5151)
+n = 1200
+x = rng.normal(loc=1.5, scale=1.1, size=n)
+w = rng.binomial(n=1, p=0.5, size=n)
+y = (
+    2.0
+    - 0.65 * (x - x.mean())
+    + 0.5 * w
+    + 0.25 * (x - x.mean()) * w
+    + rng.normal(scale=0.4, size=n)
+)
+clusters = np.repeat(np.arange(60, dtype=np.int64), n // 60)
+
+
+def lin_moments(theta, data):
+    mu_x, alpha, tau, beta, gamma = theta
+    feature = data["x"]
+    treatment = data["w"]
+    outcome = data["y"]
+    centered = feature - mu_x
+    resid = (
+        outcome
+        - alpha
+        - tau * treatment
+        - beta * centered
+        - gamma * (treatment * centered)
+    )
+    return np.column_stack(
+        [
+            feature - mu_x,
+            resid,
+            treatment * resid,
+            centered * resid,
+            treatment * centered * resid,
+        ]
+    )
+
+
+lin = cm.GMM(
+    lin_moments,
+    max_iterations=300,
+    tolerance=1e-10,
+    fd_eps=1e-5,
+)
+lin.fit({"x": x, "w": w, "y": y}, np.zeros(5))
+
+vanilla = lin.summary(vcov="vanilla")
+cluster = lin.summary(vcov="sandwich", omega="cluster", clusters=clusters)
+hac = lin.summary(vcov="sandwich", omega="newey_west", lags=4)
+
+centered = x - x.mean()
+ols_target = np.linalg.lstsq(
+    np.column_stack([np.ones(n), w, centered, w * centered]),
+    y,
+    rcond=None,
+)[0]
+
+print("Lin GMM theta:", np.round(vanilla["coef"], 4))
+print("OLS target:", np.round(np.concatenate([[x.mean()], ols_target]), 4))
+print("vanilla SE:", np.round(vanilla["se"], 4))
+print("cluster-robust SE:", np.round(cluster["se"], 4))
+print("Newey-West SE:", np.round(hac["se"], 4))
+```
+
+## Takeaway
+
+- The public callback contract is per-observation moments first.
+- Just-identified score systems work cleanly with Gauss-Newton even without an explicit Jacobian callback.
+- Overidentified problems use a minimal two-step GMM path.
+- Generated-regressor problems fit naturally by stacking nuisance moments together with the full set of residual orthogonality conditions.
+- Summary-time inference can stay separate from point estimation, so the same fitted model can report vanilla, cluster-robust, or Newey-West covariance estimates.

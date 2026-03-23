@@ -1,7 +1,7 @@
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, fisher_cov_multinomial,
     fisher_cov_poisson, invert_matrix, pyarray1_from_f64, pyarray1_from_i32, pyarray2_from_f64,
-    take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32, to_array2,
+    qmle_cov_poisson, take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32, to_array2,
 };
 use argmin::core::{CostFunction, Executor, Gradient, Hessian};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
@@ -506,13 +506,18 @@ impl Poisson {
         Ok(pyarray1_from_f64(py, &mu))
     }
 
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+    #[pyo3(signature = (vcov="vanilla"))]
+    fn summary<'py>(&self, py: Python<'py>, vcov: &str) -> PyResult<Py<PyAny>> {
         let coef = self
             .coef
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Poisson model is not fitted"))?;
         let x = self
             .x
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let y = self
+            .y
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
 
@@ -522,7 +527,15 @@ impl Poisson {
         } else {
             x.clone()
         };
-        let cov = fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?;
+        let cov = match vcov {
+            "vanilla" => fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?,
+            "sandwich" | "qmle" => qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "vcov must be one of {'vanilla', 'sandwich', 'qmle'}",
+                ));
+            }
+        };
         let se_all = diag_sqrt(&cov);
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
@@ -541,6 +554,7 @@ impl Poisson {
         dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov_type", if vcov == "qmle" { "sandwich" } else { vcov })?;
         Ok(dict.into())
     }
 

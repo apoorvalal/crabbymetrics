@@ -12,9 +12,9 @@ execute:
 jupyter: python3
 ---
 
-This page shows how to build a just-identified and an overidentified GMM estimator directly on top of the existing optimizer surface. The point is not that this should stay a hand-written notebook forever. The point is that the current `Optimizers` API is already strong enough to fit a serious moment-condition problem before packaging it into a first-class class.
+This page shows the low-level optimizer path underneath the first-class `GMM` estimator. The point is no longer that this needs to stay a hand-written notebook. The point is that the existing `Optimizers` API was already expressive enough to fit a serious moment-condition problem and was a good staging ground for the eventual class.
 
-The setting is deliberately chosen to go beyond the current `TwoSLS` wrapper: two endogenous regressors and five instruments.
+The setting is deliberately chosen to go beyond the closed-form `TwoSLS` wrapper: five excluded instruments, two-step weighting, and a J-statistic.
 
 ## Imports
 
@@ -192,7 +192,7 @@ print("BFGS efficient beta:", np.round(bfgs_over["x"], 4))
 print("J-statistic:", round(float(j_stat), 4), "with df =", Z.shape[1] - X.shape[1])
 ```
 
-This is the pattern you would package into a proper `GMM` class later:
+This is now the pattern packaged into the `GMM` class:
 
 1. define the sample moments
 2. run a first-step fit with a simple weight matrix
@@ -266,9 +266,9 @@ The main point is not that Gauss-Newton always dominates BFGS. The point is that
 
 - Just-identified IV moments already fit cleanly into `Optimizers.minimize_gauss_newton_ls`.
 - Overidentified GMM only needs one more layer: estimate `Omega`, form `W = Omega^{-1}`, and rerun the optimizer.
-- The current optimizer surface is already expressive enough for a proper `GMM` class later, especially for linear moments where the Jacobian is simple and often constant.
+- The current optimizer surface was already expressive enough to build the `GMM` class, especially for linear moments where the Jacobian is simple and often constant.
 
-If this gets packaged into a class, the likely class-level responsibilities are:
+Those class-level responsibilities are now:
 
 - own the moment, Jacobian, and per-observation score callbacks
 - manage one-step versus two-step weighting

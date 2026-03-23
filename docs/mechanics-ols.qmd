@@ -1,5 +1,5 @@
 ---
-title: "Mechanics: OLS"
+title: "Binding Crash Course: OLS"
 format:
   html:
     toc: false
@@ -12,7 +12,7 @@ execute:
   message: false
 ---
 
-This page walks through the simplest estimator pattern in the library: `OLS`. It is a straight wrapper around a `linfa` solver with a thin PyO3 boundary. That makes it the cleanest starting point for understanding how the Rust extension exposes estimators to Python.
+This page is the shortest binding walkthrough in the library. `OLS` is a straight wrapper around a `linfa` solver with a thin PyO3 boundary, so it is the cleanest starting point for understanding how the Rust extension exposes estimators to Python.
 
 ## Module Export
 
@@ -157,9 +157,9 @@ So the boundary mechanics are:
 - call `linfa`’s `predict`
 - convert the result back into a Python `numpy.ndarray`
 
-## Summary And HC1 Standard Errors
+## Summary And Variance Estimators
 
-`summary()` is where the wrapper adds value beyond just exposing `linfa`. The underlying solver gives the fitted coefficients, but the crate computes HC1 standard errors itself:
+`summary()` is where the wrapper adds value beyond just exposing `linfa`. The underlying solver gives the fitted coefficients, while the crate computes the covariance itself and now lets Python choose between `vcov="hc1"` and `vcov="vanilla"`:
 
 ```rust
 let y_hat = model.predict(x);
@@ -169,14 +169,18 @@ let design = if self.fit_intercept {
 } else {
     x.clone()
 };
-let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
+let cov = match vcov {
+    "hc1" => hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?,
+    "vanilla" => ols_vanilla_cov(&design, &residuals).map_err(PyValueError::new_err)?,
+    _ => return Err(PyValueError::new_err("vcov must be one of {'hc1', 'vanilla'}")),
+};
 let se_all = diag_sqrt(&cov);
 ```
 
 Then it combines:
 
 - the `linfa` point estimates from `model.intercept()` and `model.params()`
-- the locally computed covariance from `hc1_cov`
+- the locally computed covariance from the chosen OLS variance formula
 
 and returns a plain Python dict:
 
@@ -213,6 +217,7 @@ model = OLS()
 model.fit(x, y)
 
 summary = model.summary()
+summary_vanilla = model.summary(vcov="vanilla")
 pred = model.predict(x[:5])
 boot = model.bootstrap(50, seed=1)
 ```

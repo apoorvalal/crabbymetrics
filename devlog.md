@@ -87,11 +87,11 @@ The summary output uses consistent keys when applicable:
 - Intercept handled by augmenting parameter vector.
 - SEs from Fisher information: inverse of `X' W X` where `W = exp(η)`.
 
-### TwoSLS (single endogenous)
-- Stage 1: regress endog on instruments (+ exog) using OLS.
-- Stage 2: regress y on predicted endog (+ exog) using OLS.
-- Stores the original arrays to recompute SEs and bootstrap.
-- TODO note in code: extend to multi-endogenous and GMM.
+### TwoSLS (closed-form linear IV)
+- Uses the closed-form linear IV / 2SLS estimator `beta = (X' P_Z X)^{-1} X' P_Z y`.
+- Supports multiple endogenous regressors and multiple excluded instruments.
+- Exogenous regressors are folded into both the structural design and the instrument set.
+- `summary()` now uses a moment-based sandwich covariance rather than HC1 on a fitted second-stage surrogate.
 
 ### FTRL
 - Uses `linfa-ftrl` for classification.
@@ -345,7 +345,7 @@ Each script:
 ## To revisit
 
 - Add Ridge closed-form and Lasso-specific solvers.
-- Extend TwoSLS to multi-endogenous and GMM.
+- Build a first-class GMM estimator on top of the linear IV path and optimizer prototypes.
 - Improve MLE diagnostics (gradient norms, convergence status) for logit/poisson/multinomial.
 - Consider `abi3` wheels to reduce per-Python builds.
 - Add formal tests (pytest) from example scripts.
