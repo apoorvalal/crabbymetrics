@@ -25,6 +25,35 @@ def vanilla_ols_se(x, y):
     return beta, np.sqrt(np.diag(cov))
 
 
+def ridge_augmented_solution(x, y, penalty):
+    design = np.column_stack([np.ones(x.shape[0]), x])
+    penalty_block = np.sqrt(penalty) * np.eye(x.shape[1] + 1)
+    penalty_block[0, 0] = 0.0
+    aug_x = np.vstack([design, penalty_block])
+    aug_y = np.concatenate([y, np.zeros(x.shape[1] + 1)])
+    beta, *_ = np.linalg.lstsq(aug_x, aug_y, rcond=None)
+    return beta[0], beta[1:]
+
+
+def ridge_cv_curve(x, y, penalties, cv):
+    n = x.shape[0]
+    n_folds = min(cv, n)
+    fold_id = np.arange(n) % n_folds
+    curve = np.zeros(len(penalties))
+
+    for j, penalty in enumerate(penalties):
+        fold_mse = 0.0
+        for fold in range(n_folds):
+            train = fold_id != fold
+            test = ~train
+            intercept, coef = ridge_augmented_solution(x[train], y[train], penalty)
+            residual = y[test] - (intercept + x[test] @ coef)
+            fold_mse += np.mean(residual**2)
+        curve[j] = fold_mse / n_folds
+
+    return curve
+
+
 def poisson_covariances(x, y, intercept, coef):
     design = np.column_stack([np.ones(x.shape[0]), x])
     mu = np.exp(intercept + x @ coef)
@@ -108,6 +137,102 @@ def test_ols_summary_supports_vanilla_and_hc1_vcov():
     np.testing.assert_allclose(hc1["coef_se"], se_hc1[1:], atol=1e-8, rtol=1e-8)
     assert vanilla["vcov_type"] == "vanilla"
     assert hc1["vcov_type"] == "hc1"
+
+
+def test_ridge_scalar_penalty_matches_augmented_least_squares():
+    rng = np.random.default_rng(2028)
+    x = rng.normal(size=(500, 3))
+    y = 0.4 + x @ np.array([1.2, -0.8, 0.25]) + rng.normal(scale=0.7, size=500)
+    penalty = 1.75
+
+    model = cm.Ridge(penalty=penalty)
+    model.fit(x, y)
+    summary = model.summary(vcov="vanilla")
+    intercept_hat, coef_hat = ridge_augmented_solution(x, y, penalty)
+
+    np.testing.assert_allclose(summary["intercept"], intercept_hat, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef"], coef_hat, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(model.predict(x[:25]), intercept_hat + x[:25] @ coef_hat, atol=1e-8, rtol=1e-8)
+    assert summary["penalty"] == penalty
+    assert summary["best_penalty_index"] is None
+    assert summary["coef_path"].shape == (x.shape[1], 1)
+    assert model.best_penalty == penalty
+    assert model.best_penalty_index is None
+    assert model.bootstrap(4, seed=13).shape == (4, x.shape[1] + 1)
+
+
+def test_ridge_zero_penalty_matches_ols_point_estimates():
+    rng = np.random.default_rng(2029)
+    x = rng.normal(size=(600, 2))
+    y = -0.2 + x @ np.array([0.9, -1.1]) + rng.normal(scale=0.4, size=600)
+
+    ols = cm.OLS()
+    ols.fit(x, y)
+    ridge = cm.Ridge(penalty=0.0)
+    ridge.fit(x, y)
+
+    ols_summary = ols.summary(vcov="vanilla")
+    ridge_summary = ridge.summary(vcov="vanilla")
+
+    np.testing.assert_allclose(ridge_summary["intercept"], ols_summary["intercept"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(ridge_summary["coef"], ols_summary["coef"], atol=1e-8, rtol=1e-8)
+
+
+def test_ridge_penalty_grid_returns_path_and_cv_optimal_index():
+    rng = np.random.default_rng(2030)
+    x = rng.normal(size=(450, 4))
+    y = 0.6 + x @ np.array([1.0, -0.7, 0.0, 0.35]) + rng.normal(scale=0.9, size=450)
+    penalties = np.array([0.0, 0.05, 0.2, 1.0, 4.0])
+
+    model = cm.Ridge(penalty=penalties, cv=6)
+    model.fit(x, y)
+    summary = model.summary()
+    cv_curve = ridge_cv_curve(x, y, penalties, cv=6)
+    best_idx = int(np.argmin(cv_curve))
+
+    np.testing.assert_allclose(summary["penalties"], penalties, atol=0.0, rtol=0.0)
+    np.testing.assert_allclose(summary["cv_mse"], cv_curve, atol=1e-8, rtol=1e-8)
+    assert summary["coef_path"].shape == (x.shape[1], penalties.size)
+    assert summary["intercept_path"].shape == (penalties.size,)
+    assert summary["best_penalty_index"] == best_idx
+    assert model.best_penalty_index == best_idx
+    assert model.best_penalty == penalties[best_idx]
+    np.testing.assert_allclose(summary["coef"], summary["coef_path"][:, best_idx], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["intercept"], summary["intercept_path"][best_idx], atol=1e-8, rtol=1e-8)
+
+
+def test_ridge_cv_predict_matches_refit_at_selected_penalty():
+    rng = np.random.default_rng(2031)
+    x = rng.normal(size=(520, 5))
+    y = -0.1 + x @ np.array([0.9, -0.5, 0.2, 0.0, 0.35]) + rng.normal(scale=0.75, size=520)
+    penalties = np.logspace(-3, 2, 20)
+
+    cv_model = cm.Ridge(penalty=penalties, cv=5)
+    cv_model.fit(x, y)
+    selected_penalty = cv_model.best_penalty
+
+    refit_model = cm.Ridge(penalty=float(selected_penalty))
+    refit_model.fit(x, y)
+
+    x_new = rng.normal(size=(37, x.shape[1]))
+    np.testing.assert_allclose(
+        cv_model.predict(x_new),
+        refit_model.predict(x_new),
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    np.testing.assert_allclose(
+        cv_model.summary()["coef"],
+        refit_model.summary()["coef"],
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    np.testing.assert_allclose(
+        cv_model.summary()["intercept"],
+        refit_model.summary()["intercept"],
+        atol=1e-8,
+        rtol=1e-8,
+    )
 
 
 def test_fixed_effects_ols_is_invariant_to_fixed_effect_relabeling():

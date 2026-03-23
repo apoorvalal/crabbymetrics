@@ -4738,13 +4738,17 @@ vertical-align: -.125em;
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Examples</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Supervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
         <li>
     <a class="dropdown-item" href="./examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./examples/fixed-effects-ols.html">
@@ -4785,6 +4789,21 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="./examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Unsupervised Learning</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+        <li>
+    <a class="dropdown-item" href="./examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
   </li>  
     </ul>
   </li>
@@ -4831,7 +4850,8 @@ vertical-align: -.125em;
    
   <ul class="collapse">
   <li><a href="#start-here" id="toc-start-here" class="nav-link active" data-scroll-target="#start-here">Start Here</a></li>
-  <li><a href="#estimator-examples" id="toc-estimator-examples" class="nav-link" data-scroll-target="#estimator-examples">Estimator Examples</a></li>
+  <li><a href="#supervised-learning-examples" id="toc-supervised-learning-examples" class="nav-link" data-scroll-target="#supervised-learning-examples">Supervised Learning Examples</a></li>
+  <li><a href="#unsupervised-learning-examples" id="toc-unsupervised-learning-examples" class="nav-link" data-scroll-target="#unsupervised-learning-examples">Unsupervised Learning Examples</a></li>
   <li><a href="#ablations" id="toc-ablations" class="nav-link" data-scroll-target="#ablations">Ablations</a></li>
   <li><a href="#optimization" id="toc-optimization" class="nav-link" data-scroll-target="#optimization">Optimization</a></li>
   <li><a href="#supporting-pages" id="toc-supporting-pages" class="nav-link" data-scroll-target="#supporting-pages">Supporting Pages</a></li>
@@ -4862,7 +4882,7 @@ vertical-align: -.125em;
 </header>
 
 
-<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public estimator surface, a single binding crash course, focused numerical ablations, and a small set of supporting internals pages.</p>
+<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and unsupervised example pages, focused numerical ablations, and a small set of supporting internals pages.</p>
 <section id="start-here" class="level2">
 <h2 class="anchored" data-anchor-id="start-here">Start Here</h2>
 <ul>
@@ -4870,10 +4890,11 @@ vertical-align: -.125em;
 <li><a href="mechanics-ols.html">Binding Crash Course: OLS</a>: the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase.</li>
 </ul>
 </section>
-<section id="estimator-examples" class="level2">
-<h2 class="anchored" data-anchor-id="estimator-examples">Estimator Examples</h2>
+<section id="supervised-learning-examples" class="level2">
+<h2 class="anchored" data-anchor-id="supervised-learning-examples">Supervised Learning Examples</h2>
 <ul>
 <li><a href="examples/ols.html">OLS</a>: baseline linear regression with switchable vanilla and HC1 covariance estimators.</li>
+<li><a href="examples/ridge.html">Ridge</a>: closed-form L2-regularized least squares with a scalar penalty or a penalty grid plus cross-validation.</li>
 <li><a href="examples/fixed-effects-ols.html">Fixed Effects OLS</a>: partial out one-way or multi-way categorical fixed effects with <code>within</code>, then estimate slopes without an intercept.</li>
 <li><a href="examples/elastic-net.html">ElasticNet</a>: regularized linear regression.</li>
 <li><a href="examples/synthetic-control.html">Synthetic Control</a>: simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.</li>
@@ -4884,6 +4905,13 @@ vertical-align: -.125em;
 <li><a href="examples/gmm.html">GMM</a>: fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class <code>GMM</code> estimator.</li>
 <li><a href="examples/ftrl.html">FTRL</a>: online-style binary classification.</li>
 <li><a href="examples/mestimator-poisson.html">MEstimator Poisson</a>: callback-driven estimation matched against the built-in Poisson estimator.</li>
+<li><a href="examples/richer-regression.html">Richer Regression With Transformer Pipelines</a>: a longer supervised example built on <code>KernelBasis</code> and <code>PCA</code>.</li>
+</ul>
+</section>
+<section id="unsupervised-learning-examples" class="level2">
+<h2 class="anchored" data-anchor-id="unsupervised-learning-examples">Unsupervised Learning Examples</h2>
+<ul>
+<li><a href="examples/pca-and-kernel-basis.html">PCA And Kernel Basis</a>: transformer examples for richer design matrices and nonlinear geometry.</li>
 </ul>
 </section>
 <section id="ablations" class="level2">
@@ -4904,8 +4932,6 @@ vertical-align: -.125em;
 <ul>
 <li><a href="mechanics-poisson.html">Binding Internals: Poisson</a>: a deeper built-in-estimator walkthrough after the OLS crash course.</li>
 <li><a href="mechanics-mestimator.html">Binding Internals: MEstimator</a>: the callback-heavy bridge where Rust owns optimization and Python supplies the objective and scores.</li>
-<li><a href="examples/pca-and-kernel-basis.html">PCA And Kernel Basis</a>: transformer examples for richer design matrices.</li>
-<li><a href="examples/richer-regression.html">Richer Regression With Transformer Pipelines</a>: a longer transformer-based modeling example built on <code>KernelBasis</code> and <code>PCA</code>.</li>
 </ul>
 </section>
 <section id="runtime-snapshot" class="level2">

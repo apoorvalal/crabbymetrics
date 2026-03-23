@@ -4916,13 +4916,17 @@ window.Quarto = {
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Examples</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Supervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
@@ -4963,6 +4967,21 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Unsupervised Learning</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
   </li>  
     </ul>
   </li>
@@ -5036,7 +5055,7 @@ window.Quarto = {
 <p>The page uses Quarto execution caching and document freezing, so once the Monte Carlo cells have run, later site renders should reuse the saved outputs until this file changes.</p>
 <section id="imports-and-helpers" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports-and-helpers"><span class="header-section-number">1</span> Imports And Helpers</h2>
-<div id="f88913de" class="cell" data-execution_count="1">
+<div id="f88913de" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -5134,7 +5153,7 @@ window.Quarto = {
 <li>the 95% Wald confidence interval coverage for one target coefficient</li>
 </ul>
 <p>The sample sizes are shared across sections, but the replication counts differ because OLS is a closed-form solve while Poisson and GMM are iterative:</p>
-<div id="8be00c10" class="cell" data-execution_count="2">
+<div id="8be00c10" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sample_sizes <span class="op">=</span> [<span class="dv">100</span>, <span class="dv">400</span>, <span class="dv">1600</span>]</span>
@@ -5187,7 +5206,7 @@ window.Quarto = {
 </section>
 <section id="simulation-code" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="simulation-code"><span class="header-section-number">3</span> Simulation Code</h2>
-<div id="c1cbdce8" class="cell" data-execution_count="3">
+<div id="c1cbdce8" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_ols(sample_sizes, reps, seed):</span>
@@ -5305,7 +5324,7 @@ window.Quarto = {
 </section>
 <section id="cached-monte-carlo-runs" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="cached-monte-carlo-runs"><span class="header-section-number">4</span> Cached Monte Carlo Runs</h2>
-<div id="4a01f857" class="cell" data-execution_count="4">
+<div id="4a01f857" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ols_results <span class="op">=</span> simulate_ols(sample_sizes, ols_reps, seed<span class="op">=</span><span class="dv">20260322</span>)</span>
@@ -5316,7 +5335,7 @@ window.Quarto = {
 </section>
 <section id="coverage-plots" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="coverage-plots"><span class="header-section-number">5</span> Coverage Plots</h2>
-<div id="55868cf1" class="cell" data-execution_count="5">
+<div id="55868cf1" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="fl">15.2</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
@@ -5348,7 +5367,7 @@ window.Quarto = {
 (X^\top X)^{-1}.
 \]</span></p>
 <p>The ablation runs both columns through the actual <code>cm.OLS</code> interface via <code>summary(vcov=&quot;vanilla&quot;)</code> and <code>summary(vcov=&quot;hc1&quot;)</code>.</p>
-<div id="0dd718cb" class="cell" data-execution_count="6">
+<div id="0dd718cb" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -5458,7 +5477,7 @@ window.Quarto = {
 \mathrm{Var}(Y_i \mid X_i) &gt; \mu_i.
 \]</span></p>
 <p>The Poisson point estimate remains a valid QMLE, but the Fisher-information covariance is no longer the right uncertainty measure. The sandwich estimator replaces the model-based variance with the outer product of score contributions. The ablation runs both columns through <code>cm.Poisson.summary(vcov=&quot;vanilla&quot;)</code> and <code>cm.Poisson.summary(vcov=&quot;sandwich&quot;)</code>.</p>
-<div id="f1b7c628" class="cell" data-execution_count="7">
+<div id="f1b7c628" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -5576,7 +5595,7 @@ g_i(\beta) = z_i (y_i - x_i \beta),
 (G^\top W G)^{-1} / n.
 \]</span></p>
 <p>The built-in <code>cm.GMM.summary()</code> exposes both columns directly.</p>
-<div id="2b9ae911" class="cell" data-execution_count="8">
+<div id="2b9ae911" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>display(</span>

@@ -4772,13 +4772,17 @@ vertical-align: -.125em;
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Examples</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Supervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
@@ -4819,6 +4823,21 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Unsupervised Learning</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
   </li>  
     </ul>
   </li>
@@ -4885,7 +4904,7 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/ftrl_example.py</code>.</p>
 <section id="fit-an-ftrl-classifier" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-an-ftrl-classifier"><span class="header-section-number">1</span> Fit An FTRL Classifier</h2>
-<div id="75c373b4" class="cell" data-execution_count="1">
+<div id="95fe0ad3" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4893,7 +4912,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="150503c5" class="cell" data-execution_count="2">
+<div id="5af94600" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1000</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">5</span></span>

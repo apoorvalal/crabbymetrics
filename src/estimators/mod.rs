@@ -7,5 +7,5 @@ mod transforms;
 pub use gmm::GMM;
 pub use linear::{FixedEffectsOLS, SyntheticControl, TwoSLS, OLS};
 pub use mle::{Logit, MEstimator, MultinomialLogit, Poisson};
-pub use regularized::{ElasticNet, FTRL};
+pub use regularized::{ElasticNet, FTRL, Ridge};
 pub use transforms::{KernelBasis, PcaTransformer};

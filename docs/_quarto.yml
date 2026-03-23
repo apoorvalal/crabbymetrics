@@ -20,10 +20,12 @@ website:
         text: API
       - href: mechanics-ols.qmd
         text: Binding Crash Course
-      - text: Examples
+      - text: Supervised Learning
         menu:
           - href: examples/ols.qmd
             text: OLS
+          - href: examples/ridge.qmd
+            text: Ridge
           - href: examples/fixed-effects-ols.qmd
             text: Fixed Effects OLS
           - href: examples/elastic-net.qmd
@@ -44,6 +46,12 @@ website:
             text: FTRL
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
+          - href: examples/richer-regression.qmd
+            text: Richer Regression
+      - text: Unsupervised Learning
+        menu:
+          - href: examples/pca-and-kernel-basis.qmd
+            text: PCA And Kernel Basis
       - text: Ablations
         menu:
           - href: ablations/variance-estimators.qmd

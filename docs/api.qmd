@@ -60,7 +60,7 @@ def html_table(headers, rows):
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
-- Coverage is broad for a small codebase: OLS, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
+- Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
 - The module also exposes an `Optimizers` class with static methods for LBFGS, BFGS, nonlinear conjugate gradient, Gauss-Newton least squares, and simulated annealing.
 - The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
@@ -75,6 +75,7 @@ The table below is generated from the live module so the constructor and method 
 ```{python}
 classes = [
     cm.OLS,
+    cm.Ridge,
     cm.FixedEffectsOLS,
     cm.SyntheticControl,
     cm.ElasticNet,
@@ -95,6 +96,8 @@ for cls in classes:
     methods = []
     for method_name in sorted(name for name in dir(cls) if not name.startswith("_")):
         method = getattr(cls, method_name)
+        if not callable(method):
+            continue
         methods.append(
             f"<code>{escape(method_name)}{escape(str(inspect.signature(method)))}</code>"
         )
@@ -133,7 +136,7 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
 - Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
-- OLS, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
+- OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
 - `FixedEffectsOLS`, `GMM`, and `MEstimator` deliberately have no `predict()` method. They are estimation-first interfaces.
 - When an estimator has an intercept, bootstrap draws place it in the first column.
 - `summary()` returns dictionaries, not rich result objects. Downstream code should index by key.
@@ -150,6 +153,14 @@ reference_rows = [
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
         "Uses Linfa linear regression; <code>summary(vcov='hc1')</code> is default and <code>summary(vcov='vanilla')</code> exposes homoskedastic standard errors.",
+    ],
+    [
+        "<code>Ridge</code>",
+        "<code>fit(x, y)</code>",
+        "1D float predictions",
+        "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>, <code>penalty</code>, <code>penalties</code>, <code>best_penalty_index</code>, <code>cv_mse</code>, <code>intercept_path</code>, <code>coef_path</code>",
+        "<code>(B, p + 1)</code> with intercept",
+        "Closed-form L2-regularized least squares solved through an augmented QR least-squares system. Passing a penalty grid runs cross-validation, stores the full coefficient path, and refits the selected penalty on the full sample.",
     ],
     [
         "<code>FixedEffectsOLS</code>",
@@ -337,6 +348,17 @@ runtime_rows.append(
         "<code>OLS</code>",
         ", ".join(model.summary().keys()),
         str(model.bootstrap(3).shape),
+    ]
+)
+
+# Ridge
+model = cm.Ridge(penalty=np.array([0.0, 0.1, 1.0]), cv=3)
+model.fit(x, y)
+runtime_rows.append(
+    [
+        "<code>Ridge</code>",
+        ", ".join(model.summary().keys()),
+        str(model.bootstrap(3, seed=1).shape),
     ]
 )
 
@@ -553,6 +575,22 @@ summary_vanilla = model.summary(vcov="vanilla")
 bootstrap_draws = model.bootstrap(5, seed=42)
 
 summary["coef"], summary_vanilla["coef_se"], bootstrap_draws[:2]
+```
+
+### Ridge
+
+```{python}
+rng = np.random.default_rng(2)
+x = rng.normal(size=(250, 4))
+beta = np.array([1.0, -0.8, 0.0, 0.3])
+y = 0.6 + x @ beta + rng.normal(scale=0.4, size=250)
+
+model = cm.Ridge(penalty=np.array([0.0, 0.05, 0.2, 1.0]), cv=5)
+model.fit(x, y)
+
+summary = model.summary()
+
+summary["penalty"], summary["best_penalty_index"], summary["coef_path"][:, :2]
 ```
 
 ### Poisson
