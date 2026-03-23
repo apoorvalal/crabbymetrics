@@ -7,6 +7,7 @@ project:
     - mechanics-ols.qmd
     - mechanics-poisson.qmd
     - mechanics-mestimator.qmd
+    - ablations/*.qmd
     - examples/*.qmd
 
 website:
@@ -17,30 +18,18 @@ website:
         text: Home
       - href: api.qmd
         text: API
-      - text: Mechanics
-        menu:
-          - href: mechanics-ols.qmd
-            text: OLS
-          - href: mechanics-poisson.qmd
-            text: Poisson
-          - href: mechanics-mestimator.qmd
-            text: MEstimator
+      - href: mechanics-ols.qmd
+        text: Binding Crash Course
       - text: Examples
         menu:
           - href: examples/ols.qmd
             text: OLS
           - href: examples/fixed-effects-ols.qmd
             text: Fixed Effects OLS
-          - href: examples/synthetic-control.qmd
-            text: Synthetic Control
-          - href: examples/pca-and-kernel-basis.qmd
-            text: PCA And Kernel Basis
-          - href: examples/richer-regression.qmd
-            text: Richer Regression
-          - href: examples/optimizers.qmd
-            text: Optimizers
           - href: examples/elastic-net.qmd
             text: ElasticNet
+          - href: examples/synthetic-control.qmd
+            text: Synthetic Control
           - href: examples/logit.qmd
             text: Logit
           - href: examples/multinomial-logit.qmd
@@ -49,7 +38,19 @@ website:
             text: Poisson
           - href: examples/twosls.qmd
             text: TwoSLS
+          - href: examples/gmm.qmd
+            text: GMM
           - href: examples/ftrl.qmd
             text: FTRL
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
+      - text: Ablations
+        menu:
+          - href: ablations/variance-estimators.qmd
+            text: Variance Estimators
+      - text: Optimization
+        menu:
+          - href: examples/optimizers.qmd
+            text: Optimizers
+          - href: examples/gmm-with-optimizers.qmd
+            text: GMM With Optimizers

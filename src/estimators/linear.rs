@@ -1,6 +1,7 @@
 use crate::utils::{
-    add_intercept, bootstrap_indices, diag_sqrt, hc1_cov, pyarray1_from_f64, pyarray2_from_f64,
-    take_rows, take_rows_u32, take_rows_vec, to_array1, to_array2, to_array2_u32,
+    add_intercept, bootstrap_indices, diag_sqrt, hc1_cov, invert_matrix, ols_vanilla_cov,
+    pyarray1_from_f64, pyarray2_from_f64, solve_least_squares_mat, solve_least_squares_vec, take_rows,
+    take_rows_u32, take_rows_vec, to_array1, to_array2, to_array2_u32,
 };
 use argmin::core::{CostFunction, Executor, Gradient};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
@@ -18,6 +19,127 @@ struct FixedEffectsOlsFitResult {
     coef: Array1<f64>,
     x_resid: Array2<f64>,
     y_resid: Array1<f64>,
+}
+
+struct TwoSlsFitResult {
+    params: Array1<f64>,
+    vcov: Array2<f64>,
+}
+
+fn combine_endog_exog(x_endog: &Array2<f64>, x_exog: &Array2<f64>) -> PyResult<Array2<f64>> {
+    if x_endog.ncols() == 0 {
+        return Err(PyValueError::new_err(
+            "x_endog must have at least one column",
+        ));
+    }
+
+    if x_exog.ncols() > 0 {
+        concatenate(Axis(1), &[x_endog.view(), x_exog.view()])
+            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))
+    } else {
+        Ok(x_endog.clone())
+    }
+}
+
+fn build_iv_designs(
+    x_endog: &Array2<f64>,
+    x_exog: &Array2<f64>,
+    z: &Array2<f64>,
+    fit_intercept: bool,
+) -> PyResult<(Array2<f64>, Array2<f64>)> {
+    if x_endog.nrows() != x_exog.nrows() || x_endog.nrows() != z.nrows() {
+        return Err(PyValueError::new_err("row count mismatch"));
+    }
+    if z.ncols() < x_endog.ncols() {
+        return Err(PyValueError::new_err(
+            "need at least as many excluded instruments as endogenous regressors",
+        ));
+    }
+
+    let x_rhs = combine_endog_exog(x_endog, x_exog)?;
+    let z_rhs = if x_exog.ncols() > 0 {
+        concatenate(Axis(1), &[x_exog.view(), z.view()])
+            .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
+    } else {
+        z.clone()
+    };
+
+    let x_design = if fit_intercept {
+        add_intercept(&x_rhs)
+    } else {
+        x_rhs
+    };
+    let z_design = if fit_intercept {
+        add_intercept(&z_rhs)
+    } else {
+        z_rhs
+    };
+
+    if z_design.ncols() < x_design.ncols() {
+        return Err(PyValueError::new_err(
+            "model is underidentified: instrument count is smaller than regressor count",
+        ));
+    }
+
+    Ok((x_design, z_design))
+}
+
+fn split_params(params: &Array1<f64>, fit_intercept: bool) -> (f64, Array1<f64>) {
+    if fit_intercept {
+        (params[0], params.slice(s![1..]).to_owned())
+    } else {
+        (0.0, params.clone())
+    }
+}
+
+fn fit_two_sls_closed_form(
+    x_endog: &Array2<f64>,
+    x_exog: &Array2<f64>,
+    z: &Array2<f64>,
+    y: &Array1<f64>,
+    fit_intercept: bool,
+) -> PyResult<TwoSlsFitResult> {
+    if x_endog.nrows() != y.len() || x_exog.nrows() != y.len() || z.nrows() != y.len() {
+        return Err(PyValueError::new_err("row count mismatch"));
+    }
+
+    let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, fit_intercept)?;
+    let x_endog_hat = solve_least_squares_mat(&z_design, x_endog).map(|pi_hat| z_design.dot(&pi_hat));
+    let x_endog_hat = x_endog_hat.map_err(PyValueError::new_err)?;
+    let x_hat_rhs = if x_exog.ncols() > 0 {
+        concatenate(Axis(1), &[x_endog_hat.view(), x_exog.view()])
+            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
+    } else {
+        x_endog_hat
+    };
+    let x_hat_design = if fit_intercept {
+        add_intercept(&x_hat_rhs)
+    } else {
+        x_hat_rhs
+    };
+    let params = solve_least_squares_vec(&x_hat_design, y).map_err(PyValueError::new_err)?;
+
+    let n = x_design.nrows();
+    let fitted = x_design.dot(&params);
+    let residuals = y - &fitted;
+
+    let mut moment_scores = z_design.clone();
+    for i in 0..n {
+        let scale = residuals[i];
+        moment_scores.row_mut(i).mapv_inplace(|value| value * scale);
+    }
+
+    let n_f64 = n as f64;
+    let weight_base = z_design.t().dot(&z_design) / n_f64;
+    let weight = invert_matrix(&weight_base).map_err(PyValueError::new_err)?;
+    let omega = moment_scores.t().dot(&moment_scores) / n_f64;
+    let jacobian = -(z_design.t().dot(&x_design)) / n_f64;
+    let a_matrix = jacobian.t().dot(&weight).dot(&jacobian);
+    let a_inv = invert_matrix(&a_matrix).map_err(PyValueError::new_err)?;
+    let b_matrix = jacobian.t().dot(&weight).dot(&omega).dot(&weight).dot(&jacobian);
+    let vcov = a_inv.dot(&b_matrix).dot(&a_inv) / n_f64;
+
+    Ok(TwoSlsFitResult { params, vcov })
 }
 
 fn softmax_weights(theta: &Array1<f64>) -> Array1<f64> {
@@ -224,7 +346,8 @@ impl OLS {
         Ok(pyarray1_from_f64(py, &pred))
     }
 
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+    #[pyo3(signature = (vcov="hc1"))]
+    fn summary<'py>(&self, py: Python<'py>, vcov: &str) -> PyResult<Py<PyAny>> {
         let model = self
             .model
             .as_ref()
@@ -245,7 +368,15 @@ impl OLS {
         } else {
             x.clone()
         };
-        let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
+        let cov = match vcov {
+            "hc1" => hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?,
+            "vanilla" => ols_vanilla_cov(&design, &residuals).map_err(PyValueError::new_err)?,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "vcov must be one of {'hc1', 'vanilla'}",
+                ));
+            }
+        };
         let se_all = diag_sqrt(&cov);
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
@@ -264,6 +395,7 @@ impl OLS {
         dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov_type", vcov)?;
         Ok(dict.into())
     }
 
@@ -551,42 +683,11 @@ impl TwoSLS {
         let z = to_array2(&z);
         let y = to_array1(&y);
 
-        if x_endog.nrows() != y.len() || x_exog.nrows() != y.len() || z.nrows() != y.len() {
-            return Err(PyValueError::new_err("row count mismatch"));
-        }
+        let fit = fit_two_sls_closed_form(&x_endog, &x_exog, &z, &y, self.fit_intercept)?;
+        let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
 
-        let z_full = if x_exog.ncols() > 0 {
-            concatenate(Axis(1), &[x_exog.view(), z.view()])
-                .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
-        } else {
-            z.clone()
-        };
-
-        let stage1 = Dataset::new(z_full.clone(), x_endog.column(0).to_owned());
-        let stage1_model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&stage1)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        let x_endog_hat = stage1_model.predict(&z_full);
-
-        let x_hat = if x_exog.ncols() > 0 {
-            concatenate(
-                Axis(1),
-                &[x_endog_hat.view().insert_axis(Axis(1)), x_exog.view()],
-            )
-            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-        } else {
-            x_endog_hat.view().insert_axis(Axis(1)).to_owned()
-        };
-
-        let stage2 = Dataset::new(x_hat.clone(), y.clone());
-        let stage2_model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&stage2)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-        self.coef = Some(stage2_model.params().to_owned());
-        self.intercept = stage2_model.intercept();
+        self.coef = Some(coef);
+        self.intercept = intercept;
         self.x_endog = Some(x_endog);
         self.x_exog = Some(x_exog);
         self.z = Some(z);
@@ -609,8 +710,7 @@ impl TwoSLS {
     }
 
     fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let coef = self
-            .coef
+        self.coef
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
         let x_endog = self
@@ -630,37 +730,9 @@ impl TwoSLS {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
 
-        let z_full = if x_exog.ncols() > 0 {
-            concatenate(Axis(1), &[x_exog.view(), z.view()])
-                .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
-        } else {
-            z.clone()
-        };
-        let stage1 = Dataset::new(z_full.clone(), x_endog.column(0).to_owned());
-        let stage1_model = LinfaLinearRegression::new()
-            .with_intercept(self.fit_intercept)
-            .fit(&stage1)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        let x_endog_hat = stage1_model.predict(&z_full);
-        let x_hat = if x_exog.ncols() > 0 {
-            concatenate(
-                Axis(1),
-                &[x_endog_hat.view().insert_axis(Axis(1)), x_exog.view()],
-            )
-            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-        } else {
-            x_endog_hat.view().insert_axis(Axis(1)).to_owned()
-        };
-
-        let y_hat = x_hat.dot(coef) + self.intercept;
-        let residuals = y - &y_hat;
-        let design = if self.fit_intercept {
-            add_intercept(&x_hat)
-        } else {
-            x_hat.clone()
-        };
-        let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let fit = fit_two_sls_closed_form(x_endog, x_exog, z, y, self.fit_intercept)?;
+        let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
+        let se_all = diag_sqrt(&fit.vcov);
 
         let (intercept_se, coef_se) = if self.fit_intercept {
             (Some(se_all[0]), se_all.slice(s![1..]).to_owned())
@@ -669,8 +741,8 @@ impl TwoSLS {
         };
 
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", self.intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, coef))?;
+        dict.set_item("intercept", intercept)?;
+        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         Ok(dict.into())
@@ -714,37 +786,15 @@ impl TwoSLS {
             let z_b = take_rows(z, idx);
             let yb = take_rows_vec(y, idx);
 
-            let z_full = if x_exog_b.ncols() > 0 {
-                concatenate(Axis(1), &[x_exog_b.view(), z_b.view()])
-                    .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
-            } else {
-                z_b
-            };
-            let stage1 = Dataset::new(z_full.clone(), x_endog_b.column(0).to_owned());
-            let stage1_model = LinfaLinearRegression::new()
-                .with_intercept(self.fit_intercept)
-                .fit(&stage1)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            let x_endog_hat = stage1_model.predict(&z_full);
-            let x_hat = if x_exog_b.ncols() > 0 {
-                concatenate(
-                    Axis(1),
-                    &[x_endog_hat.view().insert_axis(Axis(1)), x_exog_b.view()],
-                )
-                .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-            } else {
-                x_endog_hat.view().insert_axis(Axis(1)).to_owned()
-            };
-            let stage2 = Dataset::new(x_hat, yb);
-            let model = LinfaLinearRegression::new()
-                .with_intercept(self.fit_intercept)
-                .fit(&stage2)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
+            let fit =
+                fit_two_sls_closed_form(&x_endog_b, &x_exog_b, &z_b, &yb, self.fit_intercept)?;
             if self.fit_intercept {
-                out[[i, 0]] = model.intercept();
-                out.row_mut(i).slice_mut(s![1..]).assign(&model.params());
+                out[[i, 0]] = fit.params[0];
+                out.row_mut(i)
+                    .slice_mut(s![1..])
+                    .assign(&fit.params.slice(s![1..]));
             } else {
-                out.row_mut(i).assign(&model.params());
+                out.row_mut(i).assign(&fit.params);
             }
         }
         Ok(pyarray2_from_f64(py, &out))

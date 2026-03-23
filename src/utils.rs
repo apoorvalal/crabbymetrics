@@ -1,4 +1,4 @@
-use nalgebra::DMatrix;
+use linfa_linalg::qr::{LeastSquaresQrInto, QRInto};
 use ndarray::{concatenate, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
@@ -15,18 +15,24 @@ pub fn invert_matrix(a: &Array2<f64>) -> Result<Array2<f64>, String> {
     if n != a.ncols() {
         return Err("matrix is not square".to_string());
     }
-    let data: Vec<f64> = a.iter().copied().collect();
-    let mat = DMatrix::from_row_slice(n, n, &data);
-    let inv = mat
-        .try_inverse()
-        .ok_or_else(|| "matrix is singular".to_string())?;
-    let mut out = Array2::<f64>::zeros((n, n));
-    for i in 0..n {
-        for j in 0..n {
-            out[[i, j]] = inv[(i, j)];
-        }
-    }
-    Ok(out)
+    a.to_owned()
+        .qr_into()
+        .and_then(|decomp| decomp.inverse())
+        .map_err(|err| err.to_string())
+}
+
+pub fn solve_least_squares_vec(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>, String> {
+    let solution = a
+        .to_owned()
+        .least_squares_into(b.to_owned().insert_axis(Axis(1)))
+        .map_err(|err| err.to_string())?;
+    Ok(solution.remove_axis(Axis(1)))
+}
+
+pub fn solve_least_squares_mat(a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>, String> {
+    a.to_owned()
+        .least_squares_into(b.to_owned())
+        .map_err(|err| err.to_string())
 }
 
 pub fn hc1_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, String> {
@@ -54,6 +60,22 @@ pub fn hc1_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, 
     let scale = n as f64 / (n as f64 - k as f64);
     cov.mapv_inplace(|v| v * scale);
     Ok(cov)
+}
+
+pub fn ols_vanilla_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, String> {
+    let n = x.nrows();
+    let k = x.ncols();
+    if residuals.len() != n {
+        return Err("residual length mismatch".to_string());
+    }
+    if n <= k {
+        return Err("need more observations than regressors".to_string());
+    }
+
+    let xtx = x.t().dot(x);
+    let xtx_inv = invert_matrix(&xtx)?;
+    let sigma2 = residuals.dot(residuals) / ((n - k) as f64);
+    Ok(xtx_inv.mapv(|v| v * sigma2))
 }
 
 pub fn diag_sqrt(a: &Array2<f64>) -> Array1<f64> {
@@ -109,6 +131,32 @@ pub fn fisher_cov_poisson(x: &Array2<f64>, mu: &Array1<f64>) -> Result<Array2<f6
         info_reg[[i, i]] += 1e-8;
     }
     invert_matrix(&info_reg)
+}
+
+pub fn qmle_cov_poisson(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    mu: &Array1<f64>,
+) -> Result<Array2<f64>, String> {
+    let n = x.nrows();
+    let k = x.ncols();
+    if y.len() != n {
+        return Err("y length mismatch".to_string());
+    }
+    if mu.len() != n {
+        return Err("mu length mismatch".to_string());
+    }
+
+    let bread = fisher_cov_poisson(x, mu)?;
+    let mut scores = Array2::<f64>::zeros((n, k));
+    for i in 0..n {
+        let resid = y[i] - mu[i];
+        for j in 0..k {
+            scores[[i, j]] = x[[i, j]] * resid;
+        }
+    }
+    let meat = scores.t().dot(&scores);
+    Ok(bread.dot(&meat).dot(&bread))
 }
 
 pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Array2<f64>, String> {
@@ -203,6 +251,10 @@ pub fn to_array1(x: &PyReadonlyArray1<f64>) -> Array1<f64> {
 }
 
 pub fn to_array1_i32(x: &PyReadonlyArray1<i32>) -> Array1<i32> {
+    Array1::from_iter(x.as_array().iter().copied())
+}
+
+pub fn to_array1_i64(x: &PyReadonlyArray1<i64>) -> Array1<i64> {
     Array1::from_iter(x.as_array().iter().copied())
 }
 

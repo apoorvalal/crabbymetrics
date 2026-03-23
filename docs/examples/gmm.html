@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>TwoSLS Example – crabbymetrics</title>
+<title>GMM Example – crabbymetrics</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -5004,7 +5004,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">TwoSLS Example</h1>
+<h1 class="title">GMM Example</h1>
 </div>
 
 
@@ -5021,225 +5021,244 @@ window.Quarto = {
 </header>
 
 
-<p>This page shows the linear IV / 2SLS path used by <code>crabbymetrics.TwoSLS</code>, first with one endogenous regressor and then with several.</p>
+<p>This page shows the first-class <code>crabbymetrics.GMM</code> estimator. The public contract is deliberately small:</p>
+<ul>
+<li><code>moment_fn(theta, data)</code> must return an <code>(n_obs, n_moments)</code> matrix of per-observation moments.</li>
+<li><code>jacobian_fn(theta, data)</code> is optional and, when provided, must return the sample Jacobian of the averaged moments with shape <code>(n_moments, n_params)</code>.</li>
+<li><code>fit(..., weighting=&quot;auto&quot;)</code> uses identity weighting in just-identified problems and two-step GMM in overidentified ones.</li>
+</ul>
+<p>At the algebra level, the class is solving</p>
+<p><span class="math display">\[
+\bar g(\theta) = \frac{1}{n} \sum_{i=1}^n g_i(\theta)
+\]</span></p>
+<p>and minimizing the quadratic criterion</p>
+<p><span class="math display">\[
+Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
+\]</span></p>
+<p>In just-identified problems, the default path is vanilla Gauss-Newton with identity weighting. In overidentified problems, the class first fits with (W = I), estimates</p>
+<p><span class="math display">\[
+\hat{\Omega} = \frac{1}{n} \sum_{i=1}^n g_i(\hat{\theta}_1) g_i(\hat{\theta}_1)^\top,
+\]</span></p>
+<p>sets (W = ^{-1}), and refits.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="ab1540c4" class="cell" data-execution_count="1">
+<div id="9de13d39" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> crabbymetrics <span class="im">import</span> TwoSLS</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="algebra" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="algebra"><span class="header-section-number">2</span> Algebra</h2>
-<p>Write the structural equation as</p>
+<section id="just-identified-score-gmm" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="just-identified-score-gmm"><span class="header-section-number">2</span> Just-Identified Score GMM</h2>
+<p>MLE score equations are a clean just-identified GMM use case. For Poisson regression with a log link, the score moments are</p>
 <p><span class="math display">\[
-y = X \beta + u,
+g_i(\theta) = x_i \left(y_i - \exp(x_i^\top \theta)\right).
 \]</span></p>
-<p>where</p>
-<p><span class="math display">\[
-X = \begin{bmatrix} X_{\mathrm{endog}} &amp; X_{\mathrm{exog}} \end{bmatrix},
-\qquad
-Z_{\mathrm{full}} = \begin{bmatrix} \mathbf{1} &amp; X_{\mathrm{exog}} &amp; Z_{\mathrm{excluded}} \end{bmatrix}.
-\]</span></p>
-<p>The textbook 2SLS estimator is</p>
-<p><span class="math display">\[
-\hat{\beta}_{\mathrm{2SLS}} = \left(X^\top P_Z X\right)^{-1} X^\top P_Z y,
-\]</span></p>
-<p>with</p>
-<p><span class="math display">\[
-P_Z = Z_{\mathrm{full}}
-\left(Z_{\mathrm{full}}^\top Z_{\mathrm{full}}\right)^{-1}
-Z_{\mathrm{full}}^\top.
-\]</span></p>
-<p>That formula is correct, but the implementation does not form the projector explicitly for the point estimate. Instead it uses the equivalent two-stage least-squares solve:</p>
-<ol type="1">
-<li><p>solve the first-stage least-squares problem</p>
-<p><span class="math display">\[
-\hat{\Pi}
-=
-\arg\min_{\Pi}
-\left\lVert Z_{\mathrm{full}} \Pi - X_{\mathrm{endog}} \right\rVert_F^2
-\]</span></p></li>
-<li><p>build fitted endogenous regressors</p>
-<p><span class="math display">\[
-\hat{X}_{\mathrm{endog}} = Z_{\mathrm{full}} \hat{\Pi}
-\]</span></p></li>
-<li><p>form the stage-two design</p>
-<p><span class="math display">\[
-\hat{X}
-=
-\begin{bmatrix}
-\mathbf{1} &amp; \hat{X}_{\mathrm{endog}} &amp; X_{\mathrm{exog}}
-\end{bmatrix}
-\]</span></p></li>
-<li><p>solve the second-stage least-squares problem</p>
-<p><span class="math display">\[
-\hat{\theta}
-=
-\arg\min_{\theta}
-\left\lVert \hat{X} \theta - y \right\rVert_2^2
-\]</span></p></li>
-</ol>
-<p>In the Rust code, both least-squares problems are solved with a QR-based decomposition analogous to <code>np.linalg.lstsq</code>.</p>
-</section>
-<section id="helpers" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="helpers"><span class="header-section-number">3</span> Helpers</h2>
-<div id="01958ae9" class="cell" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_intercept(x):</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack([np.ones(x.shape[<span class="dv">0</span>]), x])</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> build_designs(x_endog, x_exog, z_excluded):</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    x_rhs <span class="op">=</span> np.column_stack([x_endog, x_exog]) <span class="cf">if</span> x_exog.shape[<span class="dv">1</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> x_endog</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    z_rhs <span class="op">=</span> (</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        np.column_stack([x_exog, z_excluded]) <span class="cf">if</span> x_exog.shape[<span class="dv">1</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> z_excluded</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> add_intercept(x_rhs), add_intercept(z_rhs)</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> twosls_via_lstsq(x_endog, x_exog, z_excluded, y):</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    x_design, z_design <span class="op">=</span> build_designs(x_endog, x_exog, z_excluded)</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    pi_hat, <span class="op">*</span>_ <span class="op">=</span> np.linalg.lstsq(z_design, x_endog, rcond<span class="op">=</span><span class="va">None</span>)</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    x_endog_hat <span class="op">=</span> z_design <span class="op">@</span> pi_hat</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    x_hat_rhs <span class="op">=</span> (</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        np.column_stack([x_endog_hat, x_exog]) <span class="cf">if</span> x_exog.shape[<span class="dv">1</span>] <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> x_endog_hat</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    x_hat_design <span class="op">=</span> add_intercept(x_hat_rhs)</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    theta_hat, <span class="op">*</span>_ <span class="op">=</span> np.linalg.lstsq(x_hat_design, y, rcond<span class="op">=</span><span class="va">None</span>)</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> theta_hat</span>
+<div id="faea56e6" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>x_raw <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.column_stack([np.ones(n), x_raw])</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>theta_true <span class="op">=</span> np.array([<span class="fl">0.15</span>, <span class="fl">0.3</span>, <span class="op">-</span><span class="fl">0.25</span>])</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(np.exp(x <span class="op">@</span> theta_true)).astype(<span class="bu">float</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> poisson_score_moments(theta, data):</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    design <span class="op">=</span> data[<span class="st">&quot;x&quot;</span>]</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    outcome <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    mean <span class="op">=</span> np.exp(np.clip(design <span class="op">@</span> theta, <span class="op">-</span><span class="fl">20.0</span>, <span class="fl">20.0</span>))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> design <span class="op">*</span> (outcome <span class="op">-</span> mean)[:, <span class="va">None</span>]</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>gmm <span class="op">=</span> cm.GMM(poisson_score_moments, max_iterations<span class="op">=</span><span class="dv">200</span>, tolerance<span class="op">=</span><span class="fl">1e-8</span>, fd_eps<span class="op">=</span><span class="fl">1e-5</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>gmm.fit({<span class="st">&quot;x&quot;</span>: x, <span class="st">&quot;y&quot;</span>: y}, np.zeros(x.shape[<span class="dv">1</span>]))</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>gmm_summary <span class="op">=</span> gmm.summary()</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>poisson <span class="op">=</span> cm.Poisson(alpha<span class="op">=</span><span class="fl">0.0</span>, max_iterations<span class="op">=</span><span class="dv">200</span>, tolerance<span class="op">=</span><span class="fl">1e-8</span>)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>poisson.fit(x_raw, y)</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>poisson_summary <span class="op">=</span> poisson.summary()</span>
 <span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> twosls_via_projection_formula(x_endog, x_exog, z_excluded, y):</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    x_design, z_design <span class="op">=</span> build_designs(x_endog, x_exog, z_excluded)</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    ztz_inv <span class="op">=</span> np.linalg.inv(z_design.T <span class="op">@</span> z_design)</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    pz <span class="op">=</span> z_design <span class="op">@</span> ztz_inv <span class="op">@</span> z_design.T</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.linalg.solve(x_design.T <span class="op">@</span> pz <span class="op">@</span> x_design, x_design.T <span class="op">@</span> pz <span class="op">@</span> y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</section>
-<section id="single-endogenous-regressor" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="single-endogenous-regressor"><span class="header-section-number">4</span> Single Endogenous Regressor</h2>
-<p>This is the usual overidentified IV setup: one endogenous regressor, one exogenous regressor, and three excluded instruments.</p>
-<div id="d5276134" class="cell" data-execution_count="3">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>intercept <span class="op">=</span> <span class="fl">0.5</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>beta_endog <span class="op">=</span> np.array([<span class="fl">1.4</span>])</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>beta_exog <span class="op">=</span> np.array([<span class="op">-</span><span class="fl">0.8</span>])</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>x_exog <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> z <span class="op">@</span> np.array([[<span class="fl">0.9</span>], [<span class="fl">0.45</span>], [<span class="op">-</span><span class="fl">0.3</span>]]) <span class="op">+</span> <span class="fl">0.3</span> <span class="op">*</span> x_exog <span class="op">+</span> v</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> <span class="fl">0.65</span> <span class="op">*</span> v[:, <span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.25</span> <span class="op">*</span> eps</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> intercept <span class="op">+</span> x_endog[:, <span class="dv">0</span>] <span class="op">*</span> beta_endog[<span class="dv">0</span>] <span class="op">+</span> x_exog[:, <span class="dv">0</span>] <span class="op">*</span> beta_exog[<span class="dv">0</span>] <span class="op">+</span> u</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> TwoSLS()</span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y)</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>theta_lstsq <span class="op">=</span> twosls_via_lstsq(x_endog, x_exog, z, y)</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>theta_formula <span class="op">=</span> twosls_via_projection_formula(x_endog, x_exog, z, y)</span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true parameters:&quot;</span>, np.concatenate([[intercept], beta_endog, beta_exog]))</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;manual QR/lstsq path:&quot;</span>, np.<span class="bu">round</span>(theta_lstsq, <span class="dv">4</span>))</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;projection formula:&quot;</span>, np.<span class="bu">round</span>(theta_formula, <span class="dv">4</span>))</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>pprint(summary)</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(theta_lstsq, theta_formula, atol<span class="op">=</span><span class="fl">1e-8</span>, rtol<span class="op">=</span><span class="fl">1e-8</span>)</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    theta_lstsq,</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    np.concatenate([[summary[<span class="st">&quot;intercept&quot;</span>]], np.asarray(summary[<span class="st">&quot;coef&quot;</span>])]),</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    atol<span class="op">=</span><span class="fl">1e-8</span>,</span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    rtol<span class="op">=</span><span class="fl">1e-8</span>,</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>theta_poisson <span class="op">=</span> np.concatenate([[poisson_summary[<span class="st">&quot;intercept&quot;</span>]], poisson_summary[<span class="st">&quot;coef&quot;</span>]])</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;GMM score estimate:&quot;</span>, np.<span class="bu">round</span>(gmm_summary[<span class="st">&quot;coef&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Poisson MLE estimate:&quot;</span>, np.<span class="bu">round</span>(theta_poisson, <span class="dv">4</span>))</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;GMM score SE:&quot;</span>, np.<span class="bu">round</span>(gmm_summary[<span class="st">&quot;se&quot;</span>], <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>true parameters: [ 0.5  1.4 -0.8]
-manual QR/lstsq path: [ 0.486   1.3787 -0.7785]
-projection formula: [ 0.486   1.3787 -0.7785]
-{&#39;coef&#39;: array([ 1.3787, -0.7785]),
- &#39;coef_se&#39;: array([0.0184, 0.0203]),
- &#39;intercept&#39;: 0.48595950998190096,
- &#39;intercept_se&#39;: 0.02084300302035913}</code></pre>
+<pre><code>GMM score estimate: [ 0.1315  0.278  -0.2225]
+Poisson MLE estimate: [ 0.1315  0.278  -0.2225]
+GMM score SE: [0.031  0.0268 0.0283]</code></pre>
 </div>
 </div>
 </section>
-<section id="multiple-endogenous-regressors" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="multiple-endogenous-regressors"><span class="header-section-number">5</span> Multiple Endogenous Regressors</h2>
-<p>Now the first stage solves for a whole coefficient matrix <span class="math inline">\(\hat{\Pi}\)</span>, one column for each endogenous regressor. The second stage is still just least squares on</p>
+<section id="overidentified-linear-iv-gmm" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="overidentified-linear-iv-gmm"><span class="header-section-number">3</span> Overidentified Linear IV GMM</h2>
+<p>For linear IV moments with more instruments than parameters,</p>
 <p><span class="math display">\[
-\hat{X}
-=
-\begin{bmatrix}
-\mathbf{1} &amp; \hat{X}_{\mathrm{endog}} &amp; X_{\mathrm{exog}}
-\end{bmatrix}.
+g_i(\theta) = z_i \left(y_i - x_i^\top \theta\right),
 \]</span></p>
-<div id="4f04f687" class="cell" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1400</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>intercept <span class="op">=</span> <span class="op">-</span><span class="fl">0.2</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>beta_endog <span class="op">=</span> np.array([<span class="fl">1.15</span>, <span class="op">-</span><span class="fl">0.9</span>])</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>beta_exog <span class="op">=</span> np.array([<span class="fl">0.55</span>])</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>x_exog <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> np.array(</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.9</span>, <span class="fl">0.15</span>],</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.45</span>, <span class="op">-</span><span class="fl">0.2</span>],</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.85</span>],</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> z <span class="op">@</span> pi <span class="op">+</span> <span class="fl">0.25</span> <span class="op">*</span> x_exog <span class="op">+</span> v</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> <span class="fl">0.6</span> <span class="op">*</span> v[:, <span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.45</span> <span class="op">*</span> v[:, <span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> eps</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> intercept <span class="op">+</span> x_endog <span class="op">@</span> beta_endog <span class="op">+</span> x_exog[:, <span class="dv">0</span>] <span class="op">*</span> beta_exog[<span class="dv">0</span>] <span class="op">+</span> u</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> TwoSLS()</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y)</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>theta_lstsq <span class="op">=</span> twosls_via_lstsq(x_endog, x_exog, z, y)</span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>theta_formula <span class="op">=</span> twosls_via_projection_formula(x_endog, x_exog, z, y)</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true parameters:&quot;</span>, np.concatenate([[intercept], beta_endog, beta_exog]))</span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;manual QR/lstsq path:&quot;</span>, np.<span class="bu">round</span>(theta_lstsq, <span class="dv">4</span>))</span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;projection formula:&quot;</span>, np.<span class="bu">round</span>(theta_formula, <span class="dv">4</span>))</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>pprint(summary)</span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(theta_lstsq, theta_formula, atol<span class="op">=</span><span class="fl">1e-8</span>, rtol<span class="op">=</span><span class="fl">1e-8</span>)</span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(</span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    theta_lstsq,</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    np.concatenate([[summary[<span class="st">&quot;intercept&quot;</span>]], np.asarray(summary[<span class="st">&quot;coef&quot;</span>])]),</span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    atol<span class="op">=</span><span class="fl">1e-8</span>,</span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>    rtol<span class="op">=</span><span class="fl">1e-8</span>,</span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>the first step uses (W = I), then the class updates the weighting matrix with the inverse outer product of moments.</p>
+<div id="658a57fa" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260322</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">3000</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">1.25</span>, <span class="op">-</span><span class="fl">0.85</span>])</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">5</span>))</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> np.array(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.9</span>, <span class="fl">0.1</span>],</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.3</span>],</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.8</span>],</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.3</span>, <span class="fl">0.2</span>],</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.5</span>],</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> z <span class="op">@</span> pi <span class="op">+</span> v</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> <span class="fl">0.7</span> <span class="op">*</span> v[:, <span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.55</span> <span class="op">*</span> v[:, <span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.35</span> <span class="op">*</span> eps</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> x <span class="op">@</span> beta_true <span class="op">+</span> u</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> iv_moments(theta, data):</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    design <span class="op">=</span> data[<span class="st">&quot;x&quot;</span>]</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    outcome <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    instruments <span class="op">=</span> data[<span class="st">&quot;z&quot;</span>]</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> outcome <span class="op">-</span> design <span class="op">@</span> theta</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> instruments <span class="op">*</span> resid[:, <span class="va">None</span>]</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> iv_jacobian(theta, data):</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">del</span> theta</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    design <span class="op">=</span> data[<span class="st">&quot;x&quot;</span>]</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    instruments <span class="op">=</span> data[<span class="st">&quot;z&quot;</span>]</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>(instruments.T <span class="op">@</span> design) <span class="op">/</span> design.shape[<span class="dv">0</span>]</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>iv_gmm <span class="op">=</span> cm.GMM(iv_moments, jacobian_fn<span class="op">=</span>iv_jacobian, max_iterations<span class="op">=</span><span class="dv">200</span>, tolerance<span class="op">=</span><span class="fl">1e-10</span>)</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>iv_gmm.fit({<span class="st">&quot;x&quot;</span>: x, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;z&quot;</span>: z}, np.zeros(x.shape[<span class="dv">1</span>]))</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>iv_summary <span class="op">=</span> iv_gmm.summary()</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true beta:&quot;</span>, beta_true)</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;two-step GMM beta:&quot;</span>, np.<span class="bu">round</span>(iv_summary[<span class="st">&quot;coef&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;two-step GMM SE:&quot;</span>, np.<span class="bu">round</span>(iv_summary[<span class="st">&quot;se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weighting:&quot;</span>, iv_summary[<span class="st">&quot;weighting&quot;</span>])</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;J-statistic:&quot;</span>, <span class="bu">round</span>(<span class="bu">float</span>(iv_summary[<span class="st">&quot;j_stat&quot;</span>]), <span class="dv">4</span>), <span class="st">&quot;with df =&quot;</span>, iv_summary[<span class="st">&quot;j_df&quot;</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>true parameters: [-0.2   1.15 -0.9   0.55]
-manual QR/lstsq path: [-0.1713  1.138  -0.9109  0.5623]
-projection formula: [-0.1713  1.138  -0.9109  0.5623]
-{&#39;coef&#39;: array([ 1.138 , -0.9109,  0.5623]),
- &#39;coef_se&#39;: array([0.0207, 0.0227, 0.0214]),
- &#39;intercept&#39;: -0.1712948159197605,
- &#39;intercept_se&#39;: 0.02089681582545142}</code></pre>
+<pre><code>true beta: [ 1.25 -0.85]
+two-step GMM beta: [ 1.2253 -0.8321]
+two-step GMM SE: [0.0176 0.02  ]
+weighting: two_step
+J-statistic: 13.4916 with df = 3</code></pre>
 </div>
 </div>
 </section>
-<section id="takeaway" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="takeaway"><span class="header-section-number">6</span> Takeaway</h2>
+<section id="lin-2013-as-a-stacked-moment-system" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="lin-2013-as-a-stacked-moment-system"><span class="header-section-number">4</span> Lin (2013) As A Stacked Moment System</h2>
+<p>Stacking matters most when later moments depend on nuisance parameters estimated from the data. In Lin’s centered regression adjustment with one covariate,</p>
+<p><span class="math display">\[
+Y_i = \alpha + \tau W_i + \beta (X_i - \mu_x) + \gamma W_i (X_i - \mu_x) + \varepsilon_i,
+\]</span></p>
+<p>the unknown centering parameter (_x) belongs in the parameter vector:</p>
+<p><span class="math display">\[
+\theta = (\mu_x, \alpha, \tau, \beta, \gamma).
+\]</span></p>
+<p>That means the just-identified stack needs five moments, not three:</p>
+<p><span class="math display">\[
+g_i(\theta) =
+\begin{bmatrix}
+X_i - \mu_x \\
+u_i(\theta) \\
+W_i u_i(\theta) \\
+(X_i - \mu_x) u_i(\theta) \\
+W_i (X_i - \mu_x) u_i(\theta)
+\end{bmatrix},
+\qquad
+u_i(\theta) = Y_i - \alpha - \tau W_i - \beta (X_i - \mu_x) - \gamma W_i (X_i - \mu_x).
+\]</span></p>
+<p>The first block estimates the centering parameter. The remaining four blocks are the normal equations for the interacted regression.</p>
+<div id="71a10d49" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5151</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(loc<span class="op">=</span><span class="fl">1.5</span>, scale<span class="op">=</span><span class="fl">1.1</span>, size<span class="op">=</span>n)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.binomial(n<span class="op">=</span><span class="dv">1</span>, p<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span>n)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="fl">2.0</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">-</span> <span class="fl">0.65</span> <span class="op">*</span> (x <span class="op">-</span> x.mean())</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> w</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> <span class="fl">0.25</span> <span class="op">*</span> (x <span class="op">-</span> x.mean()) <span class="op">*</span> w</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.4</span>, size<span class="op">=</span>n)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>clusters <span class="op">=</span> np.repeat(np.arange(<span class="dv">60</span>, dtype<span class="op">=</span>np.int64), n <span class="op">//</span> <span class="dv">60</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lin_moments(theta, data):</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    mu_x, alpha, tau, beta, gamma <span class="op">=</span> theta</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    feature <span class="op">=</span> data[<span class="st">&quot;x&quot;</span>]</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    treatment <span class="op">=</span> data[<span class="st">&quot;w&quot;</span>]</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    outcome <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    centered <span class="op">=</span> feature <span class="op">-</span> mu_x</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> (</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>        outcome</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span> alpha</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span> tau <span class="op">*</span> treatment</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span> beta <span class="op">*</span> centered</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>        <span class="op">-</span> gamma <span class="op">*</span> (treatment <span class="op">*</span> centered)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack(</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>            feature <span class="op">-</span> mu_x,</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>            resid,</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>            treatment <span class="op">*</span> resid,</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>            centered <span class="op">*</span> resid,</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>            treatment <span class="op">*</span> centered <span class="op">*</span> resid,</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>lin <span class="op">=</span> cm.GMM(</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>    lin_moments,</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">300</span>,</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>    tolerance<span class="op">=</span><span class="fl">1e-10</span>,</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>    fd_eps<span class="op">=</span><span class="fl">1e-5</span>,</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>lin.fit({<span class="st">&quot;x&quot;</span>: x, <span class="st">&quot;w&quot;</span>: w, <span class="st">&quot;y&quot;</span>: y}, np.zeros(<span class="dv">5</span>))</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> lin.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>cluster <span class="op">=</span> lin.summary(vcov<span class="op">=</span><span class="st">&quot;sandwich&quot;</span>, omega<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>clusters)</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>hac <span class="op">=</span> lin.summary(vcov<span class="op">=</span><span class="st">&quot;sandwich&quot;</span>, omega<span class="op">=</span><span class="st">&quot;newey_west&quot;</span>, lags<span class="op">=</span><span class="dv">4</span>)</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>centered <span class="op">=</span> x <span class="op">-</span> x.mean()</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>ols_target <span class="op">=</span> np.linalg.lstsq(</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>    np.column_stack([np.ones(n), w, centered, w <span class="op">*</span> centered]),</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>    y,</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>    rcond<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>)[<span class="dv">0</span>]</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Lin GMM theta:&quot;</span>, np.<span class="bu">round</span>(vanilla[<span class="st">&quot;coef&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;OLS target:&quot;</span>, np.<span class="bu">round</span>(np.concatenate([[x.mean()], ols_target]), <span class="dv">4</span>))</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;vanilla SE:&quot;</span>, np.<span class="bu">round</span>(vanilla[<span class="st">&quot;se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;cluster-robust SE:&quot;</span>, np.<span class="bu">round</span>(cluster[<span class="st">&quot;se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Newey-West SE:&quot;</span>, np.<span class="bu">round</span>(hac[<span class="st">&quot;se&quot;</span>], <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Lin GMM theta: [ 1.5013  1.959   0.5455 -0.6581  0.2364]
+OLS target: [ 1.5013  1.959   0.5455 -0.6581  0.2364]
+vanilla SE: [0.0289 0.0848 0.1298 0.0725 0.1135]
+cluster-robust SE: [0.0285 0.0239 0.0235 0.014  0.0213]
+Newey-West SE: [0.0305 0.0256 0.0237 0.0154 0.0205]</code></pre>
+</div>
+</div>
+</section>
+<section id="takeaway" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="takeaway"><span class="header-section-number">5</span> Takeaway</h2>
 <ul>
-<li>The estimator in the package is still the standard 2SLS estimator.</li>
-<li>The projector formula and the staged least-squares solve are algebraically equivalent.</li>
-<li>The implementation follows the staged solve because QR-based least squares is a better numerical primitive than explicitly forming inverse-based normal equations for the point estimate.</li>
+<li>The public callback contract is per-observation moments first.</li>
+<li>Just-identified score systems work cleanly with Gauss-Newton even without an explicit Jacobian callback.</li>
+<li>Overidentified problems use a minimal two-step GMM path.</li>
+<li>Generated-regressor problems fit naturally by stacking nuisance moments together with the full set of residual orthogonality conditions.</li>
+<li>Summary-time inference can stay separate from point estimation, so the same fitted model can report vanilla, cluster-robust, or Newey-West covariance estimates.</li>
 </ul>
 
 

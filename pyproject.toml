@@ -11,7 +11,10 @@ requires-python = ">=3.10"
 dependencies = ["numpy"]
 
 [project.optional-dependencies]
-docs = ["matplotlib"]
+docs = [
+    "jupyter-cache>=0.6.1",
+    "matplotlib",
+]
 
 [project.urls]
 Homepage = "https://github.com/apoorvalal/crabbymetrics"

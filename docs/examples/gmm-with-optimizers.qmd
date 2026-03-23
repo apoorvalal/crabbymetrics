@@ -1,0 +1,276 @@
+---
+title: "GMM With Optimizers"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page shows the low-level optimizer path underneath the first-class `GMM` estimator. The point is no longer that this needs to stay a hand-written notebook. The point is that the existing `Optimizers` API was already expressive enough to fit a serious moment-condition problem and was a good staging ground for the eventual class.
+
+The setting is deliberately chosen to go beyond the closed-form `TwoSLS` wrapper: five excluded instruments, two-step weighting, and a J-statistic.
+
+## Imports
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import OLS, Optimizers
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Simulate A Linear IV Problem
+
+We generate two endogenous regressors, `x1` and `x2`, from five excluded instruments. Endogeneity comes from latent shocks shared with the structural error, so naive OLS is biased.
+
+```{python}
+rng = np.random.default_rng(20260321)
+n = 4000
+
+beta_true = np.array([1.25, -0.85])
+Z = rng.normal(size=(n, 5))
+v = rng.normal(size=(n, 2))
+eps = rng.normal(size=n)
+
+Pi = np.array(
+    [
+        [0.9, 0.1],
+        [0.5, -0.3],
+        [-0.4, 0.8],
+        [0.3, 0.2],
+        [-0.2, 0.5],
+    ]
+)
+
+X = Z @ Pi + v
+u = 0.7 * v[:, 0] - 0.55 * v[:, 1] + 0.35 * eps
+y = X @ beta_true + u
+
+ols = OLS()
+ols.fit(X, y)
+ols_beta = np.asarray(ols.summary()["coef"])
+
+print("true beta:", beta_true)
+print("naive OLS beta:", np.round(ols_beta, 4))
+```
+
+## Moment Functions
+
+For linear IV, the sample moment vector is just
+
+`gbar(theta) = Z' (y - X theta) / n`.
+
+That is enough to drive both a scalar GMM criterion and a least-squares residual system.
+
+```{python}
+def sample_moments(theta, x, y, z):
+    resid = y - x @ theta
+    return z.T @ resid / x.shape[0]
+
+def moment_jacobian(theta, x, y, z):
+    del theta, y
+    return -(z.T @ x) / x.shape[0]
+
+def gmm_criterion(theta, x, y, z, weight):
+    g = sample_moments(theta, x, y, z)
+    return float(g @ weight @ g)
+
+def gmm_gradient(theta, x, y, z, weight):
+    g = sample_moments(theta, x, y, z)
+    G = moment_jacobian(theta, x, y, z)
+    return 2.0 * G.T @ (weight @ g)
+
+def whitened_residual(theta, x, y, z, weight_root):
+    return weight_root @ sample_moments(theta, x, y, z)
+
+def whitened_jacobian(theta, x, y, z, weight_root):
+    return weight_root @ moment_jacobian(theta, x, y, z)
+
+def closed_form_linear_gmm(x, y, z, weight):
+    zx = z.T @ x
+    zy = z.T @ y
+    return np.linalg.solve(zx.T @ weight @ zx, zx.T @ weight @ zy)
+
+def omega_hat(theta, x, y, z):
+    resid = y - x @ theta
+    gi = z * resid[:, None]
+    return gi.T @ gi / x.shape[0]
+
+def make_weight_root(weight):
+    ridge = 1e-10 * np.eye(weight.shape[0])
+    return np.linalg.cholesky(weight + ridge).T
+```
+
+The two optimizer interfaces line up naturally with GMM:
+
+- `Optimizers.minimize_bfgs` wants a scalar criterion and its gradient
+- `Optimizers.minimize_gauss_newton_ls` wants a residual vector and its Jacobian
+
+If we whiten the moments as `r(theta) = W^{1/2} gbar(theta)`, then minimizing `||r(theta)||^2` is exactly the same point-estimate problem as minimizing the usual quadratic GMM criterion.
+
+## Just-Identified GMM
+
+To get a just-identified problem with two parameters, we keep only two of the five instruments:
+
+```{python}
+Z_just = Z[:, :2]
+W_just = np.eye(Z_just.shape[1])
+W_just_root = make_weight_root(W_just)
+theta0 = np.zeros(X.shape[1])
+
+gn_just = Optimizers.minimize_gauss_newton_ls(
+    lambda theta: whitened_residual(theta, X, y, Z_just, W_just_root),
+    theta0,
+    lambda theta: whitened_jacobian(theta, X, y, Z_just, W_just_root),
+    max_iterations=200,
+)
+
+bfgs_just = Optimizers.minimize_bfgs(
+    lambda theta: gmm_criterion(theta, X, y, Z_just, W_just),
+    theta0,
+    lambda theta: gmm_gradient(theta, X, y, Z_just, W_just),
+    max_iterations=200,
+)
+
+closed_just = closed_form_linear_gmm(X, y, Z_just, W_just)
+
+print("closed-form just-id beta:", np.round(closed_just, 4))
+print("Gauss-Newton just-id beta:", np.round(gn_just["x"], 4))
+print("BFGS just-id beta:", np.round(bfgs_just["x"], 4))
+```
+
+In this linear case the Jacobian is constant, so Gauss-Newton is especially natural. The BFGS result should land on the same answer because both optimizers are solving the same moment problem, just through different interfaces.
+
+## Overidentified GMM With Five Instruments
+
+Now we use all five instruments. First we run a one-step GMM with identity weighting. Then we estimate the moment covariance and do a second-step efficient GMM fit.
+
+```{python}
+W_identity = np.eye(Z.shape[1])
+W_identity_root = make_weight_root(W_identity)
+
+first_step = Optimizers.minimize_gauss_newton_ls(
+    lambda theta: whitened_residual(theta, X, y, Z, W_identity_root),
+    theta0,
+    lambda theta: whitened_jacobian(theta, X, y, Z, W_identity_root),
+    max_iterations=200,
+)
+
+Omega = omega_hat(first_step["x"], X, y, Z)
+W_eff = np.linalg.inv(Omega + 1e-10 * np.eye(Omega.shape[0]))
+W_eff_root = make_weight_root(W_eff)
+
+gn_over = Optimizers.minimize_gauss_newton_ls(
+    lambda theta: whitened_residual(theta, X, y, Z, W_eff_root),
+    first_step["x"],
+    lambda theta: whitened_jacobian(theta, X, y, Z, W_eff_root),
+    max_iterations=200,
+)
+
+bfgs_over = Optimizers.minimize_bfgs(
+    lambda theta: gmm_criterion(theta, X, y, Z, W_eff),
+    first_step["x"],
+    lambda theta: gmm_gradient(theta, X, y, Z, W_eff),
+    max_iterations=200,
+)
+
+closed_over = closed_form_linear_gmm(X, y, Z, W_eff)
+j_stat = n * gmm_criterion(gn_over["x"], X, y, Z, W_eff)
+
+print("first-step beta:", np.round(first_step["x"], 4))
+print("closed-form efficient beta:", np.round(closed_over, 4))
+print("Gauss-Newton efficient beta:", np.round(gn_over["x"], 4))
+print("BFGS efficient beta:", np.round(bfgs_over["x"], 4))
+print("J-statistic:", round(float(j_stat), 4), "with df =", Z.shape[1] - X.shape[1])
+```
+
+This is now the pattern packaged into the `GMM` class:
+
+1. define the sample moments
+2. run a first-step fit with a simple weight matrix
+3. estimate the moment covariance
+4. update the weight matrix
+5. rerun the optimizer for the second step
+
+## Compare The Estimates
+
+```{python}
+labels = ["beta_1", "beta_2"]
+xpos = np.arange(len(labels))
+width = 0.22
+
+fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.8), constrained_layout=True)
+
+axes[0].bar(xpos - width, beta_true, width=width, label="true")
+axes[0].bar(xpos, gn_just["x"], width=width, label="just-id GN")
+axes[0].bar(xpos + width, bfgs_just["x"], width=width, label="just-id BFGS")
+axes[0].plot(xpos, closed_just, "o", color="black", label="just-id closed form")
+axes[0].set_xticks(xpos)
+axes[0].set_xticklabels(labels)
+axes[0].set_title("Just-identified moments")
+axes[0].legend()
+
+axes[1].bar(xpos - width, beta_true, width=width, label="true")
+axes[1].bar(xpos, gn_over["x"], width=width, label="over-id GN")
+axes[1].bar(xpos + width, bfgs_over["x"], width=width, label="over-id BFGS")
+axes[1].plot(xpos, closed_over, "o", color="black", label="efficient closed form")
+axes[1].set_xticks(xpos)
+axes[1].set_xticklabels(labels)
+axes[1].set_title("Overidentified GMM with 5 instruments")
+axes[1].legend()
+
+plt.show()
+```
+
+```{python}
+estimator_labels = [
+    "true",
+    "naive OLS",
+    "just-id GN",
+    "over-id GN",
+]
+
+estimate_stack = np.vstack(
+    [
+        beta_true,
+        ols_beta,
+        np.asarray(gn_just["x"]),
+        np.asarray(gn_over["x"]),
+    ]
+)
+
+fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.6), constrained_layout=True)
+for j, ax in enumerate(axes):
+    ax.bar(estimator_labels, estimate_stack[:, j], color=["#4c78a8", "#9ecae9", "#f58518", "#54a24b"])
+    ax.axhline(beta_true[j], color="black", linewidth=1.0, linestyle="--")
+    ax.set_title(f"{labels[j]} across estimators")
+    ax.tick_params(axis="x", rotation=15)
+
+plt.show()
+```
+
+The main point is not that Gauss-Newton always dominates BFGS. The point is that both are already enough to express GMM cleanly:
+
+- Gauss-Newton is natural when you want to think of GMM as a least-squares problem in the moment vector
+- BFGS is natural when you want to work directly with the scalar quadratic criterion and its gradient
+
+## Takeaway
+
+- Just-identified IV moments already fit cleanly into `Optimizers.minimize_gauss_newton_ls`.
+- Overidentified GMM only needs one more layer: estimate `Omega`, form `W = Omega^{-1}`, and rerun the optimizer.
+- The current optimizer surface was already expressive enough to build the `GMM` class, especially for linear moments where the Jacobian is simple and often constant.
+
+Those class-level responsibilities are now:
+
+- own the moment, Jacobian, and per-observation score callbacks
+- manage one-step versus two-step weighting
+- cache `theta`, `Omega`, `W`, and the J-statistic
+- expose `summary()` and bootstrap logic analogously to `MEstimator`

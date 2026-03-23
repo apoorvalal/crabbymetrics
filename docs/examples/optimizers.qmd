@@ -1,5 +1,5 @@
 ---
-title: "Optimizer Examples"
+title: "Optimizers"
 format:
   html:
     number-sections: true

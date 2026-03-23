@@ -1,5 +1,5 @@
 ---
-title: "Mechanics: Poisson"
+title: "Binding Internals: Poisson"
 format:
   html:
     toc: false
@@ -12,7 +12,7 @@ execute:
   message: false
 ---
 
-This page walks through how the built-in `Poisson` estimator is exposed from Rust to Python. It is the cleanest “native estimator” pattern in the codebase: no Python callbacks, a local optimization problem in Rust, and a small PyO3 wrapper around it.
+This page is a deeper binding-internals follow-on to the OLS crash course. It walks through how the built-in `Poisson` estimator is exposed from Rust to Python: no Python callbacks, a local optimization problem in Rust, and a small PyO3 wrapper around it.
 
 ## Module Export
 
@@ -197,12 +197,16 @@ The last two assignments are why later methods can compute inference and bootstr
 
 `predict()` is straightforward: rebuild `eta = X beta + intercept`, exponentiate it, and return a `PyArray1<f64>`.
 
-`summary()` uses the fitted mean `mu` and the stored training design to build a Fisher-information covariance:
+`summary()` uses the fitted mean `mu` and the stored training design to build either the model-based Fisher covariance or the QMLE sandwich, depending on `vcov`:
 
 ```rust
 let mu = (x.dot(coef) + self.intercept).mapv(|v| v.exp());
 let design = if self.fit_intercept { add_intercept(x) } else { x.clone() };
-let cov = fisher_cov_poisson(&design, &mu)?;
+let cov = match vcov {
+    "vanilla" => fisher_cov_poisson(&design, &mu)?,
+    "sandwich" | "qmle" => qmle_cov_poisson(&design, y, &mu)?,
+    _ => return Err(PyValueError::new_err("vcov must be one of {'vanilla', 'sandwich', 'qmle'}")),
+};
 ```
 
 So the mechanics are:
@@ -228,6 +232,7 @@ model = Poisson(alpha=0.0, max_iterations=100, tolerance=1e-4)
 model.fit(x, y)
 
 summary = model.summary()
+summary_qmle = model.summary(vcov="sandwich")
 pred = model.predict(x[:10])
 boot = model.bootstrap(20, seed=1)
 ```
