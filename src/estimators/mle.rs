@@ -529,7 +529,9 @@ impl Poisson {
         };
         let cov = match vcov {
             "vanilla" => fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?,
-            "sandwich" | "qmle" => qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?,
+            "sandwich" | "qmle" => {
+                qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?
+            }
             _ => {
                 return Err(PyValueError::new_err(
                     "vcov must be one of {'vanilla', 'sandwich', 'qmle'}",

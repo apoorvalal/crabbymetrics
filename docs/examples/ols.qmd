@@ -45,3 +45,24 @@ print("true intercept:", intercept)
 print("true coef:", beta)
 pprint(model.summary())
 ```
+
+## Robust Covariance Options
+
+`OLS.summary()` now shares the same covariance interface used by the other linear estimators:
+
+- `vcov="vanilla"` for homoskedastic standard errors
+- `vcov="hc1"` for heteroskedasticity-robust Eicker-Huber-White standard errors
+- `vcov="newey_west"` with a lag choice for HAC inference
+- `vcov="cluster"` with one-way cluster labels
+
+```{python}
+clusters = np.repeat(np.arange(25, dtype=np.int64), n // 25)
+
+vanilla = model.summary(vcov="vanilla")
+hac = model.summary(vcov="newey_west", lags=4)
+cluster = model.summary(vcov="cluster", clusters=clusters)
+
+print("vanilla SE:", np.round(vanilla["coef_se"], 4))
+print("Newey-West SE:", np.round(hac["coef_se"], 4))
+print("cluster SE:", np.round(cluster["coef_se"], 4))
+```

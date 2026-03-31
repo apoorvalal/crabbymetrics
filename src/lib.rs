@@ -3,8 +3,8 @@ mod optimizers;
 mod utils;
 
 use crate::estimators::{
-    ElasticNet, FixedEffectsOLS, GMM, Logit, MEstimator, MultinomialLogit, Poisson, Ridge,
-    SyntheticControl, TwoSLS, FTRL, KernelBasis, OLS, PcaTransformer,
+    ElasticNet, FixedEffectsOLS, KernelBasis, Logit, MEstimator, MultinomialLogit, PcaTransformer,
+    Poisson, Ridge, SyntheticControl, TwoSLS, FTRL, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;

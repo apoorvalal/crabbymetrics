@@ -4904,7 +4904,7 @@ vertical-align: -.125em;
 <p>This page focuses on the fast closed-form <code>Ridge</code> estimator. Unlike <code>ElasticNet</code>, this path does not go through an iterative elastic-net solver. It stays close to OLS by solving penalized least squares through an augmented QR least-squares system.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="968bc644" class="cell" data-execution_count="2">
+<div id="deffc3a1" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4923,7 +4923,7 @@ vertical-align: -.125em;
 <li>we still fit ordinary linear models on the raw regressors</li>
 </ul>
 <p>That is a useful place to look at ridge. The model is misspecified, so shrinking noisy linear directions can improve held-out prediction error even though the regression function is not actually linear.</p>
-<div id="324f7add" class="cell" data-execution_count="3">
+<div id="8b7bbc21" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260322</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_train <span class="op">=</span> <span class="dv">1000</span></span>
@@ -4972,24 +4972,27 @@ vertical-align: -.125em;
 <span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>ridge <span class="op">=</span> Ridge(penalty<span class="op">=</span>penalties, cv<span class="op">=</span><span class="dv">5</span>)</span>
 <span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>ridge.fit(x_train, y_train)</span>
 <span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>ridge_summary <span class="op">=</span> ridge.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>mse_ridge <span class="op">=</span> <span class="bu">float</span>(np.mean((y_test <span class="op">-</span> ridge.predict(x_test)) <span class="op">**</span> <span class="dv">2</span>))</span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;penalty grid head:&quot;</span>, penalties[:<span class="dv">6</span>])</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;selected ridge penalty:&quot;</span>, ridge.best_penalty)</span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;OLS test MSE:&quot;</span>, <span class="bu">round</span>(mse_ols, <span class="dv">4</span>))</span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Ridge test MSE:&quot;</span>, <span class="bu">round</span>(mse_ridge, <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>hac_summary <span class="op">=</span> ridge.summary(vcov<span class="op">=</span><span class="st">&quot;newey_west&quot;</span>, lags<span class="op">=</span><span class="dv">4</span>)</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>mse_ridge <span class="op">=</span> <span class="bu">float</span>(np.mean((y_test <span class="op">-</span> ridge.predict(x_test)) <span class="op">**</span> <span class="dv">2</span>))</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;penalty grid head:&quot;</span>, penalties[:<span class="dv">6</span>])</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;selected ridge penalty:&quot;</span>, ridge.best_penalty)</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;OLS test MSE:&quot;</span>, <span class="bu">round</span>(mse_ols, <span class="dv">4</span>))</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Ridge test MSE:&quot;</span>, <span class="bu">round</span>(mse_ridge, <span class="dv">4</span>))</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;selected-penalty HAC SE head:&quot;</span>, np.<span class="bu">round</span>(hac_summary[<span class="st">&quot;coef_se&quot;</span>][:<span class="dv">5</span>], <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>penalty grid head: [0.0001 0.0001 0.0002 0.0003 0.0004 0.0005]
 selected ridge penalty: 5.1794746792312125
 OLS test MSE: 15.8738
-Ridge test MSE: 15.7818</code></pre>
+Ridge test MSE: 15.7818
+selected-penalty HAC SE head: [0.6352 0.3739 0.5067 0.4925 0.5212]</code></pre>
 </div>
 </div>
 </section>
 <section id="linear-ridge-cv-error-curve-and-coefficient-paths" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="linear-ridge-cv-error-curve-and-coefficient-paths"><span class="header-section-number">3</span> Linear Ridge: CV Error Curve And Coefficient Paths</h2>
 <p>The first plot shows the deterministic 5-fold CV error across the full 50-point log-spaced penalty grid. The second shows the full coefficient path, one curve per regressor.</p>
-<div id="1bd9a666" class="cell" data-execution_count="4">
+<div id="d04903c8" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cv_mse <span class="op">=</span> np.asarray(ridge_summary[<span class="st">&quot;cv_mse&quot;</span>])</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>coef_path <span class="op">=</span> np.asarray(ridge_summary[<span class="st">&quot;coef_path&quot;</span>])</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5025,7 +5028,7 @@ Ridge test MSE: 15.7818</code></pre>
 <h2 data-number="4" class="anchored" data-anchor-id="kernel-ridge-on-the-same-data"><span class="header-section-number">4</span> Kernel Ridge On The Same Data</h2>
 <p>The same data still contain real nonlinear signal, so a richer basis should help. <code>KernelBasis(&quot;gaussian&quot;)</code> lifts the standardized regressors into a Gaussian similarity basis, and <code>Ridge</code> then solves the L2-regularized linear problem in that basis.</p>
 <p>At this larger sample size, using all <code>1000</code> training points as kernel anchors would make the notebook unnecessarily heavy. So the next section uses a <code>300</code>-point Gaussian anchor basis drawn from the training sample. That still demonstrates the nonlinear lift cleanly while keeping the page practical to cache.</p>
-<div id="ae8a025d" class="cell" data-execution_count="5">
+<div id="9e8a11bd" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>anchor_idx <span class="op">=</span> np.sort(rng.choice(n_train, size<span class="op">=</span><span class="dv">300</span>, replace<span class="op">=</span><span class="va">False</span>))</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x_kernel_basis <span class="op">=</span> x_train[anchor_idx]</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5059,7 +5062,7 @@ linear ridge test MSE: 15.7818
 kernel ridge test MSE: 3.31</code></pre>
 </div>
 </div>
-<div id="6d67eece" class="cell" data-execution_count="6">
+<div id="4bc2abf0" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="fl">7.2</span>, <span class="fl">5.0</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ax.plot(penalties, kernel_test_mse, color<span class="op">=</span><span class="st">&quot;tab:green&quot;</span>, lw<span class="op">=</span><span class="fl">2.0</span>)</span>

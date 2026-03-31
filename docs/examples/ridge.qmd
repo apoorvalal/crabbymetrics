@@ -87,12 +87,14 @@ mse_ols = float(np.mean((y_test - ols.predict(x_test)) ** 2))
 ridge = Ridge(penalty=penalties, cv=5)
 ridge.fit(x_train, y_train)
 ridge_summary = ridge.summary(vcov="vanilla")
+hac_summary = ridge.summary(vcov="newey_west", lags=4)
 mse_ridge = float(np.mean((y_test - ridge.predict(x_test)) ** 2))
 
 print("penalty grid head:", penalties[:6])
 print("selected ridge penalty:", ridge.best_penalty)
 print("OLS test MSE:", round(mse_ols, 4))
 print("Ridge test MSE:", round(mse_ridge, 4))
+print("selected-penalty HAC SE head:", np.round(hac_summary["coef_se"][:5], 4))
 ```
 
 ## Linear Ridge: CV Error Curve And Coefficient Paths

@@ -169,6 +169,22 @@ np.testing.assert_allclose(
 )
 ```
 
+## Robust Covariance Options
+
+Point estimation stays closed form, but the inference surface is shared with `OLS`, `Ridge`, and `FixedEffectsOLS`.
+
+```{python}
+clusters = np.repeat(np.arange(40, dtype=np.int64), n // 40)
+
+vanilla = model.summary(vcov="vanilla")
+hac = model.summary(vcov="newey_west", lags=4)
+cluster = model.summary(vcov="cluster", clusters=clusters)
+
+print("vanilla SE:", np.round(vanilla["coef_se"], 4))
+print("Newey-West SE:", np.round(hac["coef_se"], 4))
+print("cluster SE:", np.round(cluster["coef_se"], 4))
+```
+
 ## Multiple Endogenous Regressors
 
 Now the first stage solves for a whole coefficient matrix $\hat{\Pi}$, one column for each endogenous regressor. The second stage is still just least squares on

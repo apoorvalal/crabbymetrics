@@ -75,8 +75,25 @@ print("Dummy OLS slopes:      ", baseline_summary["coef"][: x.shape[1]])
 print("Absolute difference:   ", np.abs(model.summary()["coef"] - baseline_summary["coef"][: x.shape[1]]))
 ```
 
+## Robust Covariance Options
+
+Once the fixed effects are partialled out, `summary()` exposes the same covariance choices as the other linear estimators.
+
+```{python}
+worker_cluster = worker.astype(np.int64)
+
+hc1 = model.summary()
+cluster = model.summary(vcov="cluster", clusters=worker_cluster)
+hac = model.summary(vcov="newey_west", lags=3)
+
+print("HC1 SE:", np.round(hc1["coef_se"], 4))
+print("cluster SE:", np.round(cluster["coef_se"], 4))
+print("Newey-West SE:", np.round(hac["coef_se"], 4))
+```
+
 ## Notes
 
 - `fe` must be a 2D `uint32` matrix with one column per factor.
 - Category codes should be zero-based and contiguous within each factor.
 - The estimator absorbs the constant, so there is no intercept in the summary and no `predict()` method.
+- Cluster labels passed to `summary(vcov="cluster", clusters=...)` should be a separate 1D `int64` array with one label per observation.

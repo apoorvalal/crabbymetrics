@@ -4,6 +4,40 @@ import pytest
 import crabbymetrics as cm
 
 
+def score_cov_newey_west(scores, lags):
+    cov = scores.T @ scores
+    if scores.shape[0] <= 1 or lags == 0:
+        return cov
+
+    max_lag = min(lags, scores.shape[0] - 1)
+    for lag in range(1, max_lag + 1):
+        weight = 1.0 - lag / (max_lag + 1.0)
+        gamma = scores[lag:].T @ scores[:-lag]
+        cov = cov + weight * (gamma + gamma.T)
+    return cov
+
+
+def score_cov_cluster(scores, clusters):
+    cov = np.zeros((scores.shape[1], scores.shape[1]))
+    for cluster in np.unique(clusters):
+        summed = scores[clusters == cluster].sum(axis=0)
+        cov = cov + np.outer(summed, summed)
+    return cov
+
+
+def sandwich_from_parameter_scores(scores, df_resid, kind, lags=None, clusters=None):
+    n = scores.shape[0]
+    if kind == "hc1":
+        return score_cov_newey_west(scores, lags=0) * (n / df_resid)
+    if kind == "newey_west":
+        return score_cov_newey_west(scores, lags=lags) * (n / df_resid)
+    if kind == "cluster":
+        n_clusters = np.unique(clusters).size
+        scale = (n_clusters / (n_clusters - 1.0)) * ((n - 1.0) / df_resid)
+        return score_cov_cluster(scores, clusters) * scale
+    raise ValueError(f"unsupported kind: {kind}")
+
+
 def hc1_se(x, y):
     design = np.column_stack([np.ones(x.shape[0]), x])
     beta, *_ = np.linalg.lstsq(design, y, rcond=None)
@@ -25,12 +59,45 @@ def vanilla_ols_se(x, y):
     return beta, np.sqrt(np.diag(cov))
 
 
+def weighted_ols_summary_reference(x, y, weights, kind="vanilla"):
+    design = np.column_stack([np.ones(x.shape[0]), x])
+    sqrt_w = np.sqrt(weights)
+    design_w = design * sqrt_w[:, None]
+    y_w = y * sqrt_w
+    beta, *_ = np.linalg.lstsq(design_w, y_w, rcond=None)
+    resid = y - design @ beta
+    resid_w = sqrt_w * resid
+    xtx_inv = np.linalg.inv(design_w.T @ design_w)
+
+    if kind == "vanilla":
+        sigma2 = (resid_w @ resid_w) / (design.shape[0] - design.shape[1])
+        cov = sigma2 * xtx_inv
+    elif kind == "hc1":
+        param_scores = (design_w * resid_w[:, None]) @ xtx_inv
+        cov = sandwich_from_parameter_scores(param_scores, design.shape[0] - design.shape[1], "hc1")
+    else:
+        raise ValueError(f"unsupported kind: {kind}")
+
+    return beta, cov
+
+
 def ridge_augmented_solution(x, y, penalty):
     design = np.column_stack([np.ones(x.shape[0]), x])
     penalty_block = np.sqrt(penalty) * np.eye(x.shape[1] + 1)
     penalty_block[0, 0] = 0.0
     aug_x = np.vstack([design, penalty_block])
     aug_y = np.concatenate([y, np.zeros(x.shape[1] + 1)])
+    beta, *_ = np.linalg.lstsq(aug_x, aug_y, rcond=None)
+    return beta[0], beta[1:]
+
+
+def weighted_ridge_augmented_solution(x, y, penalty, weights):
+    design = np.column_stack([np.ones(x.shape[0]), x])
+    sqrt_w = np.sqrt(weights)
+    penalty_block = np.sqrt(penalty) * np.eye(x.shape[1] + 1)
+    penalty_block[0, 0] = 0.0
+    aug_x = np.vstack([design * sqrt_w[:, None], penalty_block])
+    aug_y = np.concatenate([y * sqrt_w, np.zeros(x.shape[1] + 1)])
     beta, *_ = np.linalg.lstsq(aug_x, aug_y, rcond=None)
     return beta[0], beta[1:]
 
@@ -52,6 +119,51 @@ def ridge_cv_curve(x, y, penalties, cv):
         curve[j] = fold_mse / n_folds
 
     return curve
+
+
+def weighted_ridge_cv_curve(x, y, penalties, cv, weights):
+    n = x.shape[0]
+    n_folds = min(cv, n)
+    fold_id = np.arange(n) % n_folds
+    curve = np.zeros(len(penalties))
+
+    for j, penalty in enumerate(penalties):
+        fold_mse = 0.0
+        for fold in range(n_folds):
+            train = fold_id != fold
+            test = ~train
+            intercept, coef = weighted_ridge_augmented_solution(x[train], y[train], penalty, weights[train])
+            residual = y[test] - (intercept + x[test] @ coef)
+            fold_mse += np.sum(weights[test] * residual**2) / np.sum(weights[test])
+        curve[j] = fold_mse / n_folds
+
+    return curve
+
+
+def ridge_summary_reference(x, y, penalty, kind, lags=None, clusters=None):
+    design = np.column_stack([np.ones(x.shape[0]), x])
+    intercept, coef = ridge_augmented_solution(x, y, penalty)
+    beta = np.concatenate([[intercept], coef])
+    fitted = design @ beta
+    resid = y - fitted
+    penalty_matrix = penalty * np.eye(design.shape[1])
+    penalty_matrix[0, 0] = 0.0
+    bread_inv = np.linalg.inv(design.T @ design + penalty_matrix)
+    df_eff = np.trace(design.T @ design @ bread_inv)
+    if kind == "vanilla":
+        sigma2 = (resid @ resid) / (design.shape[0] - df_eff)
+        cov = bread_inv @ (design.T @ design) @ bread_inv * sigma2
+    else:
+        raw_scores = design * resid[:, None]
+        param_scores = raw_scores @ bread_inv
+        cov = sandwich_from_parameter_scores(
+            param_scores,
+            df_resid=design.shape[0] - df_eff,
+            kind=kind,
+            lags=lags,
+            clusters=clusters,
+        )
+    return beta, cov
 
 
 def poisson_covariances(x, y, intercept, coef):
@@ -79,6 +191,94 @@ def twosls_closed_form(x_endog, x_exog, z, y):
         x_design.T @ z_design @ ztz_inv @ z_design.T @ y,
     )
     return beta[0], beta[1:]
+
+
+def twosls_summary_reference(x_endog, x_exog, z, y, kind, lags=None, clusters=None):
+    if x_exog.shape[1] > 0:
+        x_rhs = np.column_stack([x_endog, x_exog])
+        z_rhs = np.column_stack([x_exog, z])
+    else:
+        x_rhs = x_endog
+        z_rhs = z
+
+    x_design = np.column_stack([np.ones(x_rhs.shape[0]), x_rhs])
+    z_design = np.column_stack([np.ones(z_rhs.shape[0]), z_rhs])
+    pi_hat, *_ = np.linalg.lstsq(z_design, x_endog, rcond=None)
+    x_endog_hat = z_design @ pi_hat
+    if x_exog.shape[1] > 0:
+        x_hat_rhs = np.column_stack([x_endog_hat, x_exog])
+    else:
+        x_hat_rhs = x_endog_hat
+    x_hat_design = np.column_stack([np.ones(x_hat_rhs.shape[0]), x_hat_rhs])
+
+    beta, *_ = np.linalg.lstsq(x_hat_design, y, rcond=None)
+    residuals = y - x_design @ beta
+    n, p = x_design.shape
+    weight = np.linalg.inv(z_design.T @ z_design / n)
+    jacobian = -(z_design.T @ x_design) / n
+    a_inv = np.linalg.inv(jacobian.T @ weight @ jacobian)
+
+    if kind == "vanilla":
+        sigma2 = (residuals @ residuals) / (n - p)
+        cov = a_inv * sigma2 / n
+    else:
+        moment_scores = z_design * residuals[:, None]
+        transform = weight @ jacobian @ a_inv / n
+        param_scores = moment_scores @ transform
+        cov = sandwich_from_parameter_scores(
+            param_scores,
+            df_resid=n - p,
+            kind=kind,
+            lags=lags,
+            clusters=clusters,
+        )
+    return beta, cov
+
+
+def weighted_twosls_closed_form(x_endog, x_exog, z, y, weights):
+    sqrt_w = np.sqrt(weights)
+    return twosls_closed_form(
+        x_endog * sqrt_w[:, None],
+        x_exog * sqrt_w[:, None],
+        z * sqrt_w[:, None],
+        y * sqrt_w,
+    )
+
+
+def weighted_twosls_summary_reference(x_endog, x_exog, z, y, weights, kind, lags=None, clusters=None):
+    sqrt_w = np.sqrt(weights)
+    return twosls_summary_reference(
+        x_endog * sqrt_w[:, None],
+        x_exog * sqrt_w[:, None],
+        z * sqrt_w[:, None],
+        y * sqrt_w,
+        kind=kind,
+        lags=lags,
+        clusters=clusters,
+    )
+
+
+def demean_by_group(x, y, groups):
+    x_resid = np.empty_like(x, dtype=float)
+    y_resid = np.empty_like(y, dtype=float)
+    for group in np.unique(groups):
+        mask = groups == group
+        x_resid[mask] = x[mask] - x[mask].mean(axis=0, keepdims=True)
+        y_resid[mask] = y[mask] - y[mask].mean()
+    return x_resid, y_resid
+
+
+def weighted_demean_by_group(x, y, groups, weights):
+    x_resid = np.empty_like(x, dtype=float)
+    y_resid = np.empty_like(y, dtype=float)
+    for group in np.unique(groups):
+        mask = groups == group
+        group_weights = weights[mask]
+        x_mean = np.average(x[mask], axis=0, weights=group_weights)
+        y_mean = np.average(y[mask], weights=group_weights)
+        x_resid[mask] = x[mask] - x_mean
+        y_resid[mask] = y[mask] - y_mean
+    return x_resid, y_resid
 
 
 def test_ols_matches_closed_form_hc1_and_predict_round_trip():
@@ -139,6 +339,92 @@ def test_ols_summary_supports_vanilla_and_hc1_vcov():
     assert hc1["vcov_type"] == "hc1"
 
 
+def test_ols_summary_supports_newey_west_and_cluster_vcov():
+    rng = np.random.default_rng(2027_1)
+    n = 720
+    x = rng.normal(size=(n, 3))
+    clusters = np.repeat(np.arange(60, dtype=np.int64), n // 60)
+    y = 0.25 + x @ np.array([0.8, -0.45, 0.3]) + (0.7 + 0.4 * x[:, 0] ** 2) * rng.normal(size=n)
+
+    model = cm.OLS()
+    model.fit(x, y)
+
+    nw = model.summary(vcov="newey_west", lags=5)
+    cluster = model.summary(vcov="cluster", clusters=clusters)
+
+    design = np.column_stack([np.ones(n), x])
+    beta, *_ = np.linalg.lstsq(design, y, rcond=None)
+    resid = y - design @ beta
+    param_scores = (design * resid[:, None]) @ np.linalg.inv(design.T @ design)
+    cov_nw = sandwich_from_parameter_scores(param_scores, n - design.shape[1], "newey_west", lags=5)
+    cov_cluster = sandwich_from_parameter_scores(
+        param_scores,
+        n - design.shape[1],
+        "cluster",
+        clusters=clusters,
+    )
+
+    np.testing.assert_allclose(nw["intercept"], beta[0], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef"], beta[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["intercept_se"], np.sqrt(cov_nw[0, 0]), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef_se"], np.sqrt(np.diag(cov_nw))[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(
+        cluster["intercept_se"],
+        np.sqrt(cov_cluster[0, 0]),
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    np.testing.assert_allclose(
+        cluster["coef_se"],
+        np.sqrt(np.diag(cov_cluster))[1:],
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    assert nw["vcov_type"] == "newey_west"
+    assert cluster["vcov_type"] == "cluster"
+
+
+def test_ols_unit_sample_weights_match_unweighted_fit_and_summary():
+    rng = np.random.default_rng(2027_2)
+    x = rng.normal(size=(640, 3))
+    y = 0.15 + x @ np.array([0.9, -0.35, 0.2]) + rng.normal(scale=0.55, size=640)
+    unit_weights = np.ones(x.shape[0])
+
+    baseline = cm.OLS()
+    baseline.fit(x, y)
+
+    weighted = cm.OLS()
+    weighted.fit_weighted(x, y, unit_weights)
+
+    baseline_summary = baseline.summary(vcov="hc1")
+    weighted_summary = weighted.summary(vcov="hc1")
+
+    np.testing.assert_allclose(weighted_summary["intercept"], baseline_summary["intercept"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["coef"], baseline_summary["coef"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["intercept_se"], baseline_summary["intercept_se"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["coef_se"], baseline_summary["coef_se"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted.predict(x[:31]), baseline.predict(x[:31]), atol=1e-8, rtol=1e-8)
+
+
+def test_ols_sample_weights_match_weighted_least_squares():
+    rng = np.random.default_rng(2027_3)
+    x = rng.normal(size=(720, 2))
+    weights = 0.4 + rng.random(x.shape[0]) * 1.8
+    y = -0.1 + x @ np.array([1.0, -0.55]) + (0.6 + 0.3 * x[:, 0] ** 2) * rng.normal(size=x.shape[0])
+
+    model = cm.OLS()
+    model.fit_weighted(x, y, weights)
+    summary = model.summary(vcov="vanilla")
+
+    beta, cov = weighted_ols_summary_reference(x, y, weights, kind="vanilla")
+
+    np.testing.assert_allclose(summary["intercept"], beta[0], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef"], beta[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["intercept_se"], np.sqrt(cov[0, 0]), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef_se"], np.sqrt(np.diag(cov))[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(model.predict(x[:27]), beta[0] + x[:27] @ beta[1:], atol=1e-8, rtol=1e-8)
+
+
 def test_ridge_scalar_penalty_matches_augmented_least_squares():
     rng = np.random.default_rng(2028)
     x = rng.normal(size=(500, 3))
@@ -176,6 +462,44 @@ def test_ridge_zero_penalty_matches_ols_point_estimates():
 
     np.testing.assert_allclose(ridge_summary["intercept"], ols_summary["intercept"], atol=1e-8, rtol=1e-8)
     np.testing.assert_allclose(ridge_summary["coef"], ols_summary["coef"], atol=1e-8, rtol=1e-8)
+
+
+def test_ridge_summary_supports_newey_west_and_cluster_vcov():
+    rng = np.random.default_rng(2029_1)
+    n = 680
+    x = rng.normal(size=(n, 4))
+    penalty = 0.75
+    clusters = np.repeat(np.arange(40, dtype=np.int64), n // 40)
+    y = -0.15 + x @ np.array([0.9, -0.6, 0.25, 0.0]) + (0.5 + 0.3 * x[:, 1] ** 2) * rng.normal(size=n)
+
+    model = cm.Ridge(penalty=penalty)
+    model.fit(x, y)
+
+    nw = model.summary(vcov="newey_west", lags=4)
+    cluster = model.summary(vcov="cluster", clusters=clusters)
+    beta_nw, cov_nw = ridge_summary_reference(x, y, penalty, kind="newey_west", lags=4)
+    beta_cluster, cov_cluster = ridge_summary_reference(x, y, penalty, kind="cluster", clusters=clusters)
+
+    np.testing.assert_allclose(nw["intercept"], beta_nw[0], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef"], beta_nw[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["intercept_se"], np.sqrt(cov_nw[0, 0]), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef_se"], np.sqrt(np.diag(cov_nw))[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(cluster["intercept"], beta_cluster[0], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(cluster["coef"], beta_cluster[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(
+        cluster["intercept_se"],
+        np.sqrt(cov_cluster[0, 0]),
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    np.testing.assert_allclose(
+        cluster["coef_se"],
+        np.sqrt(np.diag(cov_cluster))[1:],
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    assert nw["vcov_type"] == "newey_west"
+    assert cluster["vcov_type"] == "cluster"
 
 
 def test_ridge_penalty_grid_returns_path_and_cv_optimal_index():
@@ -235,6 +559,52 @@ def test_ridge_cv_predict_matches_refit_at_selected_penalty():
     )
 
 
+def test_ridge_unit_sample_weights_match_unweighted_cv_fit():
+    rng = np.random.default_rng(2031_1)
+    x = rng.normal(size=(540, 4))
+    y = 0.25 + x @ np.array([0.8, -0.45, 0.2, 0.1]) + rng.normal(scale=0.7, size=540)
+    penalties = np.logspace(-2, 1.5, 18)
+    unit_weights = np.ones(x.shape[0])
+
+    baseline = cm.Ridge(penalty=penalties, cv=5)
+    baseline.fit(x, y)
+
+    weighted = cm.Ridge(penalty=penalties, cv=5)
+    weighted.fit_weighted(x, y, unit_weights)
+
+    baseline_summary = baseline.summary(vcov="vanilla")
+    weighted_summary = weighted.summary(vcov="vanilla")
+
+    np.testing.assert_allclose(weighted_summary["coef"], baseline_summary["coef"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["intercept"], baseline_summary["intercept"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["cv_mse"], baseline_summary["cv_mse"], atol=1e-8, rtol=1e-8)
+    assert weighted.best_penalty_index == baseline.best_penalty_index
+    np.testing.assert_allclose(weighted.predict(x[:29]), baseline.predict(x[:29]), atol=1e-8, rtol=1e-8)
+
+
+def test_ridge_sample_weights_match_weighted_cv_curve_and_selected_fit():
+    rng = np.random.default_rng(2031_2)
+    x = rng.normal(size=(560, 4))
+    y = -0.2 + x @ np.array([1.1, -0.7, 0.15, 0.0]) + rng.normal(scale=0.8, size=560)
+    weights = 0.3 + rng.random(x.shape[0]) * 2.2
+    penalties = np.logspace(-3, 2, 15)
+
+    model = cm.Ridge(penalty=penalties, cv=6)
+    model.fit_weighted(x, y, weights)
+    summary = model.summary(vcov="vanilla")
+
+    cv_curve = weighted_ridge_cv_curve(x, y, penalties, cv=6, weights=weights)
+    best_idx = int(np.argmin(cv_curve))
+    intercept_hat, coef_hat = weighted_ridge_augmented_solution(x, y, penalties[best_idx], weights)
+
+    np.testing.assert_allclose(summary["cv_mse"], cv_curve, atol=1e-8, rtol=1e-8)
+    assert summary["best_penalty_index"] == best_idx
+    assert model.best_penalty_index == best_idx
+    np.testing.assert_allclose(summary["intercept"], intercept_hat, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef"], coef_hat, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef"], summary["coef_path"][:, best_idx], atol=1e-8, rtol=1e-8)
+
+
 def test_fixed_effects_ols_is_invariant_to_fixed_effect_relabeling():
     rng = np.random.default_rng(31415)
     n = 600
@@ -265,6 +635,83 @@ def test_fixed_effects_ols_is_invariant_to_fixed_effect_relabeling():
         atol=1e-8,
         rtol=1e-8,
     )
+
+
+def test_fixed_effects_ols_summary_supports_newey_west_and_cluster_vcov():
+    rng = np.random.default_rng(31416)
+    n = 900
+    groups = np.repeat(np.arange(75, dtype=np.uint32), n // 75)
+    x = rng.normal(size=(n, 2))
+    beta_true = np.array([0.75, -0.35])
+    group_effect = rng.normal(scale=0.8, size=groups.max() + 1)
+    y = x @ beta_true + group_effect[groups] + (0.4 + 0.2 * x[:, 0] ** 2) * rng.normal(size=n)
+
+    model = cm.FixedEffectsOLS()
+    model.fit(x, groups[:, None], y)
+
+    nw = model.summary(vcov="newey_west", lags=3)
+    cluster = model.summary(vcov="cluster", clusters=groups.astype(np.int64))
+
+    x_resid, y_resid = demean_by_group(x, y, groups)
+    coef, *_ = np.linalg.lstsq(x_resid, y_resid, rcond=None)
+    resid = y_resid - x_resid @ coef
+    param_scores = (x_resid * resid[:, None]) @ np.linalg.inv(x_resid.T @ x_resid)
+    cov_nw = sandwich_from_parameter_scores(param_scores, n - x.shape[1], "newey_west", lags=3)
+    cov_cluster = sandwich_from_parameter_scores(
+        param_scores,
+        n - x.shape[1],
+        "cluster",
+        clusters=groups.astype(np.int64),
+    )
+
+    np.testing.assert_allclose(nw["coef"], coef, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef_se"], np.sqrt(np.diag(cov_nw)), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(cluster["coef"], coef, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(
+        cluster["coef_se"],
+        np.sqrt(np.diag(cov_cluster)),
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    assert nw["vcov_type"] == "newey_west"
+    assert cluster["vcov_type"] == "cluster"
+
+
+def test_fixed_effects_ols_unit_sample_weights_match_unweighted_fit():
+    rng = np.random.default_rng(31417)
+    n = 720
+    groups = rng.integers(0, 45, size=n, dtype=np.uint32)
+    x = rng.normal(size=(n, 2))
+    y = x @ np.array([0.85, -0.25]) + rng.normal(scale=0.7, size=45)[groups] + rng.normal(scale=0.15, size=n)
+    unit_weights = np.ones(n)
+
+    baseline = cm.FixedEffectsOLS()
+    baseline.fit(x, groups[:, None], y)
+
+    weighted = cm.FixedEffectsOLS()
+    weighted.fit_weighted(x, groups[:, None], y, unit_weights)
+
+    np.testing.assert_allclose(weighted.summary()["coef"], baseline.summary()["coef"], atol=1e-8, rtol=1e-8)
+
+
+def test_fixed_effects_ols_sample_weights_match_weighted_one_way_within():
+    rng = np.random.default_rng(31418)
+    n = 840
+    groups = rng.integers(0, 35, size=n, dtype=np.uint32)
+    x = rng.normal(size=(n, 2))
+    weights = 0.5 + rng.random(n) * 1.5
+    alpha = rng.normal(scale=1.2, size=35)
+    y = x @ np.array([1.1, -0.6]) + alpha[groups] + rng.normal(scale=0.25, size=n)
+
+    model = cm.FixedEffectsOLS()
+    model.fit_weighted(x, groups[:, None], y, weights)
+    summary = model.summary(vcov="hc1")
+
+    x_resid, y_resid = weighted_demean_by_group(x, y, groups, weights)
+    sqrt_w = np.sqrt(weights)
+    coef, *_ = np.linalg.lstsq(x_resid * sqrt_w[:, None], y_resid * sqrt_w, rcond=None)
+
+    np.testing.assert_allclose(summary["coef"], coef, atol=1e-6, rtol=1e-6)
 
 
 def test_poisson_predict_round_trip_and_satisfies_score_conditions():
@@ -392,6 +839,118 @@ def test_twosls_overidentified_matches_closed_form_formula():
     np.testing.assert_allclose(summary["coef"], coef_hat, atol=1e-8, rtol=1e-8)
     assert np.all(np.isfinite(summary["coef_se"]))
     assert summary["coef"].shape == (beta.size,)
+
+
+def test_twosls_summary_supports_newey_west_and_cluster_vcov():
+    rng = np.random.default_rng(1718)
+    n = 1600
+
+    z = rng.normal(size=(n, 4))
+    x_exog = rng.normal(size=(n, 2))
+    v = rng.normal(size=(n, 2))
+    eps = rng.normal(size=n)
+    clusters = np.repeat(np.arange(80, dtype=np.int64), n // 80)
+    pi = np.array(
+        [
+            [0.9, 0.25],
+            [0.35, -0.2],
+            [-0.15, 0.75],
+            [0.2, 0.1],
+        ]
+    )
+
+    x_endog = z @ pi + x_exog @ np.array([[0.2, -0.15], [0.1, 0.25]]) + v
+    u = (0.6 + 0.2 * z[:, 0] ** 2) * (0.55 * v[:, 0] - 0.4 * v[:, 1] + 0.2 * eps)
+    y = 0.3 + np.column_stack([x_endog, x_exog]) @ np.array([1.05, -0.8, 0.5, -0.25]) + u
+
+    model = cm.TwoSLS()
+    model.fit(x_endog, x_exog, z, y)
+
+    nw = model.summary(vcov="newey_west", lags=4)
+    cluster = model.summary(vcov="cluster", clusters=clusters)
+    beta_nw, cov_nw = twosls_summary_reference(x_endog, x_exog, z, y, kind="newey_west", lags=4)
+    beta_cluster, cov_cluster = twosls_summary_reference(x_endog, x_exog, z, y, kind="cluster", clusters=clusters)
+
+    np.testing.assert_allclose(nw["intercept"], beta_nw[0], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef"], beta_nw[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["intercept_se"], np.sqrt(cov_nw[0, 0]), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(nw["coef_se"], np.sqrt(np.diag(cov_nw))[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(
+        cluster["intercept_se"],
+        np.sqrt(cov_cluster[0, 0]),
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    np.testing.assert_allclose(
+        cluster["coef_se"],
+        np.sqrt(np.diag(cov_cluster))[1:],
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    assert nw["vcov_type"] == "newey_west"
+    assert cluster["vcov_type"] == "cluster"
+
+
+def test_twosls_unit_sample_weights_match_unweighted_fit_and_summary():
+    rng = np.random.default_rng(1718_1)
+    n = 1300
+    z = rng.normal(size=(n, 3))
+    x_exog = rng.normal(size=(n, 1))
+    v = rng.normal(size=(n, 2))
+    eps = rng.normal(size=n)
+    x_endog = z @ np.array([[0.9, 0.1], [0.2, 0.7], [-0.15, 0.3]]) + 0.25 * x_exog + v
+    y = 0.2 + np.column_stack([x_endog, x_exog]) @ np.array([1.0, -0.75, 0.35]) + 0.5 * v[:, 0] - 0.3 * v[:, 1] + 0.2 * eps
+    unit_weights = np.ones(n)
+
+    baseline = cm.TwoSLS()
+    baseline.fit(x_endog, x_exog, z, y)
+
+    weighted = cm.TwoSLS()
+    weighted.fit_weighted(x_endog, x_exog, z, y, unit_weights)
+
+    baseline_summary = baseline.summary(vcov="hc1")
+    weighted_summary = weighted.summary(vcov="hc1")
+
+    np.testing.assert_allclose(weighted_summary["intercept"], baseline_summary["intercept"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["coef"], baseline_summary["coef"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["intercept_se"], baseline_summary["intercept_se"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(weighted_summary["coef_se"], baseline_summary["coef_se"], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(
+        weighted.predict(np.column_stack([x_endog[:33], x_exog[:33]])),
+        baseline.predict(np.column_stack([x_endog[:33], x_exog[:33]])),
+        atol=1e-8,
+        rtol=1e-8,
+    )
+
+
+def test_twosls_sample_weights_match_weighted_closed_form_and_vanilla_summary():
+    rng = np.random.default_rng(1718_2)
+    n = 1500
+    z = rng.normal(size=(n, 4))
+    x_exog = rng.normal(size=(n, 2))
+    v = rng.normal(size=(n, 2))
+    eps = rng.normal(size=n)
+    weights = 0.25 + rng.random(n) * 2.0
+    x_endog = z @ np.array([[0.95, 0.2], [0.35, -0.25], [-0.2, 0.8], [0.25, 0.1]]) + x_exog @ np.array([[0.2, -0.1], [0.1, 0.2]]) + v
+    y = -0.1 + np.column_stack([x_endog, x_exog]) @ np.array([1.1, -0.7, 0.45, -0.2]) + 0.55 * v[:, 0] - 0.35 * v[:, 1] + 0.2 * eps
+
+    model = cm.TwoSLS()
+    model.fit_weighted(x_endog, x_exog, z, y, weights)
+    summary = model.summary(vcov="vanilla")
+
+    beta_hat, cov = weighted_twosls_summary_reference(
+        x_endog,
+        x_exog,
+        z,
+        y,
+        weights,
+        kind="vanilla",
+    )
+
+    np.testing.assert_allclose(summary["intercept"], beta_hat[0], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef"], beta_hat[1:], atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["intercept_se"], np.sqrt(cov[0, 0]), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["coef_se"], np.sqrt(np.diag(cov))[1:], atol=1e-8, rtol=1e-8)
 
 
 def test_twosls_rejects_underidentified_design():

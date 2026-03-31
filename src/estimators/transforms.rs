@@ -306,7 +306,10 @@ impl KernelBasis {
         dict.set_item("bandwidth", self.bandwidth)?;
         dict.set_item("coef0", self.coef0)?;
         dict.set_item("degree", self.degree)?;
-        dict.set_item("diagonal", pyarray1_from_f64(py, &train_basis.diag().to_owned()))?;
+        dict.set_item(
+            "diagonal",
+            pyarray1_from_f64(py, &train_basis.diag().to_owned()),
+        )?;
         Ok(dict.into())
     }
 }

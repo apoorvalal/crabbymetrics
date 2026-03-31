@@ -1,12 +1,11 @@
 use crate::utils::{
-    diag_sqrt, invert_matrix, pyarray1_from_f64, pyarray2_from_f64, to_array1, to_array1_i64,
-    to_array2,
+    default_newey_west_lags, diag_sqrt, invert_matrix, pyarray1_from_f64, pyarray2_from_f64,
+    score_cov_cluster, score_cov_iid, score_cov_newey_west, to_array1, to_array1_i64, to_array2,
 };
-use ndarray::{s, Array1, Array2, Axis};
+use ndarray::{Array1, Array2, Axis};
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use std::collections::BTreeMap;
 
 fn identity_matrix(n: usize) -> Array2<f64> {
     let mut eye = Array2::<f64>::zeros((n, n));
@@ -33,10 +32,6 @@ fn sample_mean_moments(moments: &Array2<f64>) -> Result<Array1<f64>, String> {
     moments
         .mean_axis(Axis(0))
         .ok_or_else(|| "moment function must return a non-empty 2D array".to_string())
-}
-
-fn default_newey_west_lags(n: usize) -> usize {
-    ((4.0 * (n as f64 / 100.0).powf(2.0 / 9.0)).floor() as usize).max(1)
 }
 
 fn call_moments(
@@ -127,51 +122,16 @@ fn sample_jacobian(
 }
 
 fn omega_iid(moments: &Array2<f64>) -> Array2<f64> {
-    moments.t().dot(moments) / (moments.nrows() as f64)
+    score_cov_iid(moments) / (moments.nrows() as f64)
 }
 
 fn omega_newey_west(moments: &Array2<f64>, lags: usize) -> Array2<f64> {
-    let n = moments.nrows();
-    let mut omega = omega_iid(moments);
-    if n <= 1 || lags == 0 {
-        return omega;
-    }
-
-    let max_lag = lags.min(n - 1);
-    for lag in 1..=max_lag {
-        let weight = 1.0 - lag as f64 / (max_lag as f64 + 1.0);
-        let lead = moments.slice(s![lag.., ..]).to_owned();
-        let lagged = moments.slice(s![..(n - lag), ..]).to_owned();
-        let gamma = lead.t().dot(&lagged) / (n as f64);
-        omega = omega + weight * (&gamma + &gamma.t().to_owned());
-    }
-
-    omega
+    score_cov_newey_west(moments, lags) / (moments.nrows() as f64)
 }
 
 fn omega_cluster(moments: &Array2<f64>, clusters: &Array1<i64>) -> Result<Array2<f64>, String> {
-    let n = moments.nrows();
-    let m = moments.ncols();
-    if clusters.len() != n {
-        return Err("clusters length must match the number of observations".to_string());
-    }
-
-    let mut grouped: BTreeMap<i64, Array1<f64>> = BTreeMap::new();
-    for i in 0..n {
-        let entry = grouped
-            .entry(clusters[i])
-            .or_insert_with(|| Array1::<f64>::zeros(m));
-        *entry = &*entry + &moments.row(i).to_owned();
-    }
-
-    let mut omega = Array2::<f64>::zeros((m, m));
-    for summed in grouped.values() {
-        let col = summed.clone().insert_axis(Axis(1));
-        let row = summed.clone().insert_axis(Axis(0));
-        omega = omega + col.dot(&row);
-    }
-
-    Ok(omega / (n as f64))
+    let (omega, _) = score_cov_cluster(moments, clusters)?;
+    Ok(omega / (moments.nrows() as f64))
 }
 
 fn criterion_value(gbar: &Array1<f64>, weight: &Array2<f64>) -> f64 {
@@ -388,39 +348,40 @@ impl GMM {
             self.fd_eps,
         )?;
 
-        let (theta, criterion, nit, weight_matrix, first_step_theta) = if chosen_weighting == "two_step"
-        {
-            let first_moments = call_moments(py, &self.moment_fn, &first_step.theta, &data)?;
-            let omega = omega_iid(&first_moments);
-            let weight_matrix = invert_with_ridge(&omega, self.ridge).map_err(PyValueError::new_err)?;
-            let second_step = solve_gauss_newton(
-                py,
-                &self.moment_fn,
-                self.jacobian_fn.as_ref(),
-                &data,
-                &first_step.theta,
-                &weight_matrix,
-                self.max_iterations,
-                self.tolerance,
-                self.ridge,
-                self.fd_eps,
-            )?;
-            (
-                second_step.theta,
-                second_step.criterion,
-                first_step.nit + second_step.nit,
-                weight_matrix,
-                Some(first_step.theta),
-            )
-        } else {
-            (
-                first_step.theta,
-                first_step.criterion,
-                first_step.nit,
-                identity,
-                None,
-            )
-        };
+        let (theta, criterion, nit, weight_matrix, first_step_theta) =
+            if chosen_weighting == "two_step" {
+                let first_moments = call_moments(py, &self.moment_fn, &first_step.theta, &data)?;
+                let omega = omega_iid(&first_moments);
+                let weight_matrix =
+                    invert_with_ridge(&omega, self.ridge).map_err(PyValueError::new_err)?;
+                let second_step = solve_gauss_newton(
+                    py,
+                    &self.moment_fn,
+                    self.jacobian_fn.as_ref(),
+                    &data,
+                    &first_step.theta,
+                    &weight_matrix,
+                    self.max_iterations,
+                    self.tolerance,
+                    self.ridge,
+                    self.fd_eps,
+                )?;
+                (
+                    second_step.theta,
+                    second_step.criterion,
+                    first_step.nit + second_step.nit,
+                    weight_matrix,
+                    Some(first_step.theta),
+                )
+            } else {
+                (
+                    first_step.theta,
+                    first_step.criterion,
+                    first_step.nit,
+                    identity,
+                    None,
+                )
+            };
 
         self.theta = Some(theta);
         self.data = Some(data);
@@ -458,8 +419,14 @@ impl GMM {
 
         let moments = call_moments(py, &self.moment_fn, theta, data)?;
         let gbar = sample_mean_moments(&moments).map_err(PyValueError::new_err)?;
-        let jacobian =
-            sample_jacobian(py, &self.moment_fn, self.jacobian_fn.as_ref(), theta, data, self.fd_eps)?;
+        let jacobian = sample_jacobian(
+            py,
+            &self.moment_fn,
+            self.jacobian_fn.as_ref(),
+            theta,
+            data,
+            self.fd_eps,
+        )?;
 
         if jacobian.nrows() != moments.ncols() || jacobian.ncols() != theta.len() {
             return Err(PyValueError::new_err(format!(
@@ -480,10 +447,14 @@ impl GMM {
             "sandwich" => {
                 let omega_hat = match omega {
                     "iid" => omega_iid(&moments),
-                    "newey_west" => omega_newey_west(&moments, lags.unwrap_or_else(|| default_newey_west_lags(n))),
+                    "newey_west" => omega_newey_west(
+                        &moments,
+                        lags.unwrap_or_else(|| default_newey_west_lags(n)),
+                    ),
                     "cluster" => {
-                        let clusters = clusters
-                            .ok_or_else(|| PyValueError::new_err("clusters must be provided for omega='cluster'"))?;
+                        let clusters = clusters.ok_or_else(|| {
+                            PyValueError::new_err("clusters must be provided for omega='cluster'")
+                        })?;
                         let cluster_ids = to_array1_i64(&clusters);
                         omega_cluster(&moments, &cluster_ids).map_err(PyValueError::new_err)?
                     }
@@ -524,7 +495,14 @@ impl GMM {
         dict.set_item("nit", self.nit)?;
         dict.set_item("weighting", self.weighting.clone())?;
         dict.set_item("vcov_type", vcov)?;
-        dict.set_item("omega_type", if vcov == "sandwich" { Some(omega) } else { None::<&str> })?;
+        dict.set_item(
+            "omega_type",
+            if vcov == "sandwich" {
+                Some(omega)
+            } else {
+                None::<&str>
+            },
+        )?;
         dict.set_item("weight_matrix", pyarray2_from_f64(py, weight_matrix))?;
         dict.set_item("nobs", n)?;
         dict.set_item("n_moments", moments.ncols())?;

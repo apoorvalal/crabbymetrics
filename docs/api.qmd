@@ -141,6 +141,8 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - When an estimator has an intercept, bootstrap draws place it in the first column.
 - `summary()` returns dictionaries, not rich result objects. Downstream code should index by key.
 - `bootstrap(n_bootstrap, seed=None)` now accepts an omitted seed across the full public surface.
+- `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` now share the same robust-inference surface:
+  `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", lags=None, clusters=None)`.
 
 ## Estimator Reference
 
@@ -152,7 +154,7 @@ reference_rows = [
         "1D float predictions",
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, p + 1)</code> with intercept, else <code>(B, p)</code>",
-        "Uses Linfa linear regression; <code>summary(vcov='hc1')</code> is default and <code>summary(vcov='vanilla')</code> exposes homoskedastic standard errors.",
+        "Uses Linfa linear regression; <code>summary(vcov='hc1')</code> is default, and the linear-summary surface also accepts <code>'vanilla'</code>, <code>'newey_west'</code>, and <code>'cluster'</code>.",
     ],
     [
         "<code>Ridge</code>",
@@ -160,7 +162,7 @@ reference_rows = [
         "1D float predictions",
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>, <code>penalty</code>, <code>penalties</code>, <code>best_penalty_index</code>, <code>cv_mse</code>, <code>intercept_path</code>, <code>coef_path</code>",
         "<code>(B, p + 1)</code> with intercept",
-        "Closed-form L2-regularized least squares solved through an augmented QR least-squares system. Passing a penalty grid runs cross-validation, stores the full coefficient path, and refits the selected penalty on the full sample.",
+        "Closed-form L2-regularized least squares solved through an augmented QR least-squares system. Passing a penalty grid runs cross-validation, stores the full coefficient path, refits the selected penalty on the full sample, and exposes the same linear-summary covariance options as OLS.",
     ],
     [
         "<code>FixedEffectsOLS</code>",
@@ -168,7 +170,7 @@ reference_rows = [
         "No dedicated <code>predict()</code> method",
         "<code>coef</code>, <code>coef_se</code>",
         "<code>(B, p)</code>",
-        "Uses <code>within</code> to partial out fixed effects, then Linfa OLS with <code>fit_intercept=False</code> on the residualized design.",
+        "Uses <code>within</code> to partial out fixed effects, then Linfa OLS with <code>fit_intercept=False</code> on the residualized design. The summary covariance options match the other linear estimators.",
     ],
     [
         "<code>SyntheticControl</code>",
@@ -216,7 +218,7 @@ reference_rows = [
         "1D float predictions from the stage-two design matrix",
         "<code>intercept</code>, <code>coef</code>, <code>intercept_se</code>, <code>coef_se</code>",
         "<code>(B, k + 1)</code> with intercept, else <code>(B, k)</code>",
-        "Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors; exogenous regressors follow the endogenous block in <code>predict()</code>.",
+        "Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors, and its summary method now shares the same <code>vanilla</code>, <code>hc1</code>, <code>newey_west</code>, and <code>cluster</code> covariance interface as the other linear estimators.",
     ],
     [
         "<code>FTRL</code>",
@@ -572,9 +574,12 @@ model.fit(x, y)
 
 summary = model.summary()
 summary_vanilla = model.summary(vcov="vanilla")
+summary_hac = model.summary(vcov="newey_west", lags=4)
+clusters = np.repeat(np.arange(20, dtype=np.int64), len(y) // 20)
+summary_cluster = model.summary(vcov="cluster", clusters=clusters)
 bootstrap_draws = model.bootstrap(5, seed=42)
 
-summary["coef"], summary_vanilla["coef_se"], bootstrap_draws[:2]
+summary["coef"], summary_vanilla["coef_se"], summary_hac["coef_se"], summary_cluster["coef_se"]
 ```
 
 ### Ridge
@@ -589,8 +594,9 @@ model = cm.Ridge(penalty=np.array([0.0, 0.05, 0.2, 1.0]), cv=5)
 model.fit(x, y)
 
 summary = model.summary()
+summary_hac = model.summary(vcov="newey_west", lags=4)
 
-summary["penalty"], summary["best_penalty_index"], summary["coef_path"][:, :2]
+summary["penalty"], summary["best_penalty_index"], summary_hac["coef_se"], summary["coef_path"][:, :2]
 ```
 
 ### Poisson
@@ -608,6 +614,29 @@ vanilla = model.summary(vcov="vanilla")
 sandwich = model.summary(vcov="sandwich")
 
 vanilla["coef"], sandwich["coef_se"]
+```
+
+### TwoSLS
+
+```{python}
+rng = np.random.default_rng(6)
+n = 500
+z = rng.normal(size=(n, 3))
+x_exog = rng.normal(size=(n, 1))
+v = rng.normal(size=(n, 1))
+eps = rng.normal(size=n)
+clusters = np.repeat(np.arange(25, dtype=np.int64), n // 25)
+
+x_endog = z @ np.array([[0.8], [0.35], [-0.25]]) + 0.2 * x_exog + v
+y = 0.5 + 1.1 * x_endog[:, 0] - 0.6 * x_exog[:, 0] + (0.6 * v[:, 0] + 0.25 * eps)
+
+model = cm.TwoSLS()
+model.fit(x_endog, x_exog, z, y)
+
+hc1 = model.summary()
+cluster = model.summary(vcov="cluster", clusters=clusters)
+
+hc1["coef"], cluster["coef_se"]
 ```
 
 ### GMM
@@ -662,7 +691,8 @@ y = (
 model = cm.FixedEffectsOLS()
 model.fit(x, fe, y)
 
-model.summary()
+cluster = model.summary(vcov="cluster", clusters=worker.astype(np.int64))
+cluster
 ```
 
 ### MEstimator
