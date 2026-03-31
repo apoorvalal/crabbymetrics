@@ -218,11 +218,14 @@ model.fit(x, y)
 
 summary = model.summary()
 summary_vanilla = model.summary(vcov="vanilla")
+summary_hac = model.summary(vcov="newey_west", lags=4)
+clusters = np.repeat(np.arange(20, dtype=np.int64), len(y) // 20)
+summary_cluster = model.summary(vcov="cluster", clusters=clusters)
 pred = model.predict(x[:5])
 boot = model.bootstrap(50, seed=1)
 ```
 
-The implementation detail to keep in mind is that `OLS` is mostly a wrapper around `linfa_linear::LinearRegression`, with a little extra Rust code layered on top for summary statistics and bootstrap support.
+The implementation detail to keep in mind is that `OLS` is mostly a wrapper around `linfa_linear::LinearRegression`, with a little extra Rust code layered on top for summary statistics and bootstrap support. That summary layer is now also shared conceptually with `Ridge`, `FixedEffectsOLS`, and `TwoSLS`: the point estimators differ, but the exposed covariance choices are the same.
 
 ## Why Start Here
 

@@ -4824,6 +4824,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4849,6 +4872,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -4904,7 +4931,7 @@ vertical-align: -.125em;
 <p>This page shows the two transformer classes in their natural habitats: <code>PCA</code> for linear low-rank structure, and <code>KernelBasis</code> for nonlinear geometry. The second half uses a swiss-roll manifold, where a Gaussian kernel basis followed by a linear projection does a much better job of preserving the latent ordering than ordinary PCA on the raw coordinates.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="da7686ee" class="cell" data-execution_count="1">
+<div id="f5930eeb" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4915,7 +4942,7 @@ vertical-align: -.125em;
 </section>
 <section id="pca-on-a-linear-factor-model" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="pca-on-a-linear-factor-model"><span class="header-section-number">2</span> PCA On A Linear Factor Model</h2>
-<div id="c06069c1" class="cell" data-execution_count="2">
+<div id="34f04fd3" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2029</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">350</span></span>
@@ -4940,7 +4967,7 @@ vertical-align: -.125em;
 reconstruction MSE: 0.001031</code></pre>
 </div>
 </div>
-<div id="3952e977" class="cell" data-execution_count="3">
+<div id="f95aae22" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].scatter(</span>
@@ -4980,7 +5007,7 @@ reconstruction MSE: 0.001031</code></pre>
 </section>
 <section id="kernel-features-on-a-swiss-roll" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="kernel-features-on-a-swiss-roll"><span class="header-section-number">3</span> Kernel Features On A Swiss Roll</h2>
-<div id="a7764edf" class="cell" data-execution_count="4">
+<div id="f91445ee" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2030</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>n_roll <span class="op">=</span> <span class="dv">220</span></span>
@@ -5005,7 +5032,7 @@ reconstruction MSE: 0.001031</code></pre>
 best kernel-feature projection correlation: 0.2845</code></pre>
 </div>
 </div>
-<div id="39ec7455" class="cell" data-execution_count="5">
+<div id="7a313632" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ax0 <span class="op">=</span> fig.add_subplot(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">1</span>, projection<span class="op">=</span><span class="st">&quot;3d&quot;</span>)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ax1 <span class="op">=</span> fig.add_subplot(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">2</span>)</span>

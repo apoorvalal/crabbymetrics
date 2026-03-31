@@ -4963,6 +4963,29 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4988,6 +5011,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -5061,7 +5088,7 @@ Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
 <p>sets (W = ^{-1}), and refits.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="48440e97" class="cell" data-execution_count="1">
+<div id="47727654" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
@@ -5075,7 +5102,7 @@ Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
 <p><span class="math display">\[
 g_i(\theta) = x_i \left(y_i - \exp(x_i^\top \theta)\right).
 \]</span></p>
-<div id="a68cd301" class="cell" data-execution_count="2">
+<div id="abb6aec0" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>x_raw <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -5118,7 +5145,7 @@ GMM score SE: [0.031  0.0268 0.0283]</code></pre>
 g_i(\theta) = z_i \left(y_i - x_i^\top \theta\right),
 \]</span></p>
 <p>the first step uses (W = I), then the class updates the weighting matrix with the inverse outer product of moments.</p>
-<div id="4be1f7e5" class="cell" data-execution_count="3">
+<div id="5b422555" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260322</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">3000</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5198,7 +5225,7 @@ W_i (X_i - \mu_x) u_i(\theta)
 u_i(\theta) = Y_i - \alpha - \tau W_i - \beta (X_i - \mu_x) - \gamma W_i (X_i - \mu_x).
 \]</span></p>
 <p>The first block estimates the centering parameter. The remaining four blocks are the normal equations for the interacted regression.</p>
-<div id="9e516870" class="cell" data-execution_count="4">
+<div id="4ee0993e" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5151</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(loc<span class="op">=</span><span class="fl">1.5</span>, scale<span class="op">=</span><span class="fl">1.1</span>, size<span class="op">=</span>n)</span>

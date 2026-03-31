@@ -4,10 +4,62 @@ use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArr
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use std::collections::BTreeMap;
 
 pub fn add_intercept(x: &Array2<f64>) -> Array2<f64> {
     let ones = Array2::ones((x.nrows(), 1));
     concatenate(Axis(1), &[ones.view(), x.view()]).expect("failed to add intercept")
+}
+
+pub fn validate_sample_weight(weights: &Array1<f64>, n: usize) -> Result<(), String> {
+    if weights.len() != n {
+        return Err("sample_weight length must match the number of observations".to_string());
+    }
+    if weights
+        .iter()
+        .any(|value| !value.is_finite() || *value < 0.0)
+    {
+        return Err("sample_weight values must be finite and nonnegative".to_string());
+    }
+    if weights.iter().all(|value| *value == 0.0) {
+        return Err("sample_weight must contain at least one positive value".to_string());
+    }
+    Ok(())
+}
+
+pub fn sqrt_sample_weight(
+    sample_weight: Option<&Array1<f64>>,
+    n: usize,
+) -> Result<Option<Array1<f64>>, String> {
+    match sample_weight {
+        Some(weights) => {
+            validate_sample_weight(weights, n)?;
+            Ok(Some(weights.mapv(|value| value.sqrt())))
+        }
+        None => Ok(None),
+    }
+}
+
+pub fn scale_rows(x: &Array2<f64>, scale: &Array1<f64>) -> Result<Array2<f64>, String> {
+    if x.nrows() != scale.len() {
+        return Err("row scale length must match the number of rows".to_string());
+    }
+    let mut out = x.clone();
+    for i in 0..x.nrows() {
+        out.row_mut(i).mapv_inplace(|value| value * scale[i]);
+    }
+    Ok(out)
+}
+
+pub fn scale_vec(y: &Array1<f64>, scale: &Array1<f64>) -> Result<Array1<f64>, String> {
+    if y.len() != scale.len() {
+        return Err("vector scale length must match the number of observations".to_string());
+    }
+    let mut out = y.clone();
+    for i in 0..y.len() {
+        out[i] *= scale[i];
+    }
+    Ok(out)
 }
 
 pub fn invert_matrix(a: &Array2<f64>) -> Result<Array2<f64>, String> {
@@ -76,6 +128,96 @@ pub fn ols_vanilla_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array
     let xtx_inv = invert_matrix(&xtx)?;
     let sigma2 = residuals.dot(residuals) / ((n - k) as f64);
     Ok(xtx_inv.mapv(|v| v * sigma2))
+}
+
+pub fn default_newey_west_lags(n: usize) -> usize {
+    ((4.0 * (n as f64 / 100.0).powf(2.0 / 9.0)).floor() as usize).max(1)
+}
+
+pub fn score_cov_iid(scores: &Array2<f64>) -> Array2<f64> {
+    scores.t().dot(scores)
+}
+
+pub fn score_cov_newey_west(scores: &Array2<f64>, lags: usize) -> Array2<f64> {
+    let n = scores.nrows();
+    let mut cov = score_cov_iid(scores);
+    if n <= 1 || lags == 0 {
+        return cov;
+    }
+
+    let max_lag = lags.min(n - 1);
+    for lag in 1..=max_lag {
+        let weight = 1.0 - lag as f64 / (max_lag as f64 + 1.0);
+        let lead = scores.slice(ndarray::s![lag.., ..]).to_owned();
+        let lagged = scores.slice(ndarray::s![..(n - lag), ..]).to_owned();
+        let gamma = lead.t().dot(&lagged);
+        cov = cov + weight * (&gamma + &gamma.t().to_owned());
+    }
+
+    cov
+}
+
+pub fn score_cov_cluster(
+    scores: &Array2<f64>,
+    clusters: &Array1<i64>,
+) -> Result<(Array2<f64>, usize), String> {
+    let n = scores.nrows();
+    let p = scores.ncols();
+    if clusters.len() != n {
+        return Err("clusters length must match the number of observations".to_string());
+    }
+
+    let mut grouped: BTreeMap<i64, Array1<f64>> = BTreeMap::new();
+    for i in 0..n {
+        let entry = grouped
+            .entry(clusters[i])
+            .or_insert_with(|| Array1::<f64>::zeros(p));
+        *entry = &*entry + &scores.row(i).to_owned();
+    }
+
+    let n_clusters = grouped.len();
+    let mut cov = Array2::<f64>::zeros((p, p));
+    for summed in grouped.values() {
+        let col = summed.clone().insert_axis(Axis(1));
+        let row = summed.clone().insert_axis(Axis(0));
+        cov = cov + col.dot(&row);
+    }
+
+    Ok((cov, n_clusters))
+}
+
+pub fn sandwich_cov_from_parameter_scores(
+    scores: &Array2<f64>,
+    vcov: &str,
+    df_resid: f64,
+    lags: Option<usize>,
+    clusters: Option<&Array1<i64>>,
+) -> Result<Array2<f64>, String> {
+    let n = scores.nrows();
+    if df_resid <= 0.0 {
+        return Err("need positive residual degrees of freedom".to_string());
+    }
+
+    match vcov {
+        "hc1" => Ok(score_cov_iid(scores) * (n as f64 / df_resid)),
+        "newey_west" => Ok(score_cov_newey_west(
+            scores,
+            lags.unwrap_or_else(|| default_newey_west_lags(n)),
+        ) * (n as f64 / df_resid)),
+        "cluster" => {
+            let cluster_ids = clusters
+                .ok_or_else(|| "clusters must be provided for vcov='cluster'".to_string())?;
+            let (cov, n_clusters) = score_cov_cluster(scores, cluster_ids)?;
+            if n_clusters < 2 {
+                return Err("cluster covariance requires at least two clusters".to_string());
+            }
+            let n_f64 = n as f64;
+            let g_f64 = n_clusters as f64;
+            let scale = (g_f64 / (g_f64 - 1.0)) * ((n_f64 - 1.0) / df_resid);
+            Ok(cov * scale)
+        }
+        _ => Err("vcov must be one of {'hc1', 'vanilla', 'newey_west', 'cluster'}".to_string()),
+    }
 }
 
 pub fn diag_sqrt(a: &Array2<f64>) -> Array1<f64> {

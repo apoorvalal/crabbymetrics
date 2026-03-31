@@ -4824,6 +4824,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="./examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="./examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="./examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4849,6 +4872,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="./ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -5071,9 +5098,12 @@ vertical-align: -.125em;
 <span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>summary_vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>pred <span class="op">=</span> model.predict(x[:<span class="dv">5</span>])</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>boot <span class="op">=</span> model.bootstrap(<span class="dv">50</span>, seed<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>The implementation detail to keep in mind is that <code>OLS</code> is mostly a wrapper around <code>linfa_linear::LinearRegression</code>, with a little extra Rust code layered on top for summary statistics and bootstrap support.</p>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>summary_hac <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;newey_west&quot;</span>, lags<span class="op">=</span><span class="dv">4</span>)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>clusters <span class="op">=</span> np.repeat(np.arange(<span class="dv">20</span>, dtype<span class="op">=</span>np.int64), <span class="bu">len</span>(y) <span class="op">//</span> <span class="dv">20</span>)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>summary_cluster <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>clusters)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>pred <span class="op">=</span> model.predict(x[:<span class="dv">5</span>])</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>boot <span class="op">=</span> model.bootstrap(<span class="dv">50</span>, seed<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The implementation detail to keep in mind is that <code>OLS</code> is mostly a wrapper around <code>linfa_linear::LinearRegression</code>, with a little extra Rust code layered on top for summary statistics and bootstrap support. That summary layer is now also shared conceptually with <code>Ridge</code>, <code>FixedEffectsOLS</code>, and <code>TwoSLS</code>: the point estimators differ, but the exposed covariance choices are the same.</p>
 </section>
 <section id="why-start-here" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="why-start-here"><span class="header-section-number">9</span> Why Start Here</h2>

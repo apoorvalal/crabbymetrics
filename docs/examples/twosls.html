@@ -4963,6 +4963,29 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4988,6 +5011,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -5043,7 +5070,7 @@ window.Quarto = {
 <p>This page shows the linear IV / 2SLS path used by <code>crabbymetrics.TwoSLS</code>, first with one endogenous regressor and then with several.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="6f4801d2" class="cell" data-execution_count="1">
+<div id="17e65afa" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5107,7 +5134,7 @@ Z_{\mathrm{full}}^\top.
 </section>
 <section id="helpers" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="helpers"><span class="header-section-number">3</span> Helpers</h2>
-<div id="88344d91" class="cell" data-execution_count="2">
+<div id="b4a4b894" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_intercept(x):</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack([np.ones(x.shape[<span class="dv">0</span>]), x])</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5142,7 +5169,7 @@ Z_{\mathrm{full}}^\top.
 <section id="single-endogenous-regressor" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="single-endogenous-regressor"><span class="header-section-number">4</span> Single Endogenous Regressor</h2>
 <p>This is the usual overidentified IV setup: one endogenous regressor, one exogenous regressor, and three excluded instruments.</p>
-<div id="feee986b" class="cell" data-execution_count="3">
+<div id="d5cb4d7a" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5185,12 +5212,33 @@ projection formula: [ 0.486   1.3787 -0.7785]
 {&#39;coef&#39;: array([ 1.3787, -0.7785]),
  &#39;coef_se&#39;: array([0.0184, 0.0203]),
  &#39;intercept&#39;: 0.48595950998190096,
- &#39;intercept_se&#39;: 0.02084300302035913}</code></pre>
+ &#39;intercept_se&#39;: 0.020869105726918507,
+ &#39;vcov_type&#39;: &#39;hc1&#39;}</code></pre>
 </div>
 </div>
 </section>
-<section id="multiple-endogenous-regressors" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="multiple-endogenous-regressors"><span class="header-section-number">5</span> Multiple Endogenous Regressors</h2>
+<section id="robust-covariance-options" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="robust-covariance-options"><span class="header-section-number">5</span> Robust Covariance Options</h2>
+<p>Point estimation stays closed form, but the inference surface is shared with <code>OLS</code>, <code>Ridge</code>, and <code>FixedEffectsOLS</code>.</p>
+<div id="a4d87159" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>clusters <span class="op">=</span> np.repeat(np.arange(<span class="dv">40</span>, dtype<span class="op">=</span>np.int64), n <span class="op">//</span> <span class="dv">40</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>hac <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;newey_west&quot;</span>, lags<span class="op">=</span><span class="dv">4</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>cluster <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>clusters)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;vanilla SE:&quot;</span>, np.<span class="bu">round</span>(vanilla[<span class="st">&quot;coef_se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Newey-West SE:&quot;</span>, np.<span class="bu">round</span>(hac[<span class="st">&quot;coef_se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;cluster SE:&quot;</span>, np.<span class="bu">round</span>(cluster[<span class="st">&quot;coef_se&quot;</span>], <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>vanilla SE: [0.02   0.0215]
+Newey-West SE: [0.0186 0.0196]
+cluster SE: [0.0173 0.0206]</code></pre>
+</div>
+</div>
+</section>
+<section id="multiple-endogenous-regressors" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="multiple-endogenous-regressors"><span class="header-section-number">6</span> Multiple Endogenous Regressors</h2>
 <p>Now the first stage solves for a whole coefficient matrix <span class="math inline">\(\hat{\Pi}\)</span>, one column for each endogenous regressor. The second stage is still just least squares on</p>
 <p><span class="math display">\[
 \hat{X}
@@ -5199,62 +5247,63 @@ projection formula: [ 0.486   1.3787 -0.7785]
 \mathbf{1} &amp; \hat{X}_{\mathrm{endog}} &amp; X_{\mathrm{exog}}
 \end{bmatrix}.
 \]</span></p>
-<div id="8ab40dc4" class="cell" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1400</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>intercept <span class="op">=</span> <span class="op">-</span><span class="fl">0.2</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>beta_endog <span class="op">=</span> np.array([<span class="fl">1.15</span>, <span class="op">-</span><span class="fl">0.9</span>])</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>beta_exog <span class="op">=</span> np.array([<span class="fl">0.55</span>])</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>x_exog <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> np.array(</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.9</span>, <span class="fl">0.15</span>],</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.45</span>, <span class="op">-</span><span class="fl">0.2</span>],</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.85</span>],</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> z <span class="op">@</span> pi <span class="op">+</span> <span class="fl">0.25</span> <span class="op">*</span> x_exog <span class="op">+</span> v</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> <span class="fl">0.6</span> <span class="op">*</span> v[:, <span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.45</span> <span class="op">*</span> v[:, <span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> eps</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> intercept <span class="op">+</span> x_endog <span class="op">@</span> beta_endog <span class="op">+</span> x_exog[:, <span class="dv">0</span>] <span class="op">*</span> beta_exog[<span class="dv">0</span>] <span class="op">+</span> u</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> TwoSLS()</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y)</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>theta_lstsq <span class="op">=</span> twosls_via_lstsq(x_endog, x_exog, z, y)</span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>theta_formula <span class="op">=</span> twosls_via_projection_formula(x_endog, x_exog, z, y)</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true parameters:&quot;</span>, np.concatenate([[intercept], beta_endog, beta_exog]))</span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;manual QR/lstsq path:&quot;</span>, np.<span class="bu">round</span>(theta_lstsq, <span class="dv">4</span>))</span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;projection formula:&quot;</span>, np.<span class="bu">round</span>(theta_formula, <span class="dv">4</span>))</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>pprint(summary)</span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(theta_lstsq, theta_formula, atol<span class="op">=</span><span class="fl">1e-8</span>, rtol<span class="op">=</span><span class="fl">1e-8</span>)</span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(</span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    theta_lstsq,</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    np.concatenate([[summary[<span class="st">&quot;intercept&quot;</span>]], np.asarray(summary[<span class="st">&quot;coef&quot;</span>])]),</span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    atol<span class="op">=</span><span class="fl">1e-8</span>,</span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>    rtol<span class="op">=</span><span class="fl">1e-8</span>,</span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="4f4519f3" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1400</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>intercept <span class="op">=</span> <span class="op">-</span><span class="fl">0.2</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>beta_endog <span class="op">=</span> np.array([<span class="fl">1.15</span>, <span class="op">-</span><span class="fl">0.9</span>])</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>beta_exog <span class="op">=</span> np.array([<span class="fl">0.55</span>])</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>x_exog <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">1</span>))</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> np.array(</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.9</span>, <span class="fl">0.15</span>],</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        [<span class="fl">0.45</span>, <span class="op">-</span><span class="fl">0.2</span>],</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>        [<span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.85</span>],</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>x_endog <span class="op">=</span> z <span class="op">@</span> pi <span class="op">+</span> <span class="fl">0.25</span> <span class="op">*</span> x_exog <span class="op">+</span> v</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> <span class="fl">0.6</span> <span class="op">*</span> v[:, <span class="dv">0</span>] <span class="op">-</span> <span class="fl">0.45</span> <span class="op">*</span> v[:, <span class="dv">1</span>] <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> eps</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> intercept <span class="op">+</span> x_endog <span class="op">@</span> beta_endog <span class="op">+</span> x_exog[:, <span class="dv">0</span>] <span class="op">*</span> beta_exog[<span class="dv">0</span>] <span class="op">+</span> u</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> TwoSLS()</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>model.fit(x_endog, x_exog, z, y)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>theta_lstsq <span class="op">=</span> twosls_via_lstsq(x_endog, x_exog, z, y)</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>theta_formula <span class="op">=</span> twosls_via_projection_formula(x_endog, x_exog, z, y)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;true parameters:&quot;</span>, np.concatenate([[intercept], beta_endog, beta_exog]))</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;manual QR/lstsq path:&quot;</span>, np.<span class="bu">round</span>(theta_lstsq, <span class="dv">4</span>))</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;projection formula:&quot;</span>, np.<span class="bu">round</span>(theta_formula, <span class="dv">4</span>))</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>pprint(summary)</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(theta_lstsq, theta_formula, atol<span class="op">=</span><span class="fl">1e-8</span>, rtol<span class="op">=</span><span class="fl">1e-8</span>)</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>np.testing.assert_allclose(</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>    theta_lstsq,</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>    np.concatenate([[summary[<span class="st">&quot;intercept&quot;</span>]], np.asarray(summary[<span class="st">&quot;coef&quot;</span>])]),</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>    atol<span class="op">=</span><span class="fl">1e-8</span>,</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>    rtol<span class="op">=</span><span class="fl">1e-8</span>,</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>true parameters: [-0.2   1.15 -0.9   0.55]
 manual QR/lstsq path: [-0.1713  1.138  -0.9109  0.5623]
 projection formula: [-0.1713  1.138  -0.9109  0.5623]
 {&#39;coef&#39;: array([ 1.138 , -0.9109,  0.5623]),
- &#39;coef_se&#39;: array([0.0207, 0.0227, 0.0214]),
+ &#39;coef_se&#39;: array([0.0208, 0.0227, 0.0214]),
  &#39;intercept&#39;: -0.1712948159197605,
- &#39;intercept_se&#39;: 0.02089681582545142}</code></pre>
+ &#39;intercept_se&#39;: 0.02092673254202305,
+ &#39;vcov_type&#39;: &#39;hc1&#39;}</code></pre>
 </div>
 </div>
 </section>
-<section id="takeaway" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="takeaway"><span class="header-section-number">6</span> Takeaway</h2>
+<section id="takeaway" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="takeaway"><span class="header-section-number">7</span> Takeaway</h2>
 <ul>
 <li>The estimator in the package is still the standard 2SLS estimator.</li>
 <li>The projector formula and the staged least-squares solve are algebraically equivalent.</li>

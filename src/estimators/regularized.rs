@@ -1,13 +1,14 @@
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, hc1_cov, invert_matrix,
-    pyarray1_from_f64, pyarray2_from_f64, solve_least_squares_vec, take_rows, take_rows_vec,
-    to_array1, to_array1_i32, to_array2,
+    pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows,
+    scale_vec, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec, to_array1,
+    to_array1_i32, to_array1_i64, to_array2,
 };
 use linfa::prelude::{Fit, FitWith, Predict};
 use linfa::Dataset;
 use linfa_elasticnet::ElasticNet as LinfaElasticNet;
 use linfa_ftrl::Ftrl as LinfaFtrl;
-use ndarray::{s, Array1, Array2, Axis};
+use ndarray::{s, Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -60,27 +61,76 @@ fn trace(a: &Array2<f64>) -> f64 {
     out
 }
 
+fn apply_sqrt_weights(
+    design: &Array2<f64>,
+    values: &Array1<f64>,
+    sample_weight: Option<&Array1<f64>>,
+) -> Result<(Array2<f64>, Array1<f64>), String> {
+    let sqrt_weight = sqrt_sample_weight(sample_weight, design.nrows())?;
+    match sqrt_weight.as_ref() {
+        Some(scale) => Ok((scale_rows(design, scale)?, scale_vec(values, scale)?)),
+        None => Ok((design.clone(), values.clone())),
+    }
+}
+
+fn weighted_mean_squared_error(
+    y_true: &Array1<f64>,
+    y_pred: &Array1<f64>,
+    sample_weight: Option<&Array1<f64>>,
+) -> Result<f64, String> {
+    if y_true.len() != y_pred.len() {
+        return Err("prediction length mismatch".to_string());
+    }
+    match sample_weight {
+        Some(weights) => {
+            if weights.len() != y_true.len() {
+                return Err(
+                    "sample_weight length must match the number of observations".to_string()
+                );
+            }
+            let mut weighted_sum = 0.0;
+            let mut total_weight = 0.0;
+            for i in 0..y_true.len() {
+                let weight = weights[i];
+                let resid = y_true[i] - y_pred[i];
+                weighted_sum += weight * resid * resid;
+                total_weight += weight;
+            }
+            if total_weight <= 0.0 {
+                return Err("sample_weight must contain at least one positive value".to_string());
+            }
+            Ok(weighted_sum / total_weight)
+        }
+        None => {
+            let residuals = y_true - y_pred;
+            Ok(residuals.dot(&residuals) / (residuals.len() as f64))
+        }
+    }
+}
+
 fn fit_ridge_params(
     design: &Array2<f64>,
     y: &Array1<f64>,
     penalty: f64,
     fit_intercept: bool,
+    sample_weight: Option<&Array1<f64>>,
 ) -> Result<Array1<f64>, String> {
+    let (design_work, y_work) = apply_sqrt_weights(design, y, sample_weight)?;
     if penalty == 0.0 {
-        return solve_least_squares_vec(design, y);
+        return solve_least_squares_vec(&design_work, &y_work);
     }
 
-    let n = design.nrows();
-    let p = design.ncols();
+    let n = design_work.nrows();
+    let p = design_work.ncols();
     let start = if fit_intercept { 1 } else { 0 };
     let penalty_rows = p.saturating_sub(start);
 
     if penalty_rows == 0 {
-        return solve_least_squares_vec(design, y);
+        return solve_least_squares_vec(&design_work, &y_work);
     }
 
     let mut aug_design = Array2::<f64>::zeros((n + penalty_rows, p));
-    aug_design.slice_mut(s![..n, ..]).assign(design);
+    aug_design.slice_mut(s![..n, ..]).assign(&design_work);
 
     let sqrt_penalty = penalty.sqrt();
     for j in 0..penalty_rows {
@@ -88,7 +138,7 @@ fn fit_ridge_params(
     }
 
     let mut aug_y = Array1::<f64>::zeros(n + penalty_rows);
-    aug_y.slice_mut(s![..n]).assign(y);
+    aug_y.slice_mut(s![..n]).assign(&y_work);
 
     solve_least_squares_vec(&aug_design, &aug_y)
 }
@@ -98,6 +148,7 @@ fn ridge_fit_path(
     y: &Array1<f64>,
     penalties: &Array1<f64>,
     fit_intercept: bool,
+    sample_weight: Option<&Array1<f64>>,
 ) -> Result<(Array1<f64>, Array2<f64>), String> {
     let design = if fit_intercept {
         add_intercept(x)
@@ -110,7 +161,7 @@ fn ridge_fit_path(
     let mut coef_path = Array2::<f64>::zeros((n_features, n_penalties));
 
     for (j, penalty) in penalties.iter().enumerate() {
-        let params = fit_ridge_params(&design, y, *penalty, fit_intercept)?;
+        let params = fit_ridge_params(&design, y, *penalty, fit_intercept, sample_weight)?;
         if fit_intercept {
             intercept_path[j] = params[0];
             coef_path.column_mut(j).assign(&params.slice(s![1..]));
@@ -128,6 +179,7 @@ fn ridge_cv_mse(
     penalties: &Array1<f64>,
     fit_intercept: bool,
     cv: usize,
+    sample_weight: Option<&Array1<f64>>,
 ) -> Result<Array1<f64>, String> {
     let n = x.nrows();
     if n != y.len() {
@@ -135,7 +187,9 @@ fn ridge_cv_mse(
     }
     let n_folds = cv.min(n);
     if n_folds < 2 {
-        return Err("cv must be at least 2 and no larger than the number of observations".to_string());
+        return Err(
+            "cv must be at least 2 and no larger than the number of observations".to_string(),
+        );
     }
 
     let fold_id: Vec<usize> = (0..n).map(|i| i % n_folds).collect();
@@ -151,6 +205,8 @@ fn ridge_cv_mse(
             let y_train = take_rows_vec(y, &train_idx);
             let x_test = take_rows(x, &test_idx);
             let y_test = take_rows_vec(y, &test_idx);
+            let w_train = sample_weight.map(|weights| take_rows_vec(weights, &train_idx));
+            let w_test = sample_weight.map(|weights| take_rows_vec(weights, &test_idx));
 
             let design_train = if fit_intercept {
                 add_intercept(&x_train)
@@ -163,10 +219,15 @@ fn ridge_cv_mse(
                 x_test
             };
 
-            let params = fit_ridge_params(&design_train, &y_train, *penalty, fit_intercept)?;
+            let params = fit_ridge_params(
+                &design_train,
+                &y_train,
+                *penalty,
+                fit_intercept,
+                w_train.as_ref(),
+            )?;
             let pred = design_test.dot(&params);
-            let residuals = &y_test - &pred;
-            fold_mse += residuals.dot(&residuals) / (residuals.len() as f64);
+            fold_mse += weighted_mean_squared_error(&y_test, &pred, w_test.as_ref())?;
         }
         scores[j] = fold_mse / (n_folds as f64);
     }
@@ -180,6 +241,8 @@ fn ridge_covariance(
     penalty: f64,
     fit_intercept: bool,
     vcov: &str,
+    lags: Option<usize>,
+    clusters: Option<&Array1<i64>>,
 ) -> Result<Array2<f64>, String> {
     let n = design.nrows();
     let p = design.ncols();
@@ -202,21 +265,18 @@ fn ridge_covariance(
             let sigma2 = residuals.dot(residuals) / denom;
             Ok(bread_inv.dot(&xtx).dot(&bread_inv) * sigma2)
         }
-        "hc1" => {
-            let mut meat = Array2::<f64>::zeros((p, p));
+        "hc1" | "newey_west" | "cluster" => {
+            let mut raw_scores = Array2::<f64>::zeros((n, p));
             for i in 0..n {
-                let xi = design.row(i);
-                let u = residuals[i];
-                let outer = xi
-                    .to_owned()
-                    .insert_axis(Axis(1))
-                    .dot(&xi.to_owned().insert_axis(Axis(0)));
-                meat = meat + outer * (u * u);
+                let scale = residuals[i];
+                raw_scores
+                    .row_mut(i)
+                    .assign(&design.row(i).mapv(|value| value * scale));
             }
-            let scale = n as f64 / denom;
-            Ok(bread_inv.dot(&meat).dot(&bread_inv) * scale)
+            let param_scores = raw_scores.dot(&bread_inv);
+            sandwich_cov_from_parameter_scores(&param_scores, vcov, denom, lags, clusters)
         }
-        _ => Err("vcov must be one of {'hc1', 'vanilla'}".to_string()),
+        _ => Err("vcov must be one of {'hc1', 'vanilla', 'newey_west', 'cluster'}".to_string()),
     }
 }
 
@@ -235,6 +295,7 @@ pub struct Ridge {
     cv_mse: Option<Array1<f64>>,
     x: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
+    sample_weight: Option<Array1<f64>>,
 }
 
 #[pymethods]
@@ -262,6 +323,7 @@ impl Ridge {
             cv_mse: None,
             x: None,
             y: None,
+            sample_weight: None,
         })
     }
 
@@ -274,8 +336,8 @@ impl Ridge {
 
         let penalties = self.penalties.clone();
         let (cv_mse, best_penalty_index) = if penalties.len() > 1 {
-            let cv_mse =
-                ridge_cv_mse(&x, &y, &penalties, self.fit_intercept, self.cv).map_err(PyValueError::new_err)?;
+            let cv_mse = ridge_cv_mse(&x, &y, &penalties, self.fit_intercept, self.cv, None)
+                .map_err(PyValueError::new_err)?;
             let mut best_idx = 0usize;
             let mut best_score = cv_mse[0];
             for (idx, score) in cv_mse.iter().enumerate().skip(1) {
@@ -290,7 +352,8 @@ impl Ridge {
         };
 
         let (intercept_path, coef_path) =
-            ridge_fit_path(&x, &y, &penalties, self.fit_intercept).map_err(PyValueError::new_err)?;
+            ridge_fit_path(&x, &y, &penalties, self.fit_intercept, None)
+                .map_err(PyValueError::new_err)?;
         let selected_index = best_penalty_index.unwrap_or(0);
 
         self.intercept = intercept_path[selected_index];
@@ -302,6 +365,62 @@ impl Ridge {
         self.cv_mse = cv_mse;
         self.x = Some(x);
         self.y = Some(y);
+        self.sample_weight = None;
+        Ok(())
+    }
+
+    fn fit_weighted(
+        &mut self,
+        x: PyReadonlyArray2<f64>,
+        y: PyReadonlyArray1<f64>,
+        sample_weight: Vec<f64>,
+    ) -> PyResult<()> {
+        let x = to_array2(&x);
+        let y = to_array1(&y);
+        if x.nrows() != y.len() {
+            return Err(PyValueError::new_err("x rows must match y length"));
+        }
+        let sample_weight = Array1::from_vec(sample_weight);
+
+        let penalties = self.penalties.clone();
+        let (cv_mse, best_penalty_index) = if penalties.len() > 1 {
+            let cv_mse = ridge_cv_mse(
+                &x,
+                &y,
+                &penalties,
+                self.fit_intercept,
+                self.cv,
+                Some(&sample_weight),
+            )
+            .map_err(PyValueError::new_err)?;
+            let mut best_idx = 0usize;
+            let mut best_score = cv_mse[0];
+            for (idx, score) in cv_mse.iter().enumerate().skip(1) {
+                if *score < best_score {
+                    best_score = *score;
+                    best_idx = idx;
+                }
+            }
+            (Some(cv_mse), Some(best_idx))
+        } else {
+            (None, None)
+        };
+
+        let (intercept_path, coef_path) =
+            ridge_fit_path(&x, &y, &penalties, self.fit_intercept, Some(&sample_weight))
+                .map_err(PyValueError::new_err)?;
+        let selected_index = best_penalty_index.unwrap_or(0);
+
+        self.intercept = intercept_path[selected_index];
+        self.coef = Some(coef_path.column(selected_index).to_owned());
+        self.intercept_path = Some(intercept_path);
+        self.coef_path = Some(coef_path);
+        self.selected_penalty = Some(penalties[selected_index]);
+        self.best_penalty_index = best_penalty_index;
+        self.cv_mse = cv_mse;
+        self.x = Some(x);
+        self.y = Some(y);
+        self.sample_weight = Some(sample_weight);
         Ok(())
     }
 
@@ -319,8 +438,14 @@ impl Ridge {
         Ok(pyarray1_from_f64(py, &pred))
     }
 
-    #[pyo3(signature = (vcov="hc1"))]
-    fn summary<'py>(&self, py: Python<'py>, vcov: &str) -> PyResult<Py<PyAny>> {
+    #[pyo3(signature = (vcov="hc1", lags=None, clusters=None))]
+    fn summary<'py>(
+        &self,
+        py: Python<'py>,
+        vcov: &str,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Py<PyAny>> {
         let coef = self
             .coef
             .as_ref()
@@ -336,6 +461,7 @@ impl Ridge {
         let penalty = self
             .selected_penalty
             .ok_or_else(|| PyValueError::new_err("Ridge model is not fitted"))?;
+        let sample_weight = self.sample_weight.as_ref();
 
         let design = if self.fit_intercept {
             add_intercept(x)
@@ -351,8 +477,19 @@ impl Ridge {
         }
         let fitted = design.dot(&params);
         let residuals = y - &fitted;
-        let cov =
-            ridge_covariance(&design, &residuals, penalty, self.fit_intercept, vcov).map_err(PyValueError::new_err)?;
+        let (design_work, residuals_work) = apply_sqrt_weights(&design, &residuals, sample_weight)
+            .map_err(PyValueError::new_err)?;
+        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let cov = ridge_covariance(
+            &design_work,
+            &residuals_work,
+            penalty,
+            self.fit_intercept,
+            vcov,
+            lags,
+            cluster_ids.as_ref(),
+        )
+        .map_err(PyValueError::new_err)?;
         let se_all = diag_sqrt(&cov);
         let (intercept_se, coef_se) = if self.fit_intercept {
             (Some(se_all[0]), se_all.slice(s![1..]).to_owned())
@@ -423,6 +560,7 @@ impl Ridge {
         let penalty = self
             .selected_penalty
             .ok_or_else(|| PyValueError::new_err("Ridge model is not fitted"))?;
+        let sample_weight = self.sample_weight.as_ref();
 
         let design_cols = x.ncols() + if self.fit_intercept { 1 } else { 0 };
         let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
@@ -430,13 +568,14 @@ impl Ridge {
         for (i, idx) in idxs.iter().enumerate() {
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
+            let wb = sample_weight.map(|weights| take_rows_vec(weights, idx));
             let design_b = if self.fit_intercept {
                 add_intercept(&xb)
             } else {
                 xb
             };
-            let params =
-                fit_ridge_params(&design_b, &yb, penalty, self.fit_intercept).map_err(PyValueError::new_err)?;
+            let params = fit_ridge_params(&design_b, &yb, penalty, self.fit_intercept, wb.as_ref())
+                .map_err(PyValueError::new_err)?;
             out.row_mut(i).assign(&params);
         }
 

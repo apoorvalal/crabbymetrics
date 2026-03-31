@@ -25,14 +25,20 @@ fn identity_matrix(n: usize) -> Array2<f64> {
     eye
 }
 
-fn extract_array1_from_pyany(value: Bound<'_, PyAny>, err_msg: &str) -> Result<Array1<f64>, ArgminError> {
+fn extract_array1_from_pyany(
+    value: Bound<'_, PyAny>,
+    err_msg: &str,
+) -> Result<Array1<f64>, ArgminError> {
     let array = value
         .downcast::<PyArray1<f64>>()
         .map_err(|_| ArgminError::msg(err_msg.to_string()))?;
     Ok(to_array1(&array.readonly()))
 }
 
-fn extract_array2_from_pyany(value: Bound<'_, PyAny>, err_msg: &str) -> Result<Array2<f64>, ArgminError> {
+fn extract_array2_from_pyany(
+    value: Bound<'_, PyAny>,
+    err_msg: &str,
+) -> Result<Array2<f64>, ArgminError> {
     let array = value
         .downcast::<PyArray2<f64>>()
         .map_err(|_| ArgminError::msg(err_msg.to_string()))?;
@@ -68,8 +74,11 @@ fn call_gradient_array1(gradient_fn: &Py<PyAny>, theta: &Array1<f64>) -> PyResul
         let result = gradient_fn
             .call1(py, (theta_py,))
             .map_err(|e| PyValueError::new_err(format!("Python callback error: {}", e)))?;
-        extract_array1_from_pyany(result.bind(py).clone(), "Gradient must return a 1D numpy array")
-            .map_err(|err| PyValueError::new_err(err.to_string()))
+        extract_array1_from_pyany(
+            result.bind(py).clone(),
+            "Gradient must return a 1D numpy array",
+        )
+        .map_err(|err| PyValueError::new_err(err.to_string()))
     })
 }
 
@@ -152,7 +161,10 @@ impl Gradient for ScalarObjectiveProblem {
                 .gradient_fn
                 .call1(py, (theta_py,))
                 .map_err(|e| ArgminError::msg(format!("Python callback error: {}", e)))?;
-            extract_array1_from_pyany(result.bind(py).clone(), "Gradient must return a 1D numpy array")
+            extract_array1_from_pyany(
+                result.bind(py).clone(),
+                "Gradient must return a 1D numpy array",
+            )
         })
     }
 }
@@ -173,8 +185,11 @@ impl Operator for ResidualProblem {
                 .residual_fn
                 .call1(py, (theta_py,))
                 .map_err(|e| ArgminError::msg(format!("Python callback error: {}", e)))?;
-            extract_array1_from_pyany(result.bind(py).clone(), "Residual function must return a 1D numpy array")
-                .map(|arr| vec_from_array1(&arr))
+            extract_array1_from_pyany(
+                result.bind(py).clone(),
+                "Residual function must return a 1D numpy array",
+            )
+            .map(|arr| vec_from_array1(&arr))
         })
     }
 }
@@ -190,8 +205,11 @@ impl Jacobian for ResidualProblem {
                 .jacobian_fn
                 .call1(py, (theta_py,))
                 .map_err(|e| ArgminError::msg(format!("Python callback error: {}", e)))?;
-            extract_array2_from_pyany(result.bind(py).clone(), "Jacobian function must return a 2D numpy array")
-                .map(|arr| vecvec_from_array2(&arr))
+            extract_array2_from_pyany(
+                result.bind(py).clone(),
+                "Jacobian function must return a 2D numpy array",
+            )
+            .map(|arr| vecvec_from_array2(&arr))
         })
     }
 }
@@ -225,7 +243,11 @@ impl Anneal for AnnealingProblem {
     type Output = Array1<f64>;
     type Float = f64;
 
-    fn anneal(&self, param: &Self::Param, extent: Self::Float) -> Result<Self::Output, ArgminError> {
+    fn anneal(
+        &self,
+        param: &Self::Param,
+        extent: Self::Float,
+    ) -> Result<Self::Output, ArgminError> {
         let mut candidate = param.clone();
         let mut rng = self
             .rng
@@ -234,15 +256,14 @@ impl Anneal for AnnealingProblem {
         let n_modifications = extent.floor().max(1.0) as usize;
         let index_dist = rand09::distr::Uniform::try_from(0..param.len())
             .map_err(|e| ArgminError::msg(e.to_string()))?;
-        let perturb_dist =
-            rand09::distr::Uniform::new_inclusive(-self.step_size, self.step_size)
-                .map_err(|e| ArgminError::msg(e.to_string()))?;
+        let perturb_dist = rand09::distr::Uniform::new_inclusive(-self.step_size, self.step_size)
+            .map_err(|e| ArgminError::msg(e.to_string()))?;
 
         for _ in 0..n_modifications {
             let idx = rand09::Rng::sample(&mut *rng, index_dist);
             let perturbation = rand09::Rng::sample(&mut *rng, perturb_dist);
-            candidate[idx] = (candidate[idx] + perturbation)
-                .clamp(self.lower_bound[idx], self.upper_bound[idx]);
+            candidate[idx] =
+                (candidate[idx] + perturbation).clamp(self.lower_bound[idx], self.upper_bound[idx]);
         }
 
         Ok(candidate)
@@ -372,7 +393,17 @@ impl Optimizers {
         max_iterations: usize,
         seed: Option<u64>,
     ) -> PyResult<Py<PyAny>> {
-        minimize_simulated_annealing(py, fun, x0, lower, upper, temp, step_size, max_iterations, seed)
+        minimize_simulated_annealing(
+            py,
+            fun,
+            x0,
+            lower,
+            upper,
+            temp,
+            step_size,
+            max_iterations,
+            seed,
+        )
     }
 }
 
@@ -485,14 +516,10 @@ pub fn minimize_nonlinear_cg<'py>(
         objective_fn: fun,
         gradient_fn: grad,
     };
-    let linesearch: BacktrackingLineSearch<
-        Array1<f64>,
-        Array1<f64>,
-        ArmijoCondition<f64>,
-        f64,
-    > = BacktrackingLineSearch::new(
-        ArmijoCondition::new(0.2).map_err(|err| PyValueError::new_err(err.to_string()))?,
-    );
+    let linesearch: BacktrackingLineSearch<Array1<f64>, Array1<f64>, ArmijoCondition<f64>, f64> =
+        BacktrackingLineSearch::new(
+            ArmijoCondition::new(0.2).map_err(|err| PyValueError::new_err(err.to_string()))?,
+        );
     let beta_method = PolakRibierePlus::new();
     let solver = NonlinearConjugateGradient::new(linesearch, beta_method)
         .restart_iters(restart_iters)
@@ -501,11 +528,10 @@ pub fn minimize_nonlinear_cg<'py>(
         .configure(|state| state.param(x0).max_iters(max_iterations as u64))
         .run()
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
-    let x = result
-        .state
-        .get_best_param()
-        .cloned()
-        .ok_or_else(|| PyValueError::new_err("Nonlinear CG did not produce a parameter vector"))?;
+    let x =
+        result.state.get_best_param().cloned().ok_or_else(|| {
+            PyValueError::new_err("Nonlinear CG did not produce a parameter vector")
+        })?;
     let fun_value = call_objective_array1(&fun_eval, &x)?;
     let final_gradient = call_gradient_array1(&grad_eval, &x)?;
     let grad_norm = final_gradient.dot(&final_gradient).sqrt();
@@ -559,9 +585,11 @@ pub fn minimize_gauss_newton_ls<'py>(
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         let residual_arr = array1_from_vec(&residual);
-        let jacobian_arr =
-            Array2::from_shape_vec((jacobian.len(), x.len()), jacobian.into_iter().flatten().collect())
-                .map_err(|_| PyValueError::new_err("Invalid Jacobian shape"))?;
+        let jacobian_arr = Array2::from_shape_vec(
+            (jacobian.len(), x.len()),
+            jacobian.into_iter().flatten().collect(),
+        )
+        .map_err(|_| PyValueError::new_err("Invalid Jacobian shape"))?;
         let current_cost = 0.5 * residual_arr.dot(&residual_arr);
 
         let jt = jacobian_arr.t().to_owned();
@@ -619,19 +647,15 @@ pub fn minimize_gauss_newton_ls<'py>(
         let result = residual_eval
             .call1(py, (theta_py,))
             .map_err(|e| PyValueError::new_err(format!("Python callback error: {}", e)))?;
-        extract_array1_from_pyany(result.bind(py).clone(), "Residual function must return a 1D numpy array")
-            .map_err(|err| PyValueError::new_err(err.to_string()))
+        extract_array1_from_pyany(
+            result.bind(py).clone(),
+            "Residual function must return a 1D numpy array",
+        )
+        .map_err(|err| PyValueError::new_err(err.to_string()))
     })?;
     let fun_value = residual.dot(&residual) * 0.5;
     let x_array = array1_from_vec(&x);
-    optimize_result_dict(
-        py,
-        &x_array,
-        fun_value,
-        iter,
-        &status,
-        "gauss_newton_ls",
-    )
+    optimize_result_dict(py, &x_array, fun_value, iter, &status, "gauss_newton_ls")
 }
 
 #[pyfunction]
@@ -675,19 +699,17 @@ pub fn minimize_simulated_annealing<'py>(
     };
     let solver: SimulatedAnnealing<f64, Xoshiro256PlusPlus> =
         SimulatedAnnealing::new_with_rng(temp, solver_rng)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?
-        .with_temp_func(SATempFunc::Boltzmann)
-        .with_stall_best(1000)
-        .with_stall_accepted(1000);
+            .map_err(|err| PyValueError::new_err(err.to_string()))?
+            .with_temp_func(SATempFunc::Boltzmann)
+            .with_stall_best(1000)
+            .with_stall_accepted(1000);
     let result = Executor::new(problem, solver)
         .configure(|state| state.param(x0).max_iters(max_iterations as u64))
         .run()
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
-    let x = result
-        .state
-        .get_best_param()
-        .cloned()
-        .ok_or_else(|| PyValueError::new_err("Simulated annealing did not produce a parameter vector"))?;
+    let x = result.state.get_best_param().cloned().ok_or_else(|| {
+        PyValueError::new_err("Simulated annealing did not produce a parameter vector")
+    })?;
     let fun_value = call_objective_array1(&fun_eval, &x)?;
     let status = result.state.get_termination_status();
     let success = optimization_success(status) || fun_value <= initial_fun;

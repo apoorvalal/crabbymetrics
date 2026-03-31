@@ -4824,6 +4824,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4849,6 +4872,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -4904,7 +4931,7 @@ vertical-align: -.125em;
 <p>This page shows how to estimate slope coefficients after partialling out one-way or multi-way categorical fixed effects with <code>within</code>.</p>
 <section id="simulate-a-two-way-fixed-effects-problem" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-two-way-fixed-effects-problem"><span class="header-section-number">1</span> Simulate A Two-Way Fixed Effects Problem</h2>
-<div id="97ccfda7" class="cell" data-execution_count="1">
+<div id="5c33f432" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4912,7 +4939,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="4c43868d" class="cell" data-execution_count="2">
+<div id="c3a644d1" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">800</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.9</span>])</span>
@@ -4938,14 +4965,16 @@ vertical-align: -.125em;
 <span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>pprint(model.summary())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>true coef: [ 1.2 -0.9]
-{&#39;coef&#39;: array([ 1.2034, -0.9   ]), &#39;coef_se&#39;: array([0.0035, 0.0033])}</code></pre>
+{&#39;coef&#39;: array([ 1.2034, -0.9   ]),
+ &#39;coef_se&#39;: array([0.0035, 0.0033]),
+ &#39;vcov_type&#39;: &#39;hc1&#39;}</code></pre>
 </div>
 </div>
 </section>
 <section id="compare-to-explicit-dummy-ols" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="compare-to-explicit-dummy-ols"><span class="header-section-number">2</span> Compare To Explicit Dummy OLS</h2>
 <p><code>FixedEffectsOLS</code> is doing the Frisch-Waugh-Lovell version of the same regression. A useful check is to compare it against an OLS fit with worker and firm dummies added directly to the design matrix.</p>
-<div id="618ab4b3" class="cell" data-execution_count="3">
+<div id="09e452d1" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dummy_block(levels):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    n_levels <span class="op">=</span> <span class="bu">int</span>(levels.<span class="bu">max</span>()) <span class="op">+</span> <span class="dv">1</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    block <span class="op">=</span> np.zeros((levels.shape[<span class="dv">0</span>], <span class="bu">max</span>(n_levels <span class="op">-</span> <span class="dv">1</span>, <span class="dv">0</span>)))</span>
@@ -4970,12 +4999,33 @@ Absolute difference:    [0. 0.]</code></pre>
 </div>
 </div>
 </section>
-<section id="notes" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="notes"><span class="header-section-number">3</span> Notes</h2>
+<section id="robust-covariance-options" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="robust-covariance-options"><span class="header-section-number">3</span> Robust Covariance Options</h2>
+<p>Once the fixed effects are partialled out, <code>summary()</code> exposes the same covariance choices as the other linear estimators.</p>
+<div id="bb582ea9" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>worker_cluster <span class="op">=</span> worker.astype(np.int64)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>hc1 <span class="op">=</span> model.summary()</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>cluster <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>worker_cluster)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>hac <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;newey_west&quot;</span>, lags<span class="op">=</span><span class="dv">3</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;HC1 SE:&quot;</span>, np.<span class="bu">round</span>(hc1[<span class="st">&quot;coef_se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;cluster SE:&quot;</span>, np.<span class="bu">round</span>(cluster[<span class="st">&quot;coef_se&quot;</span>], <span class="dv">4</span>))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Newey-West SE:&quot;</span>, np.<span class="bu">round</span>(hac[<span class="st">&quot;coef_se&quot;</span>], <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>HC1 SE: [0.0035 0.0033]
+cluster SE: [0.0034 0.004 ]
+Newey-West SE: [0.0035 0.0035]</code></pre>
+</div>
+</div>
+</section>
+<section id="notes" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="notes"><span class="header-section-number">4</span> Notes</h2>
 <ul>
 <li><code>fe</code> must be a 2D <code>uint32</code> matrix with one column per factor.</li>
 <li>Category codes should be zero-based and contiguous within each factor.</li>
 <li>The estimator absorbs the constant, so there is no intercept in the summary and no <code>predict()</code> method.</li>
+<li>Cluster labels passed to <code>summary(vcov=&quot;cluster&quot;, clusters=...)</code> should be a separate 1D <code>int64</code> array with one label per observation.</li>
 </ul>
 
 
