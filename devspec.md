@@ -207,7 +207,7 @@ Success condition:
 
 ### Priority 2: balancing / calibration weights
 
-Status: not started
+Status: implemented on `extensions`
 
 Reference:
 
@@ -216,7 +216,7 @@ Reference:
 Why it fits:
 
 - the numerical core is just array-based convex calibration
-- it is useful on its own and as a building block for ATT estimators
+- it is useful on its own and largely supersedes standalone propensity-score inversion for ATT-style weighting problems
 
 Scope:
 
@@ -238,35 +238,7 @@ Success condition:
 
 - stable Rust implementation with NumPy array inputs and one focused vignette
 
-### Priority 3: IPW ATT
-
-Status: not started
-
-Reference:
-
-- `frisch/ipw_att.py`
-
-Why it fits:
-
-- conceptually simple
-- built from a logistic propensity score plus a weighted regression / moment correction
-- provides a concrete treatment-effect estimator before the more elaborate AST and DR procedures
-
-Scope:
-
-- binary treatment only
-- logistic propensity score estimated with the built-in `Logit`
-- optional sample weights and one-way clustering
-- keep the useful diagnostics:
-  - ATT estimate and SE
-  - tilt / implied weight vectors
-  - propensity-score balancing / NTW-style test if practical
-
-Success condition:
-
-- `IPWATT.fit(d, y, x)` style estimator with a plain-dict summary
-
-### Priority 4: partially linear E-estimation
+### Priority 3: partially linear E-estimation
 
 Status: not started
 
@@ -294,7 +266,7 @@ Success condition:
 
 - `EPLM` class with `fit` and `summary`, plus a small simulation vignette
 
-### Priority 5: average regression estimators
+### Priority 4: average derivative / average regression estimators
 
 Status: not started
 
@@ -309,6 +281,7 @@ Why they fit:
 - these are distinctive econometrics procedures, not commodity ML estimators
 - all three share the same scalar-policy-variable setup
 - the DR version is a strong showcase for stacked moment systems
+- they are a natural follow-on once the partially linear E-estimator machinery exists
 
 Scope:
 
@@ -327,7 +300,7 @@ Success condition:
 
 - common interface, shared tests, and one comparative vignette
 
-### Priority 6: AST ATT
+### Priority 5: AST ATT
 
 Status: not started
 
@@ -363,7 +336,6 @@ Success condition:
 
 1. weighted base estimators
 2. balancing / calibration weights
-3. IPW ATT
-4. EPLM
-5. average regression family
-6. AST ATT
+3. EPLM
+4. average derivative / average regression family
+5. AST ATT

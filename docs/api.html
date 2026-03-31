@@ -4802,6 +4802,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4942,7 +4946,7 @@ vertical-align: -.125em;
 <li>A sitrep on the current state of the library.</li>
 <li>A verified API reference rendered against the live Python module in this repository.</li>
 </ul>
-<div id="ddf7a281" class="cell" data-execution_count="1">
+<div id="d246031c" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -4981,6 +4985,7 @@ vertical-align: -.125em;
 <li>Packaging is lean. The Python package declares only <code>numpy</code> at runtime, while native builds are handled by <code>maturin</code>.</li>
 <li>Release automation already exists in <code>.github/workflows/wheels.yml</code> for Linux and macOS wheels across Python 3.10 to 3.14.</li>
 <li>Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven <code>GMM</code>, a lower-level <code>MEstimator</code>, plus <code>PCA</code> and <code>KernelBasis</code> as design-matrix preprocessors.</li>
+<li>Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, balancing weights, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven <code>GMM</code>, a lower-level <code>MEstimator</code>, plus <code>PCA</code> and <code>KernelBasis</code> as design-matrix preprocessors.</li>
 <li>The module also exposes an <code>Optimizers</code> class with static methods for LBFGS, BFGS, nonlinear conjugate gradient, Gauss-Newton least squares, and simulated annealing.</li>
 <li>The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.</li>
 <li>The public API is consistent, but not fully uniform. <code>summary()</code> always returns a plain Python <code>dict</code>, yet the exact keys vary by estimator.</li>
@@ -4992,7 +4997,7 @@ vertical-align: -.125em;
 <section id="public-surface" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="public-surface"><span class="header-section-number">3</span> Public Surface</h2>
 <p>The table below is generated from the live module so the constructor and method signatures match the current build.</p>
-<div id="7b6e9175" class="cell" data-execution_count="2">
+<div id="64160a9d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>classes <span class="op">=</span> [</span>
@@ -5000,37 +5005,38 @@ vertical-align: -.125em;
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    cm.Ridge,</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    cm.FixedEffectsOLS,</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    cm.SyntheticControl,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    cm.ElasticNet,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    cm.Logit,</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    cm.MultinomialLogit,</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    cm.Poisson,</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    cm.TwoSLS,</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    cm.GMM,</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    cm.FTRL,</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    cm.MEstimator,</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    cm.PCA,</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    cm.KernelBasis,</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    cm.Optimizers,</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> classes:</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> []</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method_name <span class="kw">in</span> <span class="bu">sorted</span>(name <span class="cf">for</span> name <span class="kw">in</span> <span class="bu">dir</span>(cls) <span class="cf">if</span> <span class="kw">not</span> name.startswith(<span class="st">&quot;_&quot;</span>)):</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        method <span class="op">=</span> <span class="bu">getattr</span>(cls, method_name)</span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">callable</span>(method):</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>        methods.append(</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(method_name)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(method)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span></span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>        [</span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(cls.<span class="va">__name__</span>)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(cls)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span>,</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;&lt;br&gt;&quot;</span>.join(methods),</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>        ]</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>], rows)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    cm.BalancingWeights,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    cm.ElasticNet,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    cm.Logit,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    cm.MultinomialLogit,</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    cm.Poisson,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    cm.TwoSLS,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    cm.GMM,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    cm.FTRL,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    cm.MEstimator,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    cm.PCA,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    cm.KernelBasis,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    cm.Optimizers,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> classes:</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> []</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method_name <span class="kw">in</span> <span class="bu">sorted</span>(name <span class="cf">for</span> name <span class="kw">in</span> <span class="bu">dir</span>(cls) <span class="cf">if</span> <span class="kw">not</span> name.startswith(<span class="st">&quot;_&quot;</span>)):</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        method <span class="op">=</span> <span class="bu">getattr</span>(cls, method_name)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">callable</span>(method):</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>        methods.append(</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(method_name)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(method)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(cls.<span class="va">__name__</span>)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(cls)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span>,</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;&lt;br&gt;&quot;</span>.join(methods),</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>], rows)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
@@ -5049,6 +5055,7 @@ vertical-align: -.125em;
 <td><code>OLS()</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
+<code>fit_weighted(self, /, x, y, sample_weight)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
 </tr>
@@ -5056,6 +5063,7 @@ vertical-align: -.125em;
 <td><code>Ridge(penalty=None, cv=5)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
+<code>fit_weighted(self, /, x, y, sample_weight)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
 </tr>
@@ -5063,6 +5071,7 @@ vertical-align: -.125em;
 <td><code>FixedEffectsOLS()</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, fe, y)</code><br>
+<code>fit_weighted(self, /, x, fe, y, sample_weight)</code><br>
 <code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
 </tr>
 <tr class="even">
@@ -5073,60 +5082,67 @@ vertical-align: -.125em;
 <code>summary(self, /)</code></td>
 </tr>
 <tr class="odd">
+<td><code>BalancingWeights(objective=&#39;quadratic&#39;, solver=&#39;auto&#39;, autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-08)</code></td>
+<td><code>fit(self, /, covariates, target_covariates, baseline_weights=None, target_weights=None)</code><br>
+<code>get_weights(self, /)</code><br>
+<code>summary(self, /)</code></td>
+</tr>
+<tr class="even">
 <td><code>ElasticNet(penalty=1.0, l1_ratio=0.5, tolerance=0.0001, max_iterations=1000)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Logit(alpha=1.0, max_iterations=100, gradient_tolerance=0.0001)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MultinomialLogit(alpha=1.0, max_iterations=100, gradient_tolerance=0.0001)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Poisson(alpha=0.0, max_iterations=100, tolerance=0.0001)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /, vcov=&#39;vanilla&#39;)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TwoSLS()</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x_endog, x_exog, z, y)</code><br>
+<code>fit_weighted(self, /, x_endog, x_exog, z, y, sample_weight)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-06, ridge=1e-08, fd_eps=1e-06)</code></td>
 <td><code>fit(self, /, data, theta0, weighting=&#39;auto&#39;)</code><br>
 <code>summary(self, /, vcov=&#39;sandwich&#39;, omega=&#39;iid&#39;, lags=None, clusters=None)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FTRL(alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-06)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>compute_vcov(self, /)</code><br>
 <code>fit(self, /, data, theta0)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PCA(n_components, whiten=False)</code></td>
 <td><code>fit(self, /, x)</code><br>
 <code>fit_transform(self, /, x)</code><br>
@@ -5134,14 +5150,14 @@ vertical-align: -.125em;
 <code>summary(self, /)</code><br>
 <code>transform(self, /, x)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>KernelBasis(kernel=&#39;gaussian&#39;, bandwidth=0.5, coef0=1.0, degree=2.0)</code></td>
 <td><code>fit(self, /, x)</code><br>
 <code>fit_transform(self, /, x)</code><br>
 <code>summary(self, /)</code><br>
 <code>transform(self, /, x)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Optimizers()</code></td>
 <td><code>minimize_bfgs(fun, x0, grad, max_iterations=100, tolerance=1e-06)</code><br>
 <code>minimize_gauss_newton_ls(residual_fn, x0, jacobian_fn, max_iterations=100, tolerance=1e-06)</code><br>
@@ -5157,7 +5173,7 @@ vertical-align: -.125em;
 <section id="optimizer-surface" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="optimizer-surface"><span class="header-section-number">4</span> Optimizer Surface</h2>
 <p>The optimizer helpers live under <code>cm.Optimizers</code> as static methods. They mirror the usual scipy pattern: pass a Python callback, a starting value, and any derivative information the method needs, then receive a plain dictionary with <code>x</code>, <code>fun</code>, <code>nit</code>, <code>success</code>, <code>message</code>, and <code>method</code>.</p>
-<div id="584ca087" class="cell" data-execution_count="3">
+<div id="ba84c01d" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>optimizer_rows <span class="op">=</span> []</span>
@@ -5206,6 +5222,7 @@ vertical-align: -.125em;
 <li>The <code>Optimizers</code> methods return plain dictionaries rather than scipy result objects, but the schema is intentionally similar.</li>
 <li><code>FixedEffectsOLS.fit(x, fe, y)</code> expects <code>fe</code> to be a 2D <code>uint32</code> matrix of zero-based category codes, one column per factor.</li>
 <li><code>SyntheticControl.fit(donors, treated)</code> expects donor outcomes in an <code>(n_periods, n_donors)</code> matrix and a treated pre-period outcome vector of length <code>n_periods</code>.</li>
+<li><code>BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code> estimates calibration weights on the first matrix so its weighted covariate mean matches the target mean implied by the second matrix.</li>
 <li><code>Logit</code>, <code>MultinomialLogit</code>, and <code>FTRL</code> expect integer class labels at fit time.</li>
 <li>Most estimators store their training data internally so <code>summary()</code> and <code>bootstrap()</code> can be called after <code>fit()</code>.</li>
 <li>OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.</li>
@@ -5218,7 +5235,7 @@ vertical-align: -.125em;
 </section>
 <section id="estimator-reference" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="estimator-reference"><span class="header-section-number">6</span> Estimator Reference</h2>
-<div id="733e50d8" class="cell" data-execution_count="4">
+<div id="0e0b69be" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>reference_rows <span class="op">=</span> [</span>
@@ -5255,79 +5272,87 @@ vertical-align: -.125em;
 <span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Fits nonnegative donor weights that sum to one by minimizing pre-treatment squared error under a simplex constraint.&quot;</span>,</span>
 <span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ElasticNet&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions&quot;</span>,</span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Regularized point estimates with HC1-style covariance built from residuals.&quot;</span>,</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;BalancingWeights&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(covariates, target_covariates, baseline_weights=None, target_weights=None)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;weights&lt;/code&gt;, &lt;code&gt;beta&lt;/code&gt;, &lt;code&gt;weighted_mean&lt;/code&gt;, &lt;code&gt;target_mean&lt;/code&gt;, &lt;code&gt;mean_diff&lt;/code&gt;, &lt;code&gt;l2_diff&lt;/code&gt;, &lt;code&gt;effective_sample_size&lt;/code&gt;, &lt;code&gt;success&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Dual calibration solver for entropy and quadratic balancing weights. Intended for ATT-style reweighting, covariate shift, and domain adaptation tasks where one sample is reweighted to match another sample&#39;s covariate mean.&quot;</span>,</span>
 <span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Logit&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ElasticNet&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions&quot;</span>,</span>
 <span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
 <span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Binary logistic regression. Standard errors come from the Fisher information.&quot;</span>,</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Regularized point estimates with HC1-style covariance built from residuals.&quot;</span>,</span>
 <span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MultinomialLogit&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Logit&lt;/code&gt;&quot;</span>,</span>
 <span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
 <span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
-<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt; and &lt;code&gt;se&lt;/code&gt; matrices of shape &lt;code&gt;(classes, features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, classes * features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Intercept and slopes are packed together by class in the summary matrix.&quot;</span>,</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Binary logistic regression. Standard errors come from the Fisher information.&quot;</span>,</span>
 <span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Poisson&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float mean counts&quot;</span>,</span>
-<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Custom Newton-CG Poisson MLE with optional L2 penalty via &lt;code&gt;alpha&lt;/code&gt;; &lt;code&gt;summary(vcov=&#39;vanilla&#39;)&lt;/code&gt; gives Fisher SEs and &lt;code&gt;summary(vcov=&#39;sandwich&#39;)&lt;/code&gt; gives QMLE sandwich SEs.&quot;</span>,</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MultinomialLogit&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt; and &lt;code&gt;se&lt;/code&gt; matrices of shape &lt;code&gt;(classes, features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, classes * features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Intercept and slopes are packed together by class in the summary matrix.&quot;</span>,</span>
 <span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;TwoSLS&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x_endog, x_exog, z, y)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions from the stage-two design matrix&quot;</span>,</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Poisson&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float mean counts&quot;</span>,</span>
 <span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, k + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, k)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors, and its summary method now shares the same &lt;code&gt;vanilla&lt;/code&gt;, &lt;code&gt;hc1&lt;/code&gt;, &lt;code&gt;newey_west&lt;/code&gt;, and &lt;code&gt;cluster&lt;/code&gt; covariance interface as the other linear estimators.&quot;</span>,</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Custom Newton-CG Poisson MLE with optional L2 penalty via &lt;code&gt;alpha&lt;/code&gt;; &lt;code&gt;summary(vcov=&#39;vanilla&#39;)&lt;/code&gt; gives Fisher SEs and &lt;code&gt;summary(vcov=&#39;sandwich&#39;)&lt;/code&gt; gives QMLE sandwich SEs.&quot;</span>,</span>
 <span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FTRL&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float scores in &lt;code&gt;[0, 1]&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Online-style classification model with a different summary schema and no explicit intercept output.&quot;</span>,</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;TwoSLS&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x_endog, x_exog, z, y)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions from the stage-two design matrix&quot;</span>,</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, k + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, k)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors, and its summary method now shares the same &lt;code&gt;vanilla&lt;/code&gt;, &lt;code&gt;hc1&lt;/code&gt;, &lt;code&gt;newey_west&lt;/code&gt;, and &lt;code&gt;cluster&lt;/code&gt; covariance interface as the other linear estimators.&quot;</span>,</span>
 <span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;GMM&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0, weighting=&#39;auto&#39;)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;criterion&lt;/code&gt;, &lt;code&gt;nit&lt;/code&gt;, &lt;code&gt;weighting&lt;/code&gt;, &lt;code&gt;vcov_type&lt;/code&gt;, &lt;code&gt;omega_type&lt;/code&gt;, &lt;code&gt;weight_matrix&lt;/code&gt;, &lt;code&gt;nobs&lt;/code&gt;, &lt;code&gt;n_moments&lt;/code&gt;, &lt;code&gt;j_stat&lt;/code&gt;, &lt;code&gt;j_df&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;moment_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, m)&lt;/code&gt; matrix of per-observation moments and optionally &lt;code&gt;jacobian_fn(theta, data)&lt;/code&gt; returning the sample Jacobian of shape &lt;code&gt;(m, p)&lt;/code&gt;.&quot;</span>,</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FTRL&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float scores in &lt;code&gt;[0, 1]&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Online-style classification model with a different summary schema and no explicit intercept output.&quot;</span>,</span>
 <span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MEstimator&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;GMM&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0, weighting=&#39;auto&#39;)&lt;/code&gt;&quot;</span>,</span>
 <span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
-<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;objective_fn(theta, data) -&amp;gt; (obj, grad)&lt;/code&gt; and &lt;code&gt;score_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, p)&lt;/code&gt; matrix.&quot;</span>,</span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;criterion&lt;/code&gt;, &lt;code&gt;nit&lt;/code&gt;, &lt;code&gt;weighting&lt;/code&gt;, &lt;code&gt;vcov_type&lt;/code&gt;, &lt;code&gt;omega_type&lt;/code&gt;, &lt;code&gt;weight_matrix&lt;/code&gt;, &lt;code&gt;nobs&lt;/code&gt;, &lt;code&gt;n_moments&lt;/code&gt;, &lt;code&gt;j_stat&lt;/code&gt;, &lt;code&gt;j_df&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;moment_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, m)&lt;/code&gt; matrix of per-observation moments and optionally &lt;code&gt;jacobian_fn(theta, data)&lt;/code&gt; returning the sample Jacobian of shape &lt;code&gt;(m, p)&lt;/code&gt;.&quot;</span>,</span>
 <span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>display(</span>
-<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
-<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
-<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>            [<span class="st">&quot;Estimator&quot;</span>, <span class="st">&quot;Fit&quot;</span>, <span class="st">&quot;Predict&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Bootstrap&quot;</span>, <span class="st">&quot;Notes&quot;</span>],</span>
-<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>            reference_rows,</span>
-<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MEstimator&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;objective_fn(theta, data) -&amp;gt; (obj, grad)&lt;/code&gt; and &lt;code&gt;score_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, p)&lt;/code&gt; matrix.&quot;</span>,</span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>            [<span class="st">&quot;Estimator&quot;</span>, <span class="st">&quot;Fit&quot;</span>, <span class="st">&quot;Predict&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Bootstrap&quot;</span>, <span class="st">&quot;Notes&quot;</span>],</span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>            reference_rows,</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
@@ -5375,6 +5400,14 @@ vertical-align: -.125em;
 <td>Fits nonnegative donor weights that sum to one by minimizing pre-treatment squared error under a simplex constraint.</td>
 </tr>
 <tr class="odd">
+<td><code>BalancingWeights</code></td>
+<td><code>fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code></td>
+<td>No dedicated <code>predict()</code> method</td>
+<td><code>weights</code>, <code>beta</code>, <code>weighted_mean</code>, <code>target_mean</code>, <code>mean_diff</code>, <code>l2_diff</code>, <code>effective_sample_size</code>, <code>success</code></td>
+<td>No bootstrap method</td>
+<td>Dual calibration solver for entropy and quadratic balancing weights. Intended for ATT-style reweighting, covariate shift, and domain adaptation tasks where one sample is reweighted to match another sample&#39;s covariate mean.</td>
+</tr>
+<tr class="even">
 <td><code>ElasticNet</code></td>
 <td><code>fit(x, y)</code></td>
 <td>1D float predictions</td>
@@ -5382,7 +5415,7 @@ vertical-align: -.125em;
 <td><code>(B, p + 1)</code> with intercept, else <code>(B, p)</code></td>
 <td>Regularized point estimates with HC1-style covariance built from residuals.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Logit</code></td>
 <td><code>fit(x, y_int32)</code></td>
 <td>1D <code>int32</code> class labels</td>
@@ -5390,7 +5423,7 @@ vertical-align: -.125em;
 <td><code>(B, p + 1)</code> with intercept, else <code>(B, p)</code></td>
 <td>Binary logistic regression. Standard errors come from the Fisher information.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MultinomialLogit</code></td>
 <td><code>fit(x, y_int32)</code></td>
 <td>1D <code>int32</code> class labels</td>
@@ -5398,7 +5431,7 @@ vertical-align: -.125em;
 <td><code>(B, classes * features_with_intercept)</code></td>
 <td>Intercept and slopes are packed together by class in the summary matrix.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Poisson</code></td>
 <td><code>fit(x, y)</code></td>
 <td>1D float mean counts</td>
@@ -5406,7 +5439,7 @@ vertical-align: -.125em;
 <td><code>(B, p + 1)</code> with intercept, else <code>(B, p)</code></td>
 <td>Custom Newton-CG Poisson MLE with optional L2 penalty via <code>alpha</code>; <code>summary(vcov=&#39;vanilla&#39;)</code> gives Fisher SEs and <code>summary(vcov=&#39;sandwich&#39;)</code> gives QMLE sandwich SEs.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TwoSLS</code></td>
 <td><code>fit(x_endog, x_exog, z, y)</code></td>
 <td>1D float predictions from the stage-two design matrix</td>
@@ -5414,7 +5447,7 @@ vertical-align: -.125em;
 <td><code>(B, k + 1)</code> with intercept, else <code>(B, k)</code></td>
 <td>Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors, and its summary method now shares the same <code>vanilla</code>, <code>hc1</code>, <code>newey_west</code>, and <code>cluster</code> covariance interface as the other linear estimators.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FTRL</code></td>
 <td><code>fit(x, y_int32)</code></td>
 <td>1D float scores in <code>[0, 1]</code></td>
@@ -5422,7 +5455,7 @@ vertical-align: -.125em;
 <td><code>(B, p)</code></td>
 <td>Online-style classification model with a different summary schema and no explicit intercept output.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GMM</code></td>
 <td><code>fit(data_dict, theta0, weighting=&#39;auto&#39;)</code></td>
 <td>No dedicated <code>predict()</code> method</td>
@@ -5430,7 +5463,7 @@ vertical-align: -.125em;
 <td>No bootstrap method</td>
 <td>Requires <code>moment_fn(theta, data)</code> returning an <code>(n, m)</code> matrix of per-observation moments and optionally <code>jacobian_fn(theta, data)</code> returning the sample Jacobian of shape <code>(m, p)</code>.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MEstimator</code></td>
 <td><code>fit(data_dict, theta0)</code></td>
 <td>No dedicated <code>predict()</code> method</td>
@@ -5445,7 +5478,7 @@ vertical-align: -.125em;
 </section>
 <section id="transformer-reference" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="transformer-reference"><span class="header-section-number">7</span> Transformer Reference</h2>
-<div id="d9654c4e" class="cell" data-execution_count="5">
+<div id="055ab111" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>transformer_rows <span class="op">=</span> [</span>
@@ -5507,7 +5540,7 @@ vertical-align: -.125em;
 </section>
 <section id="optimizer-reference" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="optimizer-reference"><span class="header-section-number">8</span> Optimizer Reference</h2>
-<div id="fab90f0e" class="cell" data-execution_count="6">
+<div id="631fead4" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>optimizer_reference_rows <span class="op">=</span> [</span>
@@ -5601,7 +5634,7 @@ vertical-align: -.125em;
 <section id="verified-runtime-snapshot" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">9</span> Verified Runtime Snapshot</h2>
 <p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
-<div id="50c13c55" class="cell" data-execution_count="7">
+<div id="457088fa" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
@@ -5904,7 +5937,7 @@ vertical-align: -.125em;
 <h2 data-number="10" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">10</span> Usage Examples</h2>
 <section id="ols" class="level3" data-number="10.1">
 <h3 data-number="10.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">10.1</span> OLS</h3>
-<div id="c73560c5" class="cell" data-execution_count="8">
+<div id="f4b930db" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
@@ -5934,7 +5967,7 @@ vertical-align: -.125em;
 </section>
 <section id="ridge" class="level3" data-number="10.2">
 <h3 data-number="10.2" class="anchored" data-anchor-id="ridge"><span class="header-section-number">10.2</span> Ridge</h3>
-<div id="1b6213e1" class="cell" data-execution_count="9">
+<div id="d729d045" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
@@ -5963,7 +5996,7 @@ vertical-align: -.125em;
 </section>
 <section id="poisson" class="level3" data-number="10.3">
 <h3 data-number="10.3" class="anchored" data-anchor-id="poisson"><span class="header-section-number">10.3</span> Poisson</h3>
-<div id="358f7dad" class="cell" data-execution_count="10">
+<div id="328616f1" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4</span>)</span>
@@ -5986,7 +6019,7 @@ vertical-align: -.125em;
 </section>
 <section id="twosls" class="level3" data-number="10.4">
 <h3 data-number="10.4" class="anchored" data-anchor-id="twosls"><span class="header-section-number">10.4</span> TwoSLS</h3>
-<div id="e1b55339" class="cell" data-execution_count="11">
+<div id="5e029acd" class="cell" data-execution_count="11">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
@@ -6015,7 +6048,7 @@ vertical-align: -.125em;
 </section>
 <section id="gmm" class="level3" data-number="10.5">
 <h3 data-number="10.5" class="anchored" data-anchor-id="gmm"><span class="header-section-number">10.5</span> GMM</h3>
-<div id="a903fa18" class="cell" data-execution_count="12">
+<div id="86e71b23" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_moments(theta, data):</span>
@@ -6052,7 +6085,7 @@ vertical-align: -.125em;
 <section id="fixedeffectsols" class="level3" data-number="10.6">
 <h3 data-number="10.6" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">10.6</span> FixedEffectsOLS</h3>
 <p>This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with <code>within</code>, then regress the residualized outcome on the residualized regressors with no intercept.</p>
-<div id="78a94099" class="cell" data-execution_count="13">
+<div id="ff308f4b" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
@@ -6090,7 +6123,7 @@ vertical-align: -.125em;
 <li><code>score_fn(theta, data)</code> must return an <code>(n_obs, n_params)</code> matrix of per-observation scores.</li>
 <li>For bootstrap support, the <code>data</code> dictionary must include <code>n</code>, and user code should respect an optional <code>indices</code> key.</li>
 </ul>
-<div id="68253f61" class="cell" data-execution_count="14">
+<div id="1b2df250" class="cell" data-execution_count="14">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>

@@ -61,6 +61,7 @@ def html_table(headers, rows):
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
 - Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
+- Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, balancing weights, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
 - The module also exposes an `Optimizers` class with static methods for LBFGS, BFGS, nonlinear conjugate gradient, Gauss-Newton least squares, and simulated annealing.
 - The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
@@ -78,6 +79,7 @@ classes = [
     cm.Ridge,
     cm.FixedEffectsOLS,
     cm.SyntheticControl,
+    cm.BalancingWeights,
     cm.ElasticNet,
     cm.Logit,
     cm.MultinomialLogit,
@@ -134,6 +136,7 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - The `Optimizers` methods return plain dictionaries rather than scipy result objects, but the schema is intentionally similar.
 - `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
 - `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
+- `BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)` estimates calibration weights on the first matrix so its weighted covariate mean matches the target mean implied by the second matrix.
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
 - Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
 - OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
@@ -179,6 +182,14 @@ reference_rows = [
         "<code>weights</code>, <code>pre_rmse</code>",
         "<code>(B, n_donors)</code>",
         "Fits nonnegative donor weights that sum to one by minimizing pre-treatment squared error under a simplex constraint.",
+    ],
+    [
+        "<code>BalancingWeights</code>",
+        "<code>fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>weights</code>, <code>beta</code>, <code>weighted_mean</code>, <code>target_mean</code>, <code>mean_diff</code>, <code>l2_diff</code>, <code>effective_sample_size</code>, <code>success</code>",
+        "No bootstrap method",
+        "Dual calibration solver for entropy and quadratic balancing weights. Intended for ATT-style reweighting, covariate shift, and domain adaptation tasks where one sample is reweighted to match another sample's covariate mean.",
     ],
     [
         "<code>ElasticNet</code>",

@@ -27,6 +27,7 @@ execute:
 - [Fixed Effects OLS](examples/fixed-effects-ols.html): partial out one-way or multi-way categorical fixed effects with `within`, then estimate slopes without an intercept.
 - [ElasticNet](examples/elastic-net.html): regularized linear regression.
 - [Synthetic Control](examples/synthetic-control.html): simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.
+- [Balancing Weights](examples/balancing-weights.html): entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.
 - [Logit](examples/logit.html): binary logistic regression.
 - [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.
 - [Poisson](examples/poisson.html): count regression, with model-based or QMLE sandwich inference available from `summary(vcov=...)`.
