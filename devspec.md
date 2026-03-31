@@ -16,100 +16,147 @@ Any new work here should usually satisfy most of the following:
 2. New estimators should prefer closed form or simple iterative methods already compatible with the current stack.
 3. If a feature mostly requires covariance bookkeeping rather than a new point estimator, prefer extending `summary(...)` over adding a whole new class.
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
-5. If docs examples are numerically heavy, they should use Quarto caching and freeze.
+5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
-## Highest-Value Extensions
+## Current Extension Status
 
-### 1. Unified robust inference across linear estimators
+### Landed on `extensions`
 
-Status: implemented on `extensions`
+- unified robust covariance support for the main linear estimators
+  - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` now share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", ...)`
+- weighted linear estimation
+  - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` have weighted fits through `fit_weighted(...)`
+- balancing / calibration weights
+  - `BalancingWeights` supports entropy and quadratic objectives, baseline weights, autoscaling, and approximate balance
+- semiparametric bundle
+  - `EPLM`
+  - `AverageDerivative(method="ob" | "ipw" | "dr")`
+  - `PartiallyLinearDML`
+  - `AIPW`
+- docs and ablations
+  - semiparametric examples are in the main docs nav
+  - cached ablation notebooks cover variance estimators and semiparametric comparisons
 
-Why it matters:
+### Partial but not finished
 
-- `GMM` already has the most flexible covariance surface.
-- `OLS`, `Ridge`, `TwoSLS`, and `FixedEffectsOLS` still have narrower inference support.
-- This is high value without adding any large external dependency.
+- weighted estimation outside the linear family
+  - not yet in `Logit`, `Poisson`, or `GMM`
+- IV / GMM diagnostics
+  - core fitting and covariance support are there, but richer reporting is still thin
+- `MEstimator`
+  - useful and working, but still more of a low-level escape hatch than a polished estimator family
 
-Scope:
+## Highest-Value Next Extensions
 
-- extend `summary(vcov=...)` for linear estimators to cover:
-  - `vanilla`
-  - `hc1`
-  - `newey_west`
-  - `cluster`
-- use shared Rust helpers for bread / meat / sandwich assembly
-- support one-way clustering first
-
-Success condition:
-
-- same covariance interface across `OLS`, `Ridge`, `TwoSLS`, and `FixedEffectsOLS`
-- tests against hand-coded NumPy references
-
-### 2. Difference-in-differences and event-study estimators
+### 1. Difference-in-differences and event-study estimators
 
 Status: not started
 
 Why it matters:
 
-- this library already has a workable fixed-effects backbone
-- DiD / event-study fits the econometrics focus better than adding generic ML breadth
-- these estimators are useful and still compatible with the low-dependency design
+- the library already has a workable fixed-effects backbone
+- DiD / event-study fits the econometrics focus better than generic ML breadth
+- these estimators are widely useful and still compatible with the low-dependency design
 
 Scope:
 
-- two-period / two-group DiD as a simple starting estimator
-- then staggered-adoption event-study design-matrix helpers
-- estimation can ride on top of the existing linear / fixed-effects machinery
+- start with a simple two-period / two-group DiD estimator
+- then add event-study design-matrix helpers on top of the fixed-effects path
+- ride on top of `OLS` / `FixedEffectsOLS` rather than building a separate regression engine
 
 Success condition:
 
 - a small Rust-backed `DifferenceInDifferences` or `EventStudy` class
-- summary exposes coefficient tables and robust standard errors
+- robust standard errors through the same `summary(vcov=...)` surface
+- one focused vignette with a clear coefficient table
 
-### 3. Negative binomial regression
+### 2. Negative binomial regression
 
 Status: not started
 
 Why it matters:
 
-- current count-model surface stops at Poisson
+- the count-model surface currently stops at Poisson
 - users will want an overdispersed alternative without leaving the library
-- this stays within the current Newton / score / sandwich design style
+- it fits the current Newton / score / sandwich design style
 
 Scope:
 
 - start with NB2
 - expose `fit`, `predict`, and `summary(vcov="vanilla" | "sandwich")`
-- keep dispersion estimation in Rust
+- keep dispersion estimation and likelihood work in Rust
 
 Success condition:
 
 - stable fit on moderate count data
-- inference checked against score / Hessian formulas
+- direct tests against known formulas or a trusted reference implementation
 
-### 4. Linear hypothesis and Wald testing utilities
+### 3. Linear hypothesis and Wald testing utilities
 
 Status: not started
 
 Why it matters:
 
-- several estimators now expose enough covariance information to support restrictions
-- users will want tests like `R beta = q` without manually unpacking arrays
+- several estimators now expose enough covariance information to support restriction tests
+- users will want `R beta = q` style tests without unpacking arrays by hand
 
 Scope:
 
 - helper utility rather than a full estimator
 - start with Wald tests for linear restrictions
-- work with any estimator summary that exposes `coef` and `vcov`
+- work with any estimator summary exposing `coef` and `vcov`
 
 Success condition:
 
 - one simple public entry point
-- examples for OLS, TwoSLS, and GMM
+- examples for `OLS`, `TwoSLS`, and `GMM`
+
+### 4. Weighted nonlinear estimators and weighted GMM
+
+Status: partial foundation only
+
+Why it matters:
+
+- the weighted linear path is already implemented
+- several semiparametric estimators and two-step procedures want weighted nuisances
+- this is the cleanest remaining gap from the `frisch` reference set
+
+Scope:
+
+- add weighted fits to:
+  - `Logit`
+  - `Poisson`
+  - `GMM`
+- keep the public surface NumPy-only and consistent with the current style
+- align covariance handling with the existing `summary(vcov=...)` interfaces
+
+Success condition:
+
+- weighted fits and weighted sandwich inference for the nonlinear core estimators
+- tests against hand-coded references or a trusted external implementation
+
+### 5. More IV / GMM diagnostics
+
+Status: partial
+
+Why it matters:
+
+- point estimation and covariance support are now in good shape
+- reporting is still thin relative to what econometrics users expect
+
+Scope:
+
+- first-stage fit diagnostics
+- weak-instrument diagnostics where they are easy to support cleanly
+- better overidentification reporting in `TwoSLS`
+
+Success condition:
+
+- `TwoSLS.summary()` and `GMM.summary()` expose diagnostics without bloating the estimator API
 
 ## Medium-Priority Extensions
 
-### 5. Probit
+### 6. Probit
 
 Status: not started
 
@@ -117,46 +164,62 @@ Notes:
 
 - useful and standard
 - lower priority than negative binomial and DiD
-- should only happen if the numerical story remains clean without bloating dependencies
+- only worth doing if the numerical story remains clean without inflating dependencies
 
-### 6. Better transformer pipelines
-
-Status: partial
-
-Notes:
-
-- `PCA` and `KernelBasis` already exist
-- the next step is not a full sklearn clone
-- the useful extension is lightweight composition helpers or richer examples, not a whole pipeline framework
-
-### 7. More IV / GMM summary diagnostics
+### 7. Better transformer composition
 
 Status: partial
 
 Notes:
 
-- `GMM` has core covariance support and a J-stat
-- likely next useful items are first-stage diagnostics, weak-instrument diagnostics, and overidentification reporting in `TwoSLS`
+- `PcaTransformer` and `KernelBasis` already exist
+- the next useful step is lightweight composition helpers or richer examples, not sklearn-style pipeline sprawl
 
-## Probably Not Worth It Right Now
+### 8. MEstimator diagnostics cleanup
 
-- formula parsing
-- pandas-first APIs
-- a giant preprocessing module
-- broad sklearn parity for classification/regression models
-- continuously updated GMM weighting or a large optimizer zoo without a real application
-- generic auto-diff infrastructure just to support a handful of score models
+Status: partial
 
-## Working Backlog
+Notes:
 
-### Near-term candidate branch order
+- current `MEstimator` is useful for custom objectives, but its variance path is still score-outer-product based and its solver diagnostics are thin
+- worth improving only if there is a concrete downstream use case
 
-1. unify robust covariance estimators for linear models
-2. add DiD / event-study support on top of the fixed-effects foundation
-3. add negative binomial regression
-4. add linear restriction / Wald testing helpers
+## Frisch Status
 
-### Notes for future branches
+The targeted reference pass over the old `frisch` code is effectively complete for now.
+
+What was extracted into `crabbymetrics`:
+
+- balancing / calibration weights
+- partially linear E-estimation
+- average derivative estimators
+- semiparametric comparison designs that motivated the current docs and ablations
+
+What remains useful from `frisch`:
+
+- formulas and tests for weighted nonlinear estimators
+- occasional reference checks for semiparametric estimating equations
+
+What should not be ported literally:
+
+- pandas / patsy interfaces
+- dataframe-centric summaries
+- sklearn-orchestrated nuisance wrappers as a public dependency story
+
+Operational note:
+
+- the local `frisch` symlink has been removed
+- if the code is referenced again later, do it ad hoc as a formulas-and-tests reference, not as a standing subtree dependency
+
+## Recommended Branch Order
+
+1. add DiD / event-study support on top of the fixed-effects foundation
+2. add negative binomial regression
+3. add linear restriction / Wald testing helpers
+4. add weighted nonlinear estimators and weighted GMM
+5. add richer IV / GMM diagnostics
+
+## Notes for Future Branches
 
 - prefer small, vertically complete slices
 - each extension should usually land with:
@@ -165,154 +228,3 @@ Notes:
   - direct tests
   - one focused vignette or API example
 - if an idea starts demanding a large dependency just for ergonomics, it probably does not belong here
-
-## Frisch Port Plan
-
-The symlinked `frisch` library is a useful reference set, but most of the value is not in porting it literally. The right move is to separate:
-
-- low-level estimators we already have, but can use as weighted / semiparametric references
-- semiparametric estimators whose stacked moments fit the current Rust-first design
-- pandas / patsy / sklearn orchestration that should not be carried over
-
-### Useful as references, but not direct ports
-
-- `frisch/ols.py`, `frisch/iv.py`, `frisch/logit.py`, and `frisch/poisson.py`
-  - these mostly duplicate estimators we already expose
-  - the main new idea there is support for sampling weights and the way they return score / Hessian objects for downstream two-step estimators
-  - use them as numerical references when adding weighted fits to `OLS`, `TwoSLS`, `Logit`, `Poisson`, and later `GMM`
-
-### Priority 1: weighted core estimators
-
-Status: not started
-
-Why first:
-
-- almost every interesting `frisch` procedure depends on weighted nuisance estimation
-- this is the cleanest missing foundation in `crabbymetrics`
-
-Scope:
-
-- add optional observation weights to:
-  - `OLS`
-  - `TwoSLS`
-  - `Logit`
-  - `Poisson`
-  - `GMM`
-- keep the public surface NumPy-only, e.g. `fit(x, y, weights=None)` or `fit(..., sample_weight=None)`
-- keep covariance support aligned with the current `summary(vcov=...)` interfaces
-
-Success condition:
-
-- weighted point estimates and weighted sandwich inference validated against `frisch/ols.py`, `frisch/iv.py`, `frisch/logit.py`, and `frisch/poisson.py`
-
-### Priority 2: balancing / calibration weights
-
-Status: implemented on `extensions`
-
-Reference:
-
-- `frisch/balancing.py`
-
-Why it fits:
-
-- the numerical core is just array-based convex calibration
-- it is useful on its own and largely supersedes standalone propensity-score inversion for ATT-style weighting problems
-
-Scope:
-
-- port only the direct array API, not the `patsy` / formula helpers
-- expose something like `CalibrationWeights` or `BalancingWeights`
-- support:
-  - entropy balancing
-  - quadratic balancing
-  - optional baseline weights
-  - optional approximate balance via `l2_norm`
-- treat AST-style ATT weighting as conceptually subsumed by the same balance-first tilting family rather than as a separate priority item
-
-Do not port:
-
-- `from_formula`
-- pandas-dependent wrappers
-- sklearn preprocessing helpers as public requirements
-
-Success condition:
-
-- stable Rust implementation with NumPy array inputs and one focused vignette
-
-### Priority 3: partially linear E-estimation
-
-Status: not started
-
-Reference:
-
-- `frisch/eplm.py`
-
-Why it fits:
-
-- numerically compact
-- scalar policy variable
-- naturally expressible as a two-step or stacked-moment estimator
-- close to the current `GMM` philosophy
-
-Scope:
-
-- scalar treatment / policy regressor only in v1
-- nuisance models for `E[X|W]`:
-  - linear
-  - logit
-  - poisson
-- use residualized moments and proper two-step covariance accounting
-
-Success condition:
-
-- `EPLM` class with `fit` and `summary`, plus a small simulation vignette
-
-### Priority 4: average derivative / average regression estimators
-
-Status: not started
-
-References:
-
-- `frisch/avreg_ob.py`
-- `frisch/avreg_ipw.py`
-- `frisch/avreg_dr.py`
-
-Why they fit:
-
-- these are distinctive econometrics procedures, not commodity ML estimators
-- all three share the same scalar-policy-variable setup
-- the DR version is a strong showcase for stacked moment systems
-- they are a natural follow-on once the partially linear E-estimator machinery exists
-
-Scope:
-
-- unify them under one class if possible, e.g. `AverageRegression(method="ob" | "ipw" | "dr")`
-- restrict v1 to:
-  - scalar treatment
-  - NumPy arrays only
-  - nuisance models from built-in estimators
-- no formula interface
-
-Implementation note:
-
-- these should probably be built on top of a shared Rust moment-stacking backend rather than as three unrelated one-off ports
-
-Success condition:
-
-- common interface, shared tests, and one comparative vignette
-
-### Probably not worth porting directly
-
-- `frisch/aipw.py`
-  - too tied to arbitrary sklearn learners and cross-fitting orchestration
-  - if we want AIPW later, it should be a narrower Rust-backed version with explicit nuisance model choices
-- pandas / patsy interfaces
-- printing utilities and dataframe-centric summaries
-- dataset download helpers
-
-### Recommended branch order after the current covariance work
-
-1. weighted base estimators
-2. balancing / calibration weights
-3. EPLM
-4. average derivative / average regression family

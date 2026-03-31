@@ -1,370 +1,313 @@
 # Devlog (crabbymetrics)
 
-## Overview
-`crabbymetrics` is a Rust-backed econometrics package exposed to Python via `pyo3`/`maturin`. The goal is a scikit-adjacent API with good numerical performance and clear ergonomics. The current focus is a base set of econometrics-style estimators with robust standard errors and bootstrap support.
+## Snapshot
 
-This devlog is intended to capture the current design, implementation decisions, and known caveats so future work can continue without re-reading all source history.
+`crabbymetrics` is a Rust-backed econometrics library exposed to Python through `pyo3` and `maturin`. The project is intentionally narrow:
 
----
+- Rust owns the numerical work
+- Python stays NumPy-only and scikit-adjacent
+- docs are checked in as a Quarto site under `docs/`
+- the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-## Repository layout
+This file is meant to record the current architecture and the design choices that matter for future work.
 
-```
+## Repository Layout
+
+```text
 crabbymetrics/
   Cargo.toml
-  README.md
+  pyproject.toml
   devlog.md
-  commit_tag_release.sh
-  examples/
-  .github/workflows/wheels.yml
+  devspec.md
+  AGENTS.md
+  docs/
+  tests/
   src/
     lib.rs
-    estimators.rs
     utils.rs
+    optimizers.rs
+    estimators/
+      mod.rs
+      linear.rs
+      regularized.rs
+      mle.rs
+      gmm.rs
+      balancing.rs
+      semiparametric.rs
+      transforms.rs
 ```
 
-- `src/lib.rs` is the pyo3 entrypoint that registers all Python classes.
-- `src/estimators.rs` contains all estimator classes and their `fit/predict/summary/bootstrap` methods.
-- `src/utils.rs` contains shared linear algebra, SE, bootstrap, and numpy conversion utilities.
-- `examples/` holds simple scripts for each estimator, using simulated data with known parameters.
+Key points:
 
----
+- `src/lib.rs` is the pyo3 entrypoint and class registry.
+- `src/estimators/` is now split by estimator family instead of the old monolithic file layout.
+- `src/utils.rs` holds shared array conversion, least-squares helpers, covariance helpers, weighting helpers, and bootstrap utilities.
+- `docs/` is a checked-in Quarto website, not just notebook scraps.
+- `tests/` is the main regression suite; examples are documented through the Quarto site rather than loose scripts.
 
-## Packaging model
+## Build And Dev Workflow
 
-- `maturin` builds native wheels. Wheels are platform-specific; CI builds for Linux/macOS/Windows.
-- GitHub Actions workflow `wheels.yml` builds wheels on tags and attaches them to GitHub Releases.
-- Do not commit wheels into the repo. Release artifacts are attached via CI.
+- Python environment management uses `uv`.
+- Native extension builds use `maturin develop`.
+- Rust formatting uses `cargo fmt`; the repo-local pre-commit hook checks that formatting.
+- `pyproject.toml` includes `tool.uv.cache-keys` for Rust sources so `uv run pytest ...` sees fresh extension builds after Rust changes.
+- docs extras are tracked in `pyproject.toml` under `project.optional-dependencies.docs`
+  - currently `matplotlib`
+  - currently `jupyter-cache`
 
----
+Useful commands:
 
-## Core API (Python)
+```bash
+uv run maturin develop
+uv run pytest tests -q
+uv sync --extra docs
+uv run quarto render docs
+cargo check
+cargo fmt --all --check
+```
 
-Each estimator exposes a scikit-adjacent API:
+## Public Surface
 
-- `__init__(...)` constructor with hyperparameters.
-- `fit(X, y)` (or `fit(x_endog, x_exog, z, y)` for TwoSLS).
-- `predict(X)` returns predictions or probabilities.
-- `summary()` returns a dict with coefficients and standard errors.
-- `bootstrap(n_bootstrap, seed=None)` returns a matrix of bootstrap coefficient draws.
+The current Python module exports:
 
-The summary output uses consistent keys when applicable:
-- `intercept`: float
-- `coef`: numpy vector (or matrix for multinomial)
-- `intercept_se`: float or None
-- `coef_se`: numpy vector (or matrix for multinomial)
+- linear and IV:
+  - `OLS`
+  - `FixedEffectsOLS`
+  - `TwoSLS`
+  - `SyntheticControl`
+- regularized / online:
+  - `Ridge`
+  - `ElasticNet`
+  - `FTRL`
+- likelihood / generic:
+  - `Logit`
+  - `MultinomialLogit`
+  - `Poisson`
+  - `MEstimator`
+- moment / semiparametric:
+  - `GMM`
+  - `BalancingWeights`
+  - `EPLM`
+  - `AverageDerivative`
+  - `PartiallyLinearDML`
+  - `AIPW`
+- transforms:
+  - `PcaTransformer`
+  - `KernelBasis`
+- lower-level optimization surface:
+  - `Optimizers`
 
----
+Not every class exposes every method. The broad pattern is still scikit-adjacent, but semiparametric estimators are mostly `fit(...)` plus `summary(...)`, with no meaningful `predict(...)`.
 
-## Estimators implemented
+## Inference Surface
 
-### OLS
-- Uses `linfa-linear::LinearRegression` for fitting.
-- HC1 robust covariance for SEs.
-- `summary` returns intercept, coefficients, and HC1 SEs.
+### Linear estimators
 
-### ElasticNet
-- Uses `linfa-elasticnet`.
-- HC1 robust covariance on residuals (not a full ridge/L1-specific covariance; intended as a reasonable default).
+`OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` now share the same covariance surface:
 
-### Logit (binary)
-- Uses `linfa-logistic`.
-- SEs are derived from the Fisher information (inverse of X'W X) using predicted probabilities.
+- `summary(vcov="vanilla")`
+- `summary(vcov="hc1")`
+- `summary(vcov="newey_west", lags=...)`
+- `summary(vcov="cluster", clusters=...)`
 
-### MultinomialLogit
-- Uses `linfa-logistic` multi-class.
-- SEs are derived from an explicit Fisher information matrix for all class coefficients.
-- `summary()` returns coefficient and SE matrices of shape `(classes, features_with_intercept)`.
+This is one of the main extension-branch improvements. The same shared Rust helpers now build bread / meat / sandwich objects across the linear family.
 
 ### Poisson
-- Custom Poisson MLE using `argmin` Newton-CG with analytic gradient and Hessian.
-- Log-likelihood (up to constant) per observation:
-  - `y_i * (x_i'β) - exp(x_i'β)`
-- Gradient:
-  - `X' (exp(η) - y)`
-- Hessian:
-  - `X' diag(exp(η)) X` (plus optional L2 ridge on diagonal)
-- Intercept handled by augmenting parameter vector.
-- SEs from Fisher information: inverse of `X' W X` where `W = exp(η)`.
-
-### TwoSLS (closed-form linear IV)
-- Uses the closed-form linear IV / 2SLS estimator `beta = (X' P_Z X)^{-1} X' P_Z y`.
-- Supports multiple endogenous regressors and multiple excluded instruments.
-- Exogenous regressors are folded into both the structural design and the instrument set.
-- `summary()` now uses a moment-based sandwich covariance rather than HC1 on a fitted second-stage surrogate.
-
-### FTRL
-- Uses `linfa-ftrl` for classification.
-- Returns weights and SEs from Fisher information based on predicted probabilities.
-
-### M-Estimator Implementation - Development Log
-
-
-Implemented general M-estimation framework allowing users to define arbitrary objective functions in Python and optimize them using Rust's argmin L-BFGS solver.
-
-#### Core Implementation
--  Python callbacks for objective function: `(theta, data) -> (obj, grad)`
--  Python callbacks for per-observation scores: `(theta, data) -> (n_obs, n_params) array`
--  L-BFGS optimization via argmin (7 history vectors, More-Thuente line search)
--  Sandwich variance: A^{-1} B A^{-1} using BFGS approximation
--  Bootstrap inference via re-optimization
-
-#### Validation
-Tested on Poisson regression:
-- Coefficients match built-in Poisson to <0.01% relative error
-- Standard errors match to ~3.4% relative error
-- Bootstrap produces reasonable distributions
-
-Initial implementation failed spectacularly - optimizer was taking enormous steps (e.g., theta jumping from [0.1, 0.1, 0.1] to [76, 304, -554]) causing:
-- Overflow in `exp(eta)` for Poisson likelihood
-- NaN gradients
-- Optimizer giving up and returning initial values
-
-**This was silently failing** - no errors, just stuck parameters.
-
-User must add safeguards in their objective function:
-
-```python
-def poisson_objective(theta, data):
-    eta = X @ theta
-    # CRITICAL: Clip to prevent overflow
-    eta = np.clip(eta, -20, 20)
-    mu = np.exp(eta)
-    # ... rest of calculation
-```
-
-- L-BFGS doesn't know about domain constraints of your likelihood
-- Line search can propose arbitrarily large steps
-- For exponential family models, this causes immediate numerical failure
-- The failure mode is silent - optimization just returns initial values
-
-1. Use trust-region methods instead of line search (requires Hessian)
-2. Add explicit box constraints to solver (argmin supports this but adds complexity)
-3. Transform parameters (e.g., log-transform positive params)
-4. Better initialization and scaling
-
-For now, clipping in the objective is simplest and works well.
-
-#### API Design Decisions
-
-1. Per-observation scores (not batch)
-
-```python
-def score_fn(theta, data):
-    # Must return (n_obs, n_params)
-    return scores  # Shape: (n, p)
-```
-
-This enables sandwich variance computation where we need the full score matrix to compute B = (1/n) sum_i score_i score_i'.
-
-2. Data as dict
-
-```python
-data = {'X': X, 'y': y, 'n': n}
-model.fit(data, theta0)
-```
-
-Flexible format. For bootstrap, automatically adds `'indices'` key:
-```python
-# In objective function:
-indices = data.get('indices', np.arange(len(y)))
-X_sample = X[indices]
-```
-
-3. No automatic differentiation
-Users must provide gradients. Rationale:
-- They can use JAX externally if they want
-- Gives full control over numerical stability
-- Avoids adding heavy dependencies
-- Forces users to think about their gradient (often catches bugs)
-
-#### Key Rust Components
-
-**Callback handling:**
-```rust
-impl CostFunction for MEstimatorProblem {
-    fn cost(&self, theta: &Array1<f64>) -> Result<f64, Error> {
-        Python::with_gil(|py| {
-            let result = self.objective_fn.call1(py, (theta_py, data))?;
-            let tuple = result.downcast_bound::<PyTuple>(py)?;
-            let obj: f64 = tuple.get_item(0)?.extract()?;
-            Ok(obj)
-        })
-    }
-}
-```
-
-**Sandwich variance:**
-```rust
-// A = B = (1/n) scores' * scores (BFGS approximation)
-let b_matrix = scores.t().dot(&scores) / (n as f64);
-let a_matrix = b_matrix.clone();
-let a_inv = invert_matrix(&a_matrix)?;
-let vcov = a_inv.dot(&b_matrix).dot(&a_inv) / (n as f64);
-```
-
-#### Known Limitations
-
-1. **Tolerance parameter not used**: Stored but not passed to LBFGS config (uses solver defaults)
-
-2. **BFGS approximation for A matrix**: Uses outer product of scores instead of actual Hessian. Could optionally accept Hessian callback.
 
-3. **No convergence diagnostics**: Doesn't report final gradient norm, iteration count, or convergence status.
+`Poisson.summary(...)` supports:
 
-4. **Bootstrap is slow**: Re-optimizes on every sample. Could implement fast score bootstrap using influence functions.
+- `vcov="vanilla"`
+- `vcov="sandwich"`
+- `vcov="qmle"` is treated as the sandwich path in the user-facing docs
 
-5. **Limited solver options**: Only L-BFGS. Could expose Newton-CG (requires Hessian), trust region, etc.
-
-#### Usage Example
-
-```python
-import numpy as np
-from crabbymetrics import MEstimator
-
-def poisson_objective(theta, data):
-    X, y = data['X'], data['y']
-    indices = data.get('indices', np.arange(len(y)))
-
-    eta = (X[indices] @ theta)
-    eta = np.clip(eta, -20, 20)  # CRITICAL for numerical stability
-    mu = np.exp(eta)
+### GMM
 
-    obj = np.sum(mu - y[indices] * eta)
-    grad = X[indices].T @ (mu - y[indices])
-    return obj, grad
+`GMM.summary(...)` supports:
 
-def poisson_scores(theta, data):
-    X, y = data['X'], data['y']
-    eta = X @ theta
-    eta = np.clip(eta, -20, 20)  # Match objective clipping
-    mu = np.exp(eta)
-    return X * (mu - y)[:, np.newaxis]  # Shape: (n, p)
+- `vcov="vanilla"`
+- `vcov="sandwich"`
 
-# Fit
-model = MEstimator(poisson_objective, poisson_scores, max_iterations=200)
-model.fit({'X': X, 'y': y, 'n': len(y)}, theta0=np.zeros(X.shape[1]))
+and separate moment-covariance choices:
 
-# Inference
-summary = model.summary()
-print(f"Coef: {summary['coef']}")
-print(f"SE:   {summary['se']}")
+- `omega="iid"`
+- `omega="newey_west"`
+- `omega="cluster"`
 
-# Bootstrap
-boots = model.bootstrap(n_bootstrap=100, seed=42)
-```
+### Semiparametric estimators
 
+`EPLM`, `AverageDerivative`, `PartiallyLinearDML`, and `AIPW` use exact-identified influence-function covariance calculations with:
 
-#### High Priority
-- [ ] Wire tolerance parameter to LBFGS config
-- [ ] Add convergence diagnostics to summary
-- [ ] Document the clipping requirement prominently
-- [ ] Add more robust default behavior (maybe auto-detect NaN and warn?)
+- `vcov="vanilla"`
+- `vcov="hc1"`
+- `vcov="newey_west"`
+- `vcov="cluster"`
 
-#### Medium Priority
-- [ ] Fast score bootstrap using influence functions
-- [ ] Option to accept Hessian callback for more accurate variance
-- [ ] Expose more solver options (trust region, constraints, etc.)
-- [ ] Add example with constraints
+Defaults are conservative:
 
-#### Low Priority
-- [ ] JAX integration for auto-differentiation
-- [ ] Parallel bootstrap
-- [ ] Progress callbacks during optimization
-- [ ] Warm-start capability for bootstrap
+- `hc1` for the semiparametric classes
+- explicit clipping in `AIPW` to stabilize the ridge-based propensity nuisance
 
----
+### Balancing weights
 
-## Utility design
+`BalancingWeights` is not yet a full inference object. Its `summary()` returns:
 
-### ndarray version management
-- `linfa` currently depends on `ndarray 0.16.x`, while `numpy` crate prefers newer versions.
-- To avoid a version mismatch, numpy arrays are **manually copied** into `ndarray 0.16` structures via helper functions:
-  - `to_array1`, `to_array1_i32`, `to_array2`
-- Outputs are returned using `PyArray::from_vec` or `PyArray::from_vec2` to avoid `IntoPyArray` from numpy’s ndarray version.
+- fitted weights
+- mean-balance diagnostics
+- effective sample size
+- optimization diagnostics
 
-### Robust SEs
-- HC1 covariance used where applicable:
-  - `hc1_cov`: `V = (X'X)^{-1} X' diag(u^2) X (X'X)^{-1} * n/(n-k)`
-- Fisher information for Logit/Poisson/MultinomialLogit:
-  - `fisher_cov_binary`, `fisher_cov_poisson`, `fisher_cov_multinomial`
+The estimator is currently best viewed as a weighting primitive with strong diagnostics rather than a one-stop causal-inference summary object.
 
-### Matrix inversion
-- Implemented via `nalgebra` (`DMatrix::try_inverse()`).
-- Avoids hand-coded Gaussian elimination.
+## Key Implementation Decisions
 
-### Bootstrap
-- `bootstrap_indices` generates row index draws with replacement.
-- Each estimator re-fits on bootstrap samples and collects coefficient draws.
-- Output shape: `(n_bootstrap, n_params)` (or flattened for multinomial).
+### 1. Prefer least-squares decompositions over explicit inverse formulas
 
----
+Linear estimation paths now lean on QR / least-squares style solves analogous to `np.linalg.lstsq`. This especially matters for:
 
-## Conventions and defaults
+- `OLS`
+- `Ridge`
+- `TwoSLS`
 
-- Intercepts are optional via `fit_intercept` in each model.
-- Poisson defaults `alpha=0.0` (no ridge); can be set for stability.
-- MLE solvers use `max_iterations` and `tolerance` fields; Poisson uses Newton-CG with a line search.
+The public formulas in docs still use the familiar econometrics notation, but the implementation avoids building the estimator through raw normal-equation inversion when a stable solve is cleaner.
 
----
+### 2. Keep linear IV closed-form
 
-## Example scripts
+`TwoSLS` is a real estimator class, not a special case of generic optimizer-driven GMM. It supports:
 
-`examples/` includes quick end-to-end demos with synthetic data:
-- `ols_example.py`
-- `elastic_net_example.py`
-- `logit_example.py`
-- `multinomial_logit_example.py`
-- `poisson_example.py`
-- `twosls_example.py`
-- `ftrl_example.py`
+- multiple endogenous regressors
+- multiple excluded instruments
+- weighted fits through `fit_weighted(...)`
 
-Each script:
-- simulates data with known parameters
-- fits the estimator
-- prints `summary()`
+This is the fast path. Generic `GMM` exists for stacked moments and nonlinear score systems, not to replace closed-form linear IV.
 
----
+### 3. Keep GMM minimal
 
-## CI and releases
+The current `GMM` scope is intentionally narrow:
 
-- `wheels.yml` builds wheels for Linux/macOS and Python 3.10–3.14.
-- Tagging `vX.Y.Z` triggers release and attaches wheels to a GitHub Release.
-- Workflow includes `permissions: contents: write` so the GITHUB_TOKEN can create releases.
+- just-identified moment systems
+- two-step overidentified GMM
+- stacked moment conditions
 
----
+No continuously updated weighting and no large optimizer zoo were added. The design choice was to stop at the point where there was a real application.
 
-## Known quirks / caveats
+### 4. Weighted linear fits use square-root row scaling
 
-- Multinomial Logit SEs can be very large for some synthetic configurations; this likely reflects weak class separation or poorly conditioned Fisher matrices.
-- Poisson previously hung when wrapping TweedieRegressor; now uses explicit MLE via argmin.
-- FTRL coefficients are on a different scale; no intercept term used.
-- For robust inference, bootstrap is available on all estimators.
+Weighted linear estimators are implemented by transforming the design and outcome with `sqrt(w)` where that algebra is exact. This currently covers:
 
----
+- `OLS`
+- `Ridge`
+- `FixedEffectsOLS`
+- `TwoSLS`
 
-## To revisit
+The nonlinear families do not yet have weighted fits.
 
-- Add Ridge closed-form and Lasso-specific solvers.
-- Build a first-class GMM estimator on top of the linear IV path and optimizer prototypes.
-- Improve MLE diagnostics (gradient norms, convergence status) for logit/poisson/multinomial.
-- Consider `abi3` wheels to reduce per-Python builds.
-- Add formal tests (pytest) from example scripts.
+### 5. Semiparametric estimators are narrow by design
 
----
+The semiparametric module is intentionally opinionated:
 
-## Build / dev commands
+- `EPLM` is a stacked-moment partially linear E-estimator
+- `AverageDerivative` implements OB / IPW / DR variants for a scalar continuous treatment
+- `PartiallyLinearDML` uses cross-fit ridge nuisances
+- `AIPW` uses cross-fit ridge outcome models and a clipped ridge propensity nuisance
 
-```
-# Build and install into current venv
-maturin develop
+This is not a general DML framework. The choices are explicit so the Rust layer stays compact and testable.
 
-# Run example scripts
-.venv/bin/python crabbymetrics/examples/ols_example.py
-```
+### 6. Fold splitting is deterministic
 
----
+Cross-fit estimators use deterministic fold assignment by row order plus a seed offset. This makes:
 
-## Release helper script
+- tests exact and reproducible
+- debugging straightforward
+- docs examples stable across rebuilds
 
-`commit_tag_release.sh`:
-- `./commit_tag_release.sh` reads the version from `Cargo.toml`, creates the matching `vX.Y.Z` tag, and pushes that tag to trigger release.
+This is a deliberate tradeoff in favor of reproducibility over random fold shuffling.
+
+### 7. Docs are part of the product
+
+The Quarto site is checked in and is expected to stay coherent. Important conventions now in force:
+
+- `embed-resources: true`
+- full-width pages
+- code kept in the doc but folded where appropriate
+- ablation pages under `docs/ablations/` use `execute.cache: true`
+- ablation pages under `docs/ablations/` use `freeze: auto`
+
+Heavy pages are expected to render once and then be reused from cache/freeze on later site renders.
+
+## Current Docs Structure
+
+The docs site is organized around:
+
+- `Home`
+- `API`
+- `Binding Crash Course`
+- `Supervised Learning`
+- `Semiparametrics`
+- `Unsupervised Learning`
+- `Ablations`
+- `Optimization`
+
+Important semiparametric pages now in the nav:
+
+- balancing weights
+- EPLM
+- average derivative
+- double ML and AIPW
+
+Important cached ablations:
+
+- variance-estimator comparisons
+- semiparametric estimator comparisons
+
+## Testing State
+
+Current expectations:
+
+- `uv run pytest tests -q` is the main Python-side regression suite
+- `cargo check` is the main Rust sanity pass
+- `uv run quarto render docs` is part of verification for any docs-heavy branch
+
+The test suite now covers:
+
+- exact numerical matches for many linear, IV, GMM, and semiparametric formulas
+- weighted linear estimators
+- balancing-weight diagnostics
+- semiparametric failure modes and constructor validation
+
+## Known Caveats
+
+### Weighted support is still incomplete
+
+Weighted fits are only in the linear family so far. `Logit`, `Poisson`, and `GMM` still need a weighted story if that becomes a priority again.
+
+### `AIPW` uses ridge for the propensity nuisance
+
+This is intentional and keeps the dependency story clean, but it means:
+
+- it is not a literal logistic-propensity implementation
+- clipping is required for finite-sample stability
+- some designs will favor direct balancing weights instead
+
+### `MEstimator` is still the least polished estimator surface
+
+It is useful as an escape hatch, but it still has limitations:
+
+- variance uses a score-outer-product approximation for both bread and meat
+- solver diagnostics are thin
+- it is best treated as a low-level custom hook, not as the flagship inference path
+
+### PyO3 deprecation warnings remain
+
+The codebase still emits PyO3 deprecation warnings around `with_gil` and older downcast helpers. They do not currently block builds, but the warning debt is real.
+
+## Current Direction
+
+After the semiparametric and balancing work, the most plausible next branch directions are:
+
+1. difference-in-differences / event-study support
+2. negative binomial regression
+3. linear restriction / Wald test helpers
+4. weighted nonlinear estimators and weighted GMM
+5. richer IV / GMM diagnostics
+
+That is the current state the next extension branch should assume.
