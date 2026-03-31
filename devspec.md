@@ -37,6 +37,7 @@ Any new work here should usually satisfy most of the following:
   - semiparametric examples are in the main docs nav
   - cached ablation notebooks cover variance estimators and semiparametric comparisons
   - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, and Chapters 21 and 23
+  - the Ding section lives under `docs/ding/` with chapter pages plus a few grouping pages to keep the navbar manageable
 
 ### Partial but not finished
 

@@ -68,6 +68,14 @@ cargo check
 cargo fmt --all --check
 ```
 
+For notebook-heavy page verification, Quarto execution has recently been more reliable with one-shot kernels:
+
+```bash
+uv run quarto render docs/ding/ch11-propensity-score.qmd --execute-daemon 0
+```
+
+The full site can still be rendered, but the most stable review path for branches that touch many notebook pages is to rerender the changed pages individually with `--execute-daemon 0`.
+
 ## Public Surface
 
 The current Python module exports:
