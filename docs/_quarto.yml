@@ -32,8 +32,6 @@ website:
             text: ElasticNet
           - href: examples/synthetic-control.qmd
             text: Synthetic Control
-          - href: examples/balancing-weights.qmd
-            text: Balancing Weights
           - href: examples/logit.qmd
             text: Logit
           - href: examples/multinomial-logit.qmd
@@ -48,6 +46,16 @@ website:
             text: FTRL
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
+      - text: Semiparametrics
+        menu:
+          - href: examples/balancing-weights.qmd
+            text: Balancing Weights
+          - href: examples/eplm.qmd
+            text: EPLM
+          - href: examples/average-derivative.qmd
+            text: Average Derivative
+          - href: examples/double-ml.qmd
+            text: Double ML And AIPW
           - href: examples/richer-regression.qmd
             text: Richer Regression
       - text: Unsupervised Learning
@@ -58,6 +66,8 @@ website:
         menu:
           - href: ablations/variance-estimators.qmd
             text: Variance Estimators
+          - href: ablations/semiparametric-estimators.qmd
+            text: Semiparametric Estimator Comparisons
       - text: Optimization
         menu:
           - href: examples/optimizers.qmd

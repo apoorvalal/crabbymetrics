@@ -4802,10 +4802,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/balancing-weights.html">
- <span class="dropdown-text">Balancing Weights</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="./examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4833,6 +4829,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="./examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="./examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="./examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4858,6 +4877,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="./ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -4907,9 +4930,13 @@ vertical-align: -.125em;
   <li><a href="#ridge" id="toc-ridge" class="nav-link" data-scroll-target="#ridge"><span class="header-section-number">10.2</span> Ridge</a></li>
   <li><a href="#poisson" id="toc-poisson" class="nav-link" data-scroll-target="#poisson"><span class="header-section-number">10.3</span> Poisson</a></li>
   <li><a href="#twosls" id="toc-twosls" class="nav-link" data-scroll-target="#twosls"><span class="header-section-number">10.4</span> TwoSLS</a></li>
-  <li><a href="#gmm" id="toc-gmm" class="nav-link" data-scroll-target="#gmm"><span class="header-section-number">10.5</span> GMM</a></li>
-  <li><a href="#fixedeffectsols" id="toc-fixedeffectsols" class="nav-link" data-scroll-target="#fixedeffectsols"><span class="header-section-number">10.6</span> FixedEffectsOLS</a></li>
-  <li><a href="#mestimator" id="toc-mestimator" class="nav-link" data-scroll-target="#mestimator"><span class="header-section-number">10.7</span> MEstimator</a></li>
+  <li><a href="#eplm" id="toc-eplm" class="nav-link" data-scroll-target="#eplm"><span class="header-section-number">10.5</span> EPLM</a></li>
+  <li><a href="#averagederivative" id="toc-averagederivative" class="nav-link" data-scroll-target="#averagederivative"><span class="header-section-number">10.6</span> AverageDerivative</a></li>
+  <li><a href="#partiallylineardml" id="toc-partiallylineardml" class="nav-link" data-scroll-target="#partiallylineardml"><span class="header-section-number">10.7</span> PartiallyLinearDML</a></li>
+  <li><a href="#aipw" id="toc-aipw" class="nav-link" data-scroll-target="#aipw"><span class="header-section-number">10.8</span> AIPW</a></li>
+  <li><a href="#gmm" id="toc-gmm" class="nav-link" data-scroll-target="#gmm"><span class="header-section-number">10.9</span> GMM</a></li>
+  <li><a href="#fixedeffectsols" id="toc-fixedeffectsols" class="nav-link" data-scroll-target="#fixedeffectsols"><span class="header-section-number">10.10</span> FixedEffectsOLS</a></li>
+  <li><a href="#mestimator" id="toc-mestimator" class="nav-link" data-scroll-target="#mestimator"><span class="header-section-number">10.11</span> MEstimator</a></li>
   </ul></li>
   <li><a href="#current-sharp-edges" id="toc-current-sharp-edges" class="nav-link" data-scroll-target="#current-sharp-edges"><span class="header-section-number">11</span> Current Sharp Edges</a></li>
   </ul>
@@ -4946,7 +4973,7 @@ vertical-align: -.125em;
 <li>A sitrep on the current state of the library.</li>
 <li>A verified API reference rendered against the live Python module in this repository.</li>
 </ul>
-<div id="d246031c" class="cell" data-execution_count="1">
+<div id="f72a78f7" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -4984,8 +5011,7 @@ vertical-align: -.125em;
 <li>Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in <code>src/utils.rs</code>.</li>
 <li>Packaging is lean. The Python package declares only <code>numpy</code> at runtime, while native builds are handled by <code>maturin</code>.</li>
 <li>Release automation already exists in <code>.github/workflows/wheels.yml</code> for Linux and macOS wheels across Python 3.10 to 3.14.</li>
-<li>Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven <code>GMM</code>, a lower-level <code>MEstimator</code>, plus <code>PCA</code> and <code>KernelBasis</code> as design-matrix preprocessors.</li>
-<li>Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, balancing weights, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven <code>GMM</code>, a lower-level <code>MEstimator</code>, plus <code>PCA</code> and <code>KernelBasis</code> as design-matrix preprocessors.</li>
+<li>Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, balancing weights, EPLM, average-derivative estimators, partially linear DML, AIPW, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven <code>GMM</code>, a lower-level <code>MEstimator</code>, plus <code>PCA</code> and <code>KernelBasis</code> as design-matrix preprocessors.</li>
 <li>The module also exposes an <code>Optimizers</code> class with static methods for LBFGS, BFGS, nonlinear conjugate gradient, Gauss-Newton least squares, and simulated annealing.</li>
 <li>The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.</li>
 <li>The public API is consistent, but not fully uniform. <code>summary()</code> always returns a plain Python <code>dict</code>, yet the exact keys vary by estimator.</li>
@@ -4997,7 +5023,7 @@ vertical-align: -.125em;
 <section id="public-surface" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="public-surface"><span class="header-section-number">3</span> Public Surface</h2>
 <p>The table below is generated from the live module so the constructor and method signatures match the current build.</p>
-<div id="64160a9d" class="cell" data-execution_count="2">
+<div id="3de6ffd5" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>classes <span class="op">=</span> [</span>
@@ -5006,37 +5032,41 @@ vertical-align: -.125em;
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    cm.FixedEffectsOLS,</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    cm.SyntheticControl,</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    cm.BalancingWeights,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    cm.ElasticNet,</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    cm.Logit,</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    cm.MultinomialLogit,</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    cm.Poisson,</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    cm.TwoSLS,</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    cm.GMM,</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    cm.FTRL,</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    cm.MEstimator,</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    cm.PCA,</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    cm.KernelBasis,</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    cm.Optimizers,</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> classes:</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> []</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method_name <span class="kw">in</span> <span class="bu">sorted</span>(name <span class="cf">for</span> name <span class="kw">in</span> <span class="bu">dir</span>(cls) <span class="cf">if</span> <span class="kw">not</span> name.startswith(<span class="st">&quot;_&quot;</span>)):</span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        method <span class="op">=</span> <span class="bu">getattr</span>(cls, method_name)</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">callable</span>(method):</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>        methods.append(</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(method_name)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(method)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>        [</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(cls.<span class="va">__name__</span>)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(cls)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span>,</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;&lt;br&gt;&quot;</span>.join(methods),</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>        ]</span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>], rows)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    cm.EPLM,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    cm.AverageDerivative,</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    cm.PartiallyLinearDML,</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    cm.AIPW,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    cm.ElasticNet,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    cm.Logit,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    cm.MultinomialLogit,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    cm.Poisson,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    cm.TwoSLS,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    cm.GMM,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    cm.FTRL,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    cm.MEstimator,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    cm.PCA,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    cm.KernelBasis,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    cm.Optimizers,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> classes:</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> []</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> method_name <span class="kw">in</span> <span class="bu">sorted</span>(name <span class="cf">for</span> name <span class="kw">in</span> <span class="bu">dir</span>(cls) <span class="cf">if</span> <span class="kw">not</span> name.startswith(<span class="st">&quot;_&quot;</span>)):</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>        method <span class="op">=</span> <span class="bu">getattr</span>(cls, method_name)</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> <span class="bu">callable</span>(method):</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>        methods.append(</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(method_name)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(method)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f&quot;&lt;code&gt;</span><span class="sc">{</span>escape(cls.<span class="va">__name__</span>)<span class="sc">}{</span>escape(<span class="bu">str</span>(inspect.signature(cls)))<span class="sc">}</span><span class="ss">&lt;/code&gt;&quot;</span>,</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;&lt;br&gt;&quot;</span>.join(methods),</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>], rows)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
@@ -5086,6 +5116,26 @@ vertical-align: -.125em;
 <td><code>fit(self, /, covariates, target_covariates, baseline_weights=None, target_weights=None)</code><br>
 <code>get_weights(self, /)</code><br>
 <code>summary(self, /)</code></td>
+</tr>
+<tr class="even">
+<td><code>EPLM(fd_eps=1e-06)</code></td>
+<td><code>fit(self, /, y, d, w)</code><br>
+<code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
+</tr>
+<tr class="odd">
+<td><code>AverageDerivative(method=&#39;dr&#39;, fd_eps=1e-06)</code></td>
+<td><code>fit(self, /, y, d, w)</code><br>
+<code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
+</tr>
+<tr class="even">
+<td><code>PartiallyLinearDML(penalty=None, cv=5, n_folds=5, seed=42)</code></td>
+<td><code>fit(self, /, y, d, x)</code><br>
+<code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
+</tr>
+<tr class="odd">
+<td><code>AIPW(penalty=None, cv=5, n_folds=5, propensity_clip=0.02, seed=42)</code></td>
+<td><code>fit(self, /, y, d, x)</code><br>
+<code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
 </tr>
 <tr class="even">
 <td><code>ElasticNet(penalty=1.0, l1_ratio=0.5, tolerance=0.0001, max_iterations=1000)</code></td>
@@ -5173,7 +5223,7 @@ vertical-align: -.125em;
 <section id="optimizer-surface" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="optimizer-surface"><span class="header-section-number">4</span> Optimizer Surface</h2>
 <p>The optimizer helpers live under <code>cm.Optimizers</code> as static methods. They mirror the usual scipy pattern: pass a Python callback, a starting value, and any derivative information the method needs, then receive a plain dictionary with <code>x</code>, <code>fun</code>, <code>nit</code>, <code>success</code>, <code>message</code>, and <code>method</code>.</p>
-<div id="ba84c01d" class="cell" data-execution_count="3">
+<div id="d4b64801" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>optimizer_rows <span class="op">=</span> []</span>
@@ -5223,10 +5273,13 @@ vertical-align: -.125em;
 <li><code>FixedEffectsOLS.fit(x, fe, y)</code> expects <code>fe</code> to be a 2D <code>uint32</code> matrix of zero-based category codes, one column per factor.</li>
 <li><code>SyntheticControl.fit(donors, treated)</code> expects donor outcomes in an <code>(n_periods, n_donors)</code> matrix and a treated pre-period outcome vector of length <code>n_periods</code>.</li>
 <li><code>BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code> estimates calibration weights on the first matrix so its weighted covariate mean matches the target mean implied by the second matrix.</li>
+<li><code>EPLM.fit(y, d, w)</code> and <code>AverageDerivative.fit(y, d, w)</code> currently target a scalar continuous treatment and a 2D control matrix.</li>
+<li><code>PartiallyLinearDML.fit(y, d, x)</code> targets a scalar continuous treatment with cross-fit ridge nuisances.</li>
+<li><code>AIPW.fit(y, d, x)</code> targets a binary treatment coded as <code>0/1</code> and estimates the ATE with cross-fit ridge nuisance models.</li>
 <li><code>Logit</code>, <code>MultinomialLogit</code>, and <code>FTRL</code> expect integer class labels at fit time.</li>
 <li>Most estimators store their training data internally so <code>summary()</code> and <code>bootstrap()</code> can be called after <code>fit()</code>.</li>
 <li>OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.</li>
-<li><code>FixedEffectsOLS</code>, <code>GMM</code>, and <code>MEstimator</code> deliberately have no <code>predict()</code> method. They are estimation-first interfaces.</li>
+<li><code>FixedEffectsOLS</code>, <code>EPLM</code>, <code>AverageDerivative</code>, <code>PartiallyLinearDML</code>, <code>AIPW</code>, <code>GMM</code>, and <code>MEstimator</code> deliberately have no <code>predict()</code> method. They are estimation-first interfaces.</li>
 <li>When an estimator has an intercept, bootstrap draws place it in the first column.</li>
 <li><code>summary()</code> returns dictionaries, not rich result objects. Downstream code should index by key.</li>
 <li><code>bootstrap(n_bootstrap, seed=None)</code> now accepts an omitted seed across the full public surface.</li>
@@ -5235,7 +5288,7 @@ vertical-align: -.125em;
 </section>
 <section id="estimator-reference" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="estimator-reference"><span class="header-section-number">6</span> Estimator Reference</h2>
-<div id="0e0b69be" class="cell" data-execution_count="4">
+<div id="62708f56" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>reference_rows <span class="op">=</span> [</span>
@@ -5280,79 +5333,111 @@ vertical-align: -.125em;
 <span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Dual calibration solver for entropy and quadratic balancing weights. Intended for ATT-style reweighting, covariate shift, and domain adaptation tasks where one sample is reweighted to match another sample&#39;s covariate mean.&quot;</span>,</span>
 <span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ElasticNet&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions&quot;</span>,</span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Regularized point estimates with HC1-style covariance built from residuals.&quot;</span>,</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;EPLM&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(y, d, w)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;nuisance_coef&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Robins-Newey style partially linear E-estimator implemented as an exactly identified stacked-moment system with a linear working model for &lt;code&gt;E[D|W]&lt;/code&gt;.&quot;</span>,</span>
 <span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Logit&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
-<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Binary logistic regression. Standard errors come from the Fisher information.&quot;</span>,</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;AverageDerivative&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(y, d, w)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;method&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Graham-Pinto style average-derivative estimator with &lt;code&gt;method=&#39;ob&#39; | &#39;ipw&#39; | &#39;dr&#39;&lt;/code&gt; under a scalar continuous-treatment working model.&quot;</span>,</span>
 <span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MultinomialLogit&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
-<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt; and &lt;code&gt;se&lt;/code&gt; matrices of shape &lt;code&gt;(classes, features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, classes * features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Intercept and slopes are packed together by class in the summary matrix.&quot;</span>,</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;PartiallyLinearDML&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(y, d, x)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;outcome_penalties&lt;/code&gt;, &lt;code&gt;treatment_penalties&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Cross-fit ridge implementation of the partially linear Double-ML score. The nuisance fits are selected fold by fold from a common ridge penalty grid.&quot;</span>,</span>
 <span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Poisson&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float mean counts&quot;</span>,</span>
-<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Custom Newton-CG Poisson MLE with optional L2 penalty via &lt;code&gt;alpha&lt;/code&gt;; &lt;code&gt;summary(vcov=&#39;vanilla&#39;)&lt;/code&gt; gives Fisher SEs and &lt;code&gt;summary(vcov=&#39;sandwich&#39;)&lt;/code&gt; gives QMLE sandwich SEs.&quot;</span>,</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;AIPW&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(y, d, x)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ate&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;outcome0_penalties&lt;/code&gt;, &lt;code&gt;outcome1_penalties&lt;/code&gt;, &lt;code&gt;propensity_penalties&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Cross-fit ridge AIPW estimator for a binary-treatment ATE. Outcome regressions are fit separately by treatment arm and the ridge propensity fit is clipped away from 0 and 1.&quot;</span>,</span>
 <span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;TwoSLS&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x_endog, x_exog, z, y)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions from the stage-two design matrix&quot;</span>,</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;ElasticNet&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions&quot;</span>,</span>
 <span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, k + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, k)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors, and its summary method now shares the same &lt;code&gt;vanilla&lt;/code&gt;, &lt;code&gt;hc1&lt;/code&gt;, &lt;code&gt;newey_west&lt;/code&gt;, and &lt;code&gt;cluster&lt;/code&gt; covariance interface as the other linear estimators.&quot;</span>,</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Regularized point estimates with HC1-style covariance built from residuals.&quot;</span>,</span>
 <span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FTRL&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Logit&lt;/code&gt;&quot;</span>,</span>
 <span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float scores in &lt;code&gt;[0, 1]&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Online-style classification model with a different summary schema and no explicit intercept output.&quot;</span>,</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Binary logistic regression. Standard errors come from the Fisher information.&quot;</span>,</span>
 <span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;GMM&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0, weighting=&#39;auto&#39;)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
-<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;criterion&lt;/code&gt;, &lt;code&gt;nit&lt;/code&gt;, &lt;code&gt;weighting&lt;/code&gt;, &lt;code&gt;vcov_type&lt;/code&gt;, &lt;code&gt;omega_type&lt;/code&gt;, &lt;code&gt;weight_matrix&lt;/code&gt;, &lt;code&gt;nobs&lt;/code&gt;, &lt;code&gt;n_moments&lt;/code&gt;, &lt;code&gt;j_stat&lt;/code&gt;, &lt;code&gt;j_df&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
-<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;moment_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, m)&lt;/code&gt; matrix of per-observation moments and optionally &lt;code&gt;jacobian_fn(theta, data)&lt;/code&gt; returning the sample Jacobian of shape &lt;code&gt;(m, p)&lt;/code&gt;.&quot;</span>,</span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MultinomialLogit&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D &lt;code&gt;int32&lt;/code&gt; class labels&quot;</span>,</span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt; and &lt;code&gt;se&lt;/code&gt; matrices of shape &lt;code&gt;(classes, features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, classes * features_with_intercept)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Intercept and slopes are packed together by class in the summary matrix.&quot;</span>,</span>
 <span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>    ],</span>
 <span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>    [</span>
-<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MEstimator&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
-<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
-<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;objective_fn(theta, data) -&amp;gt; (obj, grad)&lt;/code&gt; and &lt;code&gt;score_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, p)&lt;/code&gt; matrix.&quot;</span>,</span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;Poisson&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float mean counts&quot;</span>,</span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Custom Newton-CG Poisson MLE with optional L2 penalty via &lt;code&gt;alpha&lt;/code&gt;; &lt;code&gt;summary(vcov=&#39;vanilla&#39;)&lt;/code&gt; gives Fisher SEs and &lt;code&gt;summary(vcov=&#39;sandwich&#39;)&lt;/code&gt; gives QMLE sandwich SEs.&quot;</span>,</span>
 <span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>    ],</span>
-<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>display(</span>
-<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
-<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
-<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>            [<span class="st">&quot;Estimator&quot;</span>, <span class="st">&quot;Fit&quot;</span>, <span class="st">&quot;Predict&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Bootstrap&quot;</span>, <span class="st">&quot;Notes&quot;</span>],</span>
-<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>            reference_rows,</span>
-<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;TwoSLS&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x_endog, x_exog, z, y)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float predictions from the stage-two design matrix&quot;</span>,</span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;intercept&lt;/code&gt;, &lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;intercept_se&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, k + 1)&lt;/code&gt; with intercept, else &lt;code&gt;(B, k)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Closed-form linear IV / 2SLS estimator. Supports multiple endogenous regressors, and its summary method now shares the same &lt;code&gt;vanilla&lt;/code&gt;, &lt;code&gt;hc1&lt;/code&gt;, &lt;code&gt;newey_west&lt;/code&gt;, and &lt;code&gt;cluster&lt;/code&gt; covariance interface as the other linear estimators.&quot;</span>,</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;FTRL&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(x, y_int32)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;1D float scores in &lt;code&gt;[0, 1]&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;coef_se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Online-style classification model with a different summary schema and no explicit intercept output.&quot;</span>,</span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;GMM&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0, weighting=&#39;auto&#39;)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;, &lt;code&gt;vcov&lt;/code&gt;, &lt;code&gt;criterion&lt;/code&gt;, &lt;code&gt;nit&lt;/code&gt;, &lt;code&gt;weighting&lt;/code&gt;, &lt;code&gt;vcov_type&lt;/code&gt;, &lt;code&gt;omega_type&lt;/code&gt;, &lt;code&gt;weight_matrix&lt;/code&gt;, &lt;code&gt;nobs&lt;/code&gt;, &lt;code&gt;n_moments&lt;/code&gt;, &lt;code&gt;j_stat&lt;/code&gt;, &lt;code&gt;j_df&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No bootstrap method&quot;</span>,</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;moment_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, m)&lt;/code&gt; matrix of per-observation moments and optionally &lt;code&gt;jacobian_fn(theta, data)&lt;/code&gt; returning the sample Jacobian of shape &lt;code&gt;(m, p)&lt;/code&gt;.&quot;</span>,</span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;MEstimator&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;fit(data_dict, theta0)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;No dedicated &lt;code&gt;predict()&lt;/code&gt; method&quot;</span>,</span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;coef&lt;/code&gt;, &lt;code&gt;se&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;&lt;code&gt;(B, p)&lt;/code&gt;&quot;</span>,</span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Requires &lt;code&gt;objective_fn(theta, data) -&amp;gt; (obj, grad)&lt;/code&gt; and &lt;code&gt;score_fn(theta, data)&lt;/code&gt; returning an &lt;code&gt;(n, p)&lt;/code&gt; matrix.&quot;</span>,</span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>    ],</span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
+<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a>            [<span class="st">&quot;Estimator&quot;</span>, <span class="st">&quot;Fit&quot;</span>, <span class="st">&quot;Predict&quot;</span>, <span class="st">&quot;Summary Keys&quot;</span>, <span class="st">&quot;Bootstrap&quot;</span>, <span class="st">&quot;Notes&quot;</span>],</span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>            reference_rows,</span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
@@ -5406,6 +5491,38 @@ vertical-align: -.125em;
 <td><code>weights</code>, <code>beta</code>, <code>weighted_mean</code>, <code>target_mean</code>, <code>mean_diff</code>, <code>l2_diff</code>, <code>effective_sample_size</code>, <code>success</code></td>
 <td>No bootstrap method</td>
 <td>Dual calibration solver for entropy and quadratic balancing weights. Intended for ATT-style reweighting, covariate shift, and domain adaptation tasks where one sample is reweighted to match another sample&#39;s covariate mean.</td>
+</tr>
+<tr class="even">
+<td><code>EPLM</code></td>
+<td><code>fit(y, d, w)</code></td>
+<td>No dedicated <code>predict()</code> method</td>
+<td><code>coef</code>, <code>se</code>, <code>vcov</code>, <code>nuisance_coef</code></td>
+<td>No bootstrap method</td>
+<td>Robins-Newey style partially linear E-estimator implemented as an exactly identified stacked-moment system with a linear working model for <code>E[D|W]</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>AverageDerivative</code></td>
+<td><code>fit(y, d, w)</code></td>
+<td>No dedicated <code>predict()</code> method</td>
+<td><code>method</code>, <code>coef</code>, <code>se</code>, <code>vcov</code></td>
+<td>No bootstrap method</td>
+<td>Graham-Pinto style average-derivative estimator with <code>method=&#39;ob&#39; | &#39;ipw&#39; | &#39;dr&#39;</code> under a scalar continuous-treatment working model.</td>
+</tr>
+<tr class="even">
+<td><code>PartiallyLinearDML</code></td>
+<td><code>fit(y, d, x)</code></td>
+<td>No dedicated <code>predict()</code> method</td>
+<td><code>coef</code>, <code>se</code>, <code>vcov</code>, <code>outcome_penalties</code>, <code>treatment_penalties</code></td>
+<td>No bootstrap method</td>
+<td>Cross-fit ridge implementation of the partially linear Double-ML score. The nuisance fits are selected fold by fold from a common ridge penalty grid.</td>
+</tr>
+<tr class="odd">
+<td><code>AIPW</code></td>
+<td><code>fit(y, d, x)</code></td>
+<td>No dedicated <code>predict()</code> method</td>
+<td><code>ate</code>, <code>se</code>, <code>vcov</code>, <code>outcome0_penalties</code>, <code>outcome1_penalties</code>, <code>propensity_penalties</code></td>
+<td>No bootstrap method</td>
+<td>Cross-fit ridge AIPW estimator for a binary-treatment ATE. Outcome regressions are fit separately by treatment arm and the ridge propensity fit is clipped away from 0 and 1.</td>
 </tr>
 <tr class="even">
 <td><code>ElasticNet</code></td>
@@ -5478,7 +5595,7 @@ vertical-align: -.125em;
 </section>
 <section id="transformer-reference" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="transformer-reference"><span class="header-section-number">7</span> Transformer Reference</h2>
-<div id="055ab111" class="cell" data-execution_count="5">
+<div id="fc008888" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>transformer_rows <span class="op">=</span> [</span>
@@ -5540,7 +5657,7 @@ vertical-align: -.125em;
 </section>
 <section id="optimizer-reference" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="optimizer-reference"><span class="header-section-number">8</span> Optimizer Reference</h2>
-<div id="631fead4" class="cell" data-execution_count="6">
+<div id="7cd0083e" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>optimizer_reference_rows <span class="op">=</span> [</span>
@@ -5634,7 +5751,7 @@ vertical-align: -.125em;
 <section id="verified-runtime-snapshot" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">9</span> Verified Runtime Snapshot</h2>
 <p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
-<div id="457088fa" class="cell" data-execution_count="7">
+<div id="c588fb04" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
@@ -5937,7 +6054,7 @@ vertical-align: -.125em;
 <h2 data-number="10" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">10</span> Usage Examples</h2>
 <section id="ols" class="level3" data-number="10.1">
 <h3 data-number="10.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">10.1</span> OLS</h3>
-<div id="f4b930db" class="cell" data-execution_count="8">
+<div id="852bc03e" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
@@ -5967,7 +6084,7 @@ vertical-align: -.125em;
 </section>
 <section id="ridge" class="level3" data-number="10.2">
 <h3 data-number="10.2" class="anchored" data-anchor-id="ridge"><span class="header-section-number">10.2</span> Ridge</h3>
-<div id="d729d045" class="cell" data-execution_count="9">
+<div id="1c444180" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
@@ -5996,7 +6113,7 @@ vertical-align: -.125em;
 </section>
 <section id="poisson" class="level3" data-number="10.3">
 <h3 data-number="10.3" class="anchored" data-anchor-id="poisson"><span class="header-section-number">10.3</span> Poisson</h3>
-<div id="328616f1" class="cell" data-execution_count="10">
+<div id="a02348b6" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4</span>)</span>
@@ -6019,7 +6136,7 @@ vertical-align: -.125em;
 </section>
 <section id="twosls" class="level3" data-number="10.4">
 <h3 data-number="10.4" class="anchored" data-anchor-id="twosls"><span class="header-section-number">10.4</span> TwoSLS</h3>
-<div id="5e029acd" class="cell" data-execution_count="11">
+<div id="bd4c8716" class="cell" data-execution_count="11">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
@@ -6046,122 +6163,208 @@ vertical-align: -.125em;
 </div>
 </div>
 </section>
-<section id="gmm" class="level3" data-number="10.5">
-<h3 data-number="10.5" class="anchored" data-anchor-id="gmm"><span class="header-section-number">10.5</span> GMM</h3>
-<div id="86e71b23" class="cell" data-execution_count="12">
+<section id="eplm" class="level3" data-number="10.5">
+<h3 data-number="10.5" class="anchored" data-anchor-id="eplm"><span class="header-section-number">10.5</span> EPLM</h3>
+<div id="c3d5b38f" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_moments(theta, data):</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>] <span class="op">-</span> data[<span class="st">&quot;x&quot;</span>] <span class="op">*</span> theta[<span class="dv">0</span>]</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> data[<span class="st">&quot;z&quot;</span>] <span class="op">*</span> resid[:, <span class="va">None</span>]</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">3</span>))</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">1.3</span> <span class="op">*</span> d <span class="op">+</span> <span class="fl">0.8</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.3</span>, <span class="op">-</span><span class="fl">0.1</span>, <span class="fl">0.2</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
 <span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_jacobian(theta, data):</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">del</span> theta</span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>(data[<span class="st">&quot;z&quot;</span>].T <span class="op">@</span> data[<span class="st">&quot;x&quot;</span>][:, <span class="va">None</span>]) <span class="op">/</span> data[<span class="st">&quot;x&quot;</span>].shape[<span class="dv">0</span>]</span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">9</span>)</span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">500</span></span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> z <span class="op">@</span> np.array([<span class="fl">0.9</span>, <span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> v</span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">1.0</span> <span class="op">*</span> x <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> v <span class="op">+</span> <span class="fl">0.3</span> <span class="op">*</span> eps</span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.GMM(simple_iv_moments, jacobian_fn<span class="op">=</span>simple_iv_jacobian, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;x&quot;</span>: x, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;z&quot;</span>: z}, np.array([<span class="fl">0.0</span>]), weighting<span class="op">=</span><span class="st">&quot;identity&quot;</span>)</span>
-<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
-<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>sandwich <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;sandwich&quot;</span>, omega<span class="op">=</span><span class="st">&quot;iid&quot;</span>)</span>
-<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>vanilla[<span class="st">&quot;coef&quot;</span>], sandwich[<span class="st">&quot;se&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.EPLM()</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>model.fit(y, d, w)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>summary[<span class="st">&quot;coef&quot;</span>], summary[<span class="st">&quot;se&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display" data-execution_count="12">
+<pre><code>(1.2751864601203131, 0.03939548509130182)</code></pre>
+</div>
+</div>
+</section>
+<section id="averagederivative" class="level3" data-number="10.6">
+<h3 data-number="10.6" class="anchored" data-anchor-id="averagederivative"><span class="header-section-number">10.6</span> AverageDerivative</h3>
+<div id="f1fca893" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">8</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">320</span>, <span class="dv">2</span>))</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.2</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.6</span>, size<span class="op">=</span><span class="dv">320</span>)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>wc <span class="op">=</span> w <span class="op">-</span> w.mean(axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">1.0</span> <span class="op">+</span> wc <span class="op">@</span> np.array([<span class="fl">0.2</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> d <span class="op">*</span> (<span class="fl">0.9</span> <span class="op">+</span> wc <span class="op">@</span> np.array([<span class="fl">0.15</span>, <span class="op">-</span><span class="fl">0.1</span>])) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.4</span>, size<span class="op">=</span><span class="dv">320</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.AverageDerivative(method<span class="op">=</span><span class="st">&quot;dr&quot;</span>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>model.fit(y, d, w)</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>summary[<span class="st">&quot;method&quot;</span>], summary[<span class="st">&quot;coef&quot;</span>], summary[<span class="st">&quot;se&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<pre><code>(&#39;dr&#39;, 0.9046195248445397, 0.03794115183465244)</code></pre>
+</div>
+</div>
+</section>
+<section id="partiallylineardml" class="level3" data-number="10.7">
+<h3 data-number="10.7" class="anchored" data-anchor-id="partiallylineardml"><span class="header-section-number">10.7</span> PartiallyLinearDML</h3>
+<div id="876b94bf" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">10</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">400</span>, <span class="dv">4</span>))</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.3</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">400</span>)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">1.4</span> <span class="op">*</span> d <span class="op">+</span> <span class="fl">1.0</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.1</span>, <span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.6</span>, size<span class="op">=</span><span class="dv">400</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.PartiallyLinearDML(penalty<span class="op">=</span>np.array([<span class="fl">0.0</span>, <span class="fl">0.05</span>, <span class="fl">0.2</span>, <span class="fl">1.0</span>]), cv<span class="op">=</span><span class="dv">5</span>, n_folds<span class="op">=</span><span class="dv">5</span>, seed<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>model.fit(y, d, x)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>summary[<span class="st">&quot;coef&quot;</span>], summary[<span class="st">&quot;se&quot;</span>], summary[<span class="st">&quot;outcome_penalties&quot;</span>][:<span class="dv">2</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<pre><code>(1.4397375001982882, 0.04256717594987083, array([1., 1.]))</code></pre>
+</div>
+</div>
+</section>
+<section id="aipw" class="level3" data-number="10.8">
+<h3 data-number="10.8" class="anchored" data-anchor-id="aipw"><span class="header-section-number">10.8</span> AIPW</h3>
+<div id="a67c9029" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">450</span>, <span class="dv">3</span>))</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="fl">0.1</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>]))))</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> rng.binomial(<span class="dv">1</span>, pi, size<span class="op">=</span><span class="dv">450</span>).astype(<span class="bu">float</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.3</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.4</span>]) <span class="op">+</span> <span class="fl">1.1</span> <span class="op">*</span> d <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">450</span>)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.AIPW(penalty<span class="op">=</span>np.array([<span class="fl">0.0</span>, <span class="fl">0.05</span>, <span class="fl">0.2</span>, <span class="fl">1.0</span>]), cv<span class="op">=</span><span class="dv">5</span>, n_folds<span class="op">=</span><span class="dv">5</span>, seed<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>model.fit(y, d, x)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>summary[<span class="st">&quot;ate&quot;</span>], summary[<span class="st">&quot;se&quot;</span>], summary[<span class="st">&quot;propensity_penalties&quot;</span>][:<span class="dv">2</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<pre><code>(1.0431380703853548, 0.14318339392738957, array([1., 1.]))</code></pre>
+</div>
+</div>
+</section>
+<section id="gmm" class="level3" data-number="10.9">
+<h3 data-number="10.9" class="anchored" data-anchor-id="gmm"><span class="header-section-number">10.9</span> GMM</h3>
+<div id="cb8f4cc7" class="cell" data-execution_count="16">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_moments(theta, data):</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>] <span class="op">-</span> data[<span class="st">&quot;x&quot;</span>] <span class="op">*</span> theta[<span class="dv">0</span>]</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> data[<span class="st">&quot;z&quot;</span>] <span class="op">*</span> resid[:, <span class="va">None</span>]</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_jacobian(theta, data):</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">del</span> theta</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>(data[<span class="st">&quot;z&quot;</span>].T <span class="op">@</span> data[<span class="st">&quot;x&quot;</span>][:, <span class="va">None</span>]) <span class="op">/</span> data[<span class="st">&quot;x&quot;</span>].shape[<span class="dv">0</span>]</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">9</span>)</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">500</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>eps <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> z <span class="op">@</span> np.array([<span class="fl">0.9</span>, <span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> v</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">1.0</span> <span class="op">*</span> x <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> v <span class="op">+</span> <span class="fl">0.3</span> <span class="op">*</span> eps</span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.GMM(simple_iv_moments, jacobian_fn<span class="op">=</span>simple_iv_jacobian, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;x&quot;</span>: x, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;z&quot;</span>: z}, np.array([<span class="fl">0.0</span>]), weighting<span class="op">=</span><span class="st">&quot;identity&quot;</span>)</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>sandwich <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;sandwich&quot;</span>, omega<span class="op">=</span><span class="st">&quot;iid&quot;</span>)</span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>vanilla[<span class="st">&quot;coef&quot;</span>], sandwich[<span class="st">&quot;se&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="16">
 <pre><code>(array([0.95457291]), array([0.02801009]))</code></pre>
 </div>
 </div>
 </section>
-<section id="fixedeffectsols" class="level3" data-number="10.6">
-<h3 data-number="10.6" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">10.6</span> FixedEffectsOLS</h3>
+<section id="fixedeffectsols" class="level3" data-number="10.10">
+<h3 data-number="10.10" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">10.10</span> FixedEffectsOLS</h3>
 <p>This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with <code>within</code>, then regress the residualized outcome on the residualized regressors with no intercept.</p>
-<div id="ff308f4b" class="cell" data-execution_count="13">
+<div id="c71a1ca7" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>worker <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">30</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">15</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.6</span>])</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    x <span class="op">@</span> beta</span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">30</span>)[worker]</span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span><span class="dv">15</span>)[firm]</span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.15</span>, size<span class="op">=</span>n)</span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
-<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
-<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>cluster <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>worker.astype(np.int64))</span>
-<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>cluster</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>worker <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">30</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">15</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.6</span>])</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> (</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    x <span class="op">@</span> beta</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">30</span>)[worker]</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span><span class="dv">15</span>)[firm]</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.15</span>, size<span class="op">=</span>n)</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>cluster <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>worker.astype(np.int64))</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>cluster</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="13">
+<div class="cell-output cell-output-display" data-execution_count="17">
 <pre><code>{&#39;coef&#39;: array([ 1.01369715, -0.60410017]),
  &#39;coef_se&#39;: array([0.00786918, 0.00722453]),
  &#39;vcov_type&#39;: &#39;cluster&#39;}</code></pre>
 </div>
 </div>
 </section>
-<section id="mestimator" class="level3" data-number="10.7">
-<h3 data-number="10.7" class="anchored" data-anchor-id="mestimator"><span class="header-section-number">10.7</span> MEstimator</h3>
+<section id="mestimator" class="level3" data-number="10.11">
+<h3 data-number="10.11" class="anchored" data-anchor-id="mestimator"><span class="header-section-number">10.11</span> MEstimator</h3>
 <p>This is the lowest-level public interface in the library. The callback contract matters more than the optimizer choice:</p>
 <ul>
 <li><code>objective_fn(theta, data)</code> must return <code>(objective_value, gradient_vector)</code>.</li>
 <li><code>score_fn(theta, data)</code> must return an <code>(n_obs, n_params)</code> matrix of per-observation scores.</li>
 <li>For bootstrap support, the <code>data</code> dictionary must include <code>n</code>, and user code should respect an optional <code>indices</code> key.</li>
 </ul>
-<div id="1b2df250" class="cell" data-execution_count="14">
+<div id="34eb4c69" class="cell" data-execution_count="18">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_objective(theta, data):</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    indices <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    Xb <span class="op">=</span> X[indices]</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    yb <span class="op">=</span> y[indices]</span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> yb <span class="op">-</span> Xb <span class="op">@</span> theta</span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    objective <span class="op">=</span> <span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(residual<span class="op">**</span><span class="dv">2</span>)</span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    gradient <span class="op">=</span> <span class="op">-</span>(Xb.T <span class="op">@</span> residual)</span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> objective, gradient</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_scores(theta, data):</span>
-<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> y <span class="op">-</span> X <span class="op">@</span> theta</span>
-<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>X <span class="op">*</span> residual[:, <span class="va">None</span>]</span>
-<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
-<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">2</span>))</span>
-<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">@</span> np.array([<span class="fl">1.5</span>, <span class="op">-</span><span class="fl">0.4</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
-<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(</span>
-<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    objective_fn<span class="op">=</span>ols_objective,</span>
-<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>    score_fn<span class="op">=</span>ols_scores,</span>
-<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">200</span>,</span>
-<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;X&quot;</span>: X, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: <span class="bu">len</span>(y)}, np.zeros(X.shape[<span class="dv">1</span>]))</span>
-<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>model.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_objective(theta, data):</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    indices <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    Xb <span class="op">=</span> X[indices]</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>    yb <span class="op">=</span> y[indices]</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> yb <span class="op">-</span> Xb <span class="op">@</span> theta</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    objective <span class="op">=</span> <span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(residual<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>    gradient <span class="op">=</span> <span class="op">-</span>(Xb.T <span class="op">@</span> residual)</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> objective, gradient</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ols_scores(theta, data):</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>]</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>]</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>    residual <span class="op">=</span> y <span class="op">-</span> X <span class="op">@</span> theta</span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>X <span class="op">*</span> residual[:, <span class="va">None</span>]</span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">2</span>))</span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">@</span> np.array([<span class="fl">1.5</span>, <span class="op">-</span><span class="fl">0.4</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(</span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>    objective_fn<span class="op">=</span>ols_objective,</span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>    score_fn<span class="op">=</span>ols_scores,</span>
+<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>    max_iterations<span class="op">=</span><span class="dv">200</span>,</span>
+<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&quot;X&quot;</span>: X, <span class="st">&quot;y&quot;</span>: y, <span class="st">&quot;n&quot;</span>: <span class="bu">len</span>(y)}, np.zeros(X.shape[<span class="dv">1</span>]))</span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a>model.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="14">
+<div class="cell-output cell-output-display" data-execution_count="18">
 <pre><code>{&#39;coef&#39;: array([ 1.49784531, -0.39974307]),
  &#39;se&#39;: array([0.60847816, 0.63437929])}</code></pre>
 </div>

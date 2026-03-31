@@ -4797,10 +4797,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/balancing-weights.html">
- <span class="dropdown-text">Balancing Weights</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4828,6 +4824,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4853,6 +4872,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -4909,7 +4932,7 @@ vertical-align: -.125em;
 <p>The setting is deliberately chosen to go beyond the closed-form <code>TwoSLS</code> wrapper: five excluded instruments, two-step weighting, and a J-statistic.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="25df0d85" class="cell" data-execution_count="1">
+<div id="ffae1609" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4921,7 +4944,7 @@ vertical-align: -.125em;
 <section id="simulate-a-linear-iv-problem" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="simulate-a-linear-iv-problem"><span class="header-section-number">2</span> Simulate A Linear IV Problem</h2>
 <p>We generate two endogenous regressors, <code>x1</code> and <code>x2</code>, from five excluded instruments. Endogeneity comes from latent shocks shared with the structural error, so naive OLS is biased.</p>
-<div id="36ab2943" class="cell" data-execution_count="2">
+<div id="c929b2a9" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260321</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">4000</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4961,7 +4984,7 @@ naive OLS beta: [ 1.5118 -1.0694]</code></pre>
 <p>For linear IV, the sample moment vector is just</p>
 <p><code>gbar(theta) = Z&#39; (y - X theta) / n</code>.</p>
 <p>That is enough to drive both a scalar GMM criterion and a least-squares residual system.</p>
-<div id="fa1968d7" class="cell" data-execution_count="3">
+<div id="48df24a1" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_moments(theta, x, y, z):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> y <span class="op">-</span> x <span class="op">@</span> theta</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> z.T <span class="op">@</span> resid <span class="op">/</span> x.shape[<span class="dv">0</span>]</span>
@@ -5009,7 +5032,7 @@ naive OLS beta: [ 1.5118 -1.0694]</code></pre>
 <section id="just-identified-gmm" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="just-identified-gmm"><span class="header-section-number">4</span> Just-Identified GMM</h2>
 <p>To get a just-identified problem with two parameters, we keep only two of the five instruments:</p>
-<div id="06845c04" class="cell" data-execution_count="4">
+<div id="fd198a3e" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>Z_just <span class="op">=</span> Z[:, :<span class="dv">2</span>]</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>W_just <span class="op">=</span> np.eye(Z_just.shape[<span class="dv">1</span>])</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>W_just_root <span class="op">=</span> make_weight_root(W_just)</span>
@@ -5045,7 +5068,7 @@ BFGS just-id beta: [ 1.2838 -0.7806]</code></pre>
 <section id="overidentified-gmm-with-five-instruments" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="overidentified-gmm-with-five-instruments"><span class="header-section-number">5</span> Overidentified GMM With Five Instruments</h2>
 <p>Now we use all five instruments. First we run a one-step GMM with identity weighting. Then we estimate the moment covariance and do a second-step efficient GMM fit.</p>
-<div id="076acfc4" class="cell" data-execution_count="5">
+<div id="5b963d8d" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>W_identity <span class="op">=</span> np.eye(Z.shape[<span class="dv">1</span>])</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>W_identity_root <span class="op">=</span> make_weight_root(W_identity)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5101,7 +5124,7 @@ J-statistic: 1.9654 with df = 3</code></pre>
 </section>
 <section id="compare-the-estimates" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="compare-the-estimates"><span class="header-section-number">6</span> Compare The Estimates</h2>
-<div id="b0b95b75" class="cell" data-execution_count="6">
+<div id="b87c96aa" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">&quot;beta_1&quot;</span>, <span class="st">&quot;beta_2&quot;</span>]</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>xpos <span class="op">=</span> np.arange(<span class="bu">len</span>(labels))</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="fl">0.22</span></span>
@@ -5135,7 +5158,7 @@ J-statistic: 1.9654 with df = 3</code></pre>
 </div>
 </div>
 </div>
-<div id="787fcced" class="cell" data-execution_count="7">
+<div id="12c2dcea" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>estimator_labels <span class="op">=</span> [</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;true&quot;</span>,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;naive OLS&quot;</span>,</span>

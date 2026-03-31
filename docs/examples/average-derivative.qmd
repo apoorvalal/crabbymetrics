@@ -1,0 +1,141 @@
+---
+title: "Average Derivative"
+subtitle: "Oaxaca-Blinder, generalized IPW, and doubly robust average-derivative estimators"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+`AverageDerivative` targets the average derivative of the outcome with respect to a scalar continuous treatment $D$.
+
+The working outcome model is
+
+$$
+\mathbb{E}[Y \mid D, W]
+=
+\alpha
++ \gamma^\top (W - \mu_W)
++ D \left[\beta + \delta^\top (W - \mu_W)\right].
+$$
+
+Under this parameterization, the conditional derivative is
+
+$$
+\frac{\partial}{\partial D}\mathbb{E}[Y \mid D, W]
+=
+\beta + \delta^\top (W - \mu_W),
+$$
+
+so the average derivative is simply $\beta$ because $\mathbb{E}[W - \mu_W] = 0$.
+
+## The Three Estimators
+
+### Oaxaca-Blinder
+
+`method="ob"` fits the interacted linear regression directly and reads off the coefficient on $D$.
+
+### Generalized IPW
+
+`method="ipw"` uses the normal working model
+
+$$
+e(W) = \mathbb{E}[D \mid W],
+\qquad
+v(W) = \operatorname{Var}(D \mid W) = \sigma^2,
+$$
+
+and solves
+
+$$
+\mathbb{E}\left[
+\frac{D_i - e(W_i)}{\sigma^2}\left(Y_i - \beta D_i\right)
+\right]
+=
+0.
+$$
+
+### Doubly Robust
+
+`method="dr"` combines the two. It keeps the outcome regression basis from the Oaxaca-Blinder estimator and replaces the last instrument with the generalized IPW score:
+
+$$
+Z_i
+=
+\begin{bmatrix}
+1 \\
+W_i - \mu_W \\
+(W_i - \mu_W)D_i \\
+\frac{D_i - e(W_i)}{\sigma^2}
+\end{bmatrix}.
+$$
+
+The implementation treats all three estimators as exactly identified stacked-moment systems, so their reported standard errors come from a common sandwich calculation rather than ad hoc post-processing.
+
+```{python}
+from html import escape
+
+import numpy as np
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+
+def html_table(headers, rows):
+    parts = [
+        "<table>",
+        "<thead>",
+        "<tr>",
+        *[f"<th>{escape(str(header))}</th>" for header in headers],
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        parts.append("<tr>")
+        for cell in row:
+            parts.append(f"<td>{escape(str(cell))}</td>")
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+
+
+rng = np.random.default_rng(2027)
+n = 1400
+w = rng.normal(size=(n, 3))
+d = 0.2 + w @ np.array([0.6, -0.4, 0.3]) + rng.normal(scale=0.7, size=n)
+wc = w - w.mean(axis=0)
+y = (
+    1.0
+    + wc @ np.array([0.3, -0.2, 0.4])
+    + d * (1.25 + wc @ np.array([0.2, -0.15, 0.1]))
+    + rng.normal(scale=0.5, size=n)
+)
+
+results = []
+for method in ["ob", "ipw", "dr"]:
+    model = cm.AverageDerivative(method=method)
+    model.fit(y, d, w)
+    summary = model.summary()
+    results.append([method.upper(), f"{summary['coef']: .4f}", f"{summary['se']: .4f}"])
+
+results.insert(0, ["Truth", f"{1.25: .4f}", "--"])
+display(HTML(html_table(["Estimator", "Estimate", "SE"], results)))
+```
+
+## Interpretation
+
+- `ob` is the most model-driven: it assumes the interacted linear regression is the right local approximation.
+- `ipw` leans on the generalized propensity score side instead.
+- `dr` is the cleanest compromise in this working-model family. It uses both pieces and is locally efficient under the joint specification used here.
+
+The current implementation is the scalar continuous-treatment case. That is the right v1 because it keeps the average-derivative target, the normal working model, and the moment system all aligned.

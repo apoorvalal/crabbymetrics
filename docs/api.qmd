@@ -60,8 +60,7 @@ def html_table(headers, rows):
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
-- Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
-- Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, balancing weights, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
+- Coverage is broad for a small codebase: OLS, Ridge, fixed-effects OLS, synthetic control, balancing weights, EPLM, average-derivative estimators, partially linear DML, AIPW, ElasticNet, binary and multinomial logit, Poisson, TwoSLS, FTRL, a first-class callback-driven `GMM`, a lower-level `MEstimator`, plus `PCA` and `KernelBasis` as design-matrix preprocessors.
 - The module also exposes an `Optimizers` class with static methods for LBFGS, BFGS, nonlinear conjugate gradient, Gauss-Newton least squares, and simulated annealing.
 - The main maturity gaps are still API breadth and test depth. The public contract is now documented, but the estimator surface is intentionally narrow.
 - The public API is consistent, but not fully uniform. `summary()` always returns a plain Python `dict`, yet the exact keys vary by estimator.
@@ -80,6 +79,10 @@ classes = [
     cm.FixedEffectsOLS,
     cm.SyntheticControl,
     cm.BalancingWeights,
+    cm.EPLM,
+    cm.AverageDerivative,
+    cm.PartiallyLinearDML,
+    cm.AIPW,
     cm.ElasticNet,
     cm.Logit,
     cm.MultinomialLogit,
@@ -137,10 +140,13 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
 - `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
 - `BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)` estimates calibration weights on the first matrix so its weighted covariate mean matches the target mean implied by the second matrix.
+- `EPLM.fit(y, d, w)` and `AverageDerivative.fit(y, d, w)` currently target a scalar continuous treatment and a 2D control matrix.
+- `PartiallyLinearDML.fit(y, d, x)` targets a scalar continuous treatment with cross-fit ridge nuisances.
+- `AIPW.fit(y, d, x)` targets a binary treatment coded as `0/1` and estimates the ATE with cross-fit ridge nuisance models.
 - `Logit`, `MultinomialLogit`, and `FTRL` expect integer class labels at fit time.
 - Most estimators store their training data internally so `summary()` and `bootstrap()` can be called after `fit()`.
 - OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS now always fit an intercept.
-- `FixedEffectsOLS`, `GMM`, and `MEstimator` deliberately have no `predict()` method. They are estimation-first interfaces.
+- `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` deliberately have no `predict()` method. They are estimation-first interfaces.
 - When an estimator has an intercept, bootstrap draws place it in the first column.
 - `summary()` returns dictionaries, not rich result objects. Downstream code should index by key.
 - `bootstrap(n_bootstrap, seed=None)` now accepts an omitted seed across the full public surface.
@@ -190,6 +196,38 @@ reference_rows = [
         "<code>weights</code>, <code>beta</code>, <code>weighted_mean</code>, <code>target_mean</code>, <code>mean_diff</code>, <code>l2_diff</code>, <code>effective_sample_size</code>, <code>success</code>",
         "No bootstrap method",
         "Dual calibration solver for entropy and quadratic balancing weights. Intended for ATT-style reweighting, covariate shift, and domain adaptation tasks where one sample is reweighted to match another sample's covariate mean.",
+    ],
+    [
+        "<code>EPLM</code>",
+        "<code>fit(y, d, w)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>coef</code>, <code>se</code>, <code>vcov</code>, <code>nuisance_coef</code>",
+        "No bootstrap method",
+        "Robins-Newey style partially linear E-estimator implemented as an exactly identified stacked-moment system with a linear working model for <code>E[D|W]</code>.",
+    ],
+    [
+        "<code>AverageDerivative</code>",
+        "<code>fit(y, d, w)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>method</code>, <code>coef</code>, <code>se</code>, <code>vcov</code>",
+        "No bootstrap method",
+        "Graham-Pinto style average-derivative estimator with <code>method='ob' | 'ipw' | 'dr'</code> under a scalar continuous-treatment working model.",
+    ],
+    [
+        "<code>PartiallyLinearDML</code>",
+        "<code>fit(y, d, x)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>coef</code>, <code>se</code>, <code>vcov</code>, <code>outcome_penalties</code>, <code>treatment_penalties</code>",
+        "No bootstrap method",
+        "Cross-fit ridge implementation of the partially linear Double-ML score. The nuisance fits are selected fold by fold from a common ridge penalty grid.",
+    ],
+    [
+        "<code>AIPW</code>",
+        "<code>fit(y, d, x)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>ate</code>, <code>se</code>, <code>vcov</code>, <code>outcome0_penalties</code>, <code>outcome1_penalties</code>, <code>propensity_penalties</code>",
+        "No bootstrap method",
+        "Cross-fit ridge AIPW estimator for a binary-treatment ATE. Outcome regressions are fit separately by treatment arm and the ridge propensity fit is clipped away from 0 and 1.",
     ],
     [
         "<code>ElasticNet</code>",
@@ -648,6 +686,68 @@ hc1 = model.summary()
 cluster = model.summary(vcov="cluster", clusters=clusters)
 
 hc1["coef"], cluster["coef_se"]
+```
+
+### EPLM
+
+```{python}
+rng = np.random.default_rng(7)
+w = rng.normal(size=(300, 3))
+d = 0.4 + w @ np.array([0.7, -0.4, 0.2]) + rng.normal(scale=0.8, size=300)
+y = 1.3 * d + 0.8 + w @ np.array([0.3, -0.1, 0.2]) + rng.normal(scale=0.5, size=300)
+
+model = cm.EPLM()
+model.fit(y, d, w)
+
+summary = model.summary()
+summary["coef"], summary["se"]
+```
+
+### AverageDerivative
+
+```{python}
+rng = np.random.default_rng(8)
+w = rng.normal(size=(320, 2))
+d = 0.2 + w @ np.array([0.6, -0.3]) + rng.normal(scale=0.6, size=320)
+wc = w - w.mean(axis=0)
+y = 1.0 + wc @ np.array([0.2, -0.3]) + d * (0.9 + wc @ np.array([0.15, -0.1])) + rng.normal(scale=0.4, size=320)
+
+model = cm.AverageDerivative(method="dr")
+model.fit(y, d, w)
+
+summary = model.summary()
+summary["method"], summary["coef"], summary["se"]
+```
+
+### PartiallyLinearDML
+
+```{python}
+rng = np.random.default_rng(10)
+x = rng.normal(size=(400, 4))
+d = 0.3 + x @ np.array([0.5, -0.4, 0.2, 0.1]) + rng.normal(scale=0.8, size=400)
+y = 1.4 * d + 1.0 + x @ np.array([0.4, -0.2, 0.1, 0.3]) + rng.normal(scale=0.6, size=400)
+
+model = cm.PartiallyLinearDML(penalty=np.array([0.0, 0.05, 0.2, 1.0]), cv=5, n_folds=5, seed=1)
+model.fit(y, d, x)
+
+summary = model.summary()
+summary["coef"], summary["se"], summary["outcome_penalties"][:2]
+```
+
+### AIPW
+
+```{python}
+rng = np.random.default_rng(11)
+x = rng.normal(size=(450, 3))
+pi = 1.0 / (1.0 + np.exp(-(0.1 + x @ np.array([0.7, -0.4, 0.2]))))
+d = rng.binomial(1, pi, size=450).astype(float)
+y = 0.5 + x @ np.array([0.3, -0.2, 0.4]) + 1.1 * d + rng.normal(scale=0.8, size=450)
+
+model = cm.AIPW(penalty=np.array([0.0, 0.05, 0.2, 1.0]), cv=5, n_folds=5, seed=1)
+model.fit(y, d, x)
+
+summary = model.summary()
+summary["ate"], summary["se"], summary["propensity_penalties"][:2]
 ```
 
 ### GMM

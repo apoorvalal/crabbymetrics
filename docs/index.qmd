@@ -13,7 +13,7 @@ execute:
   message: false
 ---
 
-`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and unsupervised example pages, focused numerical ablations, and a small set of supporting internals pages.
+`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.
 
 ## Start Here
 
@@ -27,7 +27,6 @@ execute:
 - [Fixed Effects OLS](examples/fixed-effects-ols.html): partial out one-way or multi-way categorical fixed effects with `within`, then estimate slopes without an intercept.
 - [ElasticNet](examples/elastic-net.html): regularized linear regression.
 - [Synthetic Control](examples/synthetic-control.html): simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.
-- [Balancing Weights](examples/balancing-weights.html): entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.
 - [Logit](examples/logit.html): binary logistic regression.
 - [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.
 - [Poisson](examples/poisson.html): count regression, with model-based or QMLE sandwich inference available from `summary(vcov=...)`.
@@ -35,7 +34,14 @@ execute:
 - [GMM](examples/gmm.html): fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class `GMM` estimator.
 - [FTRL](examples/ftrl.html): online-style binary classification.
 - [MEstimator Poisson](examples/mestimator-poisson.html): callback-driven estimation matched against the built-in Poisson estimator.
-- [Richer Regression With Transformer Pipelines](examples/richer-regression.html): a longer supervised example built on `KernelBasis` and `PCA`.
+
+## Semiparametric Examples
+
+- [Balancing Weights](examples/balancing-weights.html): entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.
+- [EPLM](examples/eplm.html): the Robins-Newey partially linear E-estimator, implemented as a stacked-moment estimator for a scalar continuous treatment.
+- [Average Derivative](examples/average-derivative.html): Oaxaca-Blinder, generalized IPW, and doubly robust average-derivative estimators in the Graham-Pinto style under a continuous-treatment working model.
+- [Double ML And AIPW](examples/double-ml.html): cross-fit ridge nuisance estimation for partially linear DML and binary-treatment AIPW.
+- [Richer Regression With Transformer Pipelines](examples/richer-regression.html): a longer semiparametric-style example built on `KernelBasis` and `PCA`.
 
 ## Unsupervised Learning Examples
 
@@ -44,6 +50,7 @@ execute:
 ## Ablations
 
 - [Variance Estimators](ablations/variance-estimators.html): cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.
+- [Semiparametric Estimator Comparisons](ablations/semiparametric-estimators.html): cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.
 
 ## Optimization
 

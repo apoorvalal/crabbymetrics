@@ -3,8 +3,9 @@ mod optimizers;
 mod utils;
 
 use crate::estimators::{
-    BalancingWeights, ElasticNet, FixedEffectsOLS, KernelBasis, Logit, MEstimator,
-    MultinomialLogit, PcaTransformer, Poisson, Ridge, SyntheticControl, TwoSLS, FTRL, GMM, OLS,
+    AverageDerivative, BalancingWeights, ElasticNet, FixedEffectsOLS, KernelBasis, Logit,
+    MEstimator, MultinomialLogit, PartiallyLinearDML, PcaTransformer, Poisson, Ridge,
+    SyntheticControl, TwoSLS, AIPW, EPLM, FTRL, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -24,6 +25,10 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FTRL>()?;
     m.add_class::<MEstimator>()?;
     m.add_class::<GMM>()?;
+    m.add_class::<EPLM>()?;
+    m.add_class::<AverageDerivative>()?;
+    m.add_class::<PartiallyLinearDML>()?;
+    m.add_class::<AIPW>()?;
     m.add_class::<PcaTransformer>()?;
     m.add_class::<KernelBasis>()?;
     m.add_class::<Optimizers>()?;

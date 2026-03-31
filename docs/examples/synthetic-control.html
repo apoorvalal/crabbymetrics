@@ -4797,10 +4797,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/balancing-weights.html">
- <span class="dropdown-text">Balancing Weights</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4828,6 +4824,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4853,6 +4872,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -4908,7 +4931,7 @@ vertical-align: -.125em;
 <p>This example builds a 50-unit, 20-period panel from a two-factor model. The treated unit is selected from the high end of the first principal component of the pre-treatment panel, so the raw donor average has obvious pre-trend mismatch. <code>SyntheticControl</code> reweights donors on the simplex to match the treated unit before treatment at period 15.</p>
 <section id="generate-a-factor-model-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="generate-a-factor-model-panel"><span class="header-section-number">1</span> Generate A Factor-Model Panel</h2>
-<div id="696112c9" class="cell" data-execution_count="1">
+<div id="c2624124" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4916,7 +4939,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="ebab2168" class="cell" data-execution_count="2">
+<div id="78d7e327" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2027</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_units <span class="op">=</span> <span class="dv">50</span></span>
@@ -4979,7 +5002,7 @@ treated unit PC1 score: 8.7376</code></pre>
 </section>
 <section id="fit-synthetic-control-on-pre-treatment-periods" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-synthetic-control-on-pre-treatment-periods"><span class="header-section-number">2</span> Fit Synthetic Control On Pre-Treatment Periods</h2>
-<div id="e4e0bdcf" class="cell" data-execution_count="3">
+<div id="7bbffce1" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>pre_idx <span class="op">=</span> <span class="bu">slice</span>(<span class="dv">0</span>, treatment_start <span class="op">-</span> <span class="dv">1</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>post_idx <span class="op">=</span> <span class="bu">slice</span>(treatment_start <span class="op">-</span> <span class="dv">1</span>, <span class="va">None</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5015,7 +5038,7 @@ top donor weights:
 </section>
 <section id="compare-raw-trends-to-synthetic-control" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="compare-raw-trends-to-synthetic-control"><span class="header-section-number">3</span> Compare Raw Trends To Synthetic Control</h2>
-<div id="771f50e0" class="cell" data-execution_count="4">
+<div id="395add54" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot(time <span class="op">+</span> <span class="dv">1</span>, treated_observed, color<span class="op">=</span><span class="st">&quot;black&quot;</span>, lw<span class="op">=</span><span class="fl">2.2</span>, label<span class="op">=</span><span class="st">&quot;Treated&quot;</span>)</span>

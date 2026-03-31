@@ -4763,10 +4763,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/balancing-weights.html">
- <span class="dropdown-text">Balancing Weights</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="./examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4794,6 +4790,29 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="./examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Semiparametrics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+        <li>
+    <a class="dropdown-item" href="./examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="./examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
@@ -4819,6 +4838,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="./ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
     </ul>
   </li>
@@ -4855,6 +4878,7 @@ vertical-align: -.125em;
   <ul class="collapse">
   <li><a href="#start-here" id="toc-start-here" class="nav-link active" data-scroll-target="#start-here">Start Here</a></li>
   <li><a href="#supervised-learning-examples" id="toc-supervised-learning-examples" class="nav-link" data-scroll-target="#supervised-learning-examples">Supervised Learning Examples</a></li>
+  <li><a href="#semiparametric-examples" id="toc-semiparametric-examples" class="nav-link" data-scroll-target="#semiparametric-examples">Semiparametric Examples</a></li>
   <li><a href="#unsupervised-learning-examples" id="toc-unsupervised-learning-examples" class="nav-link" data-scroll-target="#unsupervised-learning-examples">Unsupervised Learning Examples</a></li>
   <li><a href="#ablations" id="toc-ablations" class="nav-link" data-scroll-target="#ablations">Ablations</a></li>
   <li><a href="#optimization" id="toc-optimization" class="nav-link" data-scroll-target="#optimization">Optimization</a></li>
@@ -4886,7 +4910,7 @@ vertical-align: -.125em;
 </header>
 
 
-<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and unsupervised example pages, focused numerical ablations, and a small set of supporting internals pages.</p>
+<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.</p>
 <section id="start-here" class="level2">
 <h2 class="anchored" data-anchor-id="start-here">Start Here</h2>
 <ul>
@@ -4902,7 +4926,6 @@ vertical-align: -.125em;
 <li><a href="examples/fixed-effects-ols.html">Fixed Effects OLS</a>: partial out one-way or multi-way categorical fixed effects with <code>within</code>, then estimate slopes without an intercept.</li>
 <li><a href="examples/elastic-net.html">ElasticNet</a>: regularized linear regression.</li>
 <li><a href="examples/synthetic-control.html">Synthetic Control</a>: simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.</li>
-<li><a href="examples/balancing-weights.html">Balancing Weights</a>: entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.</li>
 <li><a href="examples/logit.html">Logit</a>: binary logistic regression.</li>
 <li><a href="examples/multinomial-logit.html">Multinomial Logit</a>: multiclass classification.</li>
 <li><a href="examples/poisson.html">Poisson</a>: count regression, with model-based or QMLE sandwich inference available from <code>summary(vcov=...)</code>.</li>
@@ -4910,7 +4933,16 @@ vertical-align: -.125em;
 <li><a href="examples/gmm.html">GMM</a>: fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class <code>GMM</code> estimator.</li>
 <li><a href="examples/ftrl.html">FTRL</a>: online-style binary classification.</li>
 <li><a href="examples/mestimator-poisson.html">MEstimator Poisson</a>: callback-driven estimation matched against the built-in Poisson estimator.</li>
-<li><a href="examples/richer-regression.html">Richer Regression With Transformer Pipelines</a>: a longer supervised example built on <code>KernelBasis</code> and <code>PCA</code>.</li>
+</ul>
+</section>
+<section id="semiparametric-examples" class="level2">
+<h2 class="anchored" data-anchor-id="semiparametric-examples">Semiparametric Examples</h2>
+<ul>
+<li><a href="examples/balancing-weights.html">Balancing Weights</a>: entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.</li>
+<li><a href="examples/eplm.html">EPLM</a>: the Robins-Newey partially linear E-estimator, implemented as a stacked-moment estimator for a scalar continuous treatment.</li>
+<li><a href="examples/average-derivative.html">Average Derivative</a>: Oaxaca-Blinder, generalized IPW, and doubly robust average-derivative estimators in the Graham-Pinto style under a continuous-treatment working model.</li>
+<li><a href="examples/double-ml.html">Double ML And AIPW</a>: cross-fit ridge nuisance estimation for partially linear DML and binary-treatment AIPW.</li>
+<li><a href="examples/richer-regression.html">Richer Regression With Transformer Pipelines</a>: a longer semiparametric-style example built on <code>KernelBasis</code> and <code>PCA</code>.</li>
 </ul>
 </section>
 <section id="unsupervised-learning-examples" class="level2">
@@ -4923,6 +4955,7 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="ablations">Ablations</h2>
 <ul>
 <li><a href="ablations/variance-estimators.html">Variance Estimators</a>: cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.</li>
+<li><a href="ablations/semiparametric-estimators.html">Semiparametric Estimator Comparisons</a>: cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.</li>
 </ul>
 </section>
 <section id="optimization" class="level2">
