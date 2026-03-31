@@ -227,6 +227,7 @@ Scope:
   - quadratic balancing
   - optional baseline weights
   - optional approximate balance via `l2_norm`
+- treat AST-style ATT weighting as conceptually subsumed by the same balance-first tilting family rather than as a separate priority item
 
 Do not port:
 
@@ -300,29 +301,6 @@ Success condition:
 
 - common interface, shared tests, and one comparative vignette
 
-### Priority 5: AST ATT
-
-Status: not started
-
-Reference:
-
-- `frisch/att.py`
-
-Why later:
-
-- more specialized
-- more numerically delicate because of the tilt optimization and regularization choices
-- valuable, but not the first semiparametric treatment estimator to land
-
-Scope:
-
-- auxiliary-to-study tilting for ATT
-- keep only the direct array interface and the core diagnostics
-
-Success condition:
-
-- stable solver behavior on moderate overlap problems
-
 ### Probably not worth porting directly
 
 - `frisch/aipw.py`
@@ -338,4 +316,3 @@ Success condition:
 2. balancing / calibration weights
 3. EPLM
 4. average derivative / average regression family
-5. AST ATT

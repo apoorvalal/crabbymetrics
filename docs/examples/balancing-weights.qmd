@@ -39,6 +39,127 @@ The examples below use two standard stress tests:
 - Kang-Schafer, where the observed covariates are nonlinear transformations of latent Gaussian drivers.
 - Hainmueller, adapted from `aipyw`, where overlap and functional-form difficulty can be dialed up or down.
 
+## Literature Map
+
+`BalancingWeights` sits in a tight cluster of weighting estimators that differ more by parameterization than by the balance conditions they impose.
+
+- [Hainmueller (2012)](https://www.mit.edu/~jhainm/Paper/eb.pdf) formulates entropy balancing as a convex calibration problem: choose positive control weights that exactly match treated covariate moments while staying close to baseline weights.
+- [Graham, de Xavier Pinto, and Egel (2012)](https://eml.berkeley.edu/~bgraham/Published/ReStud_v79n3_2012/BSG_ReStud_v79n3_2012.pdf) show that inverse probability tilting estimates a logit index by moment conditions chosen so the implied weights satisfy exact sample balance.
+- [Imai and Ratkovic (2014)](https://imai.fas.harvard.edu/research/CBPS.html) recast the same balance-first logic as a propensity-score GMM / empirical-likelihood estimator.
+- [Graham, Pinto, and Egel (2016)](https://bryangraham.github.io/econometrics/downloads/publications/JBES_v34n2_2016/BSG_JBES_v34n2_2016.pdf) extend the same tilting geometry to data-combination problems by introducing separate study and auxiliary tilts.
+- [Zhao and Percival (2017)](https://arxiv.org/abs/1501.03571) make the dual interpretation explicit from the entropy-balancing side: entropy balancing behaves like a logistic propensity-score fit with a different loss.
+
+For the ATT problem, the cleanest exact equivalence is between entropy balancing and just-identified logit CBPS. Graham's tilting estimators are the same family, but full AST adds an extra layer of tilting beyond that baseline case.
+
+## Entropy Balancing, CBPS, and Tilting
+
+Let $c_i = c(X_i)$ be the balance basis, including an intercept, and let $q_i > 0$ denote baseline control weights. For the ATT, entropy balancing solves
+
+$$
+\min_{\{w_i\}_{i \in \mathcal{C}}}
+\sum_{i \in \mathcal{C}} w_i \log\!\left(\frac{w_i}{q_i}\right)
+\quad
+\text{subject to}
+\quad
+\sum_{i \in \mathcal{C}} w_i = 1,
+\qquad
+\sum_{i \in \mathcal{C}} w_i c_i = \bar c_{\mathcal{T}}.
+$$
+
+The Lagrangian first-order conditions imply a log-linear dual solution
+
+$$
+w_i(\lambda)
+=
+\frac{q_i \exp(\lambda^\top c_i)}
+{\sum_{j \in \mathcal{C}} q_j \exp(\lambda^\top c_j)},
+$$
+
+after the usual sign relabeling of the multipliers. This is the core Hainmueller result: entropy balancing chooses the multiplier $\lambda$ so that the tilted control distribution exactly matches the treated moments.
+
+Now write the ATT-CBPS balance equations with a logit propensity score $p_i = \Lambda(\beta^\top c_i)$:
+
+$$
+\frac{1}{n}
+\sum_{i=1}^n
+\left[
+D_i c_i
+-
+(1-D_i)\frac{p_i}{1-p_i} c_i
+\right]
+=
+0.
+$$
+
+Because the logit odds ratio satisfies
+
+$$
+\frac{p_i}{1-p_i}
+=
+\exp(\beta^\top c_i),
+$$
+
+the implied unnormalized control weights are
+
+$$
+\tilde w_i(\beta)
+=
+(1-D_i)\exp(\beta^\top c_i).
+$$
+
+The intercept moment pins down their total mass:
+
+$$
+\sum_{i \in \mathcal{C}} \tilde w_i(\beta)
+=
+\sum_{i=1}^n D_i
+=
+n_{\mathcal{T}}.
+$$
+
+Dividing by $n_{\mathcal{T}}$ yields normalized control weights
+
+$$
+w_i^{\mathrm{CBPS}}
+=
+\frac{\exp(\beta^\top c_i)}
+{\sum_{j \in \mathcal{C}} \exp(\beta^\top c_j)},
+\qquad i \in \mathcal{C},
+$$
+
+and the remaining moments become
+
+$$
+\sum_{i \in \mathcal{C}} w_i^{\mathrm{CBPS}} c_i
+=
+\bar c_{\mathcal{T}}.
+$$
+
+So with the same balance basis $c(X)$, an intercept, and uniform baseline weights $q_i$, ATT entropy balancing and just-identified logit CBPS deliver the same normalized weights. The practical difference is mostly primal versus dual parameterization: entropy balancing solves directly for calibration weights or multipliers, while CBPS solves for propensity-score coefficients whose logit odds generate those same weights.
+
+Graham's inverse probability tilting step is the same balance-first idea in another parameterization. The 2012 IPT moments choose a logit index so the implied weights satisfy exact balance moments, which in the ATT specialization again produces inverse-odds weights proportional to $\exp(\beta^\top c_i)$. AST adds a second layer of tilting on top of that baseline. Writing $\hat p_i = \Lambda(r_i^\top \hat \delta)$, the auxiliary weights take the form
+
+$$
+\hat \pi_i^a
+\propto
+(1-D_i)\frac{\hat p_i}
+{1 - \Lambda(r_i^\top \hat \delta + t_i^\top \hat \lambda_a)}.
+$$
+
+When the extra auxiliary tilt is unnecessary, $\hat \lambda_a = 0$, this collapses to
+
+$$
+\hat \pi_i^a
+\propto
+(1-D_i)\frac{\hat p_i}{1-\hat p_i}
+=
+(1-D_i)\exp(r_i^\top \hat \delta),
+$$
+
+which is exactly the same inverse-odds / entropy-balancing weight formula. With nontrivial study or auxiliary tilts, AST is a strict generalization rather than literally the same estimator.
+
+Quadratic balancing in this library keeps the same balance constraints and changes only the distance penalty. It therefore targets the same sample moments as entropy balancing, but it does not imply the same log-linear weight formula.
+
 ```{python}
 from html import escape
 
@@ -228,9 +349,9 @@ single_dataset = evaluate_single_dataset()
 
 ## Kang-Schafer
 
-Kang-Schafer is useful here because balancing is asked to work on the transformed covariates \(X\), not the latent Gaussian drivers \(Z\) that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.
+Kang-Schafer is useful here because balancing is asked to work on the transformed covariates $X$, not the latent Gaussian drivers $Z$ that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.
 
-On the single draw above, both balancing estimators substantially reduce the raw covariate imbalance, and the oracle version that balances on latent \(Z\) shows the benchmark we would like to approach.
+On the single draw above, both balancing estimators substantially reduce the raw covariate imbalance, and the oracle version that balances on latent $Z$ shows the benchmark we would like to approach.
 
 ```{python}
 def run_kang_schafer_panel(n_rep=80, n=1000, seed=2026):
@@ -272,7 +393,7 @@ kang_rows = run_kang_schafer_panel()
 display(HTML(html_table(["Method", "Mean Estimate", "Bias", "RMSE", "Success Rate"], summarize_rows(kang_rows))))
 ```
 
-The observed-\(X\) versions still live inside the canonical misspecification problem, so they do not become oracle estimators just by balancing means. But they do move sharply toward zero relative to the naive treated-control difference.
+The observed-$X$ versions still live inside the canonical misspecification problem, so they do not become oracle estimators just by balancing means. But they do move sharply toward zero relative to the naive treated-control difference.
 
 ## Hainmueller
 

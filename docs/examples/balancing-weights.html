@@ -5031,7 +5031,9 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#kang-schafer" id="toc-kang-schafer" class="nav-link active" data-scroll-target="#kang-schafer">Kang-Schafer</a></li>
+  <li><a href="#literature-map" id="toc-literature-map" class="nav-link active" data-scroll-target="#literature-map">Literature Map</a></li>
+  <li><a href="#entropy-balancing-cbps-and-tilting" id="toc-entropy-balancing-cbps-and-tilting" class="nav-link" data-scroll-target="#entropy-balancing-cbps-and-tilting">Entropy Balancing, CBPS, and Tilting</a></li>
+  <li><a href="#kang-schafer" id="toc-kang-schafer" class="nav-link" data-scroll-target="#kang-schafer">Kang-Schafer</a></li>
   <li><a href="#hainmueller" id="toc-hainmueller" class="nav-link" data-scroll-target="#hainmueller">Hainmueller</a></li>
   <li><a href="#takeaways" id="toc-takeaways" class="nav-link" data-scroll-target="#takeaways">Takeaways</a></li>
   </ul>
@@ -5077,6 +5079,103 @@ window.Quarto = {
 <li>Kang-Schafer, where the observed covariates are nonlinear transformations of latent Gaussian drivers.</li>
 <li>Hainmueller, adapted from <code>aipyw</code>, where overlap and functional-form difficulty can be dialed up or down.</li>
 </ul>
+<section id="literature-map" class="level2">
+<h2 class="anchored" data-anchor-id="literature-map">Literature Map</h2>
+<p><code>BalancingWeights</code> sits in a tight cluster of weighting estimators that differ more by parameterization than by the balance conditions they impose.</p>
+<ul>
+<li><a href="https://www.mit.edu/~jhainm/Paper/eb.pdf">Hainmueller (2012)</a> formulates entropy balancing as a convex calibration problem: choose positive control weights that exactly match treated covariate moments while staying close to baseline weights.</li>
+<li><a href="https://eml.berkeley.edu/~bgraham/Published/ReStud_v79n3_2012/BSG_ReStud_v79n3_2012.pdf">Graham, de Xavier Pinto, and Egel (2012)</a> show that inverse probability tilting estimates a logit index by moment conditions chosen so the implied weights satisfy exact sample balance.</li>
+<li><a href="https://imai.fas.harvard.edu/research/CBPS.html">Imai and Ratkovic (2014)</a> recast the same balance-first logic as a propensity-score GMM / empirical-likelihood estimator.</li>
+<li><a href="https://bryangraham.github.io/econometrics/downloads/publications/JBES_v34n2_2016/BSG_JBES_v34n2_2016.pdf">Graham, Pinto, and Egel (2016)</a> extend the same tilting geometry to data-combination problems by introducing separate study and auxiliary tilts.</li>
+<li><a href="https://arxiv.org/abs/1501.03571">Zhao and Percival (2017)</a> make the dual interpretation explicit from the entropy-balancing side: entropy balancing behaves like a logistic propensity-score fit with a different loss.</li>
+</ul>
+<p>For the ATT problem, the cleanest exact equivalence is between entropy balancing and just-identified logit CBPS. Graham’s tilting estimators are the same family, but full AST adds an extra layer of tilting beyond that baseline case.</p>
+</section>
+<section id="entropy-balancing-cbps-and-tilting" class="level2">
+<h2 class="anchored" data-anchor-id="entropy-balancing-cbps-and-tilting">Entropy Balancing, CBPS, and Tilting</h2>
+<p>Let <span class="math inline">\(c_i = c(X_i)\)</span> be the balance basis, including an intercept, and let <span class="math inline">\(q_i &gt; 0\)</span> denote baseline control weights. For the ATT, entropy balancing solves</p>
+<p><span class="math display">\[
+\min_{\{w_i\}_{i \in \mathcal{C}}}
+\sum_{i \in \mathcal{C}} w_i \log\!\left(\frac{w_i}{q_i}\right)
+\quad
+\text{subject to}
+\quad
+\sum_{i \in \mathcal{C}} w_i = 1,
+\qquad
+\sum_{i \in \mathcal{C}} w_i c_i = \bar c_{\mathcal{T}}.
+\]</span></p>
+<p>The Lagrangian first-order conditions imply a log-linear dual solution</p>
+<p><span class="math display">\[
+w_i(\lambda)
+=
+\frac{q_i \exp(\lambda^\top c_i)}
+{\sum_{j \in \mathcal{C}} q_j \exp(\lambda^\top c_j)},
+\]</span></p>
+<p>after the usual sign relabeling of the multipliers. This is the core Hainmueller result: entropy balancing chooses the multiplier <span class="math inline">\(\lambda\)</span> so that the tilted control distribution exactly matches the treated moments.</p>
+<p>Now write the ATT-CBPS balance equations with a logit propensity score <span class="math inline">\(p_i = \Lambda(\beta^\top c_i)\)</span>:</p>
+<p><span class="math display">\[
+\frac{1}{n}
+\sum_{i=1}^n
+\left[
+D_i c_i
+-
+(1-D_i)\frac{p_i}{1-p_i} c_i
+\right]
+=
+0.
+\]</span></p>
+<p>Because the logit odds ratio satisfies</p>
+<p><span class="math display">\[
+\frac{p_i}{1-p_i}
+=
+\exp(\beta^\top c_i),
+\]</span></p>
+<p>the implied unnormalized control weights are</p>
+<p><span class="math display">\[
+\tilde w_i(\beta)
+=
+(1-D_i)\exp(\beta^\top c_i).
+\]</span></p>
+<p>The intercept moment pins down their total mass:</p>
+<p><span class="math display">\[
+\sum_{i \in \mathcal{C}} \tilde w_i(\beta)
+=
+\sum_{i=1}^n D_i
+=
+n_{\mathcal{T}}.
+\]</span></p>
+<p>Dividing by <span class="math inline">\(n_{\mathcal{T}}\)</span> yields normalized control weights</p>
+<p><span class="math display">\[
+w_i^{\mathrm{CBPS}}
+=
+\frac{\exp(\beta^\top c_i)}
+{\sum_{j \in \mathcal{C}} \exp(\beta^\top c_j)},
+\qquad i \in \mathcal{C},
+\]</span></p>
+<p>and the remaining moments become</p>
+<p><span class="math display">\[
+\sum_{i \in \mathcal{C}} w_i^{\mathrm{CBPS}} c_i
+=
+\bar c_{\mathcal{T}}.
+\]</span></p>
+<p>So with the same balance basis <span class="math inline">\(c(X)\)</span>, an intercept, and uniform baseline weights <span class="math inline">\(q_i\)</span>, ATT entropy balancing and just-identified logit CBPS deliver the same normalized weights. The practical difference is mostly primal versus dual parameterization: entropy balancing solves directly for calibration weights or multipliers, while CBPS solves for propensity-score coefficients whose logit odds generate those same weights.</p>
+<p>Graham’s inverse probability tilting step is the same balance-first idea in another parameterization. The 2012 IPT moments choose a logit index so the implied weights satisfy exact balance moments, which in the ATT specialization again produces inverse-odds weights proportional to <span class="math inline">\(\exp(\beta^\top c_i)\)</span>. AST adds a second layer of tilting on top of that baseline. Writing <span class="math inline">\(\hat p_i = \Lambda(r_i^\top \hat \delta)\)</span>, the auxiliary weights take the form</p>
+<p><span class="math display">\[
+\hat \pi_i^a
+\propto
+(1-D_i)\frac{\hat p_i}
+{1 - \Lambda(r_i^\top \hat \delta + t_i^\top \hat \lambda_a)}.
+\]</span></p>
+<p>When the extra auxiliary tilt is unnecessary, <span class="math inline">\(\hat \lambda_a = 0\)</span>, this collapses to</p>
+<p><span class="math display">\[
+\hat \pi_i^a
+\propto
+(1-D_i)\frac{\hat p_i}{1-\hat p_i}
+=
+(1-D_i)\exp(r_i^\top \hat \delta),
+\]</span></p>
+<p>which is exactly the same inverse-odds / entropy-balancing weight formula. With nontrivial study or auxiliary tilts, AST is a strict generalization rather than literally the same estimator.</p>
+<p>Quadratic balancing in this library keeps the same balance constraints and changes only the distance penalty. It therefore targets the same sample moments as entropy balancing, but it does not imply the same log-linear weight formula.</p>
 <div id="1a1bdd91" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
@@ -5311,10 +5410,11 @@ window.Quarto = {
 </div>
 </div>
 </div>
+</section>
 <section id="kang-schafer" class="level2">
 <h2 class="anchored" data-anchor-id="kang-schafer">Kang-Schafer</h2>
-<p>Kang-Schafer is useful here because balancing is asked to work on the transformed covariates (X), not the latent Gaussian drivers (Z) that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.</p>
-<p>On the single draw above, both balancing estimators substantially reduce the raw covariate imbalance, and the oracle version that balances on latent (Z) shows the benchmark we would like to approach.</p>
+<p>Kang-Schafer is useful here because balancing is asked to work on the transformed covariates <span class="math inline">\(X\)</span>, not the latent Gaussian drivers <span class="math inline">\(Z\)</span> that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.</p>
+<p>On the single draw above, both balancing estimators substantially reduce the raw covariate imbalance, and the oracle version that balances on latent <span class="math inline">\(Z\)</span> shows the benchmark we would like to approach.</p>
 <div id="d1e21d44" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
@@ -5400,7 +5500,7 @@ window.Quarto = {
 </table>
 </div>
 </div>
-<p>The observed-(X) versions still live inside the canonical misspecification problem, so they do not become oracle estimators just by balancing means. But they do move sharply toward zero relative to the naive treated-control difference.</p>
+<p>The observed-<span class="math inline">\(X\)</span> versions still live inside the canonical misspecification problem, so they do not become oracle estimators just by balancing means. But they do move sharply toward zero relative to the naive treated-control difference.</p>
 </section>
 <section id="hainmueller" class="level2">
 <h2 class="anchored" data-anchor-id="hainmueller">Hainmueller</h2>
