@@ -4912,6 +4912,10 @@ window.Quarto = {
 <span class="menu-text">API</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../first-course-ding.html"> 
+<span class="menu-text">First Course Ding</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
@@ -5020,6 +5024,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
     </ul>
   </li>
@@ -5141,7 +5149,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 \hat \mu_1(X),\qquad \hat \mu_0(X),\qquad \hat \pi(X)
 \]</span></p>
 <p>are all cross-fit ridge nuisance models. The implementation clips <span class="math inline">\(\hat \pi(X)\)</span> away from <span class="math inline">\(0\)</span> and <span class="math inline">\(1\)</span> to stabilize the finite-sample weights.</p>
-<div id="b760df30" class="cell" data-execution_count="1">
+<div id="3ac5bcc8" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -5174,7 +5182,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </section>
 <section id="continuous-treatment-example" class="level2">
 <h2 class="anchored" data-anchor-id="continuous-treatment-example">Continuous Treatment Example</h2>
-<div id="2a3862ac" class="cell" data-execution_count="2">
+<div id="8150669e" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2028</span>)</span>
@@ -5220,7 +5228,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </table>
 </div>
 </div>
-<div id="673fcb6d" class="cell" data-execution_count="3">
+<div id="f4990a01" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -5279,7 +5287,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </section>
 <section id="binary-treatment-example" class="level2">
 <h2 class="anchored" data-anchor-id="binary-treatment-example">Binary Treatment Example</h2>
-<div id="e76881ab" class="cell" data-execution_count="4">
+<div id="81ec72fb" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2029</span>)</span>
@@ -5324,7 +5332,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </table>
 </div>
 </div>
-<div id="58224a2b" class="cell" data-execution_count="5">
+<div id="a43cef40" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>display(</span>

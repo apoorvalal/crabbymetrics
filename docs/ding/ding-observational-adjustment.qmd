@@ -1,0 +1,30 @@
+---
+title: "First Course Ding: Observational Adjustment (Chapters 11 To 13)"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+---
+
+This section groups the observational-study chapters:
+
+- [Chapter 11: The Central Role of the Propensity Score](ch11-propensity-score.html)
+- [Chapter 12: Doubly Robust ATE Estimation](ch12-double-robust-ate.html)
+- [Chapter 13: ATT and Other Estimands](ch13-double-robust-att.html)
+
+These are the chapters where the current `crabbymetrics` stack is most different from the original notebooks in a good way. The old third-party weighting and causal packages drop out in favor of:
+
+- `Logit`
+- `BalancingWeights`
+- `AIPW`
+- plain `OLS` or `Ridge` nuisance fits when needed
+
+## What Is Covered
+
+- overlap diagnostics and subclassification
+- entropy and quadratic balancing weights
+- manual and cross-fit AIPW logic
+- ATT versus ATE targeting

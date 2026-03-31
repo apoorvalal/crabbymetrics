@@ -1,0 +1,79 @@
+---
+title: "First Course Ding: Chapter 7"
+subtitle: "Matched-pairs experiments"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+Matched-pairs experiments replace unrestricted treatment permutations with sign flips inside pairs. The Darwin maize data in the source folder make that logic transparent.
+
+```{python}
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+data_dir = repo_root() / "ding_w_source"
+```
+
+## Exact Sign-Flip Distribution
+
+```{python}
+zea = pd.read_csv(data_dir / "ZeaMays.csv")
+diff = zea["diff"].to_numpy(dtype=float)
+n_pairs = diff.size
+
+tau_hat = diff.mean()
+se_hat = diff.std(ddof=1) / np.sqrt(n_pairs)
+
+sign_patterns = np.array(
+    np.meshgrid(*([np.array([-1.0, 1.0])] * n_pairs), indexing="ij")
+).reshape(n_pairs, -1).T
+randomization_dist = sign_patterns @ np.abs(diff) / n_pairs
+pvalue = np.mean(np.abs(randomization_dist) >= abs(tau_hat))
+
+pd.DataFrame(
+    {
+        "estimate": [tau_hat],
+        "se": [se_hat],
+        "exact_randomization_pvalue": [pvalue],
+    }
+)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.hist(randomization_dist, bins=45, alpha=0.75)
+ax.axvline(tau_hat, color="black", linestyle="--", linewidth=2.0)
+ax.set_xlabel("Matched-pairs average effect under sign flips")
+ax.set_ylabel("Count")
+ax.set_title("Darwin maize data: exact matched-pairs randomization distribution")
+fig.tight_layout()
+```
+
+## Takeaway
+
+Once the pairs are fixed, the experiment is no longer a general permutation problem. The admissible treatment reallocations are just the within-pair sign changes, and the mean pair difference is the natural estimator.

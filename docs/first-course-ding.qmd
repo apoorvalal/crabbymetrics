@@ -1,0 +1,84 @@
+---
+title: "First Course Ding"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+---
+
+This page is the working table of contents for a `crabbymetrics` translation pass over the Peng Ding notebooks in [ding_w_source](/home/alal/Desktop/code/econometrics/crabbymetrics/ding_w_source).
+
+## Current Batch
+
+The first reviewable batch is already underway:
+
+- [Foundations (Chapters 1 To 4)](ding/ding-foundations.html): Simpson reversals, potential outcomes, Fisher randomization tests, and Neyman repeated-sampling ideas.
+- [Design And Adjustment (Chapters 5 To 8)](ding/ding-design-adjustment.html): blocked designs, Lin-style regression adjustment, rerandomization, matched pairs, and Fisher-versus-Neyman comparisons.
+- [Bridging Finite And Superpopulation (Chapter 9)](ablations/bridging-finite-and-superpopulation.html): the dedicated Chapter 9 ablation already in the site.
+- [Observational Adjustment (Chapters 11 To 13)](ding/ding-observational-adjustment.html): propensity scores, doubly robust ATE logic, and ATT estimation with balancing weights.
+- [Instrumental Variables (Chapters 21 And 23)](ding/ding-iv.html): experimental IV via Wald and econometric IV via `TwoSLS` and `GMM`.
+
+Each grouped section links out to the chapter-level pages already living under `docs/ding/`.
+
+The working rules for the port are:
+
+- use `crabbymetrics` estimators and primitives whenever the chapter logic allows it
+- keep external dependencies minimal: `numpy`, `matplotlib`, and `pandas` or `polars` only when a CSV or Stata read is genuinely required
+- avoid `statsmodels`, `sklearn`, `scipy`, `linearmodels`, and similar notebook-time dependencies in the translated docs unless a chapter is blocked on a missing `crabbymetrics` feature
+- prefer one Quarto page per chapter, with a small number of section pages to group completed chapters in the navbar
+
+## Implementation Batches
+
+The rough order is:
+
+1. Randomized-experiment foundations and design-based inference.
+2. Observational studies and semiparametric estimators.
+3. IV and fuzzy-RD chapters.
+4. Principal stratification, mediation, and any residual appendix material.
+
+This ordering matches the current library surface. The earliest chapters mostly need `numpy`, plotting, and some `OLS` or randomization-inference utilities. The middle chapters map onto `BalancingWeights`, `AIPW`, `PartiallyLinearDML`, `EPLM`, and `AverageDerivative`. The later IV chapters fit naturally on top of `TwoSLS` and `GMM`. The biggest likely blockers are matching, local-polynomial RD, principal stratification, and mediation.
+
+## Planned TOC
+
+| Chapter | Source notebook | Planned docs page | `crabbymetrics` spine | Minimal deps | Notes |
+|---|---|---|---|---|---|
+| 1 | `Chapter01CorrAssocSimpsons.ipynb` | `ding/ch01-correlation-simpson.qmd` | summaries + `OLS` where useful | `numpy`, `pandas`, `matplotlib` | implemented |
+| 2 | `Chapter02PotentialOutcomes.ipynb` | `ding/ch02-potential-outcomes.qmd` | `numpy` estimand algebra and simulation | `numpy`, `matplotlib` | implemented |
+| 3 | `Chapter03CREandFRT.ipynb` | `ding/ch03-cre-frt.qmd` | difference-in-means, `OLS`, permutation/randomization logic | `numpy`, `matplotlib` | implemented |
+| 4 | `Chapter04CREandNeyman.ipynb` | `ding/ch04-cre-neyman.qmd` | design-based variance calculations + simulation | `numpy`, `matplotlib` | implemented |
+| 5 | `Chapter05StratandPostStrat.ipynb` | `ding/ch05-stratification.qmd` | weighted means, post-stratification, blocked `OLS` | `numpy`, `pandas`, `matplotlib` | implemented |
+| 6 | `Chapter06RegadjRerand.ipynb` | `ding/ch06-regadj-rerand.qmd` | centered `OLS`, Lin-style adjustment, rerandomization simulation | `numpy`, `pandas`, `matplotlib` | implemented |
+| 7 | `Chapter07MatchedPairs.ipynb` | `ding/ch07-matched-pairs.qmd` | paired means and exact sign-flip randomization | `numpy`, `pandas`, `matplotlib` | implemented |
+| 8 | `Chapter08UnifyingFisherNeyman.ipynb` | `ding/ch08-fisher-neyman.qmd` | randomization and repeated-sampling simulations | `numpy`, `matplotlib` | implemented |
+| 9 | `Chapter09BridgingFinitePopAndSuperPop.ipynb` | `ablations/bridging-finite-and-superpopulation.qmd` | `OLS` + stacked `GMM` | `numpy`, `matplotlib` | already implemented |
+| 10 | `Chapter10ObsStudiesSelBias.ipynb` | `ding/ch10-selection-bias.qmd` | observational-study simulation + balance diagnostics | `numpy`, `matplotlib` | natural next chapter after the current observational batch |
+| 11 | `Chapter11Pscore.ipynb` | `ding/ch11-propensity-score.qmd` | `Logit`, `BalancingWeights` | `numpy`, `pandas`, `matplotlib` | implemented |
+| 12 | `Chapter12DoubleRobustATE.ipynb` | `ding/ch12-double-robust-ate.qmd` | `AIPW`, `Logit`, `OLS` | `numpy`, `pandas`, `matplotlib` | implemented |
+| 13 | `Chapter13DoubleRobustATT.ipynb` | `ding/ch13-double-robust-att.qmd` | `BalancingWeights`, ATT weighting, outcome adjustment | `numpy`, `pandas`, `matplotlib` | implemented |
+| 14 | none in source | none | none | none | no chapter file present |
+| 15 | `Chapter15Matching.ipynb` | `ding/ch15-matching.qmd` | nearest-neighbor matching | `numpy`, `pandas`, `matplotlib` | likely blocked on a small matching helper in `crabbymetrics` |
+| 16 | `Chapter16UnconfDifficulties.ipynb` | `ding/ch16-unconfoundedness.qmd` | overlap and model-misspecification simulations | `numpy`, `pandas`, `matplotlib` | should be possible without new estimators |
+| 17 | `Chapter17Evalue.ipynb` | `ding/ch17-evalue.qmd` | analytic sensitivity summaries | `numpy`, `matplotlib` | probably wants a dedicated helper but simple enough |
+| 18 | `Chapter18SensitivityAnalysis.ipynb` | `ding/ch18-sensitivity-analysis.qmd` | omitted-confounding sensitivity calculations | `numpy`, `pandas`, `matplotlib` | may justify a reusable sensitivity module |
+| 19 | `Chapter19RosenbaumPvalues.ipynb` | `ding/ch19-rosenbaum.qmd` | matched-study sensitivity and p-values | `numpy`, `pandas`, `matplotlib` | blocked on matching-set support and Rosenbaum-style routines |
+| 20 | `Chapter20OverlapRD.ipynb` | `ding/ch20-overlap-rd.qmd` | overlap diagnostics and RD plots | `numpy`, `pandas`, `matplotlib` | a full local-polynomial RD estimator is likely a new feature |
+| 21 | `Chapter21IVexperiments.ipynb` | `ding/ch21-iv-experiments.qmd` | Wald estimands, `TwoSLS`, compliance simulations | `numpy`, `matplotlib` | implemented |
+| 22 | `Chapter22IVmixtureDist.ipynb` | `ding/ch22-iv-inequalities.qmd` | IV bounds and mixture-distribution logic | `numpy`, `matplotlib` | mostly array algebra and plotting |
+| 23 | `Chapter23IVeconometrics.ipynb` | `ding/ch23-iv-econometrics.qmd` | `TwoSLS`, `GMM` | `numpy`, `pandas`, `matplotlib` | implemented |
+| 24 | `Chapter24IVfuzzyRD.ipynb` | `ding/ch24-fuzzy-rd.qmd` | fuzzy RD as IV | `numpy`, `pandas`, `matplotlib` | likely blocked on a local-polynomial RD helper |
+| 25 | `Chapter25IVmendelian.ipynb` | `ding/ch25-mendelian-randomization.qmd` | ratio and multi-instrument `TwoSLS` | `numpy`, `pandas`, `matplotlib` | feasible with current IV machinery |
+| 26 | `Chapter26principalStratification.ipynb` | `ding/ch26-principal-stratification.qmd` | latent-strata models | `numpy`, `pandas`, `matplotlib` | probably needs new library support before a real port |
+| 27 | `Chapter27mediationAnalysis.ipynb` | `ding/ch27-mediation.qmd` | mediation via sequential regressions / g-computation | `numpy`, `pandas`, `matplotlib` | likely needs new helpers or a scoped estimator |
+| A | `ChapterA.ipynb` | optional `ding/appendix.qmd` | formulas and helper notes | `numpy` | low priority unless later chapters depend on it |
+
+## Suggested Next Steps
+
+The next concrete implementation batch should be:
+
+1. Chapter 10 to bridge the randomized and observational sections.
+2. Chapters 15 through 20 once matching and sensitivity helpers are scoped.
+3. Chapters 22, 24, and 25 as the remaining IV material.
+4. Chapters 26 and 27 only after the necessary latent-structure and mediation support exists.

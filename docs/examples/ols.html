@@ -4768,6 +4768,10 @@ vertical-align: -.125em;
 <span class="menu-text">API</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../first-course-ding.html"> 
+<span class="menu-text">First Course Ding</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
@@ -4877,6 +4881,10 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4931,7 +4939,7 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/ols_example.py</code>.</p>
 <section id="fit-a-basic-linear-model" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-a-basic-linear-model"><span class="header-section-number">1</span> Fit A Basic Linear Model</h2>
-<div id="f2809a97" class="cell" data-execution_count="1">
+<div id="542c202e" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4939,7 +4947,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="fc88e4bf" class="cell" data-execution_count="2">
+<div id="e68f2d11" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">500</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">3</span></span>
@@ -4975,7 +4983,7 @@ true coef: [ 1.5 -2.   0.5]
 <li><code>vcov=&quot;newey_west&quot;</code> with a lag choice for HAC inference</li>
 <li><code>vcov=&quot;cluster&quot;</code> with one-way cluster labels</li>
 </ul>
-<div id="550855d2" class="cell" data-execution_count="3">
+<div id="98de0dcf" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>clusters <span class="op">=</span> np.repeat(np.arange(<span class="dv">25</span>, dtype<span class="op">=</span>np.int64), n <span class="op">//</span> <span class="dv">25</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>

@@ -1,0 +1,120 @@
+---
+title: "First Course Ding: Chapter 2"
+subtitle: "Potential outcomes and treatment selection"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+Chapter 2 is the basic potential-outcomes setup: treatment effects are individual-level objects, while observed outcomes depend on both the potential outcomes and the treatment rule.
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Build A Population With Heterogeneous Effects
+
+```{python}
+rng = np.random.default_rng(2)
+n = 1000
+y0 = rng.normal(loc=0.0, scale=1.0, size=n)
+tau = -0.4 + 0.9 * y0
+y1 = y0 + tau
+
+ate = tau.mean()
+att_if_treat_positive = tau[tau >= 0.0].mean()
+
+pd.DataFrame(
+    {
+        "estimand": ["ATE", "Share with positive treatment effect", "ATT if only gainers are treated"],
+        "value": [ate, np.mean(tau >= 0.0), att_if_treat_positive],
+    }
+)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.hist(tau, bins=40, color="tab:blue", alpha=0.75)
+ax.axvline(0.0, color="black", linestyle="--")
+ax.set_xlabel("Individual treatment effect")
+ax.set_ylabel("Count")
+ax.set_title("Treatment effects are heterogeneous")
+fig.tight_layout()
+```
+
+## A Perfect Doctor And A Coin-Flip Doctor
+
+The perfect doctor treats exactly when the individual treatment effect is nonnegative. The coin-flip doctor ignores the potential outcomes entirely.
+
+```{python}
+z_perfect = (tau >= 0.0).astype(float)
+z_coin = rng.binomial(1, 0.5, size=n).astype(float)
+
+y_perfect = z_perfect * y1 + (1.0 - z_perfect) * y0
+y_coin = z_coin * y1 + (1.0 - z_coin) * y0
+
+def observed_difference(y_obs, z_obs):
+    treated = z_obs == 1.0
+    control = ~treated
+    return y_obs[treated].mean() - y_obs[control].mean()
+
+selection_table = pd.DataFrame(
+    {
+        "rule": ["Perfect doctor", "Coin-flip doctor"],
+        "observed_difference": [
+            observed_difference(y_perfect, z_perfect),
+            observed_difference(y_coin, z_coin),
+        ],
+        "treated_share": [z_perfect.mean(), z_coin.mean()],
+        "average_effect_among_treated": [
+            tau[z_perfect == 1.0].mean(),
+            tau[z_coin == 1.0].mean(),
+        ],
+    }
+)
+selection_table
+```
+
+## Selection Bias Is Not The Same As The Effect
+
+Under coin-flip treatment, the observed difference is estimating the ATE. Under targeted treatment, the observed difference mixes causal effects with positive selection on untreated potential outcomes.
+
+```{python}
+selection_bias = y0[z_perfect == 1.0].mean() - y0[z_perfect == 0.0].mean()
+
+pd.DataFrame(
+    {
+        "quantity": [
+            "ATE",
+            "Observed difference under perfect doctor",
+            "Average effect among treated under perfect doctor",
+            "Selection bias in untreated outcomes",
+        ],
+        "value": [
+            ate,
+            observed_difference(y_perfect, z_perfect),
+            tau[z_perfect == 1.0].mean(),
+            selection_bias,
+        ],
+    }
+)
+```
+
+## Takeaway
+
+Potential outcomes make it obvious why the same observed contrast can have different meanings under different assignment rules. Chapter 2 is mostly estimand bookkeeping, but it is the bookkeeping that the rest of the Ding material depends on.

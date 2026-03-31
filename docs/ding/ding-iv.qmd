@@ -1,0 +1,27 @@
+---
+title: "First Course Ding: Instrumental Variables (Chapters 21 And 23)"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+---
+
+This section groups the IV chapters implemented in the current batch:
+
+- [Chapter 21: An Experimental Perspective on the Instrumental Variable](ch21-iv-experiments.html)
+- [Chapter 23: An Econometric Perspective on the Instrumental Variable](ch23-iv-econometrics.html)
+
+The split mirrors the book:
+
+- Chapter 21 is about randomized assignment, compliance, and the Wald estimand
+- Chapter 23 is about linear IV as an econometric estimator, with overidentification and moment conditions
+
+## What Is Covered
+
+- Wald ratios with delta-method and bootstrap uncertainty
+- covariate-adjusted `TwoSLS`
+- explicit IV moments written as a first-class `GMM` problem
+- a Card-style schooling example with multiple excluded instruments

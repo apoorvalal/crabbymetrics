@@ -4,6 +4,8 @@ project:
   render:
     - index.qmd
     - api.qmd
+    - first-course-ding.qmd
+    - ding/*.qmd
     - mechanics-ols.qmd
     - mechanics-poisson.qmd
     - mechanics-mestimator.qmd
@@ -18,6 +20,30 @@ website:
         text: Home
       - href: api.qmd
         text: API
+      - text: First Course Ding
+        menu:
+          - href: first-course-ding.qmd
+            text: Overview And TOC
+          - href: ding/ch01-correlation-simpson.qmd
+            text: Ch 1 Correlation And Simpson
+          - href: ding/ch02-potential-outcomes.qmd
+            text: Ch 2 Potential Outcomes
+          - href: ding/ch03-cre-frt.qmd
+            text: Ch 3 CRE And Fisher RT
+          - href: ding/ch04-cre-neyman.qmd
+            text: Ch 4 CRE And Neyman
+          - href: ablations/bridging-finite-and-superpopulation.qmd
+            text: Ch 9 Bridging Finite And Superpopulation
+          - href: ding/ch11-propensity-score.qmd
+            text: Ch 11 Propensity Score
+          - href: ding/ch12-double-robust-ate.qmd
+            text: Ch 12 Double Robust ATE
+          - href: ding/ch13-double-robust-att.qmd
+            text: Ch 13 Double Robust ATT
+          - href: ding/ch21-iv-experiments.qmd
+            text: Ch 21 Experimental IV
+          - href: ding/ch23-iv-econometrics.qmd
+            text: Ch 23 Econometric IV
       - href: mechanics-ols.qmd
         text: Binding Crash Course
       - text: Supervised Learning
@@ -68,6 +94,8 @@ website:
             text: Variance Estimators
           - href: ablations/semiparametric-estimators.qmd
             text: Semiparametric Estimator Comparisons
+          - href: ablations/bridging-finite-and-superpopulation.qmd
+            text: Bridging Finite And Superpopulation
       - text: Optimization
         menu:
           - href: examples/optimizers.qmd

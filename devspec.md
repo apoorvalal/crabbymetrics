@@ -36,8 +36,21 @@ Any new work here should usually satisfy most of the following:
 - docs and ablations
   - semiparametric examples are in the main docs nav
   - cached ablation notebooks cover variance estimators and semiparametric comparisons
+  - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, and Chapters 21 and 23
 
 ### Partial but not finished
+
+- Ding translation track
+  - still open:
+    - Chapter 10
+    - Chapters 15 through 20
+    - Chapters 22 and 24 through 27
+    - Appendix A
+  - expected blockers:
+    - matching utilities
+    - RD helpers
+    - sensitivity-analysis helpers
+    - principal-stratification and mediation support
 
 - weighted estimation outside the linear family
   - not yet in `Logit`, `Poisson`, or `GMM`

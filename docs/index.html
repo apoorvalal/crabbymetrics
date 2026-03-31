@@ -4733,6 +4733,57 @@ vertical-align: -.125em;
     <a class="nav-link" href="./api.html"> 
 <span class="menu-text">API</span></a>
   </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-first-course-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">First Course Ding</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-first-course-ding">    
+        <li>
+    <a class="dropdown-item" href="./first-course-ding.html">
+ <span class="dropdown-text">Overview And TOC</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch01-correlation-simpson.html">
+ <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch02-potential-outcomes.html">
+ <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch03-cre-frt.html">
+ <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch04-cre-neyman.html">
+ <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch11-propensity-score.html">
+ <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch12-double-robust-ate.html">
+ <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch13-double-robust-att.html">
+ <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch21-iv-experiments.html">
+ <span class="dropdown-text">Ch 21 Experimental IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch23-iv-econometrics.html">
+ <span class="dropdown-text">Ch 23 Econometric IV</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link" href="./mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
@@ -4843,6 +4894,10 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="./ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4877,6 +4932,7 @@ vertical-align: -.125em;
    
   <ul class="collapse">
   <li><a href="#start-here" id="toc-start-here" class="nav-link active" data-scroll-target="#start-here">Start Here</a></li>
+  <li><a href="#first-course-ding" id="toc-first-course-ding" class="nav-link" data-scroll-target="#first-course-ding">First Course Ding</a></li>
   <li><a href="#supervised-learning-examples" id="toc-supervised-learning-examples" class="nav-link" data-scroll-target="#supervised-learning-examples">Supervised Learning Examples</a></li>
   <li><a href="#semiparametric-examples" id="toc-semiparametric-examples" class="nav-link" data-scroll-target="#semiparametric-examples">Semiparametric Examples</a></li>
   <li><a href="#unsupervised-learning-examples" id="toc-unsupervised-learning-examples" class="nav-link" data-scroll-target="#unsupervised-learning-examples">Unsupervised Learning Examples</a></li>
@@ -4910,12 +4966,21 @@ vertical-align: -.125em;
 </header>
 
 
-<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.</p>
+<p><code>crabbymetrics</code> is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active <code>First Course Ding</code> translation track, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.</p>
 <section id="start-here" class="level2">
 <h2 class="anchored" data-anchor-id="start-here">Start Here</h2>
 <ul>
 <li><a href="api.html">API reference</a>: verified public surface, summary schemas, optimizer catalog, and runtime smoke checks.</li>
+<li><a href="first-course-ding.html">First Course Ding</a>: chapter-by-chapter translation plan and current implementation status for the Peng Ding notebooks.</li>
 <li><a href="mechanics-ols.html">Binding Crash Course: OLS</a>: the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase.</li>
+</ul>
+</section>
+<section id="first-course-ding" class="level2">
+<h2 class="anchored" data-anchor-id="first-course-ding">First Course Ding</h2>
+<ul>
+<li><a href="first-course-ding.html">Overview And TOC</a>: planning page and chapter map for the full Ding translation pass.</li>
+<li>Translated so far: <a href="ding/ch01-correlation-simpson.html">Chapter 1</a>, <a href="ding/ch02-potential-outcomes.html">Chapter 2</a>, <a href="ding/ch03-cre-frt.html">Chapter 3</a>, <a href="ding/ch04-cre-neyman.html">Chapter 4</a>, <a href="ablations/bridging-finite-and-superpopulation.html">Chapter 9</a>, <a href="ding/ch11-propensity-score.html">Chapter 11</a>, <a href="ding/ch12-double-robust-ate.html">Chapter 12</a>, <a href="ding/ch13-double-robust-att.html">Chapter 13</a>, <a href="ding/ch21-iv-experiments.html">Chapter 21</a>, and <a href="ding/ch23-iv-econometrics.html">Chapter 23</a>.</li>
+<li>The next obvious tranche is Chapters 15 through 20, where matching, sensitivity analysis, and RD helpers start to matter.</li>
 </ul>
 </section>
 <section id="supervised-learning-examples" class="level2">
@@ -4956,6 +5021,7 @@ vertical-align: -.125em;
 <ul>
 <li><a href="ablations/variance-estimators.html">Variance Estimators</a>: cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.</li>
 <li><a href="ablations/semiparametric-estimators.html">Semiparametric Estimator Comparisons</a>: cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.</li>
+<li><a href="ablations/bridging-finite-and-superpopulation.html">Bridging Finite And Superpopulation</a>: cached Monte Carlo coverage comparisons for HC2, Ding’s closed-form correction, a raw-row bootstrap, and stacked GMM when the same adjusted estimator is evaluated against SATE and PATE.</li>
 </ul>
 </section>
 <section id="optimization" class="level2">

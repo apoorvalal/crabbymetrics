@@ -1,0 +1,132 @@
+---
+title: "First Course Ding: Chapter 23"
+subtitle: "An econometric perspective on instrumental variables"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+Chapter 23 is where the design-based IV story becomes an econometrics workflow: controls, overidentification, and alternative representations of the same parameter.
+
+```{python}
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+def iv_moments(theta, data):
+    resid = data["y"] - data["x"] @ theta
+    return data["z"] * resid[:, None]
+
+
+def iv_jacobian(theta, data):
+    del theta
+    return -(data["z"].T @ data["x"]) / data["x"].shape[0]
+```
+
+## Card's Returns-To-Schooling Data
+
+```{python}
+card = pd.read_csv(repo_root() / "ding_w_source" / "card1995.csv")
+y = card["lwage"].to_numpy(dtype=float)
+d = card["educ"].to_numpy(dtype=float)[:, None]
+
+controls = [
+    "exper",
+    "expersq",
+    "black",
+    "south",
+    "smsa",
+    "reg661",
+    "reg662",
+    "reg663",
+    "reg664",
+    "reg665",
+    "reg666",
+    "reg667",
+    "reg668",
+    "smsa66",
+]
+x = card[controls].to_numpy(dtype=float)
+z_excl = card[["nearc2", "nearc4"]].to_numpy(dtype=float)
+
+keep = np.isfinite(y) & np.isfinite(d[:, 0]) & np.isfinite(x).all(axis=1) & np.isfinite(z_excl).all(axis=1)
+y = y[keep]
+d = d[keep]
+x = x[keep]
+z_excl = z_excl[keep]
+```
+
+## Closed-Form TwoSLS And Overidentified GMM
+
+```{python}
+ols = cm.OLS()
+ols.fit(np.column_stack([d[:, 0], x]), y)
+ols_hc1 = ols.summary(vcov="hc1")
+
+tsls = cm.TwoSLS()
+tsls.fit(d, x, z_excl, y)
+tsls_hc1 = tsls.summary(vcov="hc1")
+
+X = np.column_stack([np.ones(len(y)), d[:, 0], x])
+Z = np.column_stack([np.ones(len(y)), x, z_excl])
+
+gmm = cm.GMM(iv_moments, jacobian_fn=iv_jacobian, max_iterations=200, tolerance=1e-9)
+gmm.fit({"x": X, "y": y, "z": Z}, np.zeros(X.shape[1]))
+gmm_summary = gmm.summary(vcov="sandwich", omega="iid")
+
+print("OLS return to education:", round(float(ols_hc1["coef"][0]), 4))
+print("OLS HC1 SE:", round(float(ols_hc1["coef_se"][0]), 4))
+print("TwoSLS return to education:", round(float(tsls_hc1["coef"][0]), 4))
+print("TwoSLS HC1 SE:", round(float(tsls_hc1["coef_se"][0]), 4))
+print("Two-step GMM return to education:", round(float(gmm_summary["coef"][1]), 4))
+print("Two-step GMM SE:", round(float(gmm_summary["se"][1]), 4))
+print("GMM J-statistic:", round(float(gmm_summary["j_stat"]), 4), "with df =", gmm_summary["j_df"])
+```
+
+## Control-Function View
+
+```{python}
+first_stage = cm.OLS()
+first_stage.fit(np.column_stack([x, z_excl]), d[:, 0])
+pi = first_stage.summary()
+d_hat = first_stage.predict(np.column_stack([x, z_excl]))
+resid = d[:, 0] - d_hat
+
+control_function = cm.OLS()
+control_function.fit(np.column_stack([d[:, 0], resid, x]), y)
+cf_hc1 = control_function.summary(vcov="hc1")
+
+print("TwoSLS coefficient:", round(float(tsls_hc1["coef"][0]), 4))
+print("Control-function coefficient on education:", round(float(cf_hc1["coef"][0]), 4))
+```
+
+By Chapter 23, the IV problem has several equivalent front ends:
+
+- closed-form `TwoSLS`
+- overidentified linear IV as two-step `GMM`
+- a control-function representation
+
+In `crabbymetrics`, those are now all available without leaving the same Rust-backed core.

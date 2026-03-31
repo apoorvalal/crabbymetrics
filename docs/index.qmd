@@ -13,12 +13,29 @@ execute:
   message: false
 ---
 
-`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.
+`crabbymetrics` is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active `First Course Ding` translation track, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.
 
 ## Start Here
 
 - [API reference](api.html): verified public surface, summary schemas, optimizer catalog, and runtime smoke checks.
+- [First Course Ding](first-course-ding.html): chapter-by-chapter translation plan and current implementation status for the Peng Ding notebooks.
 - [Binding Crash Course: OLS](mechanics-ols.html): the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase.
+
+## First Course Ding
+
+- [Overview And TOC](first-course-ding.html): planning page and chapter map for the full Ding translation pass.
+- Translated so far:
+  [Chapter 1](ding/ch01-correlation-simpson.html),
+  [Chapter 2](ding/ch02-potential-outcomes.html),
+  [Chapter 3](ding/ch03-cre-frt.html),
+  [Chapter 4](ding/ch04-cre-neyman.html),
+  [Chapter 9](ablations/bridging-finite-and-superpopulation.html),
+  [Chapter 11](ding/ch11-propensity-score.html),
+  [Chapter 12](ding/ch12-double-robust-ate.html),
+  [Chapter 13](ding/ch13-double-robust-att.html),
+  [Chapter 21](ding/ch21-iv-experiments.html),
+  and [Chapter 23](ding/ch23-iv-econometrics.html).
+- The next obvious tranche is Chapters 15 through 20, where matching, sensitivity analysis, and RD helpers start to matter.
 
 ## Supervised Learning Examples
 
@@ -51,6 +68,7 @@ execute:
 
 - [Variance Estimators](ablations/variance-estimators.html): cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.
 - [Semiparametric Estimator Comparisons](ablations/semiparametric-estimators.html): cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.
+- [Bridging Finite And Superpopulation](ablations/bridging-finite-and-superpopulation.html): cached Monte Carlo coverage comparisons for HC2, Ding's closed-form correction, a raw-row bootstrap, and stacked GMM when the same adjusted estimator is evaluated against SATE and PATE.
 
 ## Optimization
 

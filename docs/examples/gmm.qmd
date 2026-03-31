@@ -30,13 +30,13 @@ $$
 Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
 $$
 
-In just-identified problems, the default path is vanilla Gauss-Newton with identity weighting. In overidentified problems, the class first fits with \(W = I\), estimates
+In just-identified problems, the default path is vanilla Gauss-Newton with identity weighting. In overidentified problems, the class first fits with $W = I$, estimates
 
 $$
 \hat{\Omega} = \frac{1}{n} \sum_{i=1}^n g_i(\hat{\theta}_1) g_i(\hat{\theta}_1)^\top,
 $$
 
-sets \(W = \hat{\Omega}^{-1}\), and refits.
+sets $W = \hat{\Omega}^{-1}$, and refits.
 
 ## Imports
 
@@ -95,7 +95,7 @@ $$
 g_i(\theta) = z_i \left(y_i - x_i^\top \theta\right),
 $$
 
-the first step uses \(W = I\), then the class updates the weighting matrix with the inverse outer product of moments.
+the first step uses $W = I$, then the class updates the weighting matrix with the inverse outer product of moments.
 
 ```{python}
 rng = np.random.default_rng(20260322)
@@ -154,7 +154,7 @@ $$
 Y_i = \alpha + \tau W_i + \beta (X_i - \mu_x) + \gamma W_i (X_i - \mu_x) + \varepsilon_i,
 $$
 
-the unknown centering parameter \(\mu_x\) belongs in the parameter vector:
+the unknown centering parameter $\mu_x$ belongs in the parameter vector:
 
 $$
 \theta = (\mu_x, \alpha, \tau, \beta, \gamma).

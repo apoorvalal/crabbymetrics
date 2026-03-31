@@ -4767,6 +4767,57 @@ vertical-align: -.125em;
     <a class="nav-link" href="../api.html"> 
 <span class="menu-text">API</span></a>
   </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-first-course-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">First Course Ding</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-first-course-ding">    
+        <li>
+    <a class="dropdown-item" href="../first-course-ding.html">
+ <span class="dropdown-text">Overview And TOC</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
+ <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
+ <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
+ <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
+ <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
+ <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
+ <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
+ <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
+ <span class="dropdown-text">Ch 21 Experimental IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
+ <span class="dropdown-text">Ch 23 Econometric IV</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
@@ -4877,6 +4928,10 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4931,7 +4986,7 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/multinomial_logit_example.py</code>.</p>
 <section id="fit-a-multiclass-logit-model" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-a-multiclass-logit-model"><span class="header-section-number">1</span> Fit A Multiclass Logit Model</h2>
-<div id="d4289816" class="cell" data-execution_count="1">
+<div id="5d6849e1" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4939,7 +4994,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="68d29631" class="cell" data-execution_count="2">
+<div id="5f81df82" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> softmax(x: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> x <span class="op">-</span> x.<span class="bu">max</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    exps <span class="op">=</span> np.exp(x)</span>

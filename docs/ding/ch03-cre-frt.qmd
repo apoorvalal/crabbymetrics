@@ -1,0 +1,102 @@
+---
+title: "First Course Ding: Chapter 3"
+subtitle: "Completely randomized experiments and the Fisher randomization test"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+Chapter 3 is the cleanest design-based chapter in the book. With fixed potential outcomes and a known treatment-assignment mechanism, Fisherian inference is just a permutation problem.
+
+```{python}
+import itertools
+import math
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Exact Randomization Distribution Under A Sharp Null
+
+```{python}
+rng = np.random.default_rng(3)
+n = 12
+n1 = 6
+y0 = np.array([3.0, 3.3, 2.8, 4.0, 3.5, 2.9, 4.2, 3.1, 2.7, 3.8, 3.4, 4.1])
+tau = 1.2 + 0.3 * np.linspace(-1.0, 1.0, n)
+y1 = y0 + tau
+
+z_obs = np.array([1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0], dtype=float)
+y_obs = z_obs * y1 + (1.0 - z_obs) * y0
+
+def diff_in_means(y, z):
+    treated = z == 1.0
+    control = ~treated
+    return y[treated].mean() - y[control].mean()
+
+def normal_pvalue(z_stat):
+    return math.erfc(abs(float(z_stat)) / math.sqrt(2.0))
+
+tau_hat = diff_in_means(y_obs, z_obs)
+model = cm.OLS()
+model.fit(z_obs[:, None], y_obs)
+asy = model.summary(vcov="hc1")
+z_stat = asy["coef"][0] / asy["coef_se"][0]
+
+assignments = np.array(list(itertools.combinations(range(n), n1)))
+sharp_null_draws = np.zeros(assignments.shape[0])
+for idx, treated_ids in enumerate(assignments):
+    z = np.zeros(n)
+    z[list(treated_ids)] = 1.0
+    sharp_null_draws[idx] = diff_in_means(y_obs, z)
+
+frt_pvalue = np.mean(np.abs(sharp_null_draws) >= abs(tau_hat))
+
+pd.DataFrame(
+    {
+        "estimate": [tau_hat],
+        "HC1 normal p-value": [normal_pvalue(z_stat)],
+        "Fisher randomization p-value": [frt_pvalue],
+    }
+)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.hist(sharp_null_draws, bins=30, color="tab:blue", alpha=0.75)
+ax.axvline(tau_hat, color="black", linestyle="--", linewidth=2.0)
+ax.set_xlabel("Difference in means under sharp null")
+ax.set_ylabel("Count")
+ax.set_title("Exact Fisher randomization distribution")
+fig.tight_layout()
+```
+
+## The Assignment Mechanism Is The Whole Engine
+
+The randomization distribution above does not need any sampling model for the outcomes. The only ingredients are:
+
+- the observed outcomes
+- the observed treatment assignment
+- the set of assignments allowed by the experiment
+
+That is why Chapter 3 sits so naturally in plain `numpy`: the inferential object is the assignment rule, not a parametric likelihood.
+
+## Takeaway
+
+For a completely randomized experiment, `crabbymetrics.OLS` can report the same difference in means that the experiment was built around, but the Fisher test itself is a permutation calculation. That design-first perspective is the point of the chapter.

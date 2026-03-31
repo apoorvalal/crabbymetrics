@@ -4772,6 +4772,57 @@ vertical-align: -.125em;
     <a class="nav-link active" href="./api.html" aria-current="page"> 
 <span class="menu-text">API</span></a>
   </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-first-course-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">First Course Ding</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-first-course-ding">    
+        <li>
+    <a class="dropdown-item" href="./first-course-ding.html">
+ <span class="dropdown-text">Overview And TOC</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch01-correlation-simpson.html">
+ <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch02-potential-outcomes.html">
+ <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch03-cre-frt.html">
+ <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch04-cre-neyman.html">
+ <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch11-propensity-score.html">
+ <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch12-double-robust-ate.html">
+ <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch13-double-robust-att.html">
+ <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch21-iv-experiments.html">
+ <span class="dropdown-text">Ch 21 Experimental IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ding/ch23-iv-econometrics.html">
+ <span class="dropdown-text">Ch 23 Econometric IV</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item">
     <a class="nav-link" href="./mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
@@ -4882,6 +4933,10 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="./ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4973,7 +5028,7 @@ vertical-align: -.125em;
 <li>A sitrep on the current state of the library.</li>
 <li>A verified API reference rendered against the live Python module in this repository.</li>
 </ul>
-<div id="f72a78f7" class="cell" data-execution_count="1">
+<div id="7db1df33" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -5023,7 +5078,7 @@ vertical-align: -.125em;
 <section id="public-surface" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="public-surface"><span class="header-section-number">3</span> Public Surface</h2>
 <p>The table below is generated from the live module so the constructor and method signatures match the current build.</p>
-<div id="3de6ffd5" class="cell" data-execution_count="2">
+<div id="e5db0751" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>classes <span class="op">=</span> [</span>
@@ -5223,7 +5278,7 @@ vertical-align: -.125em;
 <section id="optimizer-surface" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="optimizer-surface"><span class="header-section-number">4</span> Optimizer Surface</h2>
 <p>The optimizer helpers live under <code>cm.Optimizers</code> as static methods. They mirror the usual scipy pattern: pass a Python callback, a starting value, and any derivative information the method needs, then receive a plain dictionary with <code>x</code>, <code>fun</code>, <code>nit</code>, <code>success</code>, <code>message</code>, and <code>method</code>.</p>
-<div id="d4b64801" class="cell" data-execution_count="3">
+<div id="018c5bc6" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>optimizer_rows <span class="op">=</span> []</span>
@@ -5288,7 +5343,7 @@ vertical-align: -.125em;
 </section>
 <section id="estimator-reference" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="estimator-reference"><span class="header-section-number">6</span> Estimator Reference</h2>
-<div id="62708f56" class="cell" data-execution_count="4">
+<div id="224b53a4" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>reference_rows <span class="op">=</span> [</span>
@@ -5595,7 +5650,7 @@ vertical-align: -.125em;
 </section>
 <section id="transformer-reference" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="transformer-reference"><span class="header-section-number">7</span> Transformer Reference</h2>
-<div id="fc008888" class="cell" data-execution_count="5">
+<div id="2acac0a1" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>transformer_rows <span class="op">=</span> [</span>
@@ -5657,7 +5712,7 @@ vertical-align: -.125em;
 </section>
 <section id="optimizer-reference" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="optimizer-reference"><span class="header-section-number">8</span> Optimizer Reference</h2>
-<div id="7cd0083e" class="cell" data-execution_count="6">
+<div id="2aefcaf1" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>optimizer_reference_rows <span class="op">=</span> [</span>
@@ -5751,7 +5806,7 @@ vertical-align: -.125em;
 <section id="verified-runtime-snapshot" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">9</span> Verified Runtime Snapshot</h2>
 <p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
-<div id="c588fb04" class="cell" data-execution_count="7">
+<div id="54aebee0" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
@@ -6054,7 +6109,7 @@ vertical-align: -.125em;
 <h2 data-number="10" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">10</span> Usage Examples</h2>
 <section id="ols" class="level3" data-number="10.1">
 <h3 data-number="10.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">10.1</span> OLS</h3>
-<div id="852bc03e" class="cell" data-execution_count="8">
+<div id="ebba7abe" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
@@ -6084,7 +6139,7 @@ vertical-align: -.125em;
 </section>
 <section id="ridge" class="level3" data-number="10.2">
 <h3 data-number="10.2" class="anchored" data-anchor-id="ridge"><span class="header-section-number">10.2</span> Ridge</h3>
-<div id="1c444180" class="cell" data-execution_count="9">
+<div id="f184d290" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
@@ -6113,7 +6168,7 @@ vertical-align: -.125em;
 </section>
 <section id="poisson" class="level3" data-number="10.3">
 <h3 data-number="10.3" class="anchored" data-anchor-id="poisson"><span class="header-section-number">10.3</span> Poisson</h3>
-<div id="a02348b6" class="cell" data-execution_count="10">
+<div id="90447e4d" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4</span>)</span>
@@ -6136,7 +6191,7 @@ vertical-align: -.125em;
 </section>
 <section id="twosls" class="level3" data-number="10.4">
 <h3 data-number="10.4" class="anchored" data-anchor-id="twosls"><span class="header-section-number">10.4</span> TwoSLS</h3>
-<div id="bd4c8716" class="cell" data-execution_count="11">
+<div id="0d844dc8" class="cell" data-execution_count="11">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
@@ -6165,7 +6220,7 @@ vertical-align: -.125em;
 </section>
 <section id="eplm" class="level3" data-number="10.5">
 <h3 data-number="10.5" class="anchored" data-anchor-id="eplm"><span class="header-section-number">10.5</span> EPLM</h3>
-<div id="c3d5b38f" class="cell" data-execution_count="12">
+<div id="00d59207" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
@@ -6186,7 +6241,7 @@ vertical-align: -.125em;
 </section>
 <section id="averagederivative" class="level3" data-number="10.6">
 <h3 data-number="10.6" class="anchored" data-anchor-id="averagederivative"><span class="header-section-number">10.6</span> AverageDerivative</h3>
-<div id="f1fca893" class="cell" data-execution_count="13">
+<div id="37a3a054" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">8</span>)</span>
@@ -6208,7 +6263,7 @@ vertical-align: -.125em;
 </section>
 <section id="partiallylineardml" class="level3" data-number="10.7">
 <h3 data-number="10.7" class="anchored" data-anchor-id="partiallylineardml"><span class="header-section-number">10.7</span> PartiallyLinearDML</h3>
-<div id="876b94bf" class="cell" data-execution_count="14">
+<div id="aed53fad" class="cell" data-execution_count="14">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">10</span>)</span>
@@ -6229,7 +6284,7 @@ vertical-align: -.125em;
 </section>
 <section id="aipw" class="level3" data-number="10.8">
 <h3 data-number="10.8" class="anchored" data-anchor-id="aipw"><span class="header-section-number">10.8</span> AIPW</h3>
-<div id="a67c9029" class="cell" data-execution_count="15">
+<div id="d36255c9" class="cell" data-execution_count="15">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
@@ -6251,7 +6306,7 @@ vertical-align: -.125em;
 </section>
 <section id="gmm" class="level3" data-number="10.9">
 <h3 data-number="10.9" class="anchored" data-anchor-id="gmm"><span class="header-section-number">10.9</span> GMM</h3>
-<div id="cb8f4cc7" class="cell" data-execution_count="16">
+<div id="0ff3156d" class="cell" data-execution_count="16">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_moments(theta, data):</span>
@@ -6288,7 +6343,7 @@ vertical-align: -.125em;
 <section id="fixedeffectsols" class="level3" data-number="10.10">
 <h3 data-number="10.10" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">10.10</span> FixedEffectsOLS</h3>
 <p>This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with <code>within</code>, then regress the residualized outcome on the residualized regressors with no intercept.</p>
-<div id="c71a1ca7" class="cell" data-execution_count="17">
+<div id="9616f6f0" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
@@ -6326,7 +6381,7 @@ vertical-align: -.125em;
 <li><code>score_fn(theta, data)</code> must return an <code>(n_obs, n_params)</code> matrix of per-observation scores.</li>
 <li>For bootstrap support, the <code>data</code> dictionary must include <code>n</code>, and user code should respect an optional <code>indices</code> key.</li>
 </ul>
-<div id="34eb4c69" class="cell" data-execution_count="18">
+<div id="d3de803d" class="cell" data-execution_count="18">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
