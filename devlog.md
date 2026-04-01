@@ -43,6 +43,7 @@ Key points:
 - `src/estimators/` is now split by estimator family instead of the old monolithic file layout.
 - `src/utils.rs` holds shared array conversion, least-squares helpers, covariance helpers, weighting helpers, and bootstrap utilities.
 - `docs/` is a checked-in Quarto website, not just notebook scraps.
+- `docs/ding/` holds the translated Peng Ding chapter pages plus grouping pages for the `First Course Ding` section.
 - `tests/` is the main regression suite; examples are documented through the Quarto site rather than loose scripts.
 
 ## Build And Dev Workflow
@@ -54,6 +55,7 @@ Key points:
 - docs extras are tracked in `pyproject.toml` under `project.optional-dependencies.docs`
   - currently `matplotlib`
   - currently `jupyter-cache`
+  - currently `pandas`
 
 Useful commands:
 
@@ -65,6 +67,14 @@ uv run quarto render docs
 cargo check
 cargo fmt --all --check
 ```
+
+For notebook-heavy page verification, Quarto execution has recently been more reliable with one-shot kernels:
+
+```bash
+uv run quarto render docs/ding/ch11-propensity-score.qmd --execute-daemon 0
+```
+
+The full site can still be rendered, but the most stable review path for branches that touch many notebook pages is to rerender the changed pages individually with `--execute-daemon 0`.
 
 ## Public Surface
 
@@ -98,6 +108,23 @@ The current Python module exports:
   - `Optimizers`
 
 Not every class exposes every method. The broad pattern is still scikit-adjacent, but semiparametric estimators are mostly `fit(...)` plus `summary(...)`, with no meaningful `predict(...)`.
+
+## Docs Surface
+
+The docs site now includes a dedicated `First Course Ding` section alongside the estimator examples and ablations.
+
+Current Ding coverage:
+
+- Chapters 1 through 8
+- Chapter 9 through the cached bridging ablation
+- Chapters 11 through 13
+- Chapters 21 and 23
+
+The translation rule for that section is:
+
+- keep dependencies to `numpy`, `matplotlib`, and `pandas` only when real data reads require it
+- use `crabbymetrics` estimators directly where the chapter logic calls for estimation
+- prefer one Quarto page per chapter, with a few grouping pages to keep the navbar manageable
 
 ## Inference Surface
 

@@ -1,0 +1,27 @@
+---
+title: "First Course Ding: Design And Adjustment (Chapters 5 To 8)"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+---
+
+This section groups the design-adjustment chapters:
+
+- [Chapter 5: Stratification and Post-Stratification](ch05-stratification.html)
+- [Chapter 6: Regression Adjustment and Rerandomization](ch06-regadj-rerand.html)
+- [Chapter 7: Matched-Pairs Experiments](ch07-matched-pairs.html)
+- [Chapter 8: Unifying Fisherian and Neymanian Inference](ch08-fisher-neyman.html)
+
+The common theme is that design information and adjustment structure should enter the estimator explicitly rather than being treated as an afterthought.
+
+## What Is Covered
+
+- blocked and post-stratified treatment-effect estimation
+- Lin-style regression adjustment
+- rerandomization as a restriction on the assignment mechanism
+- matched-pairs randomization inference
+- the difference between Fisher's sharp-null test and Neyman's average-effect logic

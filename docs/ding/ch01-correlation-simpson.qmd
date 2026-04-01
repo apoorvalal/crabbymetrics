@@ -1,0 +1,174 @@
+---
+title: "First Course Ding: Chapter 1"
+subtitle: "Correlation, adjustment, and Simpson's paradox"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+Chapter 1 mixes three related ideas:
+
+- raw association can move sharply after adjustment
+- contingency-table evidence can be summarized with simple callback-rate differences
+- Simpson's paradox is a warning that pooled regressions can point in the wrong direction when group composition shifts
+
+```{python}
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+data_dir = repo_root() / "ding_w_source"
+```
+
+## Lalonde Observational Data
+
+The original notebook starts with the Lalonde-style CPS comparison. Here the point is simple: the treatment coefficient can move a long way once we control for observable differences.
+
+```{python}
+cps = pd.read_table(data_dir / "cps1re74.csv", delimiter=" ")
+y = cps["re78"].to_numpy(dtype=float)
+
+naive = cm.OLS()
+naive.fit(cps[["treat"]].to_numpy(dtype=float), y)
+
+covariates = ["treat", "age", "educ", "black", "hispan", "married", "nodegree", "re74", "re75"]
+adjusted = cm.OLS()
+adjusted.fit(cps[covariates].to_numpy(dtype=float), y)
+
+regression_table = pd.DataFrame(
+    {
+        "estimate": [
+            naive.summary()["coef"][0],
+            adjusted.summary()["coef"][0],
+        ],
+        "se_hc1": [
+            naive.summary(vcov="hc1")["coef_se"][0],
+            adjusted.summary(vcov="hc1")["coef_se"][0],
+        ],
+    },
+    index=["Unadjusted", "Adjusted"],
+)
+regression_table
+```
+
+## Callback Rates In The Resume Experiment
+
+The Bertrand-Mullainathan resume data are a clean reminder that some causal contrasts are already visible in simple grouped means.
+
+```{python}
+resume = pd.read_csv(data_dir / "resume.csv")
+
+callback_rates = (
+    resume.groupby(["race", "sex"], observed=False)["call"]
+    .agg(["mean", "size"])
+    .rename(columns={"mean": "callback_rate", "size": "n"})
+)
+callback_rates
+```
+
+```{python}
+callback_plot = (
+    resume.groupby(["race", "sex"], observed=False)["call"]
+    .mean()
+    .unstack("sex")
+    .loc[["black", "white"]]
+)
+
+fig, ax = plt.subplots(figsize=(6, 4))
+callback_plot.plot(kind="bar", ax=ax, rot=0)
+ax.set_ylabel("Callback rate")
+ax.set_title("Resume callbacks by race and sex")
+fig.tight_layout()
+```
+
+## Simpson's Paradox In A Synthetic Example
+
+Within each group below, the relationship between $x$ and $y$ is positive. Pooled together, it becomes negative because the high-$x$ group also has a much lower intercept.
+
+```{python}
+rng = np.random.default_rng(1)
+n_group = 160
+group = np.repeat([0.0, 1.0], n_group)
+x = np.r_[rng.normal(-1.0, 0.6, n_group), rng.normal(2.5, 0.6, n_group)]
+y = np.r_[
+    3.5 + 0.9 * x[:n_group] + rng.normal(0.0, 0.35, n_group),
+    -2.5 + 0.9 * x[n_group:] + rng.normal(0.0, 0.35, n_group),
+]
+
+pooled = cm.OLS()
+pooled.fit(x[:, None], y)
+
+adjusted_simpson = cm.OLS()
+adjusted_simpson.fit(np.column_stack([x, group]), y)
+
+simpson_table = pd.DataFrame(
+    {
+        "slope_on_x": [
+            pooled.summary()["coef"][0],
+            adjusted_simpson.summary()["coef"][0],
+        ]
+    },
+    index=["Pooled", "Adjusted for group"],
+)
+simpson_table
+```
+
+```{python}
+grid = np.linspace(x.min() - 0.2, x.max() + 0.2, 100)
+pooled_summary = pooled.summary()
+adj_summary = adjusted_simpson.summary()
+
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.scatter(x[group == 0.0], y[group == 0.0], alpha=0.6, label="Group 0")
+ax.scatter(x[group == 1.0], y[group == 1.0], alpha=0.6, label="Group 1")
+ax.plot(
+    grid,
+    pooled_summary["intercept"] + pooled_summary["coef"][0] * grid,
+    color="black",
+    linewidth=2.0,
+    label="Pooled line",
+)
+ax.plot(
+    grid,
+    adj_summary["intercept"] + adj_summary["coef"][0] * grid,
+    color="tab:red",
+    linewidth=2.0,
+    linestyle="--",
+    label="Adjusted slope at group 0",
+)
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_title("Simpson's paradox from pooled versus adjusted regression")
+ax.legend()
+fig.tight_layout()
+```
+
+## Takeaway
+
+Chapter 1 is mostly about interpretation discipline. `crabbymetrics.OLS` is enough to reproduce the main lesson: raw differences, adjusted differences, and grouped summaries answer different questions even when they use the same underlying observations.

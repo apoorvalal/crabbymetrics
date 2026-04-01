@@ -1,0 +1,131 @@
+---
+title: "First Course Ding: Chapter 5"
+subtitle: "Stratification and post-stratification"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+Chapter 5 moves from completely randomized experiments to blocked designs. The Penn unemployment experiment is a natural real-data example.
+
+```{python}
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+data_dir = repo_root() / "ding_w_source"
+```
+
+## Penn Job-Training Data
+
+```{python}
+penndata = pd.read_table(data_dir / "Penn46_ascii.txt", sep=r"\s+")
+y = np.log(penndata["duration"].to_numpy(dtype=float))
+z = penndata["treatment"].to_numpy(dtype=float)
+block = penndata["quarter"].to_numpy()
+
+unadjusted = cm.OLS()
+unadjusted.fit(z[:, None], y)
+
+block_dummies = pd.get_dummies(penndata["quarter"], drop_first=True, dtype=float)
+blocked_design = np.column_stack([z, block_dummies.to_numpy(dtype=float)])
+blocked = cm.OLS()
+blocked.fit(blocked_design, y)
+
+
+def stratified_diff(y, z, block):
+    levels = np.unique(block)
+    pieces = []
+    for level in levels:
+        idx = block == level
+        zk = z[idx]
+        yk = y[idx]
+        pieces.append(
+            {
+                "weight": idx.mean(),
+                "tau": yk[zk == 1.0].mean() - yk[zk == 0.0].mean(),
+            }
+        )
+    out = pd.DataFrame(pieces)
+    return float(np.dot(out["weight"], out["tau"]))
+
+
+summary_table = pd.DataFrame(
+    {
+        "estimate": [
+            unadjusted.summary()["coef"][0],
+            blocked.summary()["coef"][0],
+            stratified_diff(y, z, block),
+        ],
+        "se_hc1": [
+            unadjusted.summary(vcov="hc1")["coef_se"][0],
+            blocked.summary(vcov="hc1")["coef_se"][0],
+            np.nan,
+        ],
+    },
+    index=["Unadjusted OLS", "Blocked OLS", "Weighted block mean"],
+)
+summary_table
+```
+
+## Fisher Test Within Blocks
+
+```{python}
+rng = np.random.default_rng(5)
+observed_stat = stratified_diff(y, z, block)
+null_draws = np.zeros(1000)
+
+for rep in range(null_draws.size):
+    z_perm = z.copy()
+    for level in np.unique(block):
+        idx = np.flatnonzero(block == level)
+        z_perm[idx] = rng.permutation(z_perm[idx])
+    null_draws[rep] = stratified_diff(y, z_perm, block)
+
+pvalue = np.mean(np.abs(null_draws) >= abs(observed_stat))
+pd.DataFrame({"observed_stratified_stat": [observed_stat], "blockwise_FRT_pvalue": [pvalue]})
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.hist(null_draws, bins=40, alpha=0.75)
+ax.axvline(observed_stat, color="black", linestyle="--", linewidth=2.0)
+ax.set_xlabel("Stratified difference in means")
+ax.set_ylabel("Count")
+ax.set_title("Randomization distribution under blockwise permutations")
+fig.tight_layout()
+```
+
+## Takeaway
+
+The chapter's logic survives the translation almost unchanged:
+
+- the design determines which permutations are admissible
+- conditioning on strata can tighten the estimator
+- the blocked estimator is just a weighted average of within-block contrasts

@@ -202,7 +202,7 @@ g(X_i)
 \tau = 1.25.
 $$
 
-`EPLM` is intentionally given only the raw five covariates, so its linear nuisance model is misspecified on both the treatment and outcome side. `PartiallyLinearDML` instead gets the richer basis $B(X)$ defined above and uses three-fold cross-fitting with a fixed ridge penalty of `0.1`.
+`EPLM` is intentionally given only the raw five covariates, so its linear nuisance model is misspecified on both the treatment and outcome side. `PartiallyLinearDML` instead gets the richer basis $B(X)$ defined above and uses three-fold cross-fitting with a log-spaced ridge grid. Within each fold, the outcome and treatment nuisances choose their own penalties from that common candidate set.
 
 ### Representative Dataset
 
@@ -232,12 +232,13 @@ def continuous_treatment_dgp(n, rng, tau=1.25):
 
 rng = np.random.default_rng(20260331)
 y, d, x, tau_true = continuous_treatment_dgp(1200, rng)
+continuous_penalty_grid = np.logspace(-4, 2, 15)
 
 eplm = cm.EPLM()
 eplm.fit(y, d, x)
 eplm_summary = eplm.summary(vcov="hc1")
 
-dml = cm.PartiallyLinearDML(penalty=0.1, n_folds=3, seed=11)
+dml = cm.PartiallyLinearDML(penalty=continuous_penalty_grid, cv=3, n_folds=3, seed=11)
 dml.fit(y, d, continuous_basis(x))
 dml_summary = dml.summary(vcov="hc1")
 
@@ -261,6 +262,7 @@ display(
 def simulate_continuous(sample_sizes, reps, seed):
     rng = np.random.default_rng(seed)
     out = []
+    penalty_grid = np.logspace(-4, 2, 15)
 
     for n in sample_sizes:
         eplm_estimates = []
@@ -277,7 +279,7 @@ def simulate_continuous(sample_sizes, reps, seed):
             eplm_estimates.append(float(eplm_summary["coef"]))
             eplm_ses.append(float(eplm_summary["se"]))
 
-            dml = cm.PartiallyLinearDML(penalty=0.1, n_folds=3, seed=11)
+            dml = cm.PartiallyLinearDML(penalty=penalty_grid, cv=3, n_folds=3, seed=11)
             dml.fit(y, d, continuous_basis(x))
             dml_summary = dml.summary(vcov="hc1")
             dml_estimates.append(float(dml_summary["coef"]))
@@ -380,7 +382,7 @@ The comparison is intentionally asymmetric:
 
 - Vanilla regression fits `OLS` on `[D, X]` and therefore relies on a linear outcome regression in the raw covariates.
 - Entropy balancing reweights the treated and control groups separately to the pooled mean of a richer balance basis $B(X)$.
-- `AIPW` uses that same $B(X)$ inside its cross-fit ridge nuisances, with `penalty=2.0`, `n_folds=3`, and `propensity_clip=0.1` to stabilize the ridge propensity fit.
+- `AIPW` uses that same $B(X)$ inside its cross-fit ridge nuisances, with a log-spaced penalty grid, `n_folds=3`, and `propensity_clip=0.1` to stabilize the propensity fit. The treated-outcome, control-outcome, and propensity regressions each choose their own penalties within each fold.
 
 ### Representative Dataset
 
@@ -438,6 +440,7 @@ def fit_entropy_balancing_ate(y, d, x):
 
 rng = np.random.default_rng(20260402)
 y, d, x, tau_true = binary_treatment_dgp(1500, rng)
+binary_penalty_grid = np.logspace(-4, 2, 15)
 
 ols = cm.OLS()
 ols.fit(np.column_stack([d, x]), y)
@@ -445,7 +448,7 @@ ols_summary = ols.summary(vcov="hc1")
 
 balancing_ate, balancing_diag = fit_entropy_balancing_ate(y, d, x)
 
-aipw = cm.AIPW(penalty=2.0, n_folds=3, propensity_clip=0.1, seed=19)
+aipw = cm.AIPW(penalty=binary_penalty_grid, cv=3, n_folds=3, propensity_clip=0.1, seed=19)
 aipw.fit(y, d, balance_basis(x))
 aipw_summary = aipw.summary(vcov="hc1")
 
@@ -484,6 +487,7 @@ display(
 def simulate_binary(sample_sizes, reps, seed):
     rng = np.random.default_rng(seed)
     out = []
+    penalty_grid = np.logspace(-4, 2, 15)
 
     for n in sample_sizes:
         ols_estimates = []
@@ -501,7 +505,13 @@ def simulate_binary(sample_sizes, reps, seed):
             balancing_ate, _ = fit_entropy_balancing_ate(y, d, x)
             balancing_estimates.append(float(balancing_ate))
 
-            aipw = cm.AIPW(penalty=2.0, n_folds=3, propensity_clip=0.1, seed=19)
+            aipw = cm.AIPW(
+                penalty=penalty_grid,
+                cv=3,
+                n_folds=3,
+                propensity_clip=0.1,
+                seed=19,
+            )
             aipw.fit(y, d, balance_basis(x))
             aipw_summary = aipw.summary(vcov="hc1")
             aipw_estimates.append(float(aipw_summary["ate"]))

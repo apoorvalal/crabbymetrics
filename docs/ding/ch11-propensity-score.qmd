@@ -1,0 +1,139 @@
+---
+title: "First Course Ding: Chapter 11"
+subtitle: "The central role of the propensity score"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+This translation keeps the chapter's basic workflow:
+
+- compare naive and adjusted outcome regressions
+- estimate a propensity score
+- look at overlap directly
+- use the propensity score to stratify the treated-control comparison
+
+```{python}
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+def expit(x):
+    return 1.0 / (1.0 + np.exp(-x))
+```
+
+## NHANES School-Meal Example
+
+```{python}
+data = pd.read_csv(repo_root() / "ding_w_source" / "nhanes_bmi.csv")
+
+y = data["BMI"].to_numpy(dtype=float)
+d = data["School_meal"].to_numpy(dtype=np.int32)
+feature_names = [
+    "age",
+    "ChildSex",
+    "black",
+    "mexam",
+    "pir200_plus",
+    "WIC",
+    "Food_Stamp",
+    "fsdchbi",
+    "AnyIns",
+    "RefSex",
+    "RefAge",
+]
+x = data[feature_names].to_numpy(dtype=float)
+x = (x - x.mean(axis=0)) / np.where(x.std(axis=0) > 1e-12, x.std(axis=0), 1.0)
+
+naive = cm.OLS()
+naive.fit(d.astype(float)[:, None], y)
+
+adjusted = cm.OLS()
+adjusted.fit(np.column_stack([d.astype(float), x]), y)
+
+ps_model = cm.Logit(alpha=1.0, max_iterations=300)
+ps_model.fit(x, d)
+ps_summary = ps_model.summary()
+pscore = expit(ps_summary["intercept"] + x @ np.asarray(ps_summary["coef"]))
+
+quantiles = np.quantile(pscore, [0.2, 0.4, 0.6, 0.8])
+quintile = np.digitize(pscore, quantiles, right=True)
+
+
+def stratified_ate(y, d, strata):
+    total = 0.0
+    for level in np.unique(strata):
+        idx = strata == level
+        if np.any(d[idx] == 1) and np.any(d[idx] == 0):
+            total += idx.mean() * (y[idx & (d == 1)].mean() - y[idx & (d == 0)].mean())
+    return float(total)
+
+
+stratified = stratified_ate(y, d, quintile)
+
+treated = d == 1
+control = ~treated
+bal = cm.BalancingWeights(objective="entropy", autoscale=True, max_iterations=300, tolerance=1e-8, l2_norm=0.02)
+bal.fit(x[control], x[treated])
+weights = np.asarray(bal.summary()["weights"])
+att_bal = float(y[treated].mean() - np.dot(weights, y[control]))
+
+print("Naive OLS coefficient on treatment:", round(float(naive.summary()["coef"][0]), 4))
+print("Adjusted OLS coefficient on treatment:", round(float(adjusted.summary()["coef"][0]), 4))
+print("Propensity-stratified estimate:", round(stratified, 4))
+print("Entropy-balancing ATT:", round(att_bal, 4))
+```
+
+## Overlap
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.hist(pscore[d == 1], bins=25, density=True, alpha=0.6, label="Treated")
+ax.hist(pscore[d == 0], bins=25, density=True, alpha=0.6, label="Control")
+ax.set_xlabel("Estimated propensity score")
+ax.set_ylabel("Density")
+ax.set_title("Estimated overlap in the NHANES example")
+ax.legend()
+fig.tight_layout()
+plt.show()
+```
+
+```{python}
+for level in np.unique(quintile):
+    idx = quintile == level
+    print(
+        f"Quintile {int(level) + 1}: n = {idx.sum():4d}, treated share = {float(d[idx].mean()): .4f}"
+    )
+```
+
+The chapter's message is still the right one:
+
+- the outcome regression can move after covariate adjustment
+- the propensity score is a one-dimensional overlap diagnostic
+- once the score is estimated, blocking and weighting become natural follow-up estimators

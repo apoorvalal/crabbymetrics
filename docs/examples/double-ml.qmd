@@ -21,7 +21,7 @@ This page covers the two cross-fit estimators in `crabbymetrics`:
 - `PartiallyLinearDML` for a scalar continuous treatment
 - `AIPW` for a binary-treatment average treatment effect
 
-Both use ridge regressions as nuisance learners. If a penalty grid is passed, each nuisance fit selects its penalty within each training fold before predicting on the held-out fold.
+Both use ridge regressions as nuisance learners. If a penalty grid is passed, each nuisance fit selects its own penalty within each training fold before predicting on the held-out fold.
 
 ## Partially Linear DML
 
@@ -126,7 +126,7 @@ d = 0.4 + x @ np.array([0.6, -0.5, 0.3, 0.2, -0.2]) + rng.normal(scale=0.7, size
 l = 1.0 + x @ np.array([0.4, -0.3, 0.2, 0.1, 0.3]) + 0.3 * x[:, 0] * x[:, 1]
 y = 1.5 * d + l + rng.normal(scale=0.7, size=n)
 
-penalty_grid = np.logspace(-3, 1, 20)
+penalty_grid = np.logspace(-4, 2, 25)
 
 plr = cm.PartiallyLinearDML(penalty=penalty_grid, cv=5, n_folds=5, seed=42)
 plr.fit(y, d, x)

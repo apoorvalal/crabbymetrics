@@ -35,9 +35,9 @@ import crabbymetrics as cm
 from IPython.display import HTML, display
 
 
-def html_table(headers, rows):
+def html_table(headers, rows, table_attrs=""):
     parts = [
-        "<table>",
+        f"<table {table_attrs}>".strip(),
         "<thead>",
         "<tr>",
         *[f"<th>{escape(str(header))}</th>" for header in headers],
@@ -297,10 +297,13 @@ reference_rows = [
 
 display(
     HTML(
-        html_table(
+        "<div style='width: 100%; overflow-x: auto;'>"
+        + html_table(
             ["Estimator", "Fit", "Predict", "Summary Keys", "Bootstrap", "Notes"],
             reference_rows,
+            table_attrs="style='width: 100%; min-width: 100%; table-layout: auto;'",
         )
+        + "</div>"
     )
 )
 ```
@@ -613,6 +616,7 @@ display(HTML(html_table(["Estimator", "Summary Keys", "Bootstrap Shape"], runtim
 ### OLS
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(0)
 x = rng.normal(size=(200, 3))
 beta = np.array([1.2, -0.7, 0.5])
@@ -634,6 +638,7 @@ summary["coef"], summary_vanilla["coef_se"], summary_hac["coef_se"], summary_clu
 ### Ridge
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(2)
 x = rng.normal(size=(250, 4))
 beta = np.array([1.0, -0.8, 0.0, 0.3])
@@ -651,6 +656,7 @@ summary["penalty"], summary["best_penalty_index"], summary_hac["coef_se"], summa
 ### Poisson
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(4)
 x = rng.normal(size=(300, 2))
 mu = np.exp(0.2 + x @ np.array([0.5, -0.25]))
@@ -668,6 +674,7 @@ vanilla["coef"], sandwich["coef_se"]
 ### TwoSLS
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(6)
 n = 500
 z = rng.normal(size=(n, 3))
@@ -691,6 +698,7 @@ hc1["coef"], cluster["coef_se"]
 ### EPLM
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(7)
 w = rng.normal(size=(300, 3))
 d = 0.4 + w @ np.array([0.7, -0.4, 0.2]) + rng.normal(scale=0.8, size=300)
@@ -706,6 +714,7 @@ summary["coef"], summary["se"]
 ### AverageDerivative
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(8)
 w = rng.normal(size=(320, 2))
 d = 0.2 + w @ np.array([0.6, -0.3]) + rng.normal(scale=0.6, size=320)
@@ -722,12 +731,15 @@ summary["method"], summary["coef"], summary["se"]
 ### PartiallyLinearDML
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(10)
 x = rng.normal(size=(400, 4))
 d = 0.3 + x @ np.array([0.5, -0.4, 0.2, 0.1]) + rng.normal(scale=0.8, size=400)
 y = 1.4 * d + 1.0 + x @ np.array([0.4, -0.2, 0.1, 0.3]) + rng.normal(scale=0.6, size=400)
 
-model = cm.PartiallyLinearDML(penalty=np.array([0.0, 0.05, 0.2, 1.0]), cv=5, n_folds=5, seed=1)
+penalty_grid = np.logspace(-4, 2, 25)
+
+model = cm.PartiallyLinearDML(penalty=penalty_grid, cv=5, n_folds=5, seed=1)
 model.fit(y, d, x)
 
 summary = model.summary()
@@ -737,13 +749,16 @@ summary["coef"], summary["se"], summary["outcome_penalties"][:2]
 ### AIPW
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(11)
 x = rng.normal(size=(450, 3))
 pi = 1.0 / (1.0 + np.exp(-(0.1 + x @ np.array([0.7, -0.4, 0.2]))))
 d = rng.binomial(1, pi, size=450).astype(float)
 y = 0.5 + x @ np.array([0.3, -0.2, 0.4]) + 1.1 * d + rng.normal(scale=0.8, size=450)
 
-model = cm.AIPW(penalty=np.array([0.0, 0.05, 0.2, 1.0]), cv=5, n_folds=5, seed=1)
+penalty_grid = np.logspace(-4, 2, 25)
+
+model = cm.AIPW(penalty=penalty_grid, cv=5, n_folds=5, seed=1)
 model.fit(y, d, x)
 
 summary = model.summary()
@@ -753,6 +768,7 @@ summary["ate"], summary["se"], summary["propensity_penalties"][:2]
 ### GMM
 
 ```{python}
+#| code-fold: false
 def simple_iv_moments(theta, data):
     resid = data["y"] - data["x"] * theta[0]
     return data["z"] * resid[:, None]
@@ -785,6 +801,7 @@ vanilla["coef"], sandwich["se"]
 This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with `within`, then regress the residualized outcome on the residualized regressors with no intercept.
 
 ```{python}
+#| code-fold: false
 rng = np.random.default_rng(12)
 n = 400
 x = rng.normal(size=(n, 2))
@@ -815,6 +832,7 @@ This is the lowest-level public interface in the library. The callback contract 
 - For bootstrap support, the `data` dictionary must include `n`, and user code should respect an optional `indices` key.
 
 ```{python}
+#| code-fold: false
 import numpy as np
 
 

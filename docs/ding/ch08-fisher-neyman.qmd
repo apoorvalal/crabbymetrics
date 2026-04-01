@@ -1,0 +1,105 @@
+---
+title: "First Course Ding: Chapter 8"
+subtitle: "Fisherian versus Neymanian inference"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+The full chapter studies several studentized statistics. This translation keeps the core contrast: when treatment effects are heterogeneous, the Neyman average-null and the Fisher sharp-null need not lead to the same finite-sample p-values.
+
+```{python}
+import itertools
+import math
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## A Simulation With Zero Average Effect But Heterogeneous Individual Effects
+
+```{python}
+rng = np.random.default_rng(8)
+n = 24
+n1 = n // 2
+x = np.linspace(-1.0, 1.0, n)
+y0 = -x + rng.normal(scale=0.25, size=n)
+tau = 1.5 * x
+y1 = y0 + tau
+
+
+def diff_in_means(y, z):
+    treated = z == 1.0
+    control = ~treated
+    return y[treated].mean() - y[control].mean()
+
+
+def normal_pvalue(stat):
+    return math.erfc(abs(float(stat)) / math.sqrt(2.0))
+
+
+def neyman_pvalue(y_obs, z_obs):
+    treated = z_obs == 1.0
+    control = ~treated
+    tau_hat = diff_in_means(y_obs, z_obs)
+    se_hat = np.sqrt(y_obs[treated].var(ddof=1) / treated.sum() + y_obs[control].var(ddof=1) / control.sum())
+    return normal_pvalue(tau_hat / se_hat)
+
+
+all_assignments = np.array(list(itertools.combinations(range(n), n1)))
+assignment_weights = np.full((all_assignments.shape[0], n), -1.0 / (n - n1))
+for row, treated_ids in enumerate(all_assignments):
+    assignment_weights[row, treated_ids] = 1.0 / n1
+
+
+def fisher_pvalue(y_obs):
+    tau_hat = diff_in_means(y_obs, z)
+    null_stats = assignment_weights @ y_obs
+    return float(np.mean(np.abs(null_stats) >= abs(tau_hat)))
+
+
+fisher_draws = []
+neyman_draws = []
+for _ in range(80):
+    z = np.zeros(n)
+    z[rng.choice(n, size=n1, replace=False)] = 1.0
+    y_obs = z * y1 + (1.0 - z) * y0
+    neyman_draws.append(neyman_pvalue(y_obs, z))
+    fisher_draws.append(fisher_pvalue(y_obs))
+
+print("Mean Neyman p-value:", round(float(np.mean(neyman_draws)), 4))
+print("Mean Fisher p-value:", round(float(np.mean(fisher_draws)), 4))
+print("Share Neyman <= 0.05:", round(float(np.mean(np.asarray(neyman_draws) <= 0.05)), 4))
+print("Share Fisher <= 0.05:", round(float(np.mean(np.asarray(fisher_draws) <= 0.05)), 4))
+```
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+axes[0].hist(neyman_draws, bins=20, density=True, alpha=0.8)
+axes[0].axhline(1.0, color="black", linestyle="--", linewidth=1.2)
+axes[0].set_title("Neyman p-values")
+axes[0].set_xlabel("p-value")
+
+axes[1].hist(fisher_draws, bins=20, density=True, alpha=0.8)
+axes[1].axhline(1.0, color="black", linestyle="--", linewidth=1.2)
+axes[1].set_title("Fisher p-values")
+axes[1].set_xlabel("p-value")
+plt.tight_layout()
+plt.show()
+```
+
+Here the finite-population average treatment effect is close to zero, so Neyman's null is plausible. Fisher's sharp null is false because the unit-level treatment effects vary with $x$. The resulting p-value distributions do not line up perfectly, which is exactly the point of the chapter.
