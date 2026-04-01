@@ -1,6 +1,8 @@
 # crabbymetrics
 
-
+[![Tests](https://github.com/apoorvalal/crabbymetrics/actions/workflows/tests.yml/badge.svg)](https://github.com/apoorvalal/crabbymetrics/actions/workflows/tests.yml)
+[![Build wheels](https://github.com/apoorvalal/crabbymetrics/actions/workflows/wheels.yml/badge.svg)](https://github.com/apoorvalal/crabbymetrics/actions/workflows/wheels.yml)
+[![PyPI version](https://img.shields.io/pypi/v/crabbymetrics.svg)](https://pypi.org/project/crabbymetrics/)
 
 Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
 
@@ -14,6 +16,8 @@ Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focu
 
 ## Install
 This package is built with pyo3/maturin and ships as native wheels.
+
+PyPI: <https://pypi.org/project/crabbymetrics/>
 
 ```bash
 uv pip install crabbymetrics
