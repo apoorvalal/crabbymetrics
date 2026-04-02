@@ -753,7 +753,7 @@
     "href": "index.html",
     "title": "crabbymetrics",
     "section": "",
-    "text": "crabbymetrics is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active First Course Ding translation track, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages."
+    "text": "crabbymetrics logo\ncrabbymetrics is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active First Course Ding translation track, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages."
   },
   {
     "objectID": "index.html#start-here",

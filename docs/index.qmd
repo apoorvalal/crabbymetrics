@@ -13,6 +13,8 @@ execute:
   message: false
 ---
 
+![crabbymetrics logo](logo.png){fig-alt="crabbymetrics logo" width="70%"}
+
 `crabbymetrics` is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active `First Course Ding` translation track, supervised and semiparametric example pages, unsupervised transform notes, focused numerical ablations, and a small set of supporting internals pages.
 
 ## Start Here

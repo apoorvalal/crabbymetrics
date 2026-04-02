@@ -4,6 +4,10 @@
 [![Build wheels](https://github.com/apoorvalal/crabbymetrics/actions/workflows/wheels.yml/badge.svg)](https://github.com/apoorvalal/crabbymetrics/actions/workflows/wheels.yml)
 [![PyPI version](https://img.shields.io/pypi/v/crabbymetrics.svg)](https://pypi.org/project/crabbymetrics/)
 
+<p align="center">
+  <img src="docs/logo.png" alt="crabbymetrics logo" width="720">
+</p>
+
 Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
 
 ## Features
