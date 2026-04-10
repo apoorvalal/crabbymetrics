@@ -78,6 +78,7 @@ classes = [
     cm.Ridge,
     cm.FixedEffectsOLS,
     cm.SyntheticControl,
+    cm.SyntheticDID,
     cm.BalancingWeights,
     cm.EPLM,
     cm.AverageDerivative,
@@ -139,6 +140,7 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - The `Optimizers` methods return plain dictionaries rather than scipy result objects, but the schema is intentionally similar.
 - `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
 - `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
+- `SyntheticDID.fit(y, treated_units, t_pre)` expects a balanced outcome panel in an `(n_units, n_periods)` matrix, a sequence of treated unit indices, and the number of pre-treatment periods.
 - `BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)` estimates calibration weights on the first matrix so its weighted covariate mean matches the target mean implied by the second matrix.
 - `EPLM.fit(y, d, w)` and `AverageDerivative.fit(y, d, w)` currently target a scalar continuous treatment and a 2D control matrix.
 - `PartiallyLinearDML.fit(y, d, x)` targets a scalar continuous treatment with cross-fit ridge nuisances.
@@ -188,6 +190,14 @@ reference_rows = [
         "<code>weights</code>, <code>pre_rmse</code>",
         "<code>(B, n_donors)</code>",
         "Fits nonnegative donor weights that sum to one by minimizing pre-treatment squared error under a simplex constraint.",
+    ],
+    [
+        "<code>SyntheticDID</code>",
+        "<code>fit(y, treated_units, t_pre)</code>",
+        "No dedicated <code>predict()</code> method",
+        "<code>att</code>, <code>unit_weights</code>, <code>time_weights</code>, <code>treated_outcome</code>, <code>synthetic_outcome</code>, <code>treatment_effect</code>, <code>pre_rmse</code>, <code>unit_intercept</code>, <code>time_intercept</code>, <code>zeta_omega</code>, <code>zeta_lambda</code>",
+        "No bootstrap method",
+        "Synthetic difference-in-differences for balanced outcome panels. It solves the Arkhangelsky-style simplex least-squares unit and time weighting problems with intercepts and ridge regularization in Rust.",
     ],
     [
         "<code>BalancingWeights</code>",
@@ -460,6 +470,19 @@ runtime_rows.append(
         "<code>SyntheticControl</code>",
         ", ".join(model.summary().keys()),
         str(model.bootstrap(3, seed=1).shape),
+    ]
+)
+
+# SyntheticDID
+panel = rng.normal(size=(8, 12))
+panel[6:, 8:] += 0.8
+model = cm.SyntheticDID(max_iterations=300)
+model.fit(panel, [6, 7], 8)
+runtime_rows.append(
+    [
+        "<code>SyntheticDID</code>",
+        ", ".join(model.summary().keys()),
+        "No bootstrap method",
     ]
 )
 

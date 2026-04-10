@@ -39,6 +39,8 @@ website:
             text: ElasticNet
           - href: examples/synthetic-control.qmd
             text: Synthetic Control
+          - href: examples/synthetic-did.qmd
+            text: Synthetic DID
           - href: examples/logit.qmd
             text: Logit
           - href: examples/multinomial-logit.qmd

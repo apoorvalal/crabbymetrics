@@ -85,6 +85,7 @@ The current Python module exports:
   - `FixedEffectsOLS`
   - `TwoSLS`
   - `SyntheticControl`
+  - `SyntheticDID`
 - regularized / online:
   - `Ridge`
   - `ElasticNet`

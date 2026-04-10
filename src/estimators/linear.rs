@@ -307,6 +307,13 @@ struct SyntheticControlProblem<'a> {
     treated: ArrayView1<'a, f64>,
 }
 
+struct SimplexLeastSquaresProblem<'a> {
+    design: ArrayView2<'a, f64>,
+    target: ArrayView1<'a, f64>,
+    zeta: f64,
+    intercept: bool,
+}
+
 impl CostFunction for SyntheticControlProblem<'_> {
     type Param = Array1<f64>;
     type Output = f64;
@@ -330,6 +337,49 @@ impl Gradient for SyntheticControlProblem<'_> {
         let weights = softmax_weights(theta);
         let residual = self.donors.dot(&weights) - &self.treated;
         let grad_weights = self.donors.t().dot(&residual) / (self.donors.nrows() as f64);
+        let centered = &grad_weights - weights.dot(&grad_weights);
+        Ok(weights * centered)
+    }
+}
+
+impl SimplexLeastSquaresProblem<'_> {
+    fn residual(&self, weights: &Array1<f64>) -> Array1<f64> {
+        let mut residual = self.design.dot(weights) - self.target;
+        if self.intercept {
+            let mean = residual.mean().unwrap_or(0.0);
+            residual.mapv_inplace(|value| value - mean);
+        }
+        residual
+    }
+}
+
+impl CostFunction for SimplexLeastSquaresProblem<'_> {
+    type Param = Array1<f64>;
+    type Output = f64;
+
+    fn cost(&self, theta: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+        let weights = softmax_weights(theta);
+        let residual = self.residual(&weights);
+        let n = self.design.nrows() as f64;
+        let fit = residual.dot(&residual) / n;
+        let penalty = self.zeta * self.zeta * weights.dot(&weights);
+        Ok(0.5 * (fit + penalty))
+    }
+}
+
+impl Gradient for SimplexLeastSquaresProblem<'_> {
+    type Param = Array1<f64>;
+    type Gradient = Array1<f64>;
+
+    fn gradient(
+        &self,
+        theta: &Self::Param,
+    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
+        let weights = softmax_weights(theta);
+        let residual = self.residual(&weights);
+        let n = self.design.nrows() as f64;
+        let grad_weights = self.design.t().dot(&residual) / n
+            + weights.mapv(|value| self.zeta * self.zeta * value);
         let centered = &grad_weights - weights.dot(&grad_weights);
         Ok(weights * centered)
     }
@@ -376,6 +426,141 @@ fn fit_synthetic_control_weights(
         .ok_or_else(|| PyValueError::new_err("synthetic control optimization failed"))?;
 
     Ok(softmax_weights(&theta))
+}
+
+fn fit_simplex_least_squares_weights(
+    design: &Array2<f64>,
+    target: &Array1<f64>,
+    zeta: f64,
+    intercept: bool,
+    max_iterations: u64,
+) -> PyResult<Array1<f64>> {
+    if design.nrows() != target.len() {
+        return Err(PyValueError::new_err(
+            "design rows must match target length",
+        ));
+    }
+    if design.nrows() == 0 {
+        return Err(PyValueError::new_err("need at least one observation"));
+    }
+    if design.ncols() == 0 {
+        return Err(PyValueError::new_err("need at least one simplex weight"));
+    }
+    if !zeta.is_finite() || zeta < 0.0 {
+        return Err(PyValueError::new_err("zeta must be finite and nonnegative"));
+    }
+    if design.ncols() == 1 {
+        return Ok(Array1::from_vec(vec![1.0]));
+    }
+
+    let problem = SimplexLeastSquaresProblem {
+        design: design.view(),
+        target: target.view(),
+        zeta,
+        intercept,
+    };
+    let theta0 = Array1::<f64>::zeros(design.ncols());
+    let linesearch = MoreThuenteLineSearch::new();
+    let solver = LBFGS::new(linesearch, 7);
+
+    let mut result = Executor::new(problem, solver)
+        .configure(|state| state.param(theta0).max_iters(max_iterations))
+        .run()
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+    let theta = result
+        .state
+        .take_best_param()
+        .ok_or_else(|| PyValueError::new_err("simplex least-squares optimization failed"))?;
+
+    Ok(softmax_weights(&theta))
+}
+
+fn simplex_intercept(design: &Array2<f64>, target: &Array1<f64>, weights: &Array1<f64>) -> f64 {
+    let fitted = design.dot(weights);
+    (target - &fitted).mean().unwrap_or(0.0)
+}
+
+fn validate_finite_matrix(name: &str, values: &Array2<f64>) -> PyResult<()> {
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(PyValueError::new_err(format!(
+            "{} must contain only finite values",
+            name
+        )));
+    }
+    Ok(())
+}
+
+fn sdid_sigma_estimator(y_reordered: &Array2<f64>, n_control: usize, t_pre: usize) -> f64 {
+    if n_control == 0 || t_pre < 2 {
+        return 0.0;
+    }
+
+    let mut row_std = Vec::with_capacity(n_control);
+    for i in 0..n_control {
+        let mut diffs = Vec::with_capacity(t_pre - 1);
+        for t in 1..t_pre {
+            diffs.push(y_reordered[[i, t]] - y_reordered[[i, t - 1]]);
+        }
+        let mean = diffs.iter().sum::<f64>() / diffs.len() as f64;
+        let var = diffs
+            .iter()
+            .map(|value| {
+                let centered = *value - mean;
+                centered * centered
+            })
+            .sum::<f64>()
+            / diffs.len() as f64;
+        row_std.push(var.sqrt());
+    }
+
+    let mean = row_std.iter().sum::<f64>() / row_std.len() as f64;
+    let var = row_std
+        .iter()
+        .map(|value| {
+            let centered = *value - mean;
+            centered * centered
+        })
+        .sum::<f64>()
+        / row_std.len() as f64;
+    var.sqrt()
+}
+
+fn reorder_panel_for_treated(
+    y: &Array2<f64>,
+    treated_units: &[usize],
+) -> PyResult<(Array2<f64>, Vec<usize>, Vec<usize>)> {
+    let n_units = y.nrows();
+    if treated_units.is_empty() {
+        return Err(PyValueError::new_err(
+            "treated_units must contain at least one unit",
+        ));
+    }
+
+    let mut is_treated = vec![false; n_units];
+    for &idx in treated_units {
+        if idx >= n_units {
+            return Err(PyValueError::new_err("treated unit index out of range"));
+        }
+        if is_treated[idx] {
+            return Err(PyValueError::new_err(
+                "treated_units must not contain duplicates",
+            ));
+        }
+        is_treated[idx] = true;
+    }
+
+    let control_units: Vec<usize> = (0..n_units).filter(|idx| !is_treated[*idx]).collect();
+    if control_units.is_empty() {
+        return Err(PyValueError::new_err(
+            "need at least one untreated control unit",
+        ));
+    }
+
+    let mut order = control_units.clone();
+    order.extend_from_slice(treated_units);
+    let y_reordered = y.select(Axis(0), &order);
+    Ok((y_reordered, control_units, treated_units.to_vec()))
 }
 
 fn fit_fixed_effects_ols(
@@ -801,6 +986,27 @@ pub struct SyntheticControl {
     treated: Option<Array1<f64>>,
 }
 
+#[pyclass]
+pub struct SyntheticDID {
+    zeta_omega: Option<f64>,
+    zeta_lambda: Option<f64>,
+    max_iterations: u64,
+    att: Option<f64>,
+    unit_weights: Option<Array1<f64>>,
+    time_weights: Option<Array1<f64>>,
+    treated_outcome: Option<Array1<f64>>,
+    synthetic_outcome: Option<Array1<f64>>,
+    treatment_effect: Option<Array1<f64>>,
+    pre_rmse: Option<f64>,
+    unit_intercept: Option<f64>,
+    time_intercept: Option<f64>,
+    fitted_zeta_omega: Option<f64>,
+    fitted_zeta_lambda: Option<f64>,
+    control_units: Option<Vec<usize>>,
+    treated_units: Option<Vec<usize>>,
+    t_pre: Option<usize>,
+}
+
 #[pymethods]
 impl SyntheticControl {
     #[new]
@@ -895,6 +1101,208 @@ impl SyntheticControl {
         }
 
         Ok(pyarray2_from_f64(py, &out))
+    }
+}
+
+#[pymethods]
+impl SyntheticDID {
+    #[new]
+    #[pyo3(signature = (zeta_omega=None, zeta_lambda=None, max_iterations=1000))]
+    fn new(zeta_omega: Option<f64>, zeta_lambda: Option<f64>, max_iterations: u64) -> Self {
+        Self {
+            zeta_omega,
+            zeta_lambda,
+            max_iterations,
+            att: None,
+            unit_weights: None,
+            time_weights: None,
+            treated_outcome: None,
+            synthetic_outcome: None,
+            treatment_effect: None,
+            pre_rmse: None,
+            unit_intercept: None,
+            time_intercept: None,
+            fitted_zeta_omega: None,
+            fitted_zeta_lambda: None,
+            control_units: None,
+            treated_units: None,
+            t_pre: None,
+        }
+    }
+
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray2<f64>,
+        treated_units: Vec<usize>,
+        t_pre: usize,
+    ) -> PyResult<()> {
+        let y = to_array2(&y);
+        validate_finite_matrix("y", &y)?;
+        if y.nrows() < 2 {
+            return Err(PyValueError::new_err("y must contain at least two units"));
+        }
+        if t_pre == 0 || t_pre >= y.ncols() {
+            return Err(PyValueError::new_err(
+                "t_pre must be positive and smaller than the number of periods",
+            ));
+        }
+
+        let (y_reordered, control_units, treated_units) =
+            reorder_panel_for_treated(&y, &treated_units)?;
+        let n_control = control_units.len();
+        let n_treated = treated_units.len();
+        let t_post = y.ncols() - t_pre;
+
+        let sigma = sdid_sigma_estimator(&y_reordered, n_control, t_pre);
+        let zeta_omega = match self.zeta_omega {
+            Some(value) if value.is_finite() && value >= 0.0 => value,
+            Some(_) => {
+                return Err(PyValueError::new_err(
+                    "zeta_omega must be finite and nonnegative",
+                ))
+            }
+            None => ((n_treated * t_post) as f64).powf(0.25) * sigma,
+        };
+        let zeta_lambda = match self.zeta_lambda {
+            Some(value) if value.is_finite() && value >= 0.0 => value,
+            Some(_) => {
+                return Err(PyValueError::new_err(
+                    "zeta_lambda must be finite and nonnegative",
+                ))
+            }
+            None => 1e-6 * sigma,
+        };
+
+        let y_control_pre = y_reordered.slice(s![0..n_control, 0..t_pre]).to_owned();
+        let y_control_post = y_reordered.slice(s![0..n_control, t_pre..]).to_owned();
+        let y_treated_pre = y_reordered.slice(s![n_control.., 0..t_pre]).to_owned();
+
+        let control_post_mean = y_control_post
+            .mean_axis(Axis(1))
+            .ok_or_else(|| PyValueError::new_err("failed to average control post outcomes"))?;
+        let treated_pre_mean = y_treated_pre
+            .mean_axis(Axis(0))
+            .ok_or_else(|| PyValueError::new_err("failed to average treated pre outcomes"))?;
+
+        let lambda_weights = fit_simplex_least_squares_weights(
+            &y_control_pre,
+            &control_post_mean,
+            zeta_lambda,
+            true,
+            self.max_iterations,
+        )?;
+        let omega_design = y_control_pre.t().to_owned();
+        let unit_weights = fit_simplex_least_squares_weights(
+            &omega_design,
+            &treated_pre_mean,
+            zeta_omega,
+            true,
+            self.max_iterations,
+        )?;
+
+        let unit_intercept = simplex_intercept(&omega_design, &treated_pre_mean, &unit_weights);
+        let time_intercept = simplex_intercept(&y_control_pre, &control_post_mean, &lambda_weights);
+
+        let mut unit_weight_vec = Array1::<f64>::zeros(y.nrows());
+        for i in 0..n_control {
+            unit_weight_vec[i] = -unit_weights[i];
+        }
+        for i in n_control..y.nrows() {
+            unit_weight_vec[i] = 1.0 / n_treated as f64;
+        }
+
+        let mut time_weight_vec = Array1::<f64>::zeros(y.ncols());
+        for t in 0..t_pre {
+            time_weight_vec[t] = -lambda_weights[t];
+        }
+        for t in t_pre..y.ncols() {
+            time_weight_vec[t] = 1.0 / t_post as f64;
+        }
+
+        let att = unit_weight_vec.dot(&y_reordered.dot(&time_weight_vec));
+        let treated_outcome = y_reordered
+            .slice(s![n_control.., ..])
+            .mean_axis(Axis(0))
+            .ok_or_else(|| PyValueError::new_err("failed to average treated outcomes"))?;
+        let control_panel = y_reordered.slice(s![0..n_control, ..]).to_owned();
+        let synthetic_outcome = control_panel.t().dot(&unit_weights) + unit_intercept;
+        let treatment_effect = &treated_outcome - &synthetic_outcome;
+        let pre_rmse = treatment_effect
+            .slice(s![0..t_pre])
+            .mapv(|value| value * value)
+            .mean()
+            .unwrap_or(0.0)
+            .sqrt();
+
+        self.att = Some(att);
+        self.unit_weights = Some(unit_weights);
+        self.time_weights = Some(lambda_weights);
+        self.treated_outcome = Some(treated_outcome);
+        self.synthetic_outcome = Some(synthetic_outcome);
+        self.treatment_effect = Some(treatment_effect);
+        self.pre_rmse = Some(pre_rmse);
+        self.unit_intercept = Some(unit_intercept);
+        self.time_intercept = Some(time_intercept);
+        self.fitted_zeta_omega = Some(zeta_omega);
+        self.fitted_zeta_lambda = Some(zeta_lambda);
+        self.control_units = Some(control_units);
+        self.treated_units = Some(treated_units);
+        self.t_pre = Some(t_pre);
+        Ok(())
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let att = self
+            .att
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let unit_weights = self
+            .unit_weights
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let time_weights = self
+            .time_weights
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let treated_outcome = self
+            .treated_outcome
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let synthetic_outcome = self
+            .synthetic_outcome
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let treatment_effect = self
+            .treatment_effect
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("att", att)?;
+        dict.set_item("unit_weights", pyarray1_from_f64(py, unit_weights))?;
+        dict.set_item("time_weights", pyarray1_from_f64(py, time_weights))?;
+        dict.set_item("treated_outcome", pyarray1_from_f64(py, treated_outcome))?;
+        dict.set_item(
+            "synthetic_outcome",
+            pyarray1_from_f64(py, synthetic_outcome),
+        )?;
+        dict.set_item("treatment_effect", pyarray1_from_f64(py, treatment_effect))?;
+        dict.set_item("pre_rmse", self.pre_rmse)?;
+        dict.set_item("unit_intercept", self.unit_intercept)?;
+        dict.set_item("time_intercept", self.time_intercept)?;
+        dict.set_item("zeta_omega", self.fitted_zeta_omega)?;
+        dict.set_item("zeta_lambda", self.fitted_zeta_lambda)?;
+        dict.set_item("control_units", self.control_units.clone())?;
+        dict.set_item("treated_units", self.treated_units.clone())?;
+        dict.set_item("t_pre", self.t_pre)?;
+        Ok(dict.into())
+    }
+
+    fn treatment_effect<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let treatment_effect = self
+            .treatment_effect
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        Ok(pyarray1_from_f64(py, treatment_effect))
     }
 }
 

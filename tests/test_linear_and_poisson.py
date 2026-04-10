@@ -987,3 +987,83 @@ def test_synthetic_control_recovers_convex_weights_and_post_path():
     assert np.all(weights >= 0.0)
     assert summary["pre_rmse"] < 1e-6
     assert model.bootstrap(4, seed=5).shape == (4, donors_pre.shape[1])
+
+
+def test_synthetic_did_recovers_constant_effect_in_factor_panel():
+    rng = np.random.default_rng(778)
+    n_control = 8
+    n_treated = 3
+    t_pre = 14
+    t_post = 6
+    n_periods = t_pre + t_post
+    time = np.arange(n_periods)
+
+    factors = np.column_stack(
+        [
+            np.linspace(-1.0, 1.0, n_periods),
+            np.sin(np.linspace(0.0, 2.5 * np.pi, n_periods)),
+            np.cos(np.linspace(0.0, 1.5 * np.pi, n_periods)),
+        ]
+    )
+    loadings = rng.normal(size=(n_control, factors.shape[1]))
+    controls = (
+        rng.normal(scale=0.4, size=(n_control, 1))
+        + rng.normal(scale=0.02, size=(n_control, 1)) * time
+        + loadings @ factors.T
+    )
+
+    true_weights = rng.dirichlet(np.ones(n_control))
+    untreated_treated_mean = true_weights @ controls
+    tau = 1.25
+    effect = np.r_[np.zeros(t_pre), np.full(t_post, tau)]
+    treated_offsets = np.array([-0.2, 0.05, 0.15])
+    treated = untreated_treated_mean + treated_offsets[:, None] + effect
+
+    ordered_panel = np.vstack([controls, treated])
+    permutation = rng.permutation(n_control + n_treated)
+    panel = ordered_panel[permutation]
+    treated_units = [
+        int(idx)
+        for idx, original_idx in enumerate(permutation)
+        if original_idx >= n_control
+    ]
+
+    model = cm.SyntheticDID(
+        zeta_omega=1e-10,
+        zeta_lambda=1e-10,
+        max_iterations=2000,
+    )
+    model.fit(panel, treated_units, t_pre)
+    summary = model.summary()
+
+    np.testing.assert_allclose(summary["att"], tau, atol=1e-4, rtol=1e-4)
+    np.testing.assert_allclose(np.asarray(summary["unit_weights"]).sum(), 1.0, atol=1e-8)
+    np.testing.assert_allclose(np.asarray(summary["time_weights"]).sum(), 1.0, atol=1e-8)
+    assert np.all(np.asarray(summary["unit_weights"]) >= 0.0)
+    assert np.all(np.asarray(summary["time_weights"]) >= 0.0)
+    assert summary["pre_rmse"] < 1e-4
+
+    control_units = np.asarray(summary["control_units"])
+    treated_units_summary = np.asarray(summary["treated_units"])
+    y_reordered = np.vstack([panel[control_units], panel[treated_units_summary]])
+    unit_vec = np.r_[
+        -np.asarray(summary["unit_weights"]),
+        np.ones(n_treated) / n_treated,
+    ]
+    time_vec = np.r_[
+        -np.asarray(summary["time_weights"]),
+        np.ones(t_post) / t_post,
+    ]
+    np.testing.assert_allclose(summary["att"], unit_vec @ y_reordered @ time_vec, atol=1e-10)
+
+
+def test_synthetic_did_rejects_bad_panel_inputs():
+    panel = np.ones((4, 5))
+    model = cm.SyntheticDID()
+
+    with pytest.raises(ValueError, match="treated_units"):
+        model.fit(panel, [], 3)
+    with pytest.raises(ValueError, match="duplicates"):
+        model.fit(panel, [1, 1], 3)
+    with pytest.raises(ValueError, match="t_pre"):
+        model.fit(panel, [1], 5)

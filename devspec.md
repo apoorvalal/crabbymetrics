@@ -28,6 +28,8 @@ Any new work here should usually satisfy most of the following:
   - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` have weighted fits through `fit_weighted(...)`
 - balancing / calibration weights
   - `BalancingWeights` supports entropy and quadratic objectives, baseline weights, autoscaling, and approximate balance
+- panel causal estimators
+  - `SyntheticDID` ports the matrix-form synthetic difference-in-differences estimator from the local `synthlearners` CVXPY reference into a Rust-backed NumPy API
 - semiparametric bundle
   - `EPLM`
   - `AverageDerivative(method="ob" | "ipw" | "dr")`
@@ -65,7 +67,7 @@ Any new work here should usually satisfy most of the following:
 
 ### 1. Difference-in-differences and event-study estimators
 
-Status: not started
+Status: partially started through `SyntheticDID`
 
 Why it matters:
 
@@ -78,6 +80,7 @@ Scope:
 - start with a simple two-period / two-group DiD estimator
 - then add event-study design-matrix helpers on top of the fixed-effects path
 - ride on top of `OLS` / `FixedEffectsOLS` rather than building a separate regression engine
+- keep the new `SyntheticDID` matrix estimator as the panel-reweighting path rather than forcing it into a regression-style event-study API
 
 Success condition:
 

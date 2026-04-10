@@ -3952,7 +3952,7 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 )) {"Symbol"in self&&"iterator"in Symbol&&"function"==typeof Array.prototype[Symbol.iterator]?CreateMethodProperty(Array.prototype,"values",Array.prototype[Symbol.iterator]):CreateMethodProperty(Array.prototype,"values",function r(){var r=ToObject(this);return new ArrayIterator(r,"value")});}if (!("Symbol"in self&&"iterator"in self.Symbol&&!!Array.prototype[self.Symbol.iterator]
 )) {CreateMethodProperty(Array.prototype,Symbol.iterator,Array.prototype.values);}var StringIterator=function(){var t=function(e){if(!(this instanceof t))return new t(e);e=String(e),Iterator.call(this,e),Object.defineProperty(this,"__length__",{value:e.length,configurable:!1,enumerable:!1,writable:!1})};return Object.setPrototypeOf&&Object.setPrototypeOf(t,Iterator),t.prototype=Object.create(Iterator.prototype,{constructor:{value:t,configurable:!0,enumerable:!1,writable:!0},_next:{value:function(){if(this.__list__)return this.__nextIndex__<this.__length__?this.__nextIndex__++:void this._unBind()},configurable:!0,enumerable:!1,writable:!0},_resolve:{value:function(t){var e,r=this.__list__[t];return this.__nextIndex__===this.__length__?r:(e=r.charCodeAt(0),e>=55296&&e<=56319?r+this.__list__[this.__nextIndex__++]:r)},configurable:!0,enumerable:!1,writable:!0},toString:{value:function(){return"[object String Iterator]"},configurable:!0,enumerable:!1,writable:!0}}),t}();if (!("Symbol"in self&&"iterator"in self.Symbol&&!!String.prototype[self.Symbol.iterator]
 )) {CreateMethodProperty(String.prototype,Symbol.iterator,function(){var r=RequireObjectCoercible(this),t=ToString(r);return new StringIterator(t)});}})('object' === typeof window && window || 'object' === typeof self && self || 'object' === typeof global && global || {});</script>
-  
+
   <script>
     (function () {
       var script = document.createElement("script");
@@ -4014,197 +4014,201 @@ window.Quarto = {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../index.html"> 
+    <a class="nav-link" href="../index.html">
 <span class="menu-text">Home</span></a>
-  </li>  
+  </li>
   <li class="nav-item">
-    <a class="nav-link" href="../api.html"> 
+    <a class="nav-link" href="../api.html">
 <span class="menu-text">API</span></a>
-  </li>  
+  </li>
   <li class="nav-item">
-    <a class="nav-link" href="../mechanics-ols.html"> 
+    <a class="nav-link" href="../mechanics-ols.html">
 <span class="menu-text">Binding Crash Course</span></a>
-  </li>  
+  </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Supervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
  <span class="dropdown-text">Fixed Effects OLS</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
-  </li>  
+  </li>
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/multinomial-logit.html">
  <span class="dropdown-text">Multinomial Logit</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/poisson.html">
  <span class="dropdown-text">Poisson</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/twosls.html">
  <span class="dropdown-text">TwoSLS</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/gmm.html">
  <span class="dropdown-text">GMM</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/ftrl.html">
  <span class="dropdown-text">FTRL</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Semiparametrics</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/eplm.html">
  <span class="dropdown-text">EPLM</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/average-derivative.html">
  <span class="dropdown-text">Average Derivative</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/double-ml.html">
  <span class="dropdown-text">Double ML And AIPW</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Unsupervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">
         <li>
     <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
  <span class="dropdown-text">PCA And Kernel Basis</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Ablations</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Optimization</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">
         <li>
     <a class="dropdown-item" href="../examples/optimizers.html">
  <span class="dropdown-text">Optimizers</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
  <span class="dropdown-text">GMM With Optimizers</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Ding: First Course</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
  <span class="dropdown-text">Overview And TOC</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
  <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
  <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
  <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
  <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
  <span class="dropdown-text">Ch 11 Propensity Score</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
  <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
  <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
  <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
  <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch27-mediation.html">
  <span class="dropdown-text">Ch 27 Mediation</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
 </ul>
@@ -4221,7 +4225,7 @@ window.Quarto = {
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
     <h2 id="toc-title">On this page</h2>
-   
+
   <ul class="collapse">
   <li><a href="#three-fixed-finite-populations" id="toc-three-fixed-finite-populations" class="nav-link active" data-scroll-target="#three-fixed-finite-populations"><span class="header-section-number">1</span> Three Fixed Finite Populations</a></li>
   <li><a href="#geometry-of-the-potential-outcomes" id="toc-geometry-of-the-potential-outcomes" class="nav-link" data-scroll-target="#geometry-of-the-potential-outcomes"><span class="header-section-number">2</span> Geometry Of The Potential Outcomes</a></li>
@@ -4242,11 +4246,11 @@ window.Quarto = {
 
 <div class="quarto-title-meta column-page-left">
 
-    
-  
-    
+
+
+
   </div>
-  
+
 
 
 </header>
@@ -4418,7 +4422,7 @@ window.Quarto = {
     anchorJS.add('.anchored');
     const isCodeAnnotation = (el) => {
       for (const clz of el.classList) {
-        if (clz.startsWith('code-annotation-')) {                     
+        if (clz.startsWith('code-annotation-')) {
           return true;
         }
       }
@@ -4438,11 +4442,11 @@ window.Quarto = {
         button.setAttribute("data-bs-toggle", "tooltip");
         button.setAttribute("data-bs-placement", "left");
         button.setAttribute("data-bs-title", "Copied!");
-        tooltip = new bootstrap.Tooltip(button, 
-          { trigger: "manual", 
+        tooltip = new bootstrap.Tooltip(button,
+          { trigger: "manual",
             customClass: "code-copy-button-tooltip",
             offset: [0, -8]});
-        tooltip.show();    
+        tooltip.show();
       }
       setTimeout(function() {
         if (tooltip) {
@@ -4519,7 +4523,7 @@ window.Quarto = {
       if (onUntriggerFn) {
         config.onUntrigger = onUntriggerFn;
       }
-      window.tippy(el, config); 
+      window.tippy(el, config);
     }
     const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
     for (var i=0; i<noterefs.length; i++) {
@@ -4594,7 +4598,7 @@ window.Quarto = {
       tippyHover(xref, undefined, function(instance) {
         instance.disable();
         let url = xref.getAttribute('href');
-        let hash = undefined; 
+        let hash = undefined;
         if (url.startsWith('#')) {
           hash = url;
         } else {
@@ -4622,7 +4626,7 @@ window.Quarto = {
               if (note !== null) {
                 const html = processXRef(id, note);
                 instance.setContent(html);
-              } 
+              }
             }).finally(() => {
               instance.enable();
               instance.show();
@@ -4646,7 +4650,7 @@ window.Quarto = {
               }
               const html = processXRef(null, note);
               instance.setContent(html);
-            } 
+            }
           }).finally(() => {
             instance.enable();
             instance.show();
@@ -4686,7 +4690,7 @@ window.Quarto = {
               height = bottom - top;
             }
             if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
+              // cook up a div (if necessary) and position it
               let div = window.document.getElementById("code-annotation-line-highlight");
               if (div === null) {
                 div = window.document.createElement("div");
