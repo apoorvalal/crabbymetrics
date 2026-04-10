@@ -107,3 +107,5 @@ website:
             text: Ch 21 Experimental IV
           - href: ding/ch23-iv-econometrics.qmd
             text: Ch 23 Econometric IV
+          - href: ding/ch27-mediation.qmd
+            text: Ch 27 Mediation

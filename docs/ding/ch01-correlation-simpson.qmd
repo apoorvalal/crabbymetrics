@@ -43,7 +43,7 @@ def repo_root():
     raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
-data_dir = repo_root() / "ding_w_source"
+data_dir = repo_root() / "ding_w_source" / "repl"
 ```
 
 ## Lalonde Observational Data
@@ -52,12 +52,26 @@ The original notebook starts with the Lalonde-style CPS comparison. Here the poi
 
 ```{python}
 cps = pd.read_table(data_dir / "cps1re74.csv", delimiter=" ")
+cps["u74"] = (cps["re74"] == 0).astype(float)
+cps["u75"] = (cps["re75"] == 0).astype(float)
 y = cps["re78"].to_numpy(dtype=float)
 
 naive = cm.OLS()
 naive.fit(cps[["treat"]].to_numpy(dtype=float), y)
 
-covariates = ["treat", "age", "educ", "black", "hispan", "married", "nodegree", "re74", "re75"]
+covariates = [
+    "treat",
+    "age",
+    "educ",
+    "black",
+    "hispan",
+    "married",
+    "nodegree",
+    "re74",
+    "re75",
+    "u74",
+    "u75",
+]
 adjusted = cm.OLS()
 adjusted.fit(cps[covariates].to_numpy(dtype=float), y)
 
@@ -105,6 +119,49 @@ callback_plot.plot(kind="bar", ax=ax, rot=0)
 ax.set_ylabel("Callback rate")
 ax.set_title("Resume callbacks by race and sex")
 fig.tight_layout()
+```
+
+## Berkeley Admissions
+
+The R script also uses the classic Berkeley admissions table to show Simpson's paradox in a real contingency-table setting. The pooled admission-rate difference favors men, while most department-specific differences are small or move in the other direction.
+
+```{python}
+ucb_counts = pd.DataFrame(
+    [
+        ("A", "Male", 512, 313),
+        ("A", "Female", 89, 19),
+        ("B", "Male", 353, 207),
+        ("B", "Female", 17, 8),
+        ("C", "Male", 120, 205),
+        ("C", "Female", 202, 391),
+        ("D", "Male", 138, 279),
+        ("D", "Female", 131, 244),
+        ("E", "Male", 53, 138),
+        ("E", "Female", 94, 299),
+        ("F", "Male", 22, 351),
+        ("F", "Female", 24, 317),
+    ],
+    columns=["department", "gender", "admitted", "rejected"],
+)
+ucb_counts["applications"] = ucb_counts["admitted"] + ucb_counts["rejected"]
+ucb_counts["admit_rate"] = ucb_counts["admitted"] / ucb_counts["applications"]
+
+pooled = (
+    ucb_counts.groupby("gender")[["admitted", "applications"]]
+    .sum()
+    .assign(admit_rate=lambda d: d["admitted"] / d["applications"])
+)
+pooled_diff = pooled.loc["Male", "admit_rate"] - pooled.loc["Female", "admit_rate"]
+
+dept_rates = ucb_counts.pivot(index="department", columns="gender", values="admit_rate")
+dept_rates["male_minus_female"] = dept_rates["Male"] - dept_rates["Female"]
+
+pd.concat(
+    [
+        pd.DataFrame({"male_minus_female": [pooled_diff]}, index=["Pooled"]),
+        dept_rates[["male_minus_female"]],
+    ]
+)
 ```
 
 ## Simpson's Paradox In A Synthetic Example

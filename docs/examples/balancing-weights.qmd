@@ -34,10 +34,10 @@ $$
 \bar Y_{\mathcal{T}} - \sum_{i \in \mathcal{C}} w_i Y_i.
 $$
 
-The examples below use two standard stress tests:
+The examples below use two stress tests:
 
 - Kang-Schafer, where the observed covariates are nonlinear transformations of latent Gaussian drivers.
-- Hainmueller, adapted from `aipyw`, where overlap and functional-form difficulty can be dialed up or down.
+- A Hainmueller-style simulation, where overlap and functional-form difficulty can be dialed up or down.
 
 ## Literature Map
 
@@ -53,7 +53,7 @@ For the ATT problem, the cleanest exact equivalence is between entropy balancing
 
 ## Entropy Balancing, CBPS, and Tilting
 
-Let $c_i = c(X_i)$ be the balance basis, including an intercept, and let $q_i > 0$ denote baseline control weights. For the ATT, entropy balancing solves
+Let $b_i = b(X_i)$ be the balance basis supplied by the user, and let $q_i > 0$ denote baseline control weights. `BalancingWeights.fit(...)` does not require an intercept column in `b_i`; it handles the sum-to-one constraint separately. For the ATT, entropy balancing solves
 
 $$
 \min_{\{w_i\}_{i \in \mathcal{C}}}
@@ -63,7 +63,7 @@ $$
 \quad
 \sum_{i \in \mathcal{C}} w_i = 1,
 \qquad
-\sum_{i \in \mathcal{C}} w_i c_i = \bar c_{\mathcal{T}}.
+\sum_{i \in \mathcal{C}} w_i b_i = \bar b_{\mathcal{T}}.
 $$
 
 The Lagrangian first-order conditions imply a log-linear dual solution
@@ -71,13 +71,13 @@ The Lagrangian first-order conditions imply a log-linear dual solution
 $$
 w_i(\lambda)
 =
-\frac{q_i \exp(\lambda^\top c_i)}
-{\sum_{j \in \mathcal{C}} q_j \exp(\lambda^\top c_j)},
+\frac{q_i \exp(\lambda^\top b_i)}
+{\sum_{j \in \mathcal{C}} q_j \exp(\lambda^\top b_j)},
 $$
 
 after the usual sign relabeling of the multipliers. This is the core Hainmueller result: entropy balancing chooses the multiplier $\lambda$ so that the tilted control distribution exactly matches the treated moments.
 
-Now write the ATT-CBPS balance equations with a logit propensity score $p_i = \Lambda(\beta^\top c_i)$:
+Now write the ATT-CBPS balance equations with an augmented basis $c_i = (1, b_i^\top)^\top$ and a logit propensity score $p_i = \Lambda(\beta^\top c_i)$:
 
 $$
 \frac{1}{n}
@@ -160,7 +160,10 @@ which is exactly the same inverse-odds / entropy-balancing weight formula. With 
 
 Quadratic balancing in this library keeps the same balance constraints and changes only the distance penalty. It therefore targets the same sample moments as entropy balancing, but it does not imply the same log-linear weight formula.
 
+The rest of the page uses small helper functions for the simulations and diagnostics.
+
 ```{python}
+#| label: balancing-helpers
 from html import escape
 
 import matplotlib.pyplot as plt
@@ -256,7 +259,7 @@ def hainmueller_dgp(
     elif outcome_design == 2:
         y = x1 + x2 + 0.2 * x3 * x4 - np.sqrt(x5) + eta
     elif outcome_design == 3:
-        y = 2.0 * np.cos(x1) + np.tan(np.pi * x2) + (x1 + x2 + x5) ** 2 + eta
+        y = 2.0 * np.cos(x1) + np.sin(np.pi * x2) + (x1 + x2 + x5) ** 2 + eta
     else:
         raise ValueError("unknown outcome_design")
 
@@ -314,12 +317,30 @@ def evaluate_single_dataset():
     )
 
     rows = [
-        ["Naive difference", f"{naive_att: .3f}", "--", "--"],
-        ["Quadratic balancing on observed X", f"{quad_att: .3f}", quad_summary["success"], f"{quad_summary['effective_sample_size']: .1f}"],
-        ["Entropy balancing on observed X", f"{ent_att: .3f}", ent_summary["success"], f"{ent_summary['effective_sample_size']: .1f}"],
-        ["Entropy balancing on latent Z (oracle)", f"{oracle_att: .3f}", oracle_summary["success"], f"{oracle_summary['effective_sample_size']: .1f}"],
+        ["Naive difference", f"{naive_att: .3f}", "--", "--", "--"],
+        [
+            "Quadratic balancing on observed X",
+            f"{quad_att: .3f}",
+            quad_summary["success"],
+            f"{quad_summary['effective_sample_size']: .1f}",
+            f"{quad_summary['max_abs_diff']: .2e}",
+        ],
+        [
+            "Entropy balancing on observed X",
+            f"{ent_att: .3f}",
+            ent_summary["success"],
+            f"{ent_summary['effective_sample_size']: .1f}",
+            f"{ent_summary['max_abs_diff']: .2e}",
+        ],
+        [
+            "Entropy balancing on latent Z (oracle)",
+            f"{oracle_att: .3f}",
+            oracle_summary["success"],
+            f"{oracle_summary['effective_sample_size']: .1f}",
+            f"{oracle_summary['max_abs_diff']: .2e}",
+        ],
     ]
-    display(HTML(html_table(["Estimator", "ATT Estimate", "Success", "ESS"], rows)))
+    display(HTML(html_table(["Estimator", "ATT estimate", "Success", "ESS", "Max balance error"], rows)))
 
     labels = [f"x{j + 1}" for j in range(x.shape[1])]
     fig, ax = plt.subplots(figsize=(8, 4))
@@ -342,16 +363,17 @@ def evaluate_single_dataset():
         "entropy": ent_att,
         "oracle": oracle_att,
     }
-
-
-single_dataset = evaluate_single_dataset()
 ```
 
 ## Kang-Schafer
 
 Kang-Schafer is useful here because balancing is asked to work on the transformed covariates $X$, not the latent Gaussian drivers $Z$ that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.
 
-On the single draw above, both balancing estimators substantially reduce the raw covariate imbalance, and the oracle version that balances on latent $Z$ shows the benchmark we would like to approach.
+On this single draw, both balancing estimators substantially reduce the raw covariate imbalance. The `Max balance error` column is the largest absolute difference between the weighted control mean and treated mean in the fitted balance basis. The oracle version that balances on latent $Z$ shows the benchmark we would like to approach, but it uses variables that are not observed in the real Kang-Schafer problem.
+
+```{python}
+single_dataset = evaluate_single_dataset()
+```
 
 ```{python}
 def run_kang_schafer_panel(n_rep=80, n=1000, seed=2026):
@@ -372,9 +394,14 @@ def run_kang_schafer_panel(n_rep=80, n=1000, seed=2026):
 
 
 def summarize_rows(rows, truth=0.0):
-    methods = sorted({row[0] for row in rows})
+    method_order = [
+        "Naive",
+        "Quadratic on observed X",
+        "Entropy on observed X",
+        "Entropy on latent Z",
+    ]
     out = []
-    for method in methods:
+    for method in method_order:
         values = np.array([row[1] for row in rows if row[0] == method], dtype=float)
         successes = np.array([row[2] for row in rows if row[0] == method], dtype=bool)
         out.append(
@@ -397,7 +424,7 @@ The observed-$X$ versions still live inside the canonical misspecification probl
 
 ## Hainmueller
 
-The Hainmueller design below is adapted from `aipyw`. It keeps the true treatment effect at zero while varying overlap and the difficulty of the treatment and outcome models.
+The Hainmueller-style design below keeps the unit-level treatment effect at zero while varying overlap and the difficulty of the treatment and outcome models. The harder setting deliberately uses nonlinear assignment and outcome functions, but the outcome remains finite and stable enough that the RMSE table is still interpretable.
 
 ```{python}
 def run_hainmueller_panel(setting_name, overlap_design, pscore_design, outcome_design, n_rep=50, n=1500, seed=3030):
@@ -423,10 +450,10 @@ def run_hainmueller_panel(setting_name, overlap_design, pscore_design, outcome_d
 
 def summarize_hainmueller(rows, truth=0.0):
     settings = sorted({row[0] for row in rows})
+    method_order = ["Naive", "Quadratic", "Entropy"]
     out = []
     for setting in settings:
-        methods = sorted({row[1] for row in rows if row[0] == setting})
-        for method in methods:
+        for method in method_order:
             values = np.array([row[2] for row in rows if row[0] == setting and row[1] == method], dtype=float)
             successes = np.array([row[3] for row in rows if row[0] == setting and row[1] == method], dtype=bool)
             out.append(
@@ -442,8 +469,8 @@ def summarize_hainmueller(rows, truth=0.0):
     return out
 
 
-hain_easy = run_hainmueller_panel("Easy: overlap 2 / pscore 1 / outcome 1", 2, 1, 1)
-hain_hard = run_hainmueller_panel("Hard: overlap 1 / pscore 3 / outcome 3", 1, 3, 3)
+hain_easy = run_hainmueller_panel("Easier: overlap 2 / pscore 1 / outcome 1", 2, 1, 1)
+hain_hard = run_hainmueller_panel("Harder: overlap 1 / pscore 3 / outcome 3", 1, 3, 3)
 hain_rows = hain_easy + hain_hard
 display(
     HTML(
@@ -481,9 +508,11 @@ ax.legend()
 fig.tight_layout()
 ```
 
+The harder setting is included as a failure-mode check, not a victory lap. Exact mean balance is powerful when the important differences are visible in the balance basis, but it cannot force a linear mean-balance basis to recover every nonlinear response surface.
+
 ## Takeaways
 
 - `BalancingWeights` is most naturally a building block. The class returns the control weights; the ATT estimate is the weighted control mean subtracted from the treated mean.
 - `autoscale=True` is useful on these simulation designs because the raw covariate scales can be wildly different.
-- Entropy and quadratic balancing often move together on easy designs, but quadratic balancing can prefer sparser solutions and a smaller effective sample size.
+- Entropy and quadratic balancing often move together on easy designs, but their weight geometry differs: entropy keeps all weights positive, while quadratic calibration can put some controls at the lower bound.
 - Kang-Schafer remains hard when only the transformed covariates are observed. Balancing means helps, but it does not erase misspecification by itself.

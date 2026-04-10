@@ -8,15 +8,18 @@
   <img src="docs/logo.png" alt="crabbymetrics logo" width="720">
 </p>
 
-Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low dependency (just numpy), simple, fast estimators with robust standard errors and bootstrap support.
+Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low runtime dependency footprint, simple NumPy-facing estimators, robust standard errors, and bootstrap support where it fits the estimator.
 
 ## Features
-- OLS, FixedEffectsOLS, SyntheticControl, ElasticNet, Logit, Multinomial Logit, Poisson, TwoSLS, FTRL
+- Linear and IV estimators: OLS, Ridge, FixedEffectsOLS, TwoSLS, SyntheticControl
+- Regularized and likelihood estimators: ElasticNet, Logit, Multinomial Logit, Poisson, FTRL
+- Moment and semiparametric estimators: GMM, BalancingWeights, EPLM, AverageDerivative, PartiallyLinearDML, AIPW
+- Shared robust covariance options for the main linear estimators: vanilla, HC1, Newey-West, and cluster
+- Weighted fits for OLS, Ridge, FixedEffectsOLS, and TwoSLS
 - `ElasticNet` spans the ridge and lasso corners: use `l1_ratio=0.0` for ridge-style shrinkage and `l1_ratio=1.0` for lasso-style shrinkage
 - PCA and KernelBasis for feature engineering before regression-style estimation
 - `Optimizers` namespace exposing LBFGS, BFGS, NonlinearConjugateGradient, Gauss-Newton least squares, and SimulatedAnnealing
-- `fit`, `predict`, `summary`, `bootstrap`
-- HC1 standard errors where applicable
+- `fit`, `predict`, `summary`, and `bootstrap` where meaningful for the estimator
 
 ## Install
 This package is built with pyo3/maturin and ships as native wheels.
@@ -59,7 +62,7 @@ print(result["x"], result["fun"])
 
 ## Benchmarks
 
-The latest cross-library runtime snapshot is checked into [`benchmarks/runtime_comparison.csv`](benchmarks/runtime_comparison.csv) with the corresponding plot in [`benchmarks/runtime_comparison.png`](benchmarks/runtime_comparison.png).
+The latest cross-library runtime snapshot is checked in as [`benchmarks/runtime_comparison.png`](benchmarks/runtime_comparison.png).
 
 ![Runtime comparison across crabbymetrics, scikit-learn, and statsmodels](benchmarks/runtime_comparison.png)
 
@@ -82,8 +85,8 @@ uv run maturin develop
 
 Package versioning is sourced from `Cargo.toml`. The Python package metadata is dynamic, and `commit_tag_release.sh` reads the crate version directly before creating the `vX.Y.Z` tag.
 
-Rendered examples and API docs live under `docs/`. Rebuild the site with `quarto render docs`.
-For the plotting examples, install the docs extra first: `uv sync --extra docs`.
+Rendered examples and API docs live under `docs/`. Rebuild the site with `uv run quarto render docs`.
+For docs work, install the docs extra first: `uv sync --extra docs`.
 
 ## Wheels
 Wheels are platform-specific and included in GitHub releases. See the releases tab.

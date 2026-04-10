@@ -37,7 +37,7 @@ def repo_root():
     raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
-data_dir = repo_root() / "ding_w_source"
+data_dir = repo_root() / "ding_w_source" / "repl"
 ```
 
 ## Exact Sign-Flip Distribution
@@ -54,13 +54,15 @@ sign_patterns = np.array(
     np.meshgrid(*([np.array([-1.0, 1.0])] * n_pairs), indexing="ij")
 ).reshape(n_pairs, -1).T
 randomization_dist = sign_patterns @ np.abs(diff) / n_pairs
-pvalue = np.mean(np.abs(randomization_dist) >= abs(tau_hat))
+one_sided_pvalue = np.mean(randomization_dist >= tau_hat)
+two_sided_pvalue = np.mean(np.abs(randomization_dist) >= abs(tau_hat))
 
 pd.DataFrame(
     {
         "estimate": [tau_hat],
         "se": [se_hat],
-        "exact_randomization_pvalue": [pvalue],
+        "one_sided_randomization_pvalue": [one_sided_pvalue],
+        "two_sided_randomization_pvalue": [two_sided_pvalue],
     }
 )
 ```
@@ -75,6 +77,76 @@ ax.set_title("Darwin maize data: exact matched-pairs randomization distribution"
 fig.tight_layout()
 ```
 
+## Matched Pairs With A Pair-Level Covariate
+
+The second worked example in the R script is the Imbens-Rubin television data. Each row is a matched pair. The outcome contrast is `diffy`, and `diffx` is a pre-treatment pair difference. The unadjusted paired estimator is the intercept-only regression of `diffy`; the adjusted estimator is the intercept in a pair-level regression of `diffy` on `diffx`.
+
+```{python}
+tv = np.array(
+    [
+        [12.9, 12.0, 54.6, 60.6],
+        [15.1, 12.3, 56.5, 55.5],
+        [16.8, 17.2, 75.2, 84.8],
+        [15.8, 18.9, 75.6, 101.9],
+        [13.9, 15.3, 55.3, 70.6],
+        [14.5, 16.6, 59.3, 78.4],
+        [17.0, 16.0, 87.0, 84.2],
+        [15.8, 20.1, 73.7, 108.6],
+    ]
+)
+diffx = tv[:, 1] - tv[:, 0]
+diffy = tv[:, 3] - tv[:, 2]
+
+
+def intercept_tstat(y, x=None):
+    if x is None:
+        design = np.ones((len(y), 1))
+    else:
+        design = np.column_stack([np.ones(len(y)), x])
+    beta, *_ = np.linalg.lstsq(design, y, rcond=None)
+    resid = y - design @ beta
+    sigma2 = float(resid @ resid) / (len(y) - design.shape[1])
+    cov = sigma2 * np.linalg.inv(design.T @ design)
+    return float(beta[0]), float(np.sqrt(cov[0, 0])), float(beta[0] / np.sqrt(cov[0, 0]))
+
+
+unadj_est, unadj_se, unadj_t = intercept_tstat(diffy)
+adj_est, adj_se, adj_t = intercept_tstat(diffy, diffx)
+
+tv_signs = np.array(np.meshgrid(*([np.array([-1.0, 1.0])] * len(diffy)), indexing="ij")).reshape(len(diffy), -1).T
+tv_tstats = np.zeros((tv_signs.shape[0], 2))
+for i, signs in enumerate(tv_signs):
+    tv_tstats[i, 0] = intercept_tstat(diffy * signs)[2]
+    tv_tstats[i, 1] = intercept_tstat(diffy * signs, diffx * signs)[2]
+
+pd.DataFrame(
+    {
+        "estimate": [unadj_est, adj_est],
+        "se": [unadj_se, adj_se],
+        "t": [unadj_t, adj_t],
+        "studentized_FRT_pvalue": [
+            np.mean(np.abs(tv_tstats[:, 0]) >= abs(unadj_t)),
+            np.mean(np.abs(tv_tstats[:, 1]) >= abs(adj_t)),
+        ],
+    },
+    index=["Unadjusted pair mean", "Adjusted for pair-level covariate"],
+)
+```
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+for ax, column, observed, title in [
+    (axes[0], 0, unadj_t, "Unadjusted studentized statistic"),
+    (axes[1], 1, adj_t, "Covariate-adjusted studentized statistic"),
+]:
+    ax.hist(tv_tstats[:, column], bins=35, alpha=0.75)
+    ax.axvline(observed, color="black", linestyle="--", linewidth=2.0)
+    ax.axvline(-observed, color="black", linestyle=":", linewidth=1.5)
+    ax.set_title(title)
+    ax.set_xlabel("Sign-flip t statistic")
+fig.tight_layout()
+```
+
 ## Takeaway
 
-Once the pairs are fixed, the experiment is no longer a general permutation problem. The admissible treatment reallocations are just the within-pair sign changes, and the mean pair difference is the natural estimator.
+Once the pairs are fixed, the experiment is no longer a general permutation problem. The admissible treatment reallocations are just the within-pair sign changes. The mean pair difference is the natural unadjusted estimator, and pair-level regression adjustment is still tested against the same sign-flip assignment mechanism.

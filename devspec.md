@@ -20,7 +20,7 @@ Any new work here should usually satisfy most of the following:
 
 ## Current Extension Status
 
-### Landed on `extensions`
+### Landed on `master`
 
 - unified robust covariance support for the main linear estimators
   - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` now share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", ...)`
@@ -36,7 +36,8 @@ Any new work here should usually satisfy most of the following:
 - docs and ablations
   - semiparametric examples are in the main docs nav
   - cached ablation notebooks cover variance estimators and semiparametric comparisons
-  - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, and Chapters 21 and 23
+  - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, Chapters 21 and 23, and a narrow Chapter 27 Baron-Kenny mediation page with explicit simulation DGPs
+  - the latest R-script cleanup filled in post-stratification, matched-pair regression/FRT, IPW truncation and balance diagnostics, ATT doubly robust formulas, the JOBS IV example, and an Anderson-Rubin IV grid
   - the Ding section lives under `docs/ding/` with chapter pages plus a few grouping pages to keep the navbar manageable
 
 ### Partial but not finished
@@ -45,13 +46,13 @@ Any new work here should usually satisfy most of the following:
   - still open:
     - Chapter 10
     - Chapters 15 through 20
-    - Chapters 22 and 24 through 27
+    - Chapters 22 and 24 through 26
     - Appendix A
   - expected blockers:
     - matching utilities
     - RD helpers
     - sensitivity-analysis helpers
-    - principal-stratification and mediation support
+    - principal-stratification support
 
 - weighted estimation outside the linear family
   - not yet in `Logit`, `Poisson`, or `GMM`

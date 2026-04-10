@@ -18,7 +18,7 @@ execute:
 jupyter: python3
 ---
 
-Chapter 13 shifts attention from the ATE to the ATT. In this library, the natural bridge is `BalancingWeights`, because it directly targets the treated covariate distribution instead of estimating a propensity score and then inverting it.
+Chapter 13 shifts attention from the ATE to the ATT. The R script computes outcome-regression, odds-weighted, and doubly robust ATT estimators. This page keeps those formulas and also shows the library-native balancing-weight version, because `BalancingWeights` directly targets the treated covariate distribution.
 
 ```{python}
 from pathlib import Path
@@ -41,16 +41,12 @@ def repo_root():
 
 def expit(x):
     return 1.0 / (1.0 + np.exp(-x))
-
-
-def poly_basis(x):
-    return np.column_stack([x, x**2])
 ```
 
 ## NHANES ATT Example
 
 ```{python}
-data = pd.read_csv(repo_root() / "ding_w_source" / "nhanes_bmi.csv")
+data = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "nhanes_bmi.csv")
 y = data["BMI"].to_numpy(dtype=float)
 d = data["School_meal"].to_numpy(dtype=np.int32)
 x = data[["age", "ChildSex", "black", "mexam", "pir200_plus", "WIC", "Food_Stamp", "AnyIns", "RefAge"]].to_numpy(dtype=float)
@@ -64,13 +60,28 @@ reg0.fit(x[control], y[control])
 y0_hat = reg0.predict(x)
 att_reg = float(y[treated].mean() - y0_hat[treated].mean())
 
+reg_all = cm.OLS()
+reg_all.fit(np.column_stack([d.astype(float), x]), y)
+att_reg0 = float(reg_all.summary()["coef"][0])
+
 logit = cm.Logit(alpha=1.0, max_iterations=300)
 logit.fit(x, d)
 logit_s = logit.summary()
 pscore = expit(logit_s["intercept"] + x @ np.asarray(logit_s["coef"]))
 odds = pscore / np.clip(1.0 - pscore, 1e-6, None)
+nn = len(y)
+nn1 = treated.sum()
+res0 = y - y0_hat
+att_ht = float(y[treated].mean() - np.mean(odds * (1 - d) * y) * nn / nn1)
 odds_w = odds[control] / odds[control].sum()
 att_odds = float(y[treated].mean() - np.dot(odds_w, y[control]))
+att_dr = float(att_reg - np.mean(odds * (1 - d) * res0) * nn / nn1)
+
+pscore_trunc = np.minimum(pscore, 0.9)
+odds_trunc = pscore_trunc / np.clip(1.0 - pscore_trunc, 1e-6, None)
+odds_trunc_w = odds_trunc[control] / odds_trunc[control].sum()
+att_hajek_trunc = float(y[treated].mean() - np.dot(odds_trunc_w, y[control]))
+att_dr_trunc = float(att_reg - np.mean(odds_trunc * (1 - d) * res0) * nn / nn1)
 
 entropy = cm.BalancingWeights(
     objective="entropy",
@@ -96,10 +107,32 @@ quad.fit(x[control], x[treated])
 quad_s = quad.summary()
 att_quad = float(y[treated].mean() - np.dot(np.asarray(quad_s["weights"]), y[control]))
 
-print("Outcome-regression ATT:", round(att_reg, 4))
-print("Odds-weight ATT:", round(att_odds, 4))
-print("Entropy-balancing ATT:", round(att_entropy, 4))
-print("Quadratic-balancing ATT:", round(att_quad, 4))
+pd.DataFrame(
+    {
+        "estimate": [
+            att_reg0,
+            att_reg,
+            att_ht,
+            att_odds,
+            att_dr,
+            att_hajek_trunc,
+            att_dr_trunc,
+            att_entropy,
+            att_quad,
+        ]
+    },
+    index=[
+        "OLS coefficient on treatment",
+        "Outcome-regression ATT",
+        "HT odds-weight ATT",
+        "Hajek odds-weight ATT",
+        "Doubly robust ATT",
+        "Hajek ATT, pscore <= 0.9",
+        "DR ATT, pscore <= 0.9",
+        "Entropy-balancing ATT",
+        "Quadratic-balancing ATT",
+    ],
+)
 ```
 
 ## Balance Before And After Weighting

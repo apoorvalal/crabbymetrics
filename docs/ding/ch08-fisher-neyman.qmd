@@ -21,7 +21,6 @@ jupyter: python3
 The full chapter studies several studentized statistics. This translation keeps the core contrast: when treatment effects are heterogeneous, the Neyman average-null and the Fisher sharp-null need not lead to the same finite-sample p-values.
 
 ```{python}
-import itertools
 import math
 
 import matplotlib.pyplot as plt
@@ -60,15 +59,13 @@ def neyman_pvalue(y_obs, z_obs):
     return normal_pvalue(tau_hat / se_hat)
 
 
-all_assignments = np.array(list(itertools.combinations(range(n), n1)))
-assignment_weights = np.full((all_assignments.shape[0], n), -1.0 / (n - n1))
-for row, treated_ids in enumerate(all_assignments):
-    assignment_weights[row, treated_ids] = 1.0 / n1
-
-
-def fisher_pvalue(y_obs):
-    tau_hat = diff_in_means(y_obs, z)
-    null_stats = assignment_weights @ y_obs
+def fisher_pvalue(y_obs, z_obs, rng, n_frt=2000):
+    tau_hat = diff_in_means(y_obs, z_obs)
+    null_stats = np.zeros(n_frt)
+    for draw in range(n_frt):
+        z_null = np.zeros(n)
+        z_null[rng.choice(n, size=n1, replace=False)] = 1.0
+        null_stats[draw] = diff_in_means(y_obs, z_null)
     return float(np.mean(np.abs(null_stats) >= abs(tau_hat)))
 
 
@@ -79,7 +76,7 @@ for _ in range(80):
     z[rng.choice(n, size=n1, replace=False)] = 1.0
     y_obs = z * y1 + (1.0 - z) * y0
     neyman_draws.append(neyman_pvalue(y_obs, z))
-    fisher_draws.append(fisher_pvalue(y_obs))
+    fisher_draws.append(fisher_pvalue(y_obs, z, rng))
 
 print("Mean Neyman p-value:", round(float(np.mean(neyman_draws)), 4))
 print("Mean Fisher p-value:", round(float(np.mean(fisher_draws)), 4))

@@ -56,7 +56,7 @@ def html_table(headers, rows, table_attrs=""):
 
 ## Sitrep
 
-- The implementation is concentrated in two Rust files: `src/lib.rs` registers the Python classes and `src/estimators.rs` holds nearly all estimator logic.
+- `src/lib.rs` registers the Python classes, while estimator implementations are split by family under `src/estimators/`.
 - Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
 - Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
 - Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.

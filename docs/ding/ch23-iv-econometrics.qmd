@@ -22,7 +22,9 @@ Chapter 23 is where the design-based IV story becomes an econometrics workflow: 
 
 ```{python}
 from pathlib import Path
+import math
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -50,7 +52,7 @@ def iv_jacobian(theta, data):
 ## Card's Returns-To-Schooling Data
 
 ```{python}
-card = pd.read_csv(repo_root() / "ding_w_source" / "card1995.csv")
+card = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "card1995.csv")
 y = card["lwage"].to_numpy(dtype=float)
 d = card["educ"].to_numpy(dtype=float)[:, None]
 
@@ -122,6 +124,48 @@ cf_hc1 = control_function.summary(vcov="hc1")
 
 print("TwoSLS coefficient:", round(float(tsls_hc1["coef"][0]), 4))
 print("Control-function coefficient on education:", round(float(cf_hc1["coef"][0]), 4))
+```
+
+## Anderson-Rubin Grid
+
+The source R script also inverts a reduced-form test over candidate education returns. For a candidate $\beta$, regress $Y - \beta D$ on controls and the excluded instrument. If the excluded instrument is still predictive, that candidate $\beta$ is inconsistent with the IV moment. This grid uses `nearc4`, matching the script's single-instrument Anderson-Rubin calculation.
+
+```{python}
+def normal_pvalue(z_stat):
+    return math.erfc(abs(float(z_stat)) / math.sqrt(2.0))
+
+
+beta_grid = np.linspace(0.0, 0.35, 176)
+ar_pvalues = []
+z_nearc4 = z_excl[:, [1]]
+for beta in beta_grid:
+    y_beta = y - beta * d[:, 0]
+    ar = cm.OLS()
+    ar.fit(np.column_stack([z_nearc4[:, 0], x]), y_beta)
+    ar_s = ar.summary(vcov="hc1")
+    ar_pvalues.append(normal_pvalue(ar_s["coef"][0] / ar_s["coef_se"][0]))
+
+ar_pvalues = np.asarray(ar_pvalues)
+accepted = beta_grid[ar_pvalues >= 0.05]
+
+pd.DataFrame(
+    {
+        "lower": [accepted.min()],
+        "upper": [accepted.max()],
+        "grid_points_accepted": [accepted.size],
+    },
+    index=["AR 95% confidence set on grid"],
+)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot(beta_grid, ar_pvalues)
+ax.axhline(0.05, color="black", linestyle="--", linewidth=1.0)
+ax.set_xlabel("Candidate return to schooling")
+ax.set_ylabel("Reduced-form p-value")
+ax.set_title("Anderson-Rubin inversion with nearc4")
+fig.tight_layout()
 ```
 
 By Chapter 23, the IV problem has several equivalent front ends:

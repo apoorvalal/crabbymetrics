@@ -118,7 +118,17 @@ Current Ding coverage:
 - Chapters 1 through 8
 - Chapter 9 through the cached bridging ablation
 - Chapters 11 through 13
-- Chapters 21 and 23
+- Chapters 21, 23, and 27
+
+The latest Ding pass filled in several places where the first Python pages were too thin relative to the companion R scripts:
+
+- Chapter 5 now includes the post-stratification arithmetic section, not just blocked Penn data.
+- Chapter 7 now includes both the Darwin exact sign-flip example and the television matched-pair regression/FRT example.
+- Chapter 11 now includes propensity-score stratification over multiple stratum counts, IPW truncation, and balance diagnostics.
+- Chapter 13 now includes the ATT doubly robust formula alongside odds weighting and balancing weights.
+- Chapter 21 now includes the JOBS one-sided noncompliance example.
+- Chapter 23 now includes an Anderson-Rubin grid in addition to `TwoSLS`, `GMM`, and the control-function view.
+- Chapter 27 now spells out the simulation DGPs before the NDE/NIE histograms.
 
 The translation rule for that section is:
 
@@ -280,6 +290,7 @@ Important semiparametric pages now in the nav:
 - EPLM
 - average derivative
 - double ML and AIPW
+- mediation via a doc-level Baron-Kenny translation
 
 Important cached ablations:
 

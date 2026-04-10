@@ -42,7 +42,7 @@ def repo_root():
     raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
-data_dir = repo_root() / "ding_w_source"
+data_dir = repo_root() / "ding_w_source" / "repl"
 ```
 
 ## Regression Adjustment In The STAR Data

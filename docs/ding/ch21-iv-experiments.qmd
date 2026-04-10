@@ -21,12 +21,22 @@ jupyter: python3
 Chapter 21 treats IV as an experimental design problem: assignment $Z$ shifts treatment uptake $D$, and the Wald ratio turns those two reduced-form contrasts into a complier-effect estimate.
 
 ```{python}
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import crabbymetrics as cm
 
 np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
 def simulate_experiment(rng, shares, n=300):
@@ -122,6 +132,39 @@ print("Wald ratio:", round(wald_raw, 4))
 print("Wald delta-method SE:", round(float(wald_delta_se(z, d, y)), 4))
 print("TwoSLS coefficient on endogenous treatment:", round(float(iv_hc1["coef"][0]), 4))
 print("TwoSLS HC1 SE:", round(float(iv_hc1["coef_se"][0]), 4))
+```
+
+## JOBS One-Sided Noncompliance Example
+
+The R script closes with the JOBS data from the `mediation` package. Assignment to the job-search intervention is the instrument, actual compliance is the treatment uptake, and job-search self-efficacy is the outcome. Because the design has one-sided noncompliance, the Wald estimand is the complier effect of uptake among those induced to comply by assignment.
+
+```{python}
+jobs = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "jobsdata.csv")
+z_jobs = jobs["treat"].to_numpy(dtype=float)
+d_jobs = jobs["comply"].to_numpy(dtype=float)
+y_jobs = jobs["job_seek"].to_numpy(dtype=float)
+
+job_controls = ["sex", "age", "marital", "nonwhite", "educ", "income"]
+x_jobs = pd.get_dummies(jobs[job_controls], drop_first=True, dtype=float).to_numpy(dtype=float)
+x_jobs = (x_jobs - x_jobs.mean(axis=0)) / np.where(x_jobs.std(axis=0) > 1e-12, x_jobs.std(axis=0), 1.0)
+
+jobs_iv = cm.TwoSLS()
+jobs_iv.fit(d_jobs[:, None], x_jobs, z_jobs[:, None], y_jobs)
+jobs_iv_hc1 = jobs_iv.summary(vcov="hc1")
+
+pd.DataFrame(
+    {
+        "estimate": [
+            wald(z_jobs, d_jobs, y_jobs),
+            float(jobs_iv_hc1["coef"][0]),
+        ],
+        "se": [
+            wald_delta_se(z_jobs, d_jobs, y_jobs),
+            float(jobs_iv_hc1["coef_se"][0]),
+        ],
+    },
+    index=["Wald", "Covariate-adjusted TwoSLS"],
+)
 ```
 
 The IV chapter is easiest to read from the reduced forms outward:

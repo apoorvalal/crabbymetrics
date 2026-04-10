@@ -18,7 +18,7 @@ execute:
 jupyter: python3
 ---
 
-Chapter 5 moves from completely randomized experiments to blocked designs. The Penn unemployment experiment is a natural real-data example.
+Chapter 5 moves from completely randomized experiments to blocked and post-stratified designs. The Penn unemployment experiment is the real-data blocked example, and the later post-stratification section in the R script is simple enough to keep as explicit arithmetic.
 
 ```{python}
 from pathlib import Path
@@ -39,7 +39,7 @@ def repo_root():
     raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
-data_dir = repo_root() / "ding_w_source"
+data_dir = repo_root() / "ding_w_source" / "repl"
 ```
 
 ## Penn Job-Training Data
@@ -76,17 +76,38 @@ def stratified_diff(y, z, block):
     return float(np.dot(out["weight"], out["tau"]))
 
 
+def neyman_sre(y, z, block):
+    levels = np.unique(block)
+    estimate = 0.0
+    variance = 0.0
+    for level in levels:
+        idx = block == level
+        zk = z[idx]
+        yk = y[idx]
+        weight = idx.mean()
+        treated = zk == 1.0
+        control = zk == 0.0
+        tau_k = yk[treated].mean() - yk[control].mean()
+        var_k = yk[treated].var(ddof=1) / treated.sum() + yk[control].var(ddof=1) / control.sum()
+        estimate += weight * tau_k
+        variance += (weight**2) * var_k
+    return estimate, variance
+
+
+stratified_estimate, stratified_variance = neyman_sre(y, z, block)
+
+
 summary_table = pd.DataFrame(
     {
         "estimate": [
             unadjusted.summary()["coef"][0],
             blocked.summary()["coef"][0],
-            stratified_diff(y, z, block),
+            stratified_estimate,
         ],
         "se_hc1": [
             unadjusted.summary(vcov="hc1")["coef_se"][0],
             blocked.summary(vcov="hc1")["coef_se"][0],
-            np.nan,
+            np.sqrt(stratified_variance),
         ],
     },
     index=["Unadjusted OLS", "Blocked OLS", "Weighted block mean"],
@@ -108,8 +129,15 @@ for rep in range(null_draws.size):
         z_perm[idx] = rng.permutation(z_perm[idx])
     null_draws[rep] = stratified_diff(y, z_perm, block)
 
-pvalue = np.mean(np.abs(null_draws) >= abs(observed_stat))
-pd.DataFrame({"observed_stratified_stat": [observed_stat], "blockwise_FRT_pvalue": [pvalue]})
+lower_tail = np.mean(null_draws <= observed_stat)
+two_sided = np.mean(np.abs(null_draws) >= abs(observed_stat))
+pd.DataFrame(
+    {
+        "observed_stratified_stat": [observed_stat],
+        "one_sided_lower_pvalue": [lower_tail],
+        "two_sided_pvalue": [two_sided],
+    }
+)
 ```
 
 ```{python}
@@ -122,6 +150,69 @@ ax.set_title("Randomization distribution under blockwise permutations")
 fig.tight_layout()
 ```
 
+## Post-Stratification Arithmetic
+
+The source script also has a small two-stratum binary-outcome example. It is useful because there is no modeling hidden inside it: each stratum contributes its own risk difference and binomial variance, then the overall post-stratified estimate weights by stratum size.
+
+```{python}
+post_counts = pd.DataFrame(
+    [
+        ("stratum 1", 1, 98, 8),
+        ("stratum 1", 0, 115, 5),
+        ("stratum 2", 1, 76, 22),
+        ("stratum 2", 0, 69, 16),
+    ],
+    columns=["stratum", "treated", "success", "failure"],
+)
+post_counts["n"] = post_counts["success"] + post_counts["failure"]
+post_counts["rate"] = post_counts["success"] / post_counts["n"]
+post_counts["binom_var"] = post_counts["rate"] * (1.0 - post_counts["rate"]) / post_counts["n"]
+
+pieces = []
+for stratum, df in post_counts.groupby("stratum", sort=False):
+    treated_row = df.loc[df["treated"] == 1].iloc[0]
+    control_row = df.loc[df["treated"] == 0].iloc[0]
+    pieces.append(
+        {
+            "name": stratum,
+            "n": df["n"].sum(),
+            "estimate": treated_row["rate"] - control_row["rate"],
+            "variance": treated_row["binom_var"] + control_row["binom_var"],
+        }
+    )
+
+stratum_table = pd.DataFrame(pieces)
+weights = stratum_table["n"] / stratum_table["n"].sum()
+post_est = float(np.dot(weights, stratum_table["estimate"]))
+post_var = float(np.dot(weights**2, stratum_table["variance"]))
+
+treated_total = post_counts.loc[post_counts["treated"] == 1, ["success", "n"]].sum()
+control_total = post_counts.loc[post_counts["treated"] == 0, ["success", "n"]].sum()
+treated_rate = treated_total["success"] / treated_total["n"]
+control_rate = control_total["success"] / control_total["n"]
+crude_est = treated_rate - control_rate
+crude_var = (
+    treated_rate * (1.0 - treated_rate) / treated_total["n"]
+    + control_rate * (1.0 - control_rate) / control_total["n"]
+)
+
+pd.DataFrame(
+    {
+        "estimate": [
+            *stratum_table["estimate"].to_list(),
+            post_est,
+            crude_est,
+        ],
+        "se": [
+            *np.sqrt(stratum_table["variance"]).to_list(),
+            np.sqrt(post_var),
+            np.sqrt(crude_var),
+        ],
+    },
+    index=[*stratum_table["name"].to_list(), "post-stratified", "crude"],
+)
+```
+
 ## Takeaway
 
 The chapter's logic survives the translation almost unchanged:
@@ -129,3 +220,4 @@ The chapter's logic survives the translation almost unchanged:
 - the design determines which permutations are admissible
 - conditioning on strata can tighten the estimator
 - the blocked estimator is just a weighted average of within-block contrasts
+- post-stratification is the same weighted-average idea applied after observing a discrete covariate partition
