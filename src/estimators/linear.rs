@@ -7,8 +7,9 @@ use crate::utils::{
 use argmin::core::{CostFunction, Executor, Gradient};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
+use nalgebra::DMatrix;
 use ndarray::{concatenate, s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
+use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use within::{Solver as WithinSolver, SolverParams as WithinSolverParams};
@@ -489,6 +490,299 @@ fn validate_finite_matrix(name: &str, values: &Array2<f64>) -> PyResult<()> {
         )));
     }
     Ok(())
+}
+
+fn center_effects(row_effects: &mut Array1<f64>, col_effects: &mut Array1<f64>) {
+    let row_mean = row_effects.mean().unwrap_or(0.0);
+    row_effects.mapv_inplace(|value| value - row_mean);
+    col_effects.mapv_inplace(|value| value + row_mean);
+
+    let col_mean = col_effects.mean().unwrap_or(0.0);
+    col_effects.mapv_inplace(|value| value - col_mean);
+    row_effects.mapv_inplace(|value| value + col_mean);
+}
+
+fn svt(matrix: &Array2<f64>, threshold: f64) -> PyResult<(Array2<f64>, Array1<f64>)> {
+    let rows = matrix.nrows();
+    let cols = matrix.ncols();
+    let data: Vec<f64> = matrix.iter().copied().collect();
+    let dm = DMatrix::from_row_slice(rows, cols, &data);
+    let svd = dm.svd(true, true);
+    let u = svd
+        .u
+        .ok_or_else(|| PyValueError::new_err("SVD failed to return left singular vectors"))?;
+    let vt = svd
+        .v_t
+        .ok_or_else(|| PyValueError::new_err("SVD failed to return right singular vectors"))?;
+    let k = svd.singular_values.len();
+    let mut shrunk = Array1::<f64>::zeros(k);
+    let mut diag = DMatrix::<f64>::zeros(k, k);
+    for j in 0..k {
+        let value = (svd.singular_values[j] - threshold).max(0.0);
+        shrunk[j] = value;
+        diag[(j, j)] = value;
+    }
+    let reconstructed = u * diag * vt;
+    let mut out = Array2::<f64>::zeros((rows, cols));
+    for i in 0..rows {
+        for j in 0..cols {
+            out[[i, j]] = reconstructed[(i, j)];
+        }
+    }
+    Ok((out, shrunk))
+}
+
+struct PanelFactorFit {
+    factor: Array2<f64>,
+    loading: Array2<f64>,
+    vnt: Array2<f64>,
+    fixed_effect: Array2<f64>,
+}
+
+fn dmatrix_to_array2(matrix: &DMatrix<f64>) -> Array2<f64> {
+    let mut out = Array2::<f64>::zeros((matrix.nrows(), matrix.ncols()));
+    for i in 0..matrix.nrows() {
+        for j in 0..matrix.ncols() {
+            out[[i, j]] = matrix[(i, j)];
+        }
+    }
+    out
+}
+
+fn array2_to_dmatrix(matrix: &Array2<f64>) -> DMatrix<f64> {
+    let data: Vec<f64> = matrix.iter().copied().collect();
+    DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &data)
+}
+
+fn panel_factor_fit(e: &Array2<f64>, rank: usize) -> PyResult<PanelFactorFit> {
+    let t = e.nrows();
+    let n = e.ncols();
+    if rank > t.min(n) {
+        return Err(PyValueError::new_err(
+            "rank must be <= min(n_periods, n_units)",
+        ));
+    }
+    if rank == 0 {
+        return Ok(PanelFactorFit {
+            factor: Array2::<f64>::zeros((t, 0)),
+            loading: Array2::<f64>::zeros((n, 0)),
+            vnt: Array2::<f64>::zeros((0, 0)),
+            fixed_effect: Array2::<f64>::zeros((t, n)),
+        });
+    }
+
+    let e_dm = array2_to_dmatrix(e);
+    let scale = (n * t) as f64;
+    let (factor_dm, loading_dm, singular_values) = if t < n {
+        let ee = (&e_dm * e_dm.transpose()) / scale;
+        let svd = ee.svd(true, false);
+        let u = svd
+            .u
+            .ok_or_else(|| PyValueError::new_err("SVD failed to return factor vectors"))?;
+        let factor = u.columns(0, rank).into_owned() * (t as f64).sqrt();
+        let loading = e_dm.transpose() * &factor / (t as f64);
+        (factor, loading, svd.singular_values)
+    } else {
+        let ee = (e_dm.transpose() * &e_dm) / scale;
+        let svd = ee.svd(true, false);
+        let u = svd
+            .u
+            .ok_or_else(|| PyValueError::new_err("SVD failed to return loading vectors"))?;
+        let loading = u.columns(0, rank).into_owned() * (n as f64).sqrt();
+        let factor = e_dm * &loading / (n as f64);
+        (factor, loading, svd.singular_values)
+    };
+
+    let fixed_effect_dm = &factor_dm * loading_dm.transpose();
+    let mut vnt = Array2::<f64>::zeros((rank, rank));
+    for j in 0..rank {
+        vnt[[j, j]] = singular_values[j];
+    }
+
+    Ok(PanelFactorFit {
+        factor: dmatrix_to_array2(&factor_dm),
+        loading: dmatrix_to_array2(&loading_dm),
+        vnt,
+        fixed_effect: dmatrix_to_array2(&fixed_effect_dm),
+    })
+}
+
+fn panel_fe_fect(e: &Array2<f64>, lambda: f64, hard: bool) -> PyResult<(Array2<f64>, Array1<f64>)> {
+    if !lambda.is_finite() || lambda < 0.0 {
+        return Err(PyValueError::new_err(
+            "lambda must be finite and nonnegative",
+        ));
+    }
+    let t = e.nrows();
+    let n = e.ncols();
+    let scale = (t * n) as f64;
+    let scaled = e.mapv(|value| value / scale);
+    let data: Vec<f64> = scaled.iter().copied().collect();
+    let dm = DMatrix::from_row_slice(t, n, &data);
+    let svd = dm.svd(true, true);
+    let u = svd
+        .u
+        .ok_or_else(|| PyValueError::new_err("SVD failed to return left singular vectors"))?;
+    let vt = svd
+        .v_t
+        .ok_or_else(|| PyValueError::new_err("SVD failed to return right singular vectors"))?;
+    let k = svd.singular_values.len();
+    let mut shrunk = Array1::<f64>::zeros(k);
+    let mut diag = DMatrix::<f64>::zeros(k, k);
+    for j in 0..k {
+        let value = if svd.singular_values[j] > lambda {
+            if hard {
+                svd.singular_values[j]
+            } else {
+                svd.singular_values[j] - lambda
+            }
+        } else {
+            0.0
+        };
+        shrunk[j] = value;
+        diag[(j, j)] = value;
+    }
+    let reconstructed = u * diag * vt * scale;
+    Ok((dmatrix_to_array2(&reconstructed), shrunk))
+}
+
+fn additive_demean_balanced(
+    y: &Array2<f64>,
+    force: i32,
+) -> PyResult<(Array2<f64>, f64, Array1<f64>, Array1<f64>)> {
+    if !(0..=3).contains(&force) {
+        return Err(PyValueError::new_err("force must be one of {0, 1, 2, 3}"));
+    }
+    validate_finite_matrix("y", y)?;
+    let mut yy = y.clone();
+    let mu = yy.mean().unwrap_or(0.0);
+    yy.mapv_inplace(|value| value - mu);
+    let mut alpha = Array1::<f64>::zeros(y.ncols());
+    let mut xi = Array1::<f64>::zeros(y.nrows());
+
+    if force == 1 || force == 3 {
+        alpha = yy
+            .mean_axis(Axis(0))
+            .unwrap_or_else(|| Array1::<f64>::zeros(y.ncols()));
+        for i in 0..yy.nrows() {
+            for j in 0..yy.ncols() {
+                yy[[i, j]] -= alpha[j];
+            }
+        }
+    }
+    if force == 2 || force == 3 {
+        xi = yy
+            .mean_axis(Axis(1))
+            .unwrap_or_else(|| Array1::<f64>::zeros(y.nrows()));
+        for i in 0..yy.nrows() {
+            for j in 0..yy.ncols() {
+                yy[[i, j]] -= xi[i];
+            }
+        }
+    }
+    Ok((yy, mu, alpha, xi))
+}
+
+fn matrix_completion_update_effects(
+    y: &Array2<f64>,
+    mask: &Array2<bool>,
+    low_rank: &Array2<f64>,
+    row_effects: &mut Array1<f64>,
+    col_effects: &mut Array1<f64>,
+    fit_unit_effects: bool,
+    fit_time_effects: bool,
+    effect_iterations: usize,
+) {
+    for _ in 0..effect_iterations {
+        if fit_unit_effects {
+            for i in 0..y.nrows() {
+                let mut sum = 0.0;
+                let mut count = 0usize;
+                for t in 0..y.ncols() {
+                    if mask[[i, t]] {
+                        sum += y[[i, t]] - low_rank[[i, t]] - col_effects[t];
+                        count += 1;
+                    }
+                }
+                if count > 0 {
+                    row_effects[i] = sum / count as f64;
+                }
+            }
+        }
+        if fit_time_effects {
+            for t in 0..y.ncols() {
+                let mut sum = 0.0;
+                let mut count = 0usize;
+                for i in 0..y.nrows() {
+                    if mask[[i, t]] {
+                        sum += y[[i, t]] - low_rank[[i, t]] - row_effects[i];
+                        count += 1;
+                    }
+                }
+                if count > 0 {
+                    col_effects[t] = sum / count as f64;
+                }
+            }
+        }
+        center_effects(row_effects, col_effects);
+    }
+}
+
+fn matrix_completion_objective(
+    y: &Array2<f64>,
+    mask: &Array2<bool>,
+    low_rank: &Array2<f64>,
+    row_effects: &Array1<f64>,
+    col_effects: &Array1<f64>,
+    singular_values: &Array1<f64>,
+    lambda_l: f64,
+) -> f64 {
+    let mut rss = 0.0;
+    let mut n_obs = 0usize;
+    for i in 0..y.nrows() {
+        for t in 0..y.ncols() {
+            if mask[[i, t]] {
+                let residual = low_rank[[i, t]] + row_effects[i] + col_effects[t] - y[[i, t]];
+                rss += residual * residual;
+                n_obs += 1;
+            }
+        }
+    }
+    rss / (n_obs.max(1) as f64) + lambda_l * singular_values.sum()
+}
+
+fn matrix_completion_lambda_max_internal(
+    y: &Array2<f64>,
+    mask: &Array2<bool>,
+    fit_unit_effects: bool,
+    fit_time_effects: bool,
+) -> PyResult<f64> {
+    let mut row_effects = Array1::<f64>::zeros(y.nrows());
+    let mut col_effects = Array1::<f64>::zeros(y.ncols());
+    let low_rank = Array2::<f64>::zeros(y.raw_dim());
+    matrix_completion_update_effects(
+        y,
+        mask,
+        &low_rank,
+        &mut row_effects,
+        &mut col_effects,
+        fit_unit_effects,
+        fit_time_effects,
+        20,
+    );
+
+    let mut residual = Array2::<f64>::zeros(y.raw_dim());
+    let mut n_obs = 0usize;
+    for i in 0..y.nrows() {
+        for t in 0..y.ncols() {
+            if mask[[i, t]] {
+                residual[[i, t]] = y[[i, t]] - row_effects[i] - col_effects[t];
+                n_obs += 1;
+            }
+        }
+    }
+    let (_, singular_values) = svt(&residual, 0.0)?;
+    Ok(2.0 * singular_values[0] / (n_obs.max(1) as f64))
 }
 
 fn sdid_sigma_estimator(y_reordered: &Array2<f64>, n_control: usize, t_pre: usize) -> f64 {
@@ -976,6 +1270,404 @@ pub struct TwoSLS {
     z: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
     sample_weight: Option<Array1<f64>>,
+}
+
+#[pyclass]
+pub struct InteractiveFixedEffects {
+    rank: usize,
+    force: i32,
+    fit: Option<Array2<f64>>,
+    residuals: Option<Array2<f64>>,
+    mu: Option<f64>,
+    alpha: Option<Array1<f64>>,
+    xi: Option<Array1<f64>>,
+    factor: Option<Array2<f64>>,
+    loading: Option<Array2<f64>>,
+    vnt: Option<Array2<f64>>,
+}
+
+#[pymethods]
+impl InteractiveFixedEffects {
+    #[new]
+    #[pyo3(signature = (rank=0, force=3))]
+    fn new(rank: usize, force: i32) -> PyResult<Self> {
+        if !(0..=3).contains(&force) {
+            return Err(PyValueError::new_err("force must be one of {0, 1, 2, 3}"));
+        }
+        Ok(Self {
+            rank,
+            force,
+            fit: None,
+            residuals: None,
+            mu: None,
+            alpha: None,
+            xi: None,
+            factor: None,
+            loading: None,
+            vnt: None,
+        })
+    }
+
+    fn fit(&mut self, y: PyReadonlyArray2<f64>) -> PyResult<()> {
+        let y = to_array2(&y);
+        if y.nrows() == 0 || y.ncols() == 0 {
+            return Err(PyValueError::new_err("y must be a non-empty 2D matrix"));
+        }
+        let (demeaned, mu, alpha, xi) = additive_demean_balanced(&y, self.force)?;
+        let pf = panel_factor_fit(&demeaned, self.rank)?;
+        let mut fitted = pf.fixed_effect.clone();
+        for i in 0..fitted.nrows() {
+            for j in 0..fitted.ncols() {
+                fitted[[i, j]] += mu + alpha[j] + xi[i];
+            }
+        }
+        let residuals = &y - &fitted;
+
+        self.fit = Some(fitted);
+        self.residuals = Some(residuals);
+        self.mu = Some(mu);
+        self.alpha = Some(alpha);
+        self.xi = Some(xi);
+        self.factor = Some(pf.factor);
+        self.loading = Some(pf.loading);
+        self.vnt = Some(pf.vnt);
+        Ok(())
+    }
+
+    fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let fit = self
+            .fit
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        Ok(pyarray2_from_f64(py, fit))
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let fit = self
+            .fit
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        let residuals = self
+            .residuals
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        let alpha = self
+            .alpha
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        let xi = self
+            .xi
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        let factor = self
+            .factor
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        let loading = self
+            .loading
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+        let vnt = self
+            .vnt
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("InteractiveFixedEffects model is not fitted"))?;
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("fit", pyarray2_from_f64(py, fit))?;
+        dict.set_item("residuals", pyarray2_from_f64(py, residuals))?;
+        dict.set_item("mu", self.mu)?;
+        dict.set_item("alpha", pyarray1_from_f64(py, alpha))?;
+        dict.set_item("xi", pyarray1_from_f64(py, xi))?;
+        dict.set_item("factor", pyarray2_from_f64(py, factor))?;
+        dict.set_item("loading", pyarray2_from_f64(py, loading))?;
+        dict.set_item("vnt", pyarray2_from_f64(py, vnt))?;
+        dict.set_item("rank", self.rank)?;
+        dict.set_item("force", self.force)?;
+        Ok(dict.into())
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (e, rank))]
+pub fn panel_factor<'py>(
+    py: Python<'py>,
+    e: PyReadonlyArray2<f64>,
+    rank: usize,
+) -> PyResult<Py<PyAny>> {
+    let e = to_array2(&e);
+    validate_finite_matrix("e", &e)?;
+    let pf = panel_factor_fit(&e, rank)?;
+    let dict = pyo3::types::PyDict::new(py);
+    dict.set_item("factor", pyarray2_from_f64(py, &pf.factor))?;
+    dict.set_item("loading", pyarray2_from_f64(py, &pf.loading))?;
+    dict.set_item("vnt", pyarray2_from_f64(py, &pf.vnt))?;
+    dict.set_item("fe", pyarray2_from_f64(py, &pf.fixed_effect))?;
+    Ok(dict.into())
+}
+
+#[pyfunction]
+#[pyo3(signature = (e, lambda, hard=false))]
+pub fn panel_fe<'py>(
+    py: Python<'py>,
+    e: PyReadonlyArray2<f64>,
+    lambda: f64,
+    hard: bool,
+) -> PyResult<Py<PyAny>> {
+    let e = to_array2(&e);
+    validate_finite_matrix("e", &e)?;
+    let (fe, singular_values) = panel_fe_fect(&e, lambda, hard)?;
+    let dict = pyo3::types::PyDict::new(py);
+    dict.set_item("fe", pyarray2_from_f64(py, &fe))?;
+    dict.set_item("singular_values", pyarray1_from_f64(py, &singular_values))?;
+    Ok(dict.into())
+}
+
+#[pyclass]
+pub struct MatrixCompletion {
+    lambda_l: Option<f64>,
+    lambda_fraction: f64,
+    fit_unit_effects: bool,
+    fit_time_effects: bool,
+    max_iterations: usize,
+    effect_iterations: usize,
+    tolerance: f64,
+    completed: Option<Array2<f64>>,
+    low_rank: Option<Array2<f64>>,
+    unit_effects: Option<Array1<f64>>,
+    time_effects: Option<Array1<f64>>,
+    singular_values: Option<Array1<f64>>,
+    fitted_lambda_l: Option<f64>,
+    objective: Option<f64>,
+    iterations: Option<usize>,
+    history_objective: Vec<f64>,
+    history_rmse: Vec<f64>,
+}
+
+#[pymethods]
+impl MatrixCompletion {
+    #[new]
+    #[pyo3(signature = (lambda_l=None, lambda_fraction=0.25, fit_unit_effects=true, fit_time_effects=true, max_iterations=500, effect_iterations=2, tolerance=1e-6))]
+    fn new(
+        lambda_l: Option<f64>,
+        lambda_fraction: f64,
+        fit_unit_effects: bool,
+        fit_time_effects: bool,
+        max_iterations: usize,
+        effect_iterations: usize,
+        tolerance: f64,
+    ) -> PyResult<Self> {
+        if let Some(value) = lambda_l {
+            if !value.is_finite() || value < 0.0 {
+                return Err(PyValueError::new_err(
+                    "lambda_l must be finite and nonnegative",
+                ));
+            }
+        }
+        if !lambda_fraction.is_finite() || lambda_fraction < 0.0 {
+            return Err(PyValueError::new_err(
+                "lambda_fraction must be finite and nonnegative",
+            ));
+        }
+        if !tolerance.is_finite() || tolerance < 0.0 {
+            return Err(PyValueError::new_err(
+                "tolerance must be finite and nonnegative",
+            ));
+        }
+        Ok(Self {
+            lambda_l,
+            lambda_fraction,
+            fit_unit_effects,
+            fit_time_effects,
+            max_iterations,
+            effect_iterations,
+            tolerance,
+            completed: None,
+            low_rank: None,
+            unit_effects: None,
+            time_effects: None,
+            singular_values: None,
+            fitted_lambda_l: None,
+            objective: None,
+            iterations: None,
+            history_objective: Vec::new(),
+            history_rmse: Vec::new(),
+        })
+    }
+
+    #[pyo3(signature = (y, mask=None))]
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray2<f64>,
+        mask: Option<PyReadonlyArray2<bool>>,
+    ) -> PyResult<()> {
+        let y_input = to_array2(&y);
+        if y_input.nrows() == 0 || y_input.ncols() == 0 {
+            return Err(PyValueError::new_err("y must be a non-empty 2D matrix"));
+        }
+
+        let mask_arr = match mask {
+            Some(mask_py) => {
+                let shape = mask_py.shape();
+                if shape[0] != y_input.nrows() || shape[1] != y_input.ncols() {
+                    return Err(PyValueError::new_err("mask must have the same shape as y"));
+                }
+                let data: Vec<bool> = mask_py.as_array().iter().copied().collect();
+                Array2::from_shape_vec((shape[0], shape[1]), data)
+                    .map_err(|_| PyValueError::new_err("invalid mask shape"))?
+            }
+            None => y_input.mapv(|value| value.is_finite()),
+        };
+        if !mask_arr.iter().any(|value| *value) {
+            return Err(PyValueError::new_err("mask contains no observed entries"));
+        }
+
+        let mut y_work = Array2::<f64>::zeros(y_input.raw_dim());
+        for i in 0..y_input.nrows() {
+            for t in 0..y_input.ncols() {
+                if mask_arr[[i, t]] {
+                    let value = y_input[[i, t]];
+                    if !value.is_finite() {
+                        return Err(PyValueError::new_err("observed y entries must be finite"));
+                    }
+                    y_work[[i, t]] = value;
+                }
+            }
+        }
+
+        let lambda_l = match self.lambda_l {
+            Some(value) => value,
+            None => {
+                self.lambda_fraction
+                    * matrix_completion_lambda_max_internal(
+                        &y_work,
+                        &mask_arr,
+                        self.fit_unit_effects,
+                        self.fit_time_effects,
+                    )?
+            }
+        };
+        let n_obs = mask_arr.iter().filter(|value| **value).count().max(1) as f64;
+        let threshold = lambda_l * n_obs / 2.0;
+
+        let mut low_rank = Array2::<f64>::zeros(y_work.raw_dim());
+        let mut row_effects = Array1::<f64>::zeros(y_work.nrows());
+        let mut col_effects = Array1::<f64>::zeros(y_work.ncols());
+        let mut singular_values = Array1::<f64>::zeros(y_work.nrows().min(y_work.ncols()));
+        let mut previous_obj: Option<f64> = None;
+        self.history_objective.clear();
+        self.history_rmse.clear();
+        let mut final_iteration = 0usize;
+
+        for iteration in 0..self.max_iterations {
+            matrix_completion_update_effects(
+                &y_work,
+                &mask_arr,
+                &low_rank,
+                &mut row_effects,
+                &mut col_effects,
+                self.fit_unit_effects,
+                self.fit_time_effects,
+                self.effect_iterations,
+            );
+
+            let mut projected = low_rank.clone();
+            let mut rss = 0.0;
+            for i in 0..y_work.nrows() {
+                for t in 0..y_work.ncols() {
+                    if mask_arr[[i, t]] {
+                        let fitted = low_rank[[i, t]] + row_effects[i] + col_effects[t];
+                        let residual = y_work[[i, t]] - fitted;
+                        projected[[i, t]] += residual;
+                        rss += residual * residual;
+                    }
+                }
+            }
+            let (updated_low_rank, updated_singular_values) = svt(&projected, threshold)?;
+            low_rank = updated_low_rank;
+            singular_values = updated_singular_values;
+
+            let obj = matrix_completion_objective(
+                &y_work,
+                &mask_arr,
+                &low_rank,
+                &row_effects,
+                &col_effects,
+                &singular_values,
+                lambda_l,
+            );
+            self.history_objective.push(obj);
+            self.history_rmse.push((rss / n_obs).sqrt());
+            final_iteration = iteration + 1;
+            if let Some(prev) = previous_obj {
+                let rel = (prev - obj).abs() / (prev.abs() + 1e-12);
+                if rel < self.tolerance {
+                    break;
+                }
+            }
+            previous_obj = Some(obj);
+        }
+
+        let mut completed = low_rank.clone();
+        for i in 0..completed.nrows() {
+            for t in 0..completed.ncols() {
+                completed[[i, t]] += row_effects[i] + col_effects[t];
+            }
+        }
+
+        self.completed = Some(completed);
+        self.low_rank = Some(low_rank);
+        self.unit_effects = Some(row_effects);
+        self.time_effects = Some(col_effects);
+        self.singular_values = Some(singular_values);
+        self.fitted_lambda_l = Some(lambda_l);
+        self.objective = self.history_objective.last().copied();
+        self.iterations = Some(final_iteration);
+        Ok(())
+    }
+
+    fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let completed = self
+            .completed
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        Ok(pyarray2_from_f64(py, completed))
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let completed = self
+            .completed
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let low_rank = self
+            .low_rank
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let unit_effects = self
+            .unit_effects
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let time_effects = self
+            .time_effects
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let singular_values = self
+            .singular_values
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("completed", pyarray2_from_f64(py, completed))?;
+        dict.set_item("low_rank", pyarray2_from_f64(py, low_rank))?;
+        dict.set_item("unit_effects", pyarray1_from_f64(py, unit_effects))?;
+        dict.set_item("time_effects", pyarray1_from_f64(py, time_effects))?;
+        dict.set_item("singular_values", pyarray1_from_f64(py, singular_values))?;
+        dict.set_item("lambda_l", self.fitted_lambda_l)?;
+        dict.set_item("objective", self.objective)?;
+        dict.set_item("iterations", self.iterations)?;
+        dict.set_item("history_objective", self.history_objective.clone())?;
+        dict.set_item("history_rmse", self.history_rmse.clone())?;
+        Ok(dict.into())
+    }
 }
 
 #[pyclass]
