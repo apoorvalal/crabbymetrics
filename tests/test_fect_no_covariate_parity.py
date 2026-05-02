@@ -66,12 +66,16 @@ def test_no_covariate_mc_imputes_treated_cells_close_to_known_tau():
     # Rust MatrixCompletion counterfactual recovers the known ATT reasonably.
     tau = 2.0
     y, y0, d = make_fect_ife_dgp(seed=8070, n=40, tt=20, t0=12, ntr=12, tau=tau, noise=0.05)
-    mask = ~d
+    # MatrixCompletion now uses the common n_units x n_periods Y/W panel API.
+    y_nt = y.T
+    y0_nt = y0.T
+    w_nt = d.T.astype(float)
 
     model = cm.MatrixCompletion(lambda_fraction=0.04, max_iterations=400, tolerance=1e-7)
-    model.fit(y, mask=mask)
+    model.fit(y_nt, w_nt)
     yhat0 = model.predict()
-    att = np.mean(y[d] - yhat0[d])
+    treated = w_nt > 0.5
+    att = np.mean(y_nt[treated] - yhat0[treated])
 
     assert abs(att - tau) < 0.5
-    assert np.mean((yhat0[d] - y0[d]) ** 2) < 0.5
+    assert np.mean((yhat0[treated] - y0_nt[treated]) ** 2) < 0.5

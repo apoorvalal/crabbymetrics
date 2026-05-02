@@ -9,9 +9,10 @@ use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use nalgebra::DMatrix;
 use ndarray::{concatenate, s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use within::{Solver as WithinSolver, SolverParams as WithinSolverParams};
 
 struct FixedEffectsOlsFitResult {
@@ -845,41 +846,433 @@ fn sdid_sigma_estimator(y_reordered: &Array2<f64>, n_control: usize, t_pre: usiz
     var.sqrt()
 }
 
-fn reorder_panel_for_treated(
+#[derive(Clone)]
+struct PanelTreatmentInfo {
+    first_treat: Vec<Option<usize>>,
+    ever_treated: Vec<usize>,
+    never_treated: Vec<usize>,
+    cohorts: Vec<usize>,
+}
+
+struct PanelEventSummary {
+    event_time: Array1<f64>,
+    estimate: Array1<f64>,
+    std_error: Array1<f64>,
+    lower: Array1<f64>,
+    upper: Array1<f64>,
+    n: Array1<f64>,
+}
+
+struct PanelGroupMeans {
+    cohort: Array1<f64>,
+    event_time: Array1<f64>,
+    n_treated: Array1<f64>,
+    treated_mean: Array1<f64>,
+    counterfactual_mean: Array1<f64>,
+    effect: Array1<f64>,
+}
+
+struct PanelEffectSummaries {
+    group_means: PanelGroupMeans,
+    event_unweighted: PanelEventSummary,
+    event_weighted: PanelEventSummary,
+}
+
+fn infer_panel_treatment(y: &Array2<f64>, w: &Array2<f64>) -> PyResult<PanelTreatmentInfo> {
+    if y.nrows() == 0 || y.ncols() == 0 {
+        return Err(PyValueError::new_err("Y must be a non-empty 2D matrix"));
+    }
+    if w.raw_dim() != y.raw_dim() {
+        return Err(PyValueError::new_err("W must have the same shape as Y"));
+    }
+    validate_finite_matrix("Y", y)?;
+    validate_finite_matrix("W", w)?;
+
+    let mut first_treat = Vec::with_capacity(w.nrows());
+    let mut ever_treated = Vec::new();
+    let mut never_treated = Vec::new();
+    let mut cohorts = Vec::new();
+
+    for i in 0..w.nrows() {
+        let mut first: Option<usize> = None;
+        for t in 0..w.ncols() {
+            let value = w[[i, t]];
+            if (value - 0.0).abs() > 1e-10 && (value - 1.0).abs() > 1e-10 {
+                return Err(PyValueError::new_err(
+                    "W must be a binary 0/1 treatment indicator matrix",
+                ));
+            }
+            if value > 0.5 && first.is_none() {
+                first = Some(t);
+            }
+        }
+        if let Some(g) = first {
+            for t in g..w.ncols() {
+                if w[[i, t]] < 0.5 {
+                    return Err(PyValueError::new_err(
+                        "W must be absorbing: once treated, a unit must remain treated",
+                    ));
+                }
+            }
+            ever_treated.push(i);
+            if !cohorts.contains(&g) {
+                cohorts.push(g);
+            }
+        } else {
+            never_treated.push(i);
+        }
+        first_treat.push(first);
+    }
+
+    if ever_treated.is_empty() {
+        return Err(PyValueError::new_err(
+            "W must mark at least one ever-treated unit",
+        ));
+    }
+    cohorts.sort_unstable();
+    Ok(PanelTreatmentInfo {
+        first_treat,
+        ever_treated,
+        never_treated,
+        cohorts,
+    })
+}
+
+fn ensure_panel_has_never_treated(info: &PanelTreatmentInfo) -> PyResult<()> {
+    if info.never_treated.is_empty() {
+        return Err(PyValueError::new_err(
+            "this estimator currently requires at least one never-treated donor unit",
+        ));
+    }
+    Ok(())
+}
+
+fn cohort_units(info: &PanelTreatmentInfo, cohort: usize) -> Vec<usize> {
+    info.first_treat
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, first)| match first {
+            Some(value) if *value == cohort => Some(idx),
+            _ => None,
+        })
+        .collect()
+}
+
+fn finite_mean(values: &[f64]) -> f64 {
+    let mut sum = 0.0;
+    let mut count = 0usize;
+    for value in values {
+        if value.is_finite() {
+            sum += *value;
+            count += 1;
+        }
+    }
+    if count == 0 {
+        f64::NAN
+    } else {
+        sum / count as f64
+    }
+}
+
+fn standard_error(values: &[f64]) -> f64 {
+    let finite: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    let n = finite.len();
+    if n <= 1 {
+        return f64::NAN;
+    }
+    let mean = finite.iter().sum::<f64>() / n as f64;
+    let var = finite
+        .iter()
+        .map(|value| {
+            let centered = *value - mean;
+            centered * centered
+        })
+        .sum::<f64>()
+        / ((n - 1) as f64);
+    (var / n as f64).sqrt()
+}
+
+fn event_summary_from_groups(rows: &[(i64, f64, f64)]) -> PanelEventSummary {
+    let mut event_times: Vec<i64> = rows.iter().map(|row| row.0).collect();
+    event_times.sort_unstable();
+    event_times.dedup();
+
+    let mut out_event = Vec::with_capacity(event_times.len());
+    let mut out_est = Vec::with_capacity(event_times.len());
+    let mut out_se = Vec::with_capacity(event_times.len());
+    let mut out_lo = Vec::with_capacity(event_times.len());
+    let mut out_hi = Vec::with_capacity(event_times.len());
+    let mut out_n = Vec::with_capacity(event_times.len());
+
+    for event in event_times {
+        let mut values = Vec::new();
+        let mut weights = Vec::new();
+        for (row_event, value, weight) in rows {
+            if *row_event == event && value.is_finite() && weight.is_finite() && *weight > 0.0 {
+                values.push(*value);
+                weights.push(*weight);
+            }
+        }
+        let total_weight = weights.iter().sum::<f64>();
+        let estimate = if total_weight > 0.0 {
+            values
+                .iter()
+                .zip(weights.iter())
+                .map(|(value, weight)| value * weight)
+                .sum::<f64>()
+                / total_weight
+        } else {
+            f64::NAN
+        };
+        let se = standard_error(&values);
+        out_event.push(event as f64);
+        out_est.push(estimate);
+        out_se.push(se);
+        out_lo.push(if se.is_finite() {
+            estimate - 1.96 * se
+        } else {
+            f64::NAN
+        });
+        out_hi.push(if se.is_finite() {
+            estimate + 1.96 * se
+        } else {
+            f64::NAN
+        });
+        out_n.push(total_weight);
+    }
+
+    PanelEventSummary {
+        event_time: Array1::from_vec(out_event),
+        estimate: Array1::from_vec(out_est),
+        std_error: Array1::from_vec(out_se),
+        lower: Array1::from_vec(out_lo),
+        upper: Array1::from_vec(out_hi),
+        n: Array1::from_vec(out_n),
+    }
+}
+
+fn summarize_panel_effects(
     y: &Array2<f64>,
-    treated_units: &[usize],
-) -> PyResult<(Array2<f64>, Vec<usize>, Vec<usize>)> {
-    let n_units = y.nrows();
-    if treated_units.is_empty() {
-        return Err(PyValueError::new_err(
-            "treated_units must contain at least one unit",
-        ));
-    }
+    counterfactual: &Array2<f64>,
+    info: &PanelTreatmentInfo,
+) -> PanelEffectSummaries {
+    let mut group_cohort = Vec::new();
+    let mut group_event_time = Vec::new();
+    let mut group_n = Vec::new();
+    let mut group_treated_mean = Vec::new();
+    let mut group_counterfactual_mean = Vec::new();
+    let mut group_effect = Vec::new();
+    let mut unweighted_rows = Vec::new();
+    let mut weighted_rows = Vec::new();
 
-    let mut is_treated = vec![false; n_units];
-    for &idx in treated_units {
-        if idx >= n_units {
-            return Err(PyValueError::new_err("treated unit index out of range"));
+    for cohort in &info.cohorts {
+        let units = cohort_units(info, *cohort);
+        for t in 0..y.ncols() {
+            let event = t as i64 - *cohort as i64;
+            let treated_values: Vec<f64> = units.iter().map(|idx| y[[*idx, t]]).collect();
+            let cf_values: Vec<f64> = units.iter().map(|idx| counterfactual[[*idx, t]]).collect();
+            let effects: Vec<f64> = units
+                .iter()
+                .map(|idx| y[[*idx, t]] - counterfactual[[*idx, t]])
+                .filter(|value| value.is_finite())
+                .collect();
+            if effects.is_empty() {
+                continue;
+            }
+            let effect = finite_mean(&effects);
+            let n = effects.len() as f64;
+            group_cohort.push(*cohort as f64);
+            group_event_time.push(event as f64);
+            group_n.push(n);
+            group_treated_mean.push(finite_mean(&treated_values));
+            group_counterfactual_mean.push(finite_mean(&cf_values));
+            group_effect.push(effect);
+            unweighted_rows.push((event, effect, 1.0));
+            weighted_rows.push((event, effect, n));
         }
-        if is_treated[idx] {
-            return Err(PyValueError::new_err(
-                "treated_units must not contain duplicates",
-            ));
+    }
+
+    PanelEffectSummaries {
+        group_means: PanelGroupMeans {
+            cohort: Array1::from_vec(group_cohort),
+            event_time: Array1::from_vec(group_event_time),
+            n_treated: Array1::from_vec(group_n),
+            treated_mean: Array1::from_vec(group_treated_mean),
+            counterfactual_mean: Array1::from_vec(group_counterfactual_mean),
+            effect: Array1::from_vec(group_effect),
+        },
+        event_unweighted: event_summary_from_groups(&unweighted_rows),
+        event_weighted: event_summary_from_groups(&weighted_rows),
+    }
+}
+
+fn event_summary_to_dict<'py>(
+    py: Python<'py>,
+    summary: &PanelEventSummary,
+) -> PyResult<Bound<'py, PyDict>> {
+    let dict = PyDict::new(py);
+    dict.set_item("event_time", pyarray1_from_f64(py, &summary.event_time))?;
+    dict.set_item("estimate", pyarray1_from_f64(py, &summary.estimate))?;
+    dict.set_item("std_error", pyarray1_from_f64(py, &summary.std_error))?;
+    dict.set_item("lower", pyarray1_from_f64(py, &summary.lower))?;
+    dict.set_item("upper", pyarray1_from_f64(py, &summary.upper))?;
+    dict.set_item("n", pyarray1_from_f64(py, &summary.n))?;
+    Ok(dict)
+}
+
+fn aggregate_group_means_to_dict<'py>(
+    py: Python<'py>,
+    group: &PanelGroupMeans,
+    weighted: bool,
+) -> PyResult<Bound<'py, PyDict>> {
+    let mut event_times: Vec<i64> = group
+        .event_time
+        .iter()
+        .filter(|value| value.is_finite())
+        .map(|value| *value as i64)
+        .collect();
+    event_times.sort_unstable();
+    event_times.dedup();
+
+    let mut out_event = Vec::with_capacity(event_times.len());
+    let mut out_n = Vec::with_capacity(event_times.len());
+    let mut out_treated = Vec::with_capacity(event_times.len());
+    let mut out_cf = Vec::with_capacity(event_times.len());
+    let mut out_effect = Vec::with_capacity(event_times.len());
+
+    for event in event_times {
+        let mut treated_sum = 0.0;
+        let mut cf_sum = 0.0;
+        let mut effect_sum = 0.0;
+        let mut weight_sum = 0.0;
+        for idx in 0..group.event_time.len() {
+            if group.event_time[idx] as i64 != event {
+                continue;
+            }
+            let weight = if weighted { group.n_treated[idx] } else { 1.0 };
+            if weight <= 0.0 || !weight.is_finite() {
+                continue;
+            }
+            if group.treated_mean[idx].is_finite() {
+                treated_sum += group.treated_mean[idx] * weight;
+            }
+            if group.counterfactual_mean[idx].is_finite() {
+                cf_sum += group.counterfactual_mean[idx] * weight;
+            }
+            if group.effect[idx].is_finite() {
+                effect_sum += group.effect[idx] * weight;
+            }
+            weight_sum += weight;
         }
-        is_treated[idx] = true;
+        out_event.push(event as f64);
+        out_n.push(weight_sum);
+        if weight_sum > 0.0 {
+            out_treated.push(treated_sum / weight_sum);
+            out_cf.push(cf_sum / weight_sum);
+            out_effect.push(effect_sum / weight_sum);
+        } else {
+            out_treated.push(f64::NAN);
+            out_cf.push(f64::NAN);
+            out_effect.push(f64::NAN);
+        }
     }
 
-    let control_units: Vec<usize> = (0..n_units).filter(|idx| !is_treated[*idx]).collect();
-    if control_units.is_empty() {
-        return Err(PyValueError::new_err(
-            "need at least one untreated control unit",
-        ));
-    }
+    let dict = PyDict::new(py);
+    dict.set_item(
+        "event_time",
+        pyarray1_from_f64(py, &Array1::from_vec(out_event)),
+    )?;
+    dict.set_item("n", pyarray1_from_f64(py, &Array1::from_vec(out_n)))?;
+    dict.set_item(
+        "treated_mean",
+        pyarray1_from_f64(py, &Array1::from_vec(out_treated)),
+    )?;
+    dict.set_item(
+        "counterfactual_mean",
+        pyarray1_from_f64(py, &Array1::from_vec(out_cf)),
+    )?;
+    dict.set_item(
+        "effect",
+        pyarray1_from_f64(py, &Array1::from_vec(out_effect)),
+    )?;
+    Ok(dict)
+}
 
-    let mut order = control_units.clone();
-    order.extend_from_slice(treated_units);
-    let y_reordered = y.select(Axis(0), &order);
-    Ok((y_reordered, control_units, treated_units.to_vec()))
+fn group_means_to_dict<'py>(
+    py: Python<'py>,
+    group: &PanelGroupMeans,
+) -> PyResult<Bound<'py, PyDict>> {
+    let dict = PyDict::new(py);
+    dict.set_item("cohort", pyarray1_from_f64(py, &group.cohort))?;
+    dict.set_item("event_time", pyarray1_from_f64(py, &group.event_time))?;
+    dict.set_item("n_treated", pyarray1_from_f64(py, &group.n_treated))?;
+    dict.set_item("treated_mean", pyarray1_from_f64(py, &group.treated_mean))?;
+    dict.set_item(
+        "counterfactual_mean",
+        pyarray1_from_f64(py, &group.counterfactual_mean),
+    )?;
+    dict.set_item("effect", pyarray1_from_f64(py, &group.effect))?;
+    dict.set_item(
+        "unweighted",
+        aggregate_group_means_to_dict(py, group, false)?,
+    )?;
+    dict.set_item("weighted", aggregate_group_means_to_dict(py, group, true)?)?;
+    Ok(dict)
+}
+
+fn panel_summaries_to_dict<'py>(
+    py: Python<'py>,
+    summaries: &PanelEffectSummaries,
+) -> PyResult<(Bound<'py, PyDict>, Bound<'py, PyDict>)> {
+    let event_study = PyDict::new(py);
+    event_study.set_item(
+        "unweighted",
+        event_summary_to_dict(py, &summaries.event_unweighted)?,
+    )?;
+    event_study.set_item(
+        "weighted",
+        event_summary_to_dict(py, &summaries.event_weighted)?,
+    )?;
+    let group_means = group_means_to_dict(py, &summaries.group_means)?;
+    Ok((event_study, group_means))
+}
+
+fn panel_att_from_effects(w: &Array2<f64>, effects: &Array2<f64>) -> f64 {
+    let mut sum = 0.0;
+    let mut count = 0usize;
+    for i in 0..w.nrows() {
+        for t in 0..w.ncols() {
+            let effect = effects[[i, t]];
+            if w[[i, t]] > 0.5 && effect.is_finite() {
+                sum += effect;
+                count += 1;
+            }
+        }
+    }
+    if count == 0 {
+        f64::NAN
+    } else {
+        sum / count as f64
+    }
+}
+
+fn panel_group_pre_rmse(effects: &Array2<f64>, info: &PanelTreatmentInfo) -> f64 {
+    let mut sq = Vec::new();
+    for cohort in &info.cohorts {
+        let units = cohort_units(info, *cohort);
+        for t in 0..*cohort {
+            let values: Vec<f64> = units.iter().map(|idx| effects[[*idx, t]]).collect();
+            let mean = finite_mean(&values);
+            if mean.is_finite() {
+                sq.push(mean * mean);
+            }
+        }
+    }
+    if sq.is_empty() {
+        f64::NAN
+    } else {
+        (sq.iter().sum::<f64>() / sq.len() as f64).sqrt()
+    }
 }
 
 fn fit_fixed_effects_ols(
@@ -1466,6 +1859,11 @@ pub struct MatrixCompletion {
     iterations: Option<usize>,
     history_objective: Vec<f64>,
     history_rmse: Vec<f64>,
+    y: Option<Array2<f64>>,
+    w: Option<Array2<f64>>,
+    treatment_info: Option<PanelTreatmentInfo>,
+    treatment_effect: Option<Array2<f64>>,
+    att: Option<f64>,
 }
 
 #[pymethods]
@@ -1516,34 +1914,24 @@ impl MatrixCompletion {
             iterations: None,
             history_objective: Vec::new(),
             history_rmse: Vec::new(),
+            y: None,
+            w: None,
+            treatment_info: None,
+            treatment_effect: None,
+            att: None,
         })
     }
 
-    #[pyo3(signature = (y, mask=None))]
-    fn fit(
-        &mut self,
-        y: PyReadonlyArray2<f64>,
-        mask: Option<PyReadonlyArray2<bool>>,
-    ) -> PyResult<()> {
+    fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
         let y_input = to_array2(&y);
-        if y_input.nrows() == 0 || y_input.ncols() == 0 {
-            return Err(PyValueError::new_err("y must be a non-empty 2D matrix"));
-        }
+        let w_input = to_array2(&w);
+        let treatment_info = infer_panel_treatment(&y_input, &w_input)?;
 
-        let mask_arr = match mask {
-            Some(mask_py) => {
-                let shape = mask_py.shape();
-                if shape[0] != y_input.nrows() || shape[1] != y_input.ncols() {
-                    return Err(PyValueError::new_err("mask must have the same shape as y"));
-                }
-                let data: Vec<bool> = mask_py.as_array().iter().copied().collect();
-                Array2::from_shape_vec((shape[0], shape[1]), data)
-                    .map_err(|_| PyValueError::new_err("invalid mask shape"))?
-            }
-            None => y_input.mapv(|value| value.is_finite()),
-        };
+        let mask_arr = w_input.mapv(|value| value < 0.5);
         if !mask_arr.iter().any(|value| *value) {
-            return Err(PyValueError::new_err("mask contains no observed entries"));
+            return Err(PyValueError::new_err(
+                "W leaves no untreated observed entries",
+            ));
         }
 
         let mut y_work = Array2::<f64>::zeros(y_input.raw_dim());
@@ -1639,6 +2027,16 @@ impl MatrixCompletion {
             }
         }
 
+        let mut treatment_effect = Array2::<f64>::from_elem(y_input.raw_dim(), f64::NAN);
+        for i in 0..y_input.nrows() {
+            for t in 0..y_input.ncols() {
+                if treatment_info.first_treat[i].is_some() {
+                    treatment_effect[[i, t]] = y_input[[i, t]] - completed[[i, t]];
+                }
+            }
+        }
+        let att = panel_att_from_effects(&w_input, &treatment_effect);
+
         self.completed = Some(completed);
         self.low_rank = Some(low_rank);
         self.unit_effects = Some(row_effects);
@@ -1647,6 +2045,11 @@ impl MatrixCompletion {
         self.fitted_lambda_l = Some(lambda_l);
         self.objective = self.history_objective.last().copied();
         self.iterations = Some(final_iteration);
+        self.y = Some(y_input);
+        self.w = Some(w_input);
+        self.treatment_info = Some(treatment_info);
+        self.treatment_effect = Some(treatment_effect);
+        self.att = Some(att);
         Ok(())
     }
 
@@ -1679,6 +2082,20 @@ impl MatrixCompletion {
             .singular_values
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let treatment_info = self
+            .treatment_info
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let treatment_effect = self
+            .treatment_effect
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MatrixCompletion model is not fitted"))?;
+        let summaries = summarize_panel_effects(y, completed, treatment_info);
+        let (event_study, group_means) = panel_summaries_to_dict(py, &summaries)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("completed", pyarray2_from_f64(py, completed))?;
@@ -1691,6 +2108,14 @@ impl MatrixCompletion {
         dict.set_item("iterations", self.iterations)?;
         dict.set_item("history_objective", self.history_objective.clone())?;
         dict.set_item("history_rmse", self.history_rmse.clone())?;
+        dict.set_item("att", self.att)?;
+        dict.set_item("counterfactual", pyarray2_from_f64(py, completed))?;
+        dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
+        dict.set_item("event_study", event_study)?;
+        dict.set_item("group_means", group_means)?;
+        dict.set_item("control_units", treatment_info.never_treated.clone())?;
+        dict.set_item("treated_units", treatment_info.ever_treated.clone())?;
+        dict.set_item("cohorts", treatment_info.cohorts.clone())?;
         Ok(dict.into())
     }
 }
@@ -1698,16 +2123,18 @@ impl MatrixCompletion {
 #[pyclass]
 pub struct HorizontalPanelRidge {
     penalty: f64,
-    intercept: Option<f64>,
-    coef: Option<Array1<f64>>,
-    counterfactual: Option<Array1<f64>>,
-    treated_outcome: Option<Array1<f64>>,
-    treatment_effect: Option<Array1<f64>>,
+    cohort_intercepts: Option<Array1<f64>>,
+    cohort_coef: Option<Array2<f64>>,
+    counterfactual: Option<Array2<f64>>,
+    treatment_effect: Option<Array2<f64>>,
     att: Option<f64>,
     pre_rmse: Option<f64>,
     control_units: Option<Vec<usize>>,
     treated_units: Option<Vec<usize>>,
-    t_pre: Option<usize>,
+    cohorts: Option<Vec<usize>>,
+    treatment_info: Option<PanelTreatmentInfo>,
+    y: Option<Array2<f64>>,
+    w: Option<Array2<f64>>,
 }
 
 #[pyclass]
@@ -1724,19 +2151,21 @@ pub struct SyntheticDID {
     zeta_lambda: Option<f64>,
     max_iterations: u64,
     att: Option<f64>,
-    unit_weights: Option<Array1<f64>>,
-    time_weights: Option<Array1<f64>>,
-    treated_outcome: Option<Array1<f64>>,
-    synthetic_outcome: Option<Array1<f64>>,
-    treatment_effect: Option<Array1<f64>>,
+    unit_weights: Option<Array2<f64>>,
+    time_weights: Option<Array2<f64>>,
+    counterfactual: Option<Array2<f64>>,
+    treatment_effect: Option<Array2<f64>>,
     pre_rmse: Option<f64>,
-    unit_intercept: Option<f64>,
-    time_intercept: Option<f64>,
-    fitted_zeta_omega: Option<f64>,
-    fitted_zeta_lambda: Option<f64>,
+    unit_intercept: Option<Array1<f64>>,
+    time_intercept: Option<Array1<f64>>,
+    fitted_zeta_omega: Option<Array1<f64>>,
+    fitted_zeta_lambda: Option<Array1<f64>>,
     control_units: Option<Vec<usize>>,
     treated_units: Option<Vec<usize>>,
-    t_pre: Option<usize>,
+    cohorts: Option<Vec<usize>>,
+    treatment_info: Option<PanelTreatmentInfo>,
+    y: Option<Array2<f64>>,
+    w: Option<Array2<f64>>,
 }
 
 #[pymethods]
@@ -1751,125 +2180,152 @@ impl HorizontalPanelRidge {
         }
         Ok(Self {
             penalty,
-            intercept: None,
-            coef: None,
+            cohort_intercepts: None,
+            cohort_coef: None,
             counterfactual: None,
-            treated_outcome: None,
             treatment_effect: None,
             att: None,
             pre_rmse: None,
             control_units: None,
             treated_units: None,
-            t_pre: None,
+            cohorts: None,
+            treatment_info: None,
+            y: None,
+            w: None,
         })
     }
 
-    fn fit(
-        &mut self,
-        y: PyReadonlyArray2<f64>,
-        treated_units: Vec<usize>,
-        t_pre: usize,
-    ) -> PyResult<()> {
+    fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
         let y = to_array2(&y);
-        validate_finite_matrix("y", &y)?;
-        if y.nrows() < 2 {
-            return Err(PyValueError::new_err("y must contain at least two units"));
-        }
-        if t_pre == 0 || t_pre >= y.ncols() {
+        let w = to_array2(&w);
+        let treatment_info = infer_panel_treatment(&y, &w)?;
+        ensure_panel_has_never_treated(&treatment_info)?;
+        if treatment_info.cohorts.iter().any(|cohort| *cohort == 0) {
             return Err(PyValueError::new_err(
-                "t_pre must be positive and smaller than the number of periods",
+                "HorizontalPanelRidge needs at least one pre-treatment period for every treated cohort",
             ));
         }
 
-        let (y_reordered, control_units, treated_units) =
-            reorder_panel_for_treated(&y, &treated_units)?;
-        let n_control = control_units.len();
-        let t_post = y.ncols() - t_pre;
+        let n_units = y.nrows();
+        let n_periods = y.ncols();
+        let n_cohorts = treatment_info.cohorts.len();
+        let mut counterfactual = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
+        let mut treatment_effect = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
+        let mut cohort_intercepts = Array1::<f64>::zeros(n_cohorts);
+        let mut cohort_coef = Array2::<f64>::zeros((n_cohorts, n_units));
 
-        let control_panel = y_reordered.slice(s![0..n_control, ..]).to_owned();
-        let treated_outcome = y_reordered
-            .slice(s![n_control.., ..])
-            .mean_axis(Axis(0))
-            .ok_or_else(|| PyValueError::new_err("failed to average treated outcomes"))?;
+        for (c_idx, cohort) in treatment_info.cohorts.iter().enumerate() {
+            let treated_units = cohort_units(&treatment_info, *cohort);
+            let control_units = &treatment_info.never_treated;
+            let control_panel = y.select(Axis(0), control_units);
+            let treated_panel = y.select(Axis(0), &treated_units);
+            let treated_mean = treated_panel
+                .mean_axis(Axis(0))
+                .ok_or_else(|| PyValueError::new_err("failed to average treated outcomes"))?;
+            let x_pre = control_panel.slice(s![.., 0..*cohort]).t().to_owned();
+            let y_pre = treated_mean.slice(s![0..*cohort]).to_owned();
+            let (intercept, coef) = fit_ridge_with_intercept(&x_pre, &y_pre, self.penalty)?;
+            let x_all = control_panel.t().to_owned();
+            let cohort_counterfactual = x_all.dot(&coef) + intercept;
 
-        let x_pre = control_panel.slice(s![.., 0..t_pre]).t().to_owned();
-        let y_pre = treated_outcome.slice(s![0..t_pre]).to_owned();
-        let (intercept, coef) = fit_ridge_with_intercept(&x_pre, &y_pre, self.penalty)?;
-        let x_all = control_panel.t().to_owned();
-        let counterfactual = x_all.dot(&coef) + intercept;
-        let treatment_effect = &treated_outcome - &counterfactual;
-        let post_effect = treatment_effect.slice(s![t_pre..]).to_owned();
-        let att = post_effect.mean().unwrap_or(0.0);
-        let pre_rmse = treatment_effect
-            .slice(s![0..t_pre])
-            .mapv(|value| value * value)
-            .mean()
-            .unwrap_or(0.0)
-            .sqrt();
+            cohort_intercepts[c_idx] = intercept;
+            for (j, unit) in control_units.iter().enumerate() {
+                cohort_coef[[c_idx, *unit]] = coef[j];
+            }
+            for unit in treated_units {
+                for t in 0..n_periods {
+                    counterfactual[[unit, t]] = cohort_counterfactual[t];
+                    treatment_effect[[unit, t]] = y[[unit, t]] - cohort_counterfactual[t];
+                }
+            }
+        }
 
-        debug_assert_eq!(post_effect.len(), t_post);
-        self.intercept = Some(intercept);
-        self.coef = Some(coef);
+        let att = panel_att_from_effects(&w, &treatment_effect);
+        let pre_rmse = panel_group_pre_rmse(&treatment_effect, &treatment_info);
+
+        self.cohort_intercepts = Some(cohort_intercepts);
+        self.cohort_coef = Some(cohort_coef);
         self.counterfactual = Some(counterfactual);
-        self.treated_outcome = Some(treated_outcome);
         self.treatment_effect = Some(treatment_effect);
         self.att = Some(att);
         self.pre_rmse = Some(pre_rmse);
-        self.control_units = Some(control_units);
-        self.treated_units = Some(treated_units);
-        self.t_pre = Some(t_pre);
+        self.control_units = Some(treatment_info.never_treated.clone());
+        self.treated_units = Some(treatment_info.ever_treated.clone());
+        self.cohorts = Some(treatment_info.cohorts.clone());
+        self.treatment_info = Some(treatment_info);
+        self.y = Some(y);
+        self.w = Some(w);
         Ok(())
     }
 
-    fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let counterfactual = self
             .counterfactual
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
-        Ok(pyarray1_from_f64(py, counterfactual))
+        Ok(pyarray2_from_f64(py, counterfactual))
     }
 
-    fn treatment_effect<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    fn treatment_effect<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let treatment_effect = self
             .treatment_effect
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
-        Ok(pyarray1_from_f64(py, treatment_effect))
+        Ok(pyarray2_from_f64(py, treatment_effect))
     }
 
     fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
         let att = self
             .att
             .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
-        let coef = self
-            .coef
+        let cohort_intercepts = self
+            .cohort_intercepts
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let cohort_coef = self
+            .cohort_coef
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
         let counterfactual = self
             .counterfactual
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
-        let treated_outcome = self
-            .treated_outcome
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
         let treatment_effect = self
             .treatment_effect
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let treatment_info = self
+            .treatment_info
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let summaries = summarize_panel_effects(y, counterfactual, treatment_info);
+        let (event_study, group_means) = panel_summaries_to_dict(py, &summaries)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("att", att)?;
-        dict.set_item("intercept", self.intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, coef))?;
-        dict.set_item("counterfactual", pyarray1_from_f64(py, counterfactual))?;
-        dict.set_item("treated_outcome", pyarray1_from_f64(py, treated_outcome))?;
-        dict.set_item("treatment_effect", pyarray1_from_f64(py, treatment_effect))?;
+        dict.set_item("intercept", cohort_intercepts[0])?;
+        dict.set_item(
+            "coef",
+            pyarray1_from_f64(py, &cohort_coef.row(0).to_owned()),
+        )?;
+        dict.set_item(
+            "cohort_intercepts",
+            pyarray1_from_f64(py, cohort_intercepts),
+        )?;
+        dict.set_item("cohort_coef", pyarray2_from_f64(py, cohort_coef))?;
+        dict.set_item("counterfactual", pyarray2_from_f64(py, counterfactual))?;
+        dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
+        dict.set_item("event_study", event_study)?;
+        dict.set_item("group_means", group_means)?;
         dict.set_item("pre_rmse", self.pre_rmse)?;
         dict.set_item("penalty", self.penalty)?;
         dict.set_item("control_units", self.control_units.clone())?;
         dict.set_item("treated_units", self.treated_units.clone())?;
-        dict.set_item("t_pre", self.t_pre)?;
+        dict.set_item("cohorts", self.cohorts.clone())?;
         Ok(dict.into())
     }
 }
@@ -1983,8 +2439,7 @@ impl SyntheticDID {
             att: None,
             unit_weights: None,
             time_weights: None,
-            treated_outcome: None,
-            synthetic_outcome: None,
+            counterfactual: None,
             treatment_effect: None,
             pre_rmse: None,
             unit_intercept: None,
@@ -1993,128 +2448,138 @@ impl SyntheticDID {
             fitted_zeta_lambda: None,
             control_units: None,
             treated_units: None,
-            t_pre: None,
+            cohorts: None,
+            treatment_info: None,
+            y: None,
+            w: None,
         }
     }
 
-    fn fit(
-        &mut self,
-        y: PyReadonlyArray2<f64>,
-        treated_units: Vec<usize>,
-        t_pre: usize,
-    ) -> PyResult<()> {
+    fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
         let y = to_array2(&y);
-        validate_finite_matrix("y", &y)?;
-        if y.nrows() < 2 {
-            return Err(PyValueError::new_err("y must contain at least two units"));
-        }
-        if t_pre == 0 || t_pre >= y.ncols() {
+        let w = to_array2(&w);
+        let treatment_info = infer_panel_treatment(&y, &w)?;
+        ensure_panel_has_never_treated(&treatment_info)?;
+        if treatment_info.cohorts.iter().any(|cohort| *cohort == 0) {
             return Err(PyValueError::new_err(
-                "t_pre must be positive and smaller than the number of periods",
+                "SyntheticDID needs at least one pre-treatment period for every treated cohort",
             ));
         }
 
-        let (y_reordered, control_units, treated_units) =
-            reorder_panel_for_treated(&y, &treated_units)?;
-        let n_control = control_units.len();
-        let n_treated = treated_units.len();
-        let t_post = y.ncols() - t_pre;
+        let n_units = y.nrows();
+        let n_periods = y.ncols();
+        let n_cohorts = treatment_info.cohorts.len();
+        let mut counterfactual = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
+        let mut treatment_effect = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
+        let mut unit_weight_mat = Array2::<f64>::zeros((n_cohorts, n_units));
+        let mut time_weight_mat = Array2::<f64>::zeros((n_cohorts, n_periods));
+        let mut unit_intercepts = Array1::<f64>::zeros(n_cohorts);
+        let mut time_intercepts = Array1::<f64>::zeros(n_cohorts);
+        let mut zeta_omegas = Array1::<f64>::zeros(n_cohorts);
+        let mut zeta_lambdas = Array1::<f64>::zeros(n_cohorts);
 
-        let sigma = sdid_sigma_estimator(&y_reordered, n_control, t_pre);
-        let zeta_omega = match self.zeta_omega {
-            Some(value) if value.is_finite() && value >= 0.0 => value,
-            Some(_) => {
-                return Err(PyValueError::new_err(
-                    "zeta_omega must be finite and nonnegative",
-                ))
+        for (c_idx, cohort) in treatment_info.cohorts.iter().enumerate() {
+            let treated_units = cohort_units(&treatment_info, *cohort);
+            let control_units = &treatment_info.never_treated;
+            let mut order = control_units.clone();
+            order.extend_from_slice(&treated_units);
+            let y_reordered = y.select(Axis(0), &order);
+            let n_control = control_units.len();
+            let n_treated = treated_units.len();
+            let t_pre = *cohort;
+            let t_post = n_periods - t_pre;
+
+            let sigma = sdid_sigma_estimator(&y_reordered, n_control, t_pre);
+            let zeta_omega = match self.zeta_omega {
+                Some(value) if value.is_finite() && value >= 0.0 => value,
+                Some(_) => {
+                    return Err(PyValueError::new_err(
+                        "zeta_omega must be finite and nonnegative",
+                    ))
+                }
+                None => ((n_treated * t_post) as f64).powf(0.25) * sigma,
+            };
+            let zeta_lambda = match self.zeta_lambda {
+                Some(value) if value.is_finite() && value >= 0.0 => value,
+                Some(_) => {
+                    return Err(PyValueError::new_err(
+                        "zeta_lambda must be finite and nonnegative",
+                    ))
+                }
+                None => 1e-6 * sigma,
+            };
+
+            let y_control_pre = y_reordered.slice(s![0..n_control, 0..t_pre]).to_owned();
+            let y_control_post = y_reordered.slice(s![0..n_control, t_pre..]).to_owned();
+            let y_treated_pre = y_reordered.slice(s![n_control.., 0..t_pre]).to_owned();
+
+            let control_post_mean = y_control_post
+                .mean_axis(Axis(1))
+                .ok_or_else(|| PyValueError::new_err("failed to average control post outcomes"))?;
+            let treated_pre_mean = y_treated_pre
+                .mean_axis(Axis(0))
+                .ok_or_else(|| PyValueError::new_err("failed to average treated pre outcomes"))?;
+
+            let lambda_weights = fit_simplex_least_squares_weights(
+                &y_control_pre,
+                &control_post_mean,
+                zeta_lambda,
+                true,
+                self.max_iterations,
+            )?;
+            let omega_design = y_control_pre.t().to_owned();
+            let unit_weights = fit_simplex_least_squares_weights(
+                &omega_design,
+                &treated_pre_mean,
+                zeta_omega,
+                true,
+                self.max_iterations,
+            )?;
+
+            let unit_intercept = simplex_intercept(&omega_design, &treated_pre_mean, &unit_weights);
+            let time_intercept =
+                simplex_intercept(&y_control_pre, &control_post_mean, &lambda_weights);
+            let control_panel = y.select(Axis(0), control_units);
+            let cohort_counterfactual = control_panel.t().dot(&unit_weights) + unit_intercept;
+
+            for (j, unit) in control_units.iter().enumerate() {
+                unit_weight_mat[[c_idx, *unit]] = unit_weights[j];
             }
-            None => ((n_treated * t_post) as f64).powf(0.25) * sigma,
-        };
-        let zeta_lambda = match self.zeta_lambda {
-            Some(value) if value.is_finite() && value >= 0.0 => value,
-            Some(_) => {
-                return Err(PyValueError::new_err(
-                    "zeta_lambda must be finite and nonnegative",
-                ))
+            for t in 0..t_pre {
+                time_weight_mat[[c_idx, t]] = lambda_weights[t];
             }
-            None => 1e-6 * sigma,
-        };
+            unit_intercepts[c_idx] = unit_intercept;
+            time_intercepts[c_idx] = time_intercept;
+            zeta_omegas[c_idx] = zeta_omega;
+            zeta_lambdas[c_idx] = zeta_lambda;
 
-        let y_control_pre = y_reordered.slice(s![0..n_control, 0..t_pre]).to_owned();
-        let y_control_post = y_reordered.slice(s![0..n_control, t_pre..]).to_owned();
-        let y_treated_pre = y_reordered.slice(s![n_control.., 0..t_pre]).to_owned();
-
-        let control_post_mean = y_control_post
-            .mean_axis(Axis(1))
-            .ok_or_else(|| PyValueError::new_err("failed to average control post outcomes"))?;
-        let treated_pre_mean = y_treated_pre
-            .mean_axis(Axis(0))
-            .ok_or_else(|| PyValueError::new_err("failed to average treated pre outcomes"))?;
-
-        let lambda_weights = fit_simplex_least_squares_weights(
-            &y_control_pre,
-            &control_post_mean,
-            zeta_lambda,
-            true,
-            self.max_iterations,
-        )?;
-        let omega_design = y_control_pre.t().to_owned();
-        let unit_weights = fit_simplex_least_squares_weights(
-            &omega_design,
-            &treated_pre_mean,
-            zeta_omega,
-            true,
-            self.max_iterations,
-        )?;
-
-        let unit_intercept = simplex_intercept(&omega_design, &treated_pre_mean, &unit_weights);
-        let time_intercept = simplex_intercept(&y_control_pre, &control_post_mean, &lambda_weights);
-
-        let mut unit_weight_vec = Array1::<f64>::zeros(y.nrows());
-        for i in 0..n_control {
-            unit_weight_vec[i] = -unit_weights[i];
-        }
-        for i in n_control..y.nrows() {
-            unit_weight_vec[i] = 1.0 / n_treated as f64;
+            for unit in treated_units {
+                for t in 0..n_periods {
+                    counterfactual[[unit, t]] = cohort_counterfactual[t];
+                    treatment_effect[[unit, t]] = y[[unit, t]] - cohort_counterfactual[t];
+                }
+            }
         }
 
-        let mut time_weight_vec = Array1::<f64>::zeros(y.ncols());
-        for t in 0..t_pre {
-            time_weight_vec[t] = -lambda_weights[t];
-        }
-        for t in t_pre..y.ncols() {
-            time_weight_vec[t] = 1.0 / t_post as f64;
-        }
-
-        let att = unit_weight_vec.dot(&y_reordered.dot(&time_weight_vec));
-        let treated_outcome = y_reordered
-            .slice(s![n_control.., ..])
-            .mean_axis(Axis(0))
-            .ok_or_else(|| PyValueError::new_err("failed to average treated outcomes"))?;
-        let control_panel = y_reordered.slice(s![0..n_control, ..]).to_owned();
-        let synthetic_outcome = control_panel.t().dot(&unit_weights) + unit_intercept;
-        let treatment_effect = &treated_outcome - &synthetic_outcome;
-        let pre_rmse = treatment_effect
-            .slice(s![0..t_pre])
-            .mapv(|value| value * value)
-            .mean()
-            .unwrap_or(0.0)
-            .sqrt();
+        let att = panel_att_from_effects(&w, &treatment_effect);
+        let pre_rmse = panel_group_pre_rmse(&treatment_effect, &treatment_info);
 
         self.att = Some(att);
-        self.unit_weights = Some(unit_weights);
-        self.time_weights = Some(lambda_weights);
-        self.treated_outcome = Some(treated_outcome);
-        self.synthetic_outcome = Some(synthetic_outcome);
+        self.unit_weights = Some(unit_weight_mat);
+        self.time_weights = Some(time_weight_mat);
+        self.counterfactual = Some(counterfactual);
         self.treatment_effect = Some(treatment_effect);
         self.pre_rmse = Some(pre_rmse);
-        self.unit_intercept = Some(unit_intercept);
-        self.time_intercept = Some(time_intercept);
-        self.fitted_zeta_omega = Some(zeta_omega);
-        self.fitted_zeta_lambda = Some(zeta_lambda);
-        self.control_units = Some(control_units);
-        self.treated_units = Some(treated_units);
-        self.t_pre = Some(t_pre);
+        self.unit_intercept = Some(unit_intercepts);
+        self.time_intercept = Some(time_intercepts);
+        self.fitted_zeta_omega = Some(zeta_omegas);
+        self.fitted_zeta_lambda = Some(zeta_lambdas);
+        self.control_units = Some(treatment_info.never_treated.clone());
+        self.treated_units = Some(treatment_info.ever_treated.clone());
+        self.cohorts = Some(treatment_info.cohorts.clone());
+        self.treatment_info = Some(treatment_info);
+        self.y = Some(y);
+        self.w = Some(w);
         Ok(())
     }
 
@@ -2130,46 +2595,71 @@ impl SyntheticDID {
             .time_weights
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
-        let treated_outcome = self
-            .treated_outcome
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
-        let synthetic_outcome = self
-            .synthetic_outcome
+        let counterfactual = self
+            .counterfactual
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
         let treatment_effect = self
             .treatment_effect
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let treatment_info = self
+            .treatment_info
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let summaries = summarize_panel_effects(y, counterfactual, treatment_info);
+        let (event_study, group_means) = panel_summaries_to_dict(py, &summaries)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("att", att)?;
-        dict.set_item("unit_weights", pyarray1_from_f64(py, unit_weights))?;
-        dict.set_item("time_weights", pyarray1_from_f64(py, time_weights))?;
-        dict.set_item("treated_outcome", pyarray1_from_f64(py, treated_outcome))?;
-        dict.set_item(
-            "synthetic_outcome",
-            pyarray1_from_f64(py, synthetic_outcome),
-        )?;
-        dict.set_item("treatment_effect", pyarray1_from_f64(py, treatment_effect))?;
+        dict.set_item("unit_weights", pyarray2_from_f64(py, unit_weights))?;
+        dict.set_item("time_weights", pyarray2_from_f64(py, time_weights))?;
+        dict.set_item("counterfactual", pyarray2_from_f64(py, counterfactual))?;
+        dict.set_item("synthetic_outcome", pyarray2_from_f64(py, counterfactual))?;
+        dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
+        dict.set_item("event_study", event_study)?;
+        dict.set_item("group_means", group_means)?;
         dict.set_item("pre_rmse", self.pre_rmse)?;
-        dict.set_item("unit_intercept", self.unit_intercept)?;
-        dict.set_item("time_intercept", self.time_intercept)?;
-        dict.set_item("zeta_omega", self.fitted_zeta_omega)?;
-        dict.set_item("zeta_lambda", self.fitted_zeta_lambda)?;
+        dict.set_item(
+            "unit_intercept",
+            pyarray1_from_f64(py, self.unit_intercept.as_ref().unwrap()),
+        )?;
+        dict.set_item(
+            "time_intercept",
+            pyarray1_from_f64(py, self.time_intercept.as_ref().unwrap()),
+        )?;
+        dict.set_item(
+            "zeta_omega",
+            pyarray1_from_f64(py, self.fitted_zeta_omega.as_ref().unwrap()),
+        )?;
+        dict.set_item(
+            "zeta_lambda",
+            pyarray1_from_f64(py, self.fitted_zeta_lambda.as_ref().unwrap()),
+        )?;
         dict.set_item("control_units", self.control_units.clone())?;
         dict.set_item("treated_units", self.treated_units.clone())?;
-        dict.set_item("t_pre", self.t_pre)?;
+        dict.set_item("cohorts", self.cohorts.clone())?;
         Ok(dict.into())
     }
 
-    fn treatment_effect<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let counterfactual = self
+            .counterfactual
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        Ok(pyarray2_from_f64(py, counterfactual))
+    }
+
+    fn treatment_effect<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let treatment_effect = self
             .treatment_effect
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
-        Ok(pyarray1_from_f64(py, treatment_effect))
+        Ok(pyarray2_from_f64(py, treatment_effect))
     }
 }
 

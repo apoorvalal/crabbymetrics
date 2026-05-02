@@ -29,8 +29,12 @@ Any new work here should usually satisfy most of the following:
 - balancing / calibration weights
   - `BalancingWeights` supports entropy and quadratic objectives, baseline weights, autoscaling, and approximate balance
 - panel causal estimators
-  - `HorizontalPanelRidge` exposes the horizontal forecasting leaf from Shen-Ding-Sekhon-Yu style panel comparisons: train ridge on treated pre-period outcomes using donor paths as features, then forecast the treated counterfactual path
-  - `SyntheticDID` ports the matrix-form synthetic difference-in-differences estimator from the local `synthlearners` CVXPY reference into a Rust-backed NumPy API
+  - `HorizontalPanelRidge`, `SyntheticDID`, and `MatrixCompletion` now share the matrix panel contract `fit(Y, W)`, where `Y` is `(n_units, n_periods)` and `W` is a same-shaped binary absorbing treatment matrix
+  - fitted panel estimators infer ever-treated units, first-treatment cohorts, never-treated donors, and pre/post/event-time structure internally
+  - fitted panel estimators expose high-level causal outputs through `summary()`: `att`, `counterfactual`, `treatment_effect`, `event_study`, and `group_means`
+  - `HorizontalPanelRidge` exposes the horizontal forecasting leaf from Shen-Ding-Sekhon-Yu style panel comparisons: train cohort-specific ridge forecasts on treated pre-period outcomes using donor paths as features, then forecast treated counterfactual paths
+  - `SyntheticDID` ports the matrix-form synthetic difference-in-differences estimator from the local `synthlearners` CVXPY reference into a Rust-backed NumPy API, now fit cohort-by-cohort under the common panel contract
+  - low-level weight APIs remain public: `SyntheticControl` for simplex donor weights and `BalancingWeights` for calibration weights, but they are not the modal panel causal path
 - semiparametric bundle
   - `EPLM`
   - `AverageDerivative(method="ob" | "ipw" | "dr")`

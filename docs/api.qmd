@@ -142,12 +142,13 @@ display(HTML(html_table(["Function"], optimizer_rows)))
 - `PCA` and `KernelBasis` fit on `x` alone and return transformed feature matrices that can be passed into the regression estimators.
 - The `Optimizers` methods return plain dictionaries rather than scipy result objects, but the schema is intentionally similar.
 - `FixedEffectsOLS.fit(x, fe, y)` expects `fe` to be a 2D `uint32` matrix of zero-based category codes, one column per factor.
-- `HorizontalPanelRidge.fit(y, treated_units, t_pre)` expects a balanced outcome panel in an `(n_units, n_periods)` matrix, a sequence of treated unit indices, and the number of pre-treatment periods. It uses donor paths as features, trains on pre-treatment periods, and predicts the treated counterfactual path.
-- `SyntheticControl.fit(donors, treated)` expects donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector of length `n_periods`.
-- `SyntheticDID.fit(y, treated_units, t_pre)` expects a balanced outcome panel in an `(n_units, n_periods)` matrix, a sequence of treated unit indices, and the number of pre-treatment periods.
-- `MatrixCompletion.fit(y, mask=None)` implements MCPanel-style nuclear-norm panel completion with optional additive unit/time effects; missing entries can be passed through `mask` or as non-finite values when `mask=None`.
-- `InteractiveFixedEffects.fit(y)` implements the no-covariate fect principal-components IFE path for balanced panels; `panel_factor()` and `panel_fe()` expose the lower-level fect SVD helpers.
-- `BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)` estimates calibration weights on the first matrix so its weighted covariate mean matches the target mean implied by the second matrix.
+- Panel causal estimators use `fit(Y, W)` as the paved path. `Y` is a balanced `(n_units, n_periods)` outcome matrix and `W` is a same-shaped binary absorbing treatment matrix; estimators infer treated units, first-treatment cohorts, never-treated donors, pre/post windows, and event-time summaries internally.
+- `HorizontalPanelRidge.fit(Y, W)` uses never-treated donor paths as contemporaneous features, trains cohort-specific ridge forecasts on pre-treatment periods, and predicts treated-unit counterfactual paths.
+- `SyntheticDID.fit(Y, W)` fits cohort-specific donor and pre-period weights under the same panel contract and stores the full counterfactual/effect matrices.
+- `MatrixCompletion.fit(Y, W)` treats untreated cells (`W == 0`) as observed entries, completes treated cells as counterfactuals, and stores the resulting ATT, treatment effects, cohort-level group means, weighted/unweighted group means, and event-study summaries.
+- `SyntheticControl.fit(donors, treated)` remains a lower-level simplex-weight API for a single treated path, with donor outcomes in an `(n_periods, n_donors)` matrix and a treated pre-period outcome vector.
+- `InteractiveFixedEffects.fit(y)` remains the no-covariate fect principal-components factor-model helper for balanced panels; `panel_factor()` and `panel_fe()` expose the lower-level fect SVD helpers.
+- `BalancingWeights.fit(covariates, target_covariates, baseline_weights=None, target_weights=None)` is the public low-level calibration-weights API, but not the paved path for panel causal estimators.
 - `EPLM.fit(y, d, w)` and `AverageDerivative.fit(y, d, w)` currently target a scalar continuous treatment and a 2D control matrix.
 - `PartiallyLinearDML.fit(y, d, x)` targets a scalar continuous treatment with cross-fit ridge nuisances.
 - `AIPW.fit(y, d, x)` targets a binary treatment coded as `0/1` and estimates the ATE with cross-fit ridge nuisance models.
@@ -191,11 +192,11 @@ reference_rows = [
     ],
     [
         "<code>HorizontalPanelRidge</code>",
-        "<code>fit(y, treated_units, t_pre)</code>",
-        "1D float treated counterfactual path",
-        "<code>att</code>, <code>intercept</code>, <code>coef</code>, <code>counterfactual</code>, <code>treated_outcome</code>, <code>treatment_effect</code>, <code>pre_rmse</code>, <code>penalty</code>, <code>control_units</code>, <code>treated_units</code>, <code>t_pre</code>",
+        "<code>fit(Y, W)</code>",
+        "2D treated-unit counterfactual matrix",
+        "<code>att</code>, <code>counterfactual</code>, <code>treatment_effect</code>, <code>event_study</code>, <code>group_means</code>, <code>cohort_intercepts</code>, <code>cohort_coef</code>, <code>pre_rmse</code>, <code>penalty</code>, <code>control_units</code>, <code>treated_units</code>, <code>cohorts</code>",
         "No bootstrap method",
-        "Horizontal panel regression: train a ridge forecast of the treated pre-period average outcome using donor outcomes as contemporaneous features, then predict the treated post-treatment counterfactual from donor post-treatment paths.",
+        "Horizontal panel forecasting estimator. It infers absorbing treatment cohorts from <code>W</code>, trains cohort-specific ridge forecasts from never-treated donor paths, and stores both low-level coefficients and high-level causal summaries.",
     ],
     [
         "<code>SyntheticControl</code>",
@@ -207,11 +208,19 @@ reference_rows = [
     ],
     [
         "<code>SyntheticDID</code>",
-        "<code>fit(y, treated_units, t_pre)</code>",
-        "No dedicated <code>predict()</code> method",
-        "<code>att</code>, <code>unit_weights</code>, <code>time_weights</code>, <code>treated_outcome</code>, <code>synthetic_outcome</code>, <code>treatment_effect</code>, <code>pre_rmse</code>, <code>unit_intercept</code>, <code>time_intercept</code>, <code>zeta_omega</code>, <code>zeta_lambda</code>",
+        "<code>fit(Y, W)</code>",
+        "2D treated-unit counterfactual matrix",
+        "<code>att</code>, <code>unit_weights</code>, <code>time_weights</code>, <code>counterfactual</code>, <code>synthetic_outcome</code>, <code>treatment_effect</code>, <code>event_study</code>, <code>group_means</code>, <code>pre_rmse</code>, <code>unit_intercept</code>, <code>time_intercept</code>, <code>zeta_omega</code>, <code>zeta_lambda</code>, <code>control_units</code>, <code>treated_units</code>, <code>cohorts</code>",
         "No bootstrap method",
-        "Synthetic difference-in-differences for balanced outcome panels. It solves the Arkhangelsky-style simplex least-squares unit and time weighting problems with intercepts and ridge regularization in Rust.",
+        "Synthetic difference-in-differences for balanced outcome panels. It infers cohorts from <code>W</code>, fits cohort-specific simplex unit/time weights, and keeps weights available while exposing event-study and group-mean summaries as the modal output.",
+    ],
+    [
+        "<code>MatrixCompletion</code>",
+        "<code>fit(Y, W)</code>",
+        "2D completed/counterfactual panel",
+        "<code>att</code>, <code>completed</code>, <code>counterfactual</code>, <code>treatment_effect</code>, <code>event_study</code>, <code>group_means</code>, <code>low_rank</code>, <code>unit_effects</code>, <code>time_effects</code>, <code>singular_values</code>, <code>lambda_l</code>, <code>objective</code>, <code>iterations</code>, <code>history_objective</code>, <code>history_rmse</code>",
+        "No bootstrap method",
+        "MCPanel-style nuclear-norm matrix completion using untreated cells from <code>W</code> as observed entries; treated cells are completed as counterfactuals and summarized through the common panel causal outputs.",
     ],
     [
         "<code>BalancingWeights</code>",
@@ -489,9 +498,11 @@ runtime_rows.append(
 
 # SyntheticDID
 panel = rng.normal(size=(8, 12))
+w = np.zeros_like(panel)
+w[6:, 8:] = 1.0
 panel[6:, 8:] += 0.8
 model = cm.SyntheticDID(max_iterations=300)
-model.fit(panel, [6, 7], 8)
+model.fit(panel, w)
 runtime_rows.append(
     [
         "<code>SyntheticDID</code>",
