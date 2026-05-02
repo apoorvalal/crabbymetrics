@@ -176,10 +176,10 @@ display(
 
 Each estimator returns an average post-treatment ATT estimate and, when meaningful, a period-by-period post-treatment effect path.
 
-- **horizontal ridge** is now the first-class `crabbymetrics.HorizontalPanelRidge`: it regresses the treated pre-treatment time series on donor outcomes over time, then forecasts treated post outcomes from donor post outcomes;
+- **horizontal ridge** is now the first-class `crabbymetrics.HorizontalPanelRidge`: it uses the common `fit(Y, W)` panel API, learns treated cohorts and never-treated donors internally, and forecasts treated counterfactual paths from donor paths;
 - **vertical ridge** remains a short reference calculation: it regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit's missing counterfactual from its pre-treatment history.
 
-Synthetic control, synthetic DID, and matrix completion are also first-class `crabbymetrics` panel estimators.
+Synthetic control remains the low-level simplex-weight reference. Synthetic DID and matrix completion now use the same `fit(Y, W)` panel contract as horizontal ridge, so the vignette no longer constructs estimator-specific masks or treated-unit arguments for the modal panel estimators.
 
 ```{python}
 @dataclass
@@ -197,6 +197,20 @@ def split_panel(panel, treated_units):
     treated_mean = panel[treated_units].mean(axis=0)
     control_mean = panel[controls].mean(axis=0)
     return treated_mean, control_mean, controls
+
+
+def treatment_matrix(panel, treated_units, t_pre):
+    w = np.zeros_like(panel, dtype=float)
+    w[np.ix_(list(treated_units), np.arange(t_pre, panel.shape[1]))] = 1.0
+    return w
+
+
+def panel_counterfactual_mean(summary, treated_units):
+    return np.asarray(summary["counterfactual"])[list(treated_units)].mean(axis=0)
+
+
+def panel_effect_path(summary, treated_units, t_pre):
+    return np.asarray(summary["treatment_effect"])[list(treated_units), t_pre:].mean(axis=0)
 
 
 def ridge_solve(x, y, alpha=1.0, penalize_intercept=False):
@@ -236,13 +250,13 @@ def estimate_twfe(panel, treated_units, t_pre):
 
 def estimate_horizontal_ridge(panel, treated_units, t_pre, alpha=0.25):
     model = cm.HorizontalPanelRidge(penalty=alpha)
-    model.fit(panel, list(treated_units), t_pre)
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
     summary = model.summary()
     return Estimate(
         "Horizontal ridge",
         float(summary["att"]),
-        np.asarray(summary["treatment_effect"])[t_pre:],
-        np.asarray(summary["counterfactual"]),
+        panel_effect_path(summary, treated_units, t_pre),
+        panel_counterfactual_mean(summary, treated_units),
         float(summary["pre_rmse"]),
     )
 
@@ -273,26 +287,23 @@ def estimate_sc(panel, treated_units, t_pre):
 
 
 def estimate_sdid(panel, treated_units, t_pre):
-    treated_mean, _, _ = split_panel(panel, treated_units)
     model = cm.SyntheticDID(zeta_omega=1e-8, zeta_lambda=1e-8, max_iterations=1200)
-    model.fit(panel, list(treated_units), t_pre)
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
     summary = model.summary()
-    y0_hat = np.asarray(summary["synthetic_outcome"])
-    effect = np.asarray(summary["treatment_effect"])[t_pre:]
+    y0_hat = panel_counterfactual_mean(summary, treated_units)
+    effect = panel_effect_path(summary, treated_units, t_pre)
     return Estimate("Synthetic DID", float(summary["att"]), effect, y0_hat, float(summary["pre_rmse"]))
 
 
 def estimate_mc(panel, treated_units, t_pre):
     treated_mean, _, _ = split_panel(panel, treated_units)
-    observed = np.ones(panel.shape, dtype=bool)
-    observed[np.ix_(treated_units, np.arange(t_pre, panel.shape[1]))] = False
     model = cm.MatrixCompletion(lambda_fraction=0.035, max_iterations=350, tolerance=1e-7)
-    model.fit(panel, mask=observed)
-    y0_all = np.asarray(model.predict())
-    y0_hat = y0_all[treated_units].mean(axis=0)
-    effect = treated_mean[t_pre:] - y0_hat[t_pre:]
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
+    summary = model.summary()
+    y0_hat = panel_counterfactual_mean(summary, treated_units)
+    effect = panel_effect_path(summary, treated_units, t_pre)
     pre_rmse = float(np.sqrt(np.mean((treated_mean[:t_pre] - y0_hat[:t_pre]) ** 2)))
-    return Estimate("Matrix completion", float(effect.mean()), effect, y0_hat, pre_rmse)
+    return Estimate("Matrix completion", float(summary["att"]), effect, y0_hat, pre_rmse)
 
 
 ESTIMATORS = [

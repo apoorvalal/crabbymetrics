@@ -146,7 +146,7 @@ display(
 
 ## Estimators
 
-The estimators are intentionally fed identical panels within a replication. `MatrixCompletion` receives the same observed panel after treated post-treatment cells are masked, so it is asked to reconstruct $Y(0)$ in exactly the cells where the ATT is evaluated.
+The estimators are intentionally fed identical panels within a replication. `SyntheticDID` and `MatrixCompletion` use the common `fit(Y, W)` panel API: `Y` is the observed panel and `W` is the same-shaped absorbing treatment matrix. `MatrixCompletion` treats the untreated cells (`W == 0`) as observed and reconstructs $Y(0)$ in exactly the treated cells where the ATT is evaluated.
 
 ```{python}
 def estimate_twfe(panel, treated_units, t_pre):
@@ -175,20 +175,22 @@ def estimate_sc(panel, treated_units, t_pre):
     return float((treated_post - model.predict(donors_post)).mean())
 
 
+def treatment_matrix(panel, treated_units, t_pre):
+    w = np.zeros_like(panel, dtype=float)
+    w[np.ix_(list(treated_units), np.arange(t_pre, panel.shape[1]))] = 1.0
+    return w
+
+
 def estimate_sdid(panel, treated_units, t_pre):
     model = cm.SyntheticDID(zeta_omega=1e-8, zeta_lambda=1e-8, max_iterations=1500)
-    model.fit(panel, treated_units, t_pre)
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
     return float(model.summary()["att"])
 
 
 def estimate_mc(panel, treated_units, t_pre):
-    observed = np.ones(panel.shape, dtype=bool)
-    observed[np.ix_(treated_units, np.arange(t_pre, panel.shape[1]))] = False
     model = cm.MatrixCompletion(lambda_fraction=0.03, max_iterations=500, tolerance=1e-7)
-    model.fit(panel, mask=observed)
-    y0_hat = model.predict()
-    post = np.arange(t_pre, panel.shape[1])
-    return float((panel[np.ix_(treated_units, post)] - y0_hat[np.ix_(treated_units, post)]).mean())
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
+    return float(model.summary()["att"])
 
 
 estimators = [

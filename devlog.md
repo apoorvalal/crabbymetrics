@@ -119,6 +119,7 @@ Panel causal API update on the matrix-completion branch:
 - Fitted summaries now include the modal causal outputs needed for plots/tables: `att`, `counterfactual`, `treatment_effect`, `event_study`, and `group_means`.
 - Event-study summaries include both `unweighted` and treated-count `weighted` aggregations with normal-approximation CI columns; group means retain cohort/event-time rows plus weighted and unweighted event-time aggregates for direct plotting.
 - `SyntheticControl` and `BalancingWeights` remain public low-level weight APIs, but the paved panel path is estimator-first rather than balancing-weights-first.
+- Same Root, panel-DGP, and synthetic-DID docs/examples were migrated to the new `fit(Y, W)` panel API; their Quarto freeze/cache artifacts were flushed and regenerated.
 
 ## Docs Surface
 

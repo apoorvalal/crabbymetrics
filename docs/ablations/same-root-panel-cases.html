@@ -3940,7 +3940,8 @@ return 0===self.Set.length&&2===e.size&&"Symbol"in self&&"iterator"in self.Symbo
 return"test"===t.get(e)&&!1===t["delete"](0)}return!1}catch(a){return!1}})()
 )) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakMap requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_keys:[],_values:[],_es6WeakMap:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"set");if(!IsCallable(r))throw new TypeError("WeakMap.prototype.set is not a function");try{for(var o=GetIterator(t);;){var p=IteratorStep(o);if(!1===p)return e;var n=IteratorValue(p);if("object"!==Type(n))try{throw new TypeError("Iterator value "+n+" is not an entry object")}catch(s){return IteratorClose(o,s)}try{var i=Get(n,"0"),l=Get(n,"1");Call(r,e,[i,l])}catch(u){return IteratorClose(o,u)}}}catch(u){if(Array.isArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var y,c=t.length;for(y=0;y<c;y++)i=t[y][0],l=t[y][1],Call(r,e,[i,l])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakMap.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return this._keys[a]=t,this._values[a]=t,this._size=--this._size,!0;return!1}),CreateMethodProperty(r.prototype,"get",function p(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakMap.prototype.get called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.get called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return undefined;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return r._values[a];return undefined}),CreateMethodProperty(r.prototype,"has",function n(e){var r=this;if("object"!=typeof r)throw new TypeError("Method WeakMap.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return!0;return!1}),CreateMethodProperty(r.prototype,"set",function i(e,r){var o=this;if("object"!==Type(o))throw new TypeError("Method WeakMap.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));if(!0!==o._es6WeakMap)throw new TypeError("Method WeakMap.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));var a=o._keys;if("object"!==Type(e))throw new TypeError("Invalid value used as weak map key");for(var p=0;p<a.length;p++)if(o._keys[p]!==t&&SameValue(o._keys[p],e))return o._values[p]=r,o;var n={"[[Key]]":e,"[[Value]]":r};return o._keys.push(n["[[Key]]"]),o._values.push(n["[[Value]]"]),o}),Object.defineProperty(r.prototype,Symbol.toStringTag,{configurable:!0,enumerable:!1,writable:!1,value:"WeakMap"}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakMap"});try{CreateMethodProperty(e,"WeakMap",r)}catch(o){e.WeakMap=r}}(self);}if (!((function(e){try{if(Object.prototype.hasOwnProperty.call(e,"WeakSet")&&0===e.WeakSet.length){var t={},r=new e.WeakSet([t])
 return r.has(t)&&!1===r["delete"](0)}return!1}catch(a){return!1}})(self)
-)) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakSet requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_values:[],_size:0,_es6WeakSet:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"add");if(!IsCallable(r))throw new TypeError("WeakSet.prototype.add is not a function");try{for(var o=GetIterator(t);;){var n=IteratorStep(o);if(!1===n)return e;var l=IteratorValue(n);try{Call(r,e,[l])}catch(c){return IteratorClose(o,c)}}}catch(c){if(IsArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var p,i=t.length;for(p=0;p<i;p++)Call(r,e,[t[p]])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"add",function n(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))throw new TypeError("Invalid value used in weak set");for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return r}return r._values.push(e),r}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))return!1;for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return o[a]=t,!0}return!1}),CreateMethodProperty(r.prototype,"has",function l(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._values;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return!0}return!1}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakSet"});try{CreateMethodProperty(e,"WeakSet",r)}catch(o){e.WeakSet=r}}(self);}function TrimString(e,u){var r=RequireObjectCoercible(e),t=ToString(r),n=/[\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF]+/.source;if("start"===u)var p=String.prototype.replace.call(t,new RegExp("^"+n,"g"),"");else p="end"===u?String.prototype.replace.call(t,new RegExp(n+"$","g"),""):String.prototype.replace.call(t,new RegExp("^"+n+"|"+n+"$","g"),"");return p}if (!("trim"in String.prototype&&function(){var r="​᠎"
+)) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakSet requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_values:[],_size:0,_es6WeakSet:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"add");if(!IsCallable(r))throw new TypeError("WeakSet.prototype.add is not a function");try{for(var o=GetIterator(t);;){var n=IteratorStep(o);if(!1===n)return e;var l=IteratorValue(n);try{Call(r,e,[l])}catch(c){return IteratorClose(o,c)}}}catch(c){if(IsArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var p,i=t.length;for(p=0;p<i;p++)Call(r,e,[t[p]])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"add",function n(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))throw new TypeError("Invalid value used in weak set");for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return r}return r._values.push(e),r}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))return!1;for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return o[a]=t,!0}return!1}),CreateMethodProperty(r.prototype,"has",function l(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._values;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return!0}return!1}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakSet"});try{CreateMethodProperty(e,"WeakSet",r)}catch(o){e.WeakSet=r}}(self);}function TrimString(e,u){var r=RequireObjectCoercible(e),t=ToString(r),n=/[\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF]+/.source;if("start"===u)var p=String.prototype.replace.call(t,new RegExp("^"+n,"g"),"");else p="end"===u?String.prototype.replace.call(t,new RegExp(n+"$","g"),""):String.prototype.replace.call(t,new RegExp("^"+n+"|"+n+"$","g"),"");return p}if (!("trim"in String.prototype&&function(){var r="​
+᠎"
 return!"\t\n\x0B\f\r                　\u2028\u2029\ufeff".trim()&&r.trim()===r}()
 )) {CreateMethodProperty(String.prototype,"trim",function t(){"use strict";var t=this;return TrimString(t,"start+end")});}if (!("parseFloat"in Number&&1/parseFloat("\t\n\x0B\f\r                　\u2028\u2029\ufeff-0")==-Infinity
 )) {!function(r,t){var a=function o(t){var a=String(t).trim(),e=r(a);return 0===e&&"-"==a.charAt(0)?-0:e};try{CreateMethodProperty(t,"parseFloat",a)}catch(e){t.parseFloat=a}CreateMethodProperty(Number,"parseFloat",t.parseFloat)}(parseFloat,this);}if (!("parseInt"in Number&&8===Number.parseInt("08")
@@ -3952,7 +3953,7 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 )) {"Symbol"in self&&"iterator"in Symbol&&"function"==typeof Array.prototype[Symbol.iterator]?CreateMethodProperty(Array.prototype,"values",Array.prototype[Symbol.iterator]):CreateMethodProperty(Array.prototype,"values",function r(){var r=ToObject(this);return new ArrayIterator(r,"value")});}if (!("Symbol"in self&&"iterator"in self.Symbol&&!!Array.prototype[self.Symbol.iterator]
 )) {CreateMethodProperty(Array.prototype,Symbol.iterator,Array.prototype.values);}var StringIterator=function(){var t=function(e){if(!(this instanceof t))return new t(e);e=String(e),Iterator.call(this,e),Object.defineProperty(this,"__length__",{value:e.length,configurable:!1,enumerable:!1,writable:!1})};return Object.setPrototypeOf&&Object.setPrototypeOf(t,Iterator),t.prototype=Object.create(Iterator.prototype,{constructor:{value:t,configurable:!0,enumerable:!1,writable:!0},_next:{value:function(){if(this.__list__)return this.__nextIndex__<this.__length__?this.__nextIndex__++:void this._unBind()},configurable:!0,enumerable:!1,writable:!0},_resolve:{value:function(t){var e,r=this.__list__[t];return this.__nextIndex__===this.__length__?r:(e=r.charCodeAt(0),e>=55296&&e<=56319?r+this.__list__[this.__nextIndex__++]:r)},configurable:!0,enumerable:!1,writable:!0},toString:{value:function(){return"[object String Iterator]"},configurable:!0,enumerable:!1,writable:!0}}),t}();if (!("Symbol"in self&&"iterator"in self.Symbol&&!!String.prototype[self.Symbol.iterator]
 )) {CreateMethodProperty(String.prototype,Symbol.iterator,function(){var r=RequireObjectCoercible(this),t=ToString(r);return new StringIterator(t)});}})('object' === typeof window && window || 'object' === typeof self && self || 'object' === typeof global && global || {});</script>
-  
+
   <script>
     (function () {
       var script = document.createElement("script");
@@ -4014,209 +4015,209 @@ window.Quarto = {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../index.html"> 
+    <a class="nav-link" href="../index.html">
 <span class="menu-text">Home</span></a>
-  </li>  
+  </li>
   <li class="nav-item">
-    <a class="nav-link" href="../api.html"> 
+    <a class="nav-link" href="../api.html">
 <span class="menu-text">API</span></a>
-  </li>  
+  </li>
   <li class="nav-item">
-    <a class="nav-link" href="../mechanics-ols.html"> 
+    <a class="nav-link" href="../mechanics-ols.html">
 <span class="menu-text">Binding Crash Course</span></a>
-  </li>  
+  </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Supervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
  <span class="dropdown-text">Fixed Effects OLS</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/synthetic-did.html">
  <span class="dropdown-text">Synthetic DID</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/multinomial-logit.html">
  <span class="dropdown-text">Multinomial Logit</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/poisson.html">
  <span class="dropdown-text">Poisson</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/twosls.html">
  <span class="dropdown-text">TwoSLS</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/gmm.html">
  <span class="dropdown-text">GMM</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/ftrl.html">
  <span class="dropdown-text">FTRL</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Semiparametrics</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/eplm.html">
  <span class="dropdown-text">EPLM</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/average-derivative.html">
  <span class="dropdown-text">Average Derivative</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/double-ml.html">
  <span class="dropdown-text">Double ML And AIPW</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Unsupervised Learning</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">
         <li>
     <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
  <span class="dropdown-text">PCA And Kernel Basis</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Ablations</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
  <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Optimization</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">
         <li>
     <a class="dropdown-item" href="../examples/optimizers.html">
  <span class="dropdown-text">Optimizers</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
  <span class="dropdown-text">GMM With Optimizers</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Ding: First Course</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
  <span class="dropdown-text">Overview And TOC</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
  <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
  <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
  <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
  <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
  <span class="dropdown-text">Ch 11 Propensity Score</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
  <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
  <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
  <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
  <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>  
+  </li>
         <li>
     <a class="dropdown-item" href="../ding/ch27-mediation.html">
  <span class="dropdown-text">Ch 27 Mediation</span></a>
-  </li>  
+  </li>
     </ul>
   </li>
 </ul>
@@ -4230,7 +4231,7 @@ window.Quarto = {
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    
+
 <!-- main -->
 <main class="content column-page" id="quarto-document-content">
 
@@ -4243,11 +4244,11 @@ window.Quarto = {
 
 <div class="quarto-title-meta column-page">
 
-    
-  
-    
+
+
+
   </div>
-  
+
 
 
 </header>
@@ -4264,7 +4265,7 @@ window.Quarto = {
 <p>Data are vendored under <code>docs/data/</code> so the page renders without network access.</p>
 <section id="setup" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup"><span class="header-section-number">1</span> Setup</h2>
-<div id="00ea4571" class="cell" data-execution_count="1">
+<div id="a5bc754c" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
@@ -4320,7 +4321,7 @@ window.Quarto = {
 </section>
 <section id="load-the-two-case-panels" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="load-the-two-case-panels"><span class="header-section-number">2</span> Load The Two Case Panels</h2>
-<div id="32211740" class="cell" data-execution_count="2">
+<div id="a89da5bc" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wide_from_long(df, unit_col, time_col, outcome_col, units<span class="op">=</span><span class="va">None</span>):</span>
@@ -4447,11 +4448,11 @@ window.Quarto = {
 <h2 data-number="3" class="anchored" data-anchor-id="estimators"><span class="header-section-number">3</span> Estimators</h2>
 <p>Each estimator returns an average post-treatment ATT estimate and, when meaningful, a period-by-period post-treatment effect path.</p>
 <ul>
-<li><strong>horizontal ridge</strong> is now the first-class <code>crabbymetrics.HorizontalPanelRidge</code>: it regresses the treated pre-treatment time series on donor outcomes over time, then forecasts treated post outcomes from donor post outcomes;</li>
+<li><strong>horizontal ridge</strong> is now the first-class <code>crabbymetrics.HorizontalPanelRidge</code>: it uses the common <code>fit(Y, W)</code> panel API, learns treated cohorts and never-treated donors internally, and forecasts treated counterfactual paths from donor paths;</li>
 <li><strong>vertical ridge</strong> remains a short reference calculation: it regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit’s missing counterfactual from its pre-treatment history.</li>
 </ul>
-<p>Synthetic control, synthetic DID, and matrix completion are also first-class <code>crabbymetrics</code> panel estimators.</p>
-<div id="169e27a9" class="cell" data-execution_count="3">
+<p>Synthetic control remains the low-level simplex-weight reference. Synthetic DID and matrix completion now use the same <code>fit(Y, W)</code> panel contract as horizontal ridge, so the vignette no longer constructs estimator-specific masks or treated-unit arguments for the modal panel estimators.</p>
+<div id="11f0a40c" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
@@ -4471,111 +4472,122 @@ window.Quarto = {
 <span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> treated_mean, control_mean, controls</span>
 <span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ridge_solve(x, y, alpha<span class="op">=</span><span class="fl">1.0</span>, penalize_intercept<span class="op">=</span><span class="va">False</span>):</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.asarray(x, dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.asarray(y, dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    penalty <span class="op">=</span> alpha <span class="op">*</span> np.eye(x.shape[<span class="dv">1</span>])</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> penalize_intercept:</span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        penalty[<span class="dv">0</span>, <span class="dv">0</span>] <span class="op">=</span> <span class="fl">0.0</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.linalg.solve(x.T <span class="op">@</span> x <span class="op">+</span> penalty, x.T <span class="op">@</span> y)</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> treatment_matrix(panel, treated_units, t_pre):</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    w <span class="op">=</span> np.zeros_like(panel, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    w[np.ix_(<span class="bu">list</span>(treated_units), np.arange(t_pre, panel.shape[<span class="dv">1</span>]))] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> w</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> panel_counterfactual_mean(summary, treated_units):</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.asarray(summary[<span class="st">&quot;counterfactual&quot;</span>])[<span class="bu">list</span>(treated_units)].mean(axis<span class="op">=</span><span class="dv">0</span>)</span>
 <span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_did(panel, treated_units, t_pre):</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    treated_mean, control_mean, _ <span class="op">=</span> split_panel(panel, treated_units)</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    pre_gap <span class="op">=</span> treated_mean[:t_pre].mean() <span class="op">-</span> control_mean[:t_pre].mean()</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> control_mean[t_pre:] <span class="op">-</span> pre_gap</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;DID&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, control_mean <span class="op">+</span> pre_gap)</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_twfe(panel, treated_units, t_pre):</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    n, tt <span class="op">=</span> panel.shape</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    unit <span class="op">=</span> np.repeat(np.arange(n, dtype<span class="op">=</span>np.uint32), tt)</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    time <span class="op">=</span> np.tile(np.arange(tt, dtype<span class="op">=</span>np.uint32), n)</span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    treated <span class="op">=</span> np.zeros(n)</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    treated[treated_units] <span class="op">=</span> <span class="fl">1.0</span></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    post <span class="op">=</span> (np.arange(tt) <span class="op">&gt;=</span> t_pre).astype(<span class="bu">float</span>)</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.repeat(treated, tt) <span class="op">*</span> np.tile(post, n)</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    fe <span class="op">=</span> np.column_stack([unit, time])</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.FixedEffectsOLS()</span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    model.fit(d[:, <span class="va">None</span>], fe, panel.reshape(<span class="op">-</span><span class="dv">1</span>))</span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    att <span class="op">=</span> <span class="bu">float</span>(np.asarray(model.summary()[<span class="st">&quot;coef&quot;</span>])[<span class="dv">0</span>])</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    <span class="co"># For a single adoption date in a balanced panel, TWFE and DID have the same</span></span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    <span class="co"># coefficient. Use the DID post-period effect path for the time-series</span></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>    <span class="co"># inference diagnostic rather than a degenerate constant coefficient path.</span></span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> estimate_did(panel, treated_units, t_pre).effect_path</span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;TWFE&quot;</span>, att, effect)</span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_horizontal_ridge(panel, treated_units, t_pre, alpha<span class="op">=</span><span class="fl">0.25</span>):</span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.HorizontalPanelRidge(penalty<span class="op">=</span>alpha)</span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    model.fit(panel, <span class="bu">list</span>(treated_units), t_pre)</span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> model.summary()</span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(</span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Horizontal ridge&quot;</span>,</span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>        <span class="bu">float</span>(summary[<span class="st">&quot;att&quot;</span>]),</span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>        np.asarray(summary[<span class="st">&quot;treatment_effect&quot;</span>])[t_pre:],</span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>        np.asarray(summary[<span class="st">&quot;counterfactual&quot;</span>]),</span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>        <span class="bu">float</span>(summary[<span class="st">&quot;pre_rmse&quot;</span>]),</span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> panel_effect_path(summary, treated_units, t_pre):</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.asarray(summary[<span class="st">&quot;treatment_effect&quot;</span>])[<span class="bu">list</span>(treated_units), t_pre:].mean(axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ridge_solve(x, y, alpha<span class="op">=</span><span class="fl">1.0</span>, penalize_intercept<span class="op">=</span><span class="va">False</span>):</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.asarray(x, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.asarray(y, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    penalty <span class="op">=</span> alpha <span class="op">*</span> np.eye(x.shape[<span class="dv">1</span>])</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> penalize_intercept:</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>        penalty[<span class="dv">0</span>, <span class="dv">0</span>] <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.linalg.solve(x.T <span class="op">@</span> x <span class="op">+</span> penalty, x.T <span class="op">@</span> y)</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_did(panel, treated_units, t_pre):</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    treated_mean, control_mean, _ <span class="op">=</span> split_panel(panel, treated_units)</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>    pre_gap <span class="op">=</span> treated_mean[:t_pre].mean() <span class="op">-</span> control_mean[:t_pre].mean()</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> control_mean[t_pre:] <span class="op">-</span> pre_gap</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;DID&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, control_mean <span class="op">+</span> pre_gap)</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_twfe(panel, treated_units, t_pre):</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>    n, tt <span class="op">=</span> panel.shape</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>    unit <span class="op">=</span> np.repeat(np.arange(n, dtype<span class="op">=</span>np.uint32), tt)</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    time <span class="op">=</span> np.tile(np.arange(tt, dtype<span class="op">=</span>np.uint32), n)</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>    treated <span class="op">=</span> np.zeros(n)</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>    treated[treated_units] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    post <span class="op">=</span> (np.arange(tt) <span class="op">&gt;=</span> t_pre).astype(<span class="bu">float</span>)</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.repeat(treated, tt) <span class="op">*</span> np.tile(post, n)</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>    fe <span class="op">=</span> np.column_stack([unit, time])</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.FixedEffectsOLS()</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>    model.fit(d[:, <span class="va">None</span>], fe, panel.reshape(<span class="op">-</span><span class="dv">1</span>))</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>    att <span class="op">=</span> <span class="bu">float</span>(np.asarray(model.summary()[<span class="st">&quot;coef&quot;</span>])[<span class="dv">0</span>])</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>    <span class="co"># For a single adoption date in a balanced panel, TWFE and DID have the same</span></span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>    <span class="co"># coefficient. Use the DID post-period effect path for the time-series</span></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>    <span class="co"># inference diagnostic rather than a degenerate constant coefficient path.</span></span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> estimate_did(panel, treated_units, t_pre).effect_path</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;TWFE&quot;</span>, att, effect)</span>
 <span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_vertical_ridge(panel, treated_units, t_pre, alpha<span class="op">=</span><span class="fl">1.0</span>):</span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>    treated_mean, _, controls <span class="op">=</span> split_panel(panel, treated_units)</span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>    x_controls <span class="op">=</span> np.column_stack([np.ones(<span class="bu">len</span>(controls)), panel[controls, :t_pre]])</span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>    x_treated <span class="op">=</span> np.r_[<span class="fl">1.0</span>, treated_mean[:t_pre]]</span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>    counter_post <span class="op">=</span> []</span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(t_pre, panel.shape[<span class="dv">1</span>]):</span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>        beta <span class="op">=</span> ridge_solve(x_controls, panel[controls, t], alpha<span class="op">=</span>alpha)</span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>        counter_post.append(<span class="bu">float</span>(x_treated <span class="op">@</span> beta))</span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>    counter_post <span class="op">=</span> np.asarray(counter_post)</span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> counter_post</span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>    counterfactual <span class="op">=</span> np.r_[treated_mean[:t_pre], counter_post]</span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Vertical ridge&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, counterfactual)</span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_horizontal_ridge(panel, treated_units, t_pre, alpha<span class="op">=</span><span class="fl">0.25</span>):</span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.HorizontalPanelRidge(penalty<span class="op">=</span>alpha)</span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))</span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> model.summary()</span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(</span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;Horizontal ridge&quot;</span>,</span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>        <span class="bu">float</span>(summary[<span class="st">&quot;att&quot;</span>]),</span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>        panel_effect_path(summary, treated_units, t_pre),</span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>        panel_counterfactual_mean(summary, treated_units),</span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>        <span class="bu">float</span>(summary[<span class="st">&quot;pre_rmse&quot;</span>]),</span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_sc(panel, treated_units, t_pre):</span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_vertical_ridge(panel, treated_units, t_pre, alpha<span class="op">=</span><span class="fl">1.0</span>):</span>
 <span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>    treated_mean, _, controls <span class="op">=</span> split_panel(panel, treated_units)</span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>    donors_pre <span class="op">=</span> panel[controls, :t_pre].T</span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>    donors_all <span class="op">=</span> panel[controls].T</span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.SyntheticControl(max_iterations<span class="op">=</span><span class="dv">800</span>)</span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    model.fit(donors_pre, treated_mean[:t_pre])</span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>    y0_hat <span class="op">=</span> np.asarray(model.predict(donors_all))</span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> y0_hat[t_pre:]</span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Synthetic control&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, y0_hat, <span class="bu">float</span>(model.summary()[<span class="st">&quot;pre_rmse&quot;</span>]))</span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_sdid(panel, treated_units, t_pre):</span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>    treated_mean, _, _ <span class="op">=</span> split_panel(panel, treated_units)</span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.SyntheticDID(zeta_omega<span class="op">=</span><span class="fl">1e-8</span>, zeta_lambda<span class="op">=</span><span class="fl">1e-8</span>, max_iterations<span class="op">=</span><span class="dv">1200</span>)</span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>    model.fit(panel, <span class="bu">list</span>(treated_units), t_pre)</span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> model.summary()</span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>    y0_hat <span class="op">=</span> np.asarray(summary[<span class="st">&quot;synthetic_outcome&quot;</span>])</span>
-<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> np.asarray(summary[<span class="st">&quot;treatment_effect&quot;</span>])[t_pre:]</span>
-<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Synthetic DID&quot;</span>, <span class="bu">float</span>(summary[<span class="st">&quot;att&quot;</span>]), effect, y0_hat, <span class="bu">float</span>(summary[<span class="st">&quot;pre_rmse&quot;</span>]))</span>
-<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_mc(panel, treated_units, t_pre):</span>
-<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>    treated_mean, _, _ <span class="op">=</span> split_panel(panel, treated_units)</span>
-<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>    observed <span class="op">=</span> np.ones(panel.shape, dtype<span class="op">=</span><span class="bu">bool</span>)</span>
-<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a>    observed[np.ix_(treated_units, np.arange(t_pre, panel.shape[<span class="dv">1</span>]))] <span class="op">=</span> <span class="va">False</span></span>
-<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.MatrixCompletion(lambda_fraction<span class="op">=</span><span class="fl">0.035</span>, max_iterations<span class="op">=</span><span class="dv">350</span>, tolerance<span class="op">=</span><span class="fl">1e-7</span>)</span>
-<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>    model.fit(panel, mask<span class="op">=</span>observed)</span>
-<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>    y0_all <span class="op">=</span> np.asarray(model.predict())</span>
-<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a>    y0_hat <span class="op">=</span> y0_all[treated_units].mean(axis<span class="op">=</span><span class="dv">0</span>)</span>
-<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> y0_hat[t_pre:]</span>
-<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a>    pre_rmse <span class="op">=</span> <span class="bu">float</span>(np.sqrt(np.mean((treated_mean[:t_pre] <span class="op">-</span> y0_hat[:t_pre]) <span class="op">**</span> <span class="dv">2</span>)))</span>
-<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Matrix completion&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, y0_hat, pre_rmse)</span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>    x_controls <span class="op">=</span> np.column_stack([np.ones(<span class="bu">len</span>(controls)), panel[controls, :t_pre]])</span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>    x_treated <span class="op">=</span> np.r_[<span class="fl">1.0</span>, treated_mean[:t_pre]]</span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>    counter_post <span class="op">=</span> []</span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(t_pre, panel.shape[<span class="dv">1</span>]):</span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>        beta <span class="op">=</span> ridge_solve(x_controls, panel[controls, t], alpha<span class="op">=</span>alpha)</span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>        counter_post.append(<span class="bu">float</span>(x_treated <span class="op">@</span> beta))</span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>    counter_post <span class="op">=</span> np.asarray(counter_post)</span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> counter_post</span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>    counterfactual <span class="op">=</span> np.r_[treated_mean[:t_pre], counter_post]</span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Vertical ridge&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, counterfactual)</span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_sc(panel, treated_units, t_pre):</span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>    treated_mean, _, controls <span class="op">=</span> split_panel(panel, treated_units)</span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>    donors_pre <span class="op">=</span> panel[controls, :t_pre].T</span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>    donors_all <span class="op">=</span> panel[controls].T</span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.SyntheticControl(max_iterations<span class="op">=</span><span class="dv">800</span>)</span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>    model.fit(donors_pre, treated_mean[:t_pre])</span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a>    y0_hat <span class="op">=</span> np.asarray(model.predict(donors_all))</span>
+<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> treated_mean[t_pre:] <span class="op">-</span> y0_hat[t_pre:]</span>
+<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Synthetic control&quot;</span>, <span class="bu">float</span>(effect.mean()), effect, y0_hat, <span class="bu">float</span>(model.summary()[<span class="st">&quot;pre_rmse&quot;</span>]))</span>
+<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_sdid(panel, treated_units, t_pre):</span>
+<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.SyntheticDID(zeta_omega<span class="op">=</span><span class="fl">1e-8</span>, zeta_lambda<span class="op">=</span><span class="fl">1e-8</span>, max_iterations<span class="op">=</span><span class="dv">1200</span>)</span>
+<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))</span>
+<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> model.summary()</span>
+<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>    y0_hat <span class="op">=</span> panel_counterfactual_mean(summary, treated_units)</span>
+<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> panel_effect_path(summary, treated_units, t_pre)</span>
+<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Synthetic DID&quot;</span>, <span class="bu">float</span>(summary[<span class="st">&quot;att&quot;</span>]), effect, y0_hat, <span class="bu">float</span>(summary[<span class="st">&quot;pre_rmse&quot;</span>]))</span>
 <span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-113"><a href="#cb3-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-114"><a href="#cb3-114" aria-hidden="true" tabindex="-1"></a>ESTIMATORS <span class="op">=</span> [</span>
-<span id="cb3-115"><a href="#cb3-115" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;DID&quot;</span>, estimate_did),</span>
-<span id="cb3-116"><a href="#cb3-116" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;TWFE&quot;</span>, estimate_twfe),</span>
-<span id="cb3-117"><a href="#cb3-117" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Horizontal ridge&quot;</span>, estimate_horizontal_ridge),</span>
-<span id="cb3-118"><a href="#cb3-118" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Vertical ridge&quot;</span>, estimate_vertical_ridge),</span>
-<span id="cb3-119"><a href="#cb3-119" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Synthetic control&quot;</span>, estimate_sc),</span>
-<span id="cb3-120"><a href="#cb3-120" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Synthetic DID&quot;</span>, estimate_sdid),</span>
-<span id="cb3-121"><a href="#cb3-121" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Matrix completion&quot;</span>, estimate_mc),</span>
-<span id="cb3-122"><a href="#cb3-122" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-114"><a href="#cb3-114" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_mc(panel, treated_units, t_pre):</span>
+<span id="cb3-115"><a href="#cb3-115" aria-hidden="true" tabindex="-1"></a>    treated_mean, _, _ <span class="op">=</span> split_panel(panel, treated_units)</span>
+<span id="cb3-116"><a href="#cb3-116" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.MatrixCompletion(lambda_fraction<span class="op">=</span><span class="fl">0.035</span>, max_iterations<span class="op">=</span><span class="dv">350</span>, tolerance<span class="op">=</span><span class="fl">1e-7</span>)</span>
+<span id="cb3-117"><a href="#cb3-117" aria-hidden="true" tabindex="-1"></a>    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))</span>
+<span id="cb3-118"><a href="#cb3-118" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> model.summary()</span>
+<span id="cb3-119"><a href="#cb3-119" aria-hidden="true" tabindex="-1"></a>    y0_hat <span class="op">=</span> panel_counterfactual_mean(summary, treated_units)</span>
+<span id="cb3-120"><a href="#cb3-120" aria-hidden="true" tabindex="-1"></a>    effect <span class="op">=</span> panel_effect_path(summary, treated_units, t_pre)</span>
+<span id="cb3-121"><a href="#cb3-121" aria-hidden="true" tabindex="-1"></a>    pre_rmse <span class="op">=</span> <span class="bu">float</span>(np.sqrt(np.mean((treated_mean[:t_pre] <span class="op">-</span> y0_hat[:t_pre]) <span class="op">**</span> <span class="dv">2</span>)))</span>
+<span id="cb3-122"><a href="#cb3-122" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Estimate(<span class="st">&quot;Matrix completion&quot;</span>, <span class="bu">float</span>(summary[<span class="st">&quot;att&quot;</span>]), effect, y0_hat, pre_rmse)</span>
+<span id="cb3-123"><a href="#cb3-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-124"><a href="#cb3-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-125"><a href="#cb3-125" aria-hidden="true" tabindex="-1"></a>ESTIMATORS <span class="op">=</span> [</span>
+<span id="cb3-126"><a href="#cb3-126" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;DID&quot;</span>, estimate_did),</span>
+<span id="cb3-127"><a href="#cb3-127" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;TWFE&quot;</span>, estimate_twfe),</span>
+<span id="cb3-128"><a href="#cb3-128" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Horizontal ridge&quot;</span>, estimate_horizontal_ridge),</span>
+<span id="cb3-129"><a href="#cb3-129" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Vertical ridge&quot;</span>, estimate_vertical_ridge),</span>
+<span id="cb3-130"><a href="#cb3-130" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Synthetic control&quot;</span>, estimate_sc),</span>
+<span id="cb3-131"><a href="#cb3-131" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Synthetic DID&quot;</span>, estimate_sdid),</span>
+<span id="cb3-132"><a href="#cb3-132" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&quot;Matrix completion&quot;</span>, estimate_mc),</span>
+<span id="cb3-133"><a href="#cb3-133" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -4586,7 +4598,7 @@ window.Quarto = {
 <li>The <strong>HAC interval</strong> treats the post-treatment effect path as the stochastic object and estimates the standard error of its mean with a Newey-West style long-run variance.</li>
 <li>The <strong>donor-placebo <span class="math inline">\(p\)</span>-value</strong> rotates treatment across donor units at the same intervention date and compares the realized estimate with that placebo distribution.</li>
 </ul>
-<div id="44b41e33" class="cell" data-execution_count="4">
+<div id="83d8f1bd" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> normal_cdf(x):</span>
@@ -4645,7 +4657,7 @@ window.Quarto = {
 </section>
 <section id="case-study-estimates" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="case-study-estimates"><span class="header-section-number">5</span> Case Study Estimates</h2>
-<div id="a9c61fba" class="cell" data-execution_count="5">
+<div id="3f4bd735" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>case_results <span class="op">=</span> {}</span>
@@ -4759,11 +4771,11 @@ window.Quarto = {
 <tr class="even">
 <td>Basque Country GDP</td>
 <td>Synthetic DID</td>
-<td>-0.909</td>
+<td>-0.923</td>
 <td>0.068</td>
-<td>[-1.367, -0.450]</td>
+<td>[-1.382, -0.465]</td>
 <td>0.000</td>
-<td>0.059</td>
+<td>0.118</td>
 </tr>
 <tr class="odd">
 <td>Basque Country GDP</td>
@@ -4822,11 +4834,11 @@ window.Quarto = {
 <tr class="odd">
 <td>California Proposition 99</td>
 <td>Synthetic DID</td>
-<td>-10.925</td>
+<td>-11.321</td>
 <td>0.958</td>
-<td>[-15.168, -6.682]</td>
+<td>[-15.564, -7.078]</td>
 <td>0.000</td>
-<td>0.256</td>
+<td>0.282</td>
 </tr>
 <tr class="even">
 <td>California Proposition 99</td>
@@ -4844,7 +4856,7 @@ window.Quarto = {
 </section>
 <section id="outcome-paths-and-gaps" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="outcome-paths-and-gaps"><span class="header-section-number">6</span> Outcome Paths And Gaps</h2>
-<div id="17a29b98" class="cell" data-execution_count="6">
+<div id="c53126da" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>plot_methods <span class="op">=</span> [<span class="st">&quot;Horizontal ridge&quot;</span>, <span class="st">&quot;Synthetic control&quot;</span>, <span class="st">&quot;Synthetic DID&quot;</span>, <span class="st">&quot;Matrix completion&quot;</span>]</span>
@@ -4905,7 +4917,7 @@ window.Quarto = {
 <section id="semi-synthetic-placebo-simulation" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="semi-synthetic-placebo-simulation"><span class="header-section-number">7</span> Semi-Synthetic Placebo Simulation</h2>
 <p>This simulation keeps the empirical donor panels intact. For each case and each donor unit, we temporarily declare that donor treated, remove the real treated unit from the donor pool, add a known post-treatment effect, and rerun every estimator. This is not a universal Monte Carlo; it is a compact stress test of the estimator/inference code on the two empirical designs used above.</p>
-<div id="0134368f" class="cell" data-execution_count="7">
+<div id="12c2ca83" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_turn_simulation(case):</span>
@@ -5025,10 +5037,10 @@ window.Quarto = {
 <td>Synthetic DID</td>
 <td>16</td>
 <td>-0.75</td>
-<td>-0.734</td>
-<td>+0.016</td>
-<td>0.270</td>
-<td>0.153</td>
+<td>-0.715</td>
+<td>+0.035</td>
+<td>0.415</td>
+<td>0.164</td>
 </tr>
 <tr class="odd">
 <td>Basque Country GDP</td>
@@ -5095,10 +5107,10 @@ window.Quarto = {
 <td>Synthetic DID</td>
 <td>38</td>
 <td>-15.00</td>
-<td>-14.685</td>
-<td>+0.315</td>
-<td>10.020</td>
-<td>6.688</td>
+<td>-14.923</td>
+<td>+0.077</td>
+<td>10.128</td>
+<td>6.848</td>
 </tr>
 <tr class="even">
 <td>California Proposition 99</td>
@@ -5135,7 +5147,7 @@ window.Quarto = {
     anchorJS.add('.anchored');
     const isCodeAnnotation = (el) => {
       for (const clz of el.classList) {
-        if (clz.startsWith('code-annotation-')) {                     
+        if (clz.startsWith('code-annotation-')) {
           return true;
         }
       }
@@ -5155,11 +5167,11 @@ window.Quarto = {
         button.setAttribute("data-bs-toggle", "tooltip");
         button.setAttribute("data-bs-placement", "left");
         button.setAttribute("data-bs-title", "Copied!");
-        tooltip = new bootstrap.Tooltip(button, 
-          { trigger: "manual", 
+        tooltip = new bootstrap.Tooltip(button,
+          { trigger: "manual",
             customClass: "code-copy-button-tooltip",
             offset: [0, -8]});
-        tooltip.show();    
+        tooltip.show();
       }
       setTimeout(function() {
         if (tooltip) {
@@ -5236,7 +5248,7 @@ window.Quarto = {
       if (onUntriggerFn) {
         config.onUntrigger = onUntriggerFn;
       }
-      window.tippy(el, config); 
+      window.tippy(el, config);
     }
     const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
     for (var i=0; i<noterefs.length; i++) {
@@ -5311,7 +5323,7 @@ window.Quarto = {
       tippyHover(xref, undefined, function(instance) {
         instance.disable();
         let url = xref.getAttribute('href');
-        let hash = undefined; 
+        let hash = undefined;
         if (url.startsWith('#')) {
           hash = url;
         } else {
@@ -5339,7 +5351,7 @@ window.Quarto = {
               if (note !== null) {
                 const html = processXRef(id, note);
                 instance.setContent(html);
-              } 
+              }
             }).finally(() => {
               instance.enable();
               instance.show();
@@ -5363,7 +5375,7 @@ window.Quarto = {
               }
               const html = processXRef(null, note);
               instance.setContent(html);
-            } 
+            }
           }).finally(() => {
             instance.enable();
             instance.show();
@@ -5403,7 +5415,7 @@ window.Quarto = {
               height = bottom - top;
             }
             if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
+              // cook up a div (if necessary) and position it
               let div = window.document.getElementById("code-annotation-line-highlight");
               if (div === null) {
                 div = window.document.createElement("div");
