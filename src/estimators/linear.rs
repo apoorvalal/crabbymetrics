@@ -492,6 +492,31 @@ fn validate_finite_matrix(name: &str, values: &Array2<f64>) -> PyResult<()> {
     Ok(())
 }
 
+fn fit_ridge_with_intercept(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    penalty: f64,
+) -> PyResult<(f64, Array1<f64>)> {
+    if x.nrows() != y.len() {
+        return Err(PyValueError::new_err("x rows must match y length"));
+    }
+    if !penalty.is_finite() || penalty < 0.0 {
+        return Err(PyValueError::new_err(
+            "penalty must be finite and nonnegative",
+        ));
+    }
+    let design = add_intercept(x);
+    let mut gram = design.t().dot(&design);
+    for j in 1..gram.ncols() {
+        gram[[j, j]] += penalty;
+    }
+    let rhs = design.t().dot(y);
+    let params = invert_matrix(&gram)
+        .map_err(PyValueError::new_err)?
+        .dot(&rhs);
+    Ok((params[0], params.slice(s![1..]).to_owned()))
+}
+
 fn center_effects(row_effects: &mut Array1<f64>, col_effects: &mut Array1<f64>) {
     let row_mean = row_effects.mean().unwrap_or(0.0);
     row_effects.mapv_inplace(|value| value - row_mean);
@@ -1671,6 +1696,21 @@ impl MatrixCompletion {
 }
 
 #[pyclass]
+pub struct HorizontalPanelRidge {
+    penalty: f64,
+    intercept: Option<f64>,
+    coef: Option<Array1<f64>>,
+    counterfactual: Option<Array1<f64>>,
+    treated_outcome: Option<Array1<f64>>,
+    treatment_effect: Option<Array1<f64>>,
+    att: Option<f64>,
+    pre_rmse: Option<f64>,
+    control_units: Option<Vec<usize>>,
+    treated_units: Option<Vec<usize>>,
+    t_pre: Option<usize>,
+}
+
+#[pyclass]
 pub struct SyntheticControl {
     max_iterations: u64,
     weights: Option<Array1<f64>>,
@@ -1697,6 +1737,141 @@ pub struct SyntheticDID {
     control_units: Option<Vec<usize>>,
     treated_units: Option<Vec<usize>>,
     t_pre: Option<usize>,
+}
+
+#[pymethods]
+impl HorizontalPanelRidge {
+    #[new]
+    #[pyo3(signature = (penalty=1.0))]
+    fn new(penalty: f64) -> PyResult<Self> {
+        if !penalty.is_finite() || penalty < 0.0 {
+            return Err(PyValueError::new_err(
+                "penalty must be finite and nonnegative",
+            ));
+        }
+        Ok(Self {
+            penalty,
+            intercept: None,
+            coef: None,
+            counterfactual: None,
+            treated_outcome: None,
+            treatment_effect: None,
+            att: None,
+            pre_rmse: None,
+            control_units: None,
+            treated_units: None,
+            t_pre: None,
+        })
+    }
+
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray2<f64>,
+        treated_units: Vec<usize>,
+        t_pre: usize,
+    ) -> PyResult<()> {
+        let y = to_array2(&y);
+        validate_finite_matrix("y", &y)?;
+        if y.nrows() < 2 {
+            return Err(PyValueError::new_err("y must contain at least two units"));
+        }
+        if t_pre == 0 || t_pre >= y.ncols() {
+            return Err(PyValueError::new_err(
+                "t_pre must be positive and smaller than the number of periods",
+            ));
+        }
+
+        let (y_reordered, control_units, treated_units) =
+            reorder_panel_for_treated(&y, &treated_units)?;
+        let n_control = control_units.len();
+        let t_post = y.ncols() - t_pre;
+
+        let control_panel = y_reordered.slice(s![0..n_control, ..]).to_owned();
+        let treated_outcome = y_reordered
+            .slice(s![n_control.., ..])
+            .mean_axis(Axis(0))
+            .ok_or_else(|| PyValueError::new_err("failed to average treated outcomes"))?;
+
+        let x_pre = control_panel.slice(s![.., 0..t_pre]).t().to_owned();
+        let y_pre = treated_outcome.slice(s![0..t_pre]).to_owned();
+        let (intercept, coef) = fit_ridge_with_intercept(&x_pre, &y_pre, self.penalty)?;
+        let x_all = control_panel.t().to_owned();
+        let counterfactual = x_all.dot(&coef) + intercept;
+        let treatment_effect = &treated_outcome - &counterfactual;
+        let post_effect = treatment_effect.slice(s![t_pre..]).to_owned();
+        let att = post_effect.mean().unwrap_or(0.0);
+        let pre_rmse = treatment_effect
+            .slice(s![0..t_pre])
+            .mapv(|value| value * value)
+            .mean()
+            .unwrap_or(0.0)
+            .sqrt();
+
+        debug_assert_eq!(post_effect.len(), t_post);
+        self.intercept = Some(intercept);
+        self.coef = Some(coef);
+        self.counterfactual = Some(counterfactual);
+        self.treated_outcome = Some(treated_outcome);
+        self.treatment_effect = Some(treatment_effect);
+        self.att = Some(att);
+        self.pre_rmse = Some(pre_rmse);
+        self.control_units = Some(control_units);
+        self.treated_units = Some(treated_units);
+        self.t_pre = Some(t_pre);
+        Ok(())
+    }
+
+    fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let counterfactual = self
+            .counterfactual
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        Ok(pyarray1_from_f64(py, counterfactual))
+    }
+
+    fn treatment_effect<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let treatment_effect = self
+            .treatment_effect
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        Ok(pyarray1_from_f64(py, treatment_effect))
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let att = self
+            .att
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let counterfactual = self
+            .counterfactual
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let treated_outcome = self
+            .treated_outcome
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+        let treatment_effect = self
+            .treatment_effect
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("HorizontalPanelRidge model is not fitted"))?;
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("att", att)?;
+        dict.set_item("intercept", self.intercept)?;
+        dict.set_item("coef", pyarray1_from_f64(py, coef))?;
+        dict.set_item("counterfactual", pyarray1_from_f64(py, counterfactual))?;
+        dict.set_item("treated_outcome", pyarray1_from_f64(py, treated_outcome))?;
+        dict.set_item("treatment_effect", pyarray1_from_f64(py, treatment_effect))?;
+        dict.set_item("pre_rmse", self.pre_rmse)?;
+        dict.set_item("penalty", self.penalty)?;
+        dict.set_item("control_units", self.control_units.clone())?;
+        dict.set_item("treated_units", self.treated_units.clone())?;
+        dict.set_item("t_pre", self.t_pre)?;
+        Ok(dict.into())
+    }
 }
 
 #[pymethods]

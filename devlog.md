@@ -84,6 +84,7 @@ The current Python module exports:
   - `OLS`
   - `FixedEffectsOLS`
   - `TwoSLS`
+  - `HorizontalPanelRidge`
   - `SyntheticControl`
   - `SyntheticDID`
 - regularized / online:
@@ -298,7 +299,7 @@ Important cached ablations:
 - variance-estimator comparisons
 - semiparametric estimator comparisons
 - panel-DGP estimator comparisons
-- Same Root Basque/California panel case studies with semi-synthetic simulation, horizontal/vertical estimators, synthetic DID, matrix completion, HAC intervals, and donor-placebo inference
+- Same Root Basque/California panel case studies with semi-synthetic simulation, the first-class `HorizontalPanelRidge` estimator, vertical ridge, synthetic DID, matrix completion, HAC intervals, and donor-placebo inference
 
 ## Testing State
 

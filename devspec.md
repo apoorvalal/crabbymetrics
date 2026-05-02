@@ -29,6 +29,7 @@ Any new work here should usually satisfy most of the following:
 - balancing / calibration weights
   - `BalancingWeights` supports entropy and quadratic objectives, baseline weights, autoscaling, and approximate balance
 - panel causal estimators
+  - `HorizontalPanelRidge` exposes the horizontal forecasting leaf from Shen-Ding-Sekhon-Yu style panel comparisons: train ridge on treated pre-period outcomes using donor paths as features, then forecast the treated counterfactual path
   - `SyntheticDID` ports the matrix-form synthetic difference-in-differences estimator from the local `synthlearners` CVXPY reference into a Rust-backed NumPy API
 - semiparametric bundle
   - `EPLM`
@@ -37,7 +38,7 @@ Any new work here should usually satisfy most of the following:
   - `AIPW`
 - docs and ablations
   - semiparametric examples are in the main docs nav
-  - cached ablation notebooks cover variance estimators, semiparametric comparisons, panel-DGP comparisons, and the Same Root Basque/California panel case studies with simulation plus HAC/placebo inference
+  - cached ablation notebooks cover variance estimators, semiparametric comparisons, panel-DGP comparisons, and the Same Root Basque/California panel case studies with simulation, first-class `HorizontalPanelRidge`, plus HAC/placebo inference
   - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, Chapters 21 and 23, and a narrow Chapter 27 Baron-Kenny mediation page with explicit simulation DGPs
   - the latest R-script cleanup filled in post-stratification, matched-pair regression/FRT, IPW truncation and balance diagnostics, ATT doubly robust formulas, the JOBS IV example, and an Anderson-Rubin IV grid
   - the Ding section lives under `docs/ding/` with chapter pages plus a few grouping pages to keep the navbar manageable

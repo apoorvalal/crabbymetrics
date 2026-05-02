@@ -174,12 +174,12 @@ display(
 
 ## Estimators
 
-Each estimator returns an average post-treatment ATT estimate and, when meaningful, a period-by-period post-treatment effect path. The two ridge estimators are intentionally simple reference leaves:
+Each estimator returns an average post-treatment ATT estimate and, when meaningful, a period-by-period post-treatment effect path.
 
-- **horizontal ridge** regresses the treated pre-treatment time series on donor outcomes over time, then forecasts treated post outcomes from donor post outcomes;
-- **vertical ridge** regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit's missing counterfactual from its pre-treatment history.
+- **horizontal ridge** is now the first-class `crabbymetrics.HorizontalPanelRidge`: it regresses the treated pre-treatment time series on donor outcomes over time, then forecasts treated post outcomes from donor post outcomes;
+- **vertical ridge** remains a short reference calculation: it regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit's missing counterfactual from its pre-treatment history.
 
-The other leaves are the first-class `crabbymetrics` panel estimators.
+Synthetic control, synthetic DID, and matrix completion are also first-class `crabbymetrics` panel estimators.
 
 ```{python}
 @dataclass
@@ -235,15 +235,16 @@ def estimate_twfe(panel, treated_units, t_pre):
 
 
 def estimate_horizontal_ridge(panel, treated_units, t_pre, alpha=0.25):
-    treated_mean, _, controls = split_panel(panel, treated_units)
-    donor_panel = panel[controls]
-    x_pre = np.column_stack([np.ones(t_pre), donor_panel[:, :t_pre].T])
-    beta = ridge_solve(x_pre, treated_mean[:t_pre], alpha=alpha)
-    x_all = np.column_stack([np.ones(panel.shape[1]), donor_panel.T])
-    y0_hat = x_all @ beta
-    effect = treated_mean[t_pre:] - y0_hat[t_pre:]
-    pre_rmse = float(np.sqrt(np.mean((treated_mean[:t_pre] - y0_hat[:t_pre]) ** 2)))
-    return Estimate("Horizontal ridge", float(effect.mean()), effect, y0_hat, pre_rmse)
+    model = cm.HorizontalPanelRidge(penalty=alpha)
+    model.fit(panel, list(treated_units), t_pre)
+    summary = model.summary()
+    return Estimate(
+        "Horizontal ridge",
+        float(summary["att"]),
+        np.asarray(summary["treatment_effect"])[t_pre:],
+        np.asarray(summary["counterfactual"]),
+        float(summary["pre_rmse"]),
+    )
 
 
 def estimate_vertical_ridge(panel, treated_units, t_pre, alpha=1.0):
