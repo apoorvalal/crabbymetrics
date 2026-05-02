@@ -37,7 +37,7 @@ Any new work here should usually satisfy most of the following:
   - `AIPW`
 - docs and ablations
   - semiparametric examples are in the main docs nav
-  - cached ablation notebooks cover variance estimators and semiparametric comparisons
+  - cached ablation notebooks cover variance estimators, semiparametric comparisons, panel-DGP comparisons, and the Same Root Basque/California panel case studies with simulation plus HAC/placebo inference
   - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, Chapters 21 and 23, and a narrow Chapter 27 Baron-Kenny mediation page with explicit simulation DGPs
   - the latest R-script cleanup filled in post-stratification, matched-pair regression/FRT, IPW truncation and balance diagnostics, ATT doubly robust formulas, the JOBS IV example, and an Anderson-Rubin IV grid
   - the Ding section lives under `docs/ding/` with chapter pages plus a few grouping pages to keep the navbar manageable

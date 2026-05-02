@@ -79,6 +79,10 @@ website:
             text: Semiparametric Estimator Comparisons
           - href: ablations/bridging-finite-and-superpopulation.qmd
             text: Bridging Finite And Superpopulation
+          - href: ablations/panel-dgp-comparisons.qmd
+            text: Panel Estimator DGP Comparisons
+          - href: ablations/same-root-panel-cases.qmd
+            text: Same Root Panel Case Studies
       - text: Optimization
         menu:
           - href: examples/optimizers.qmd

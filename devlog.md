@@ -297,6 +297,8 @@ Important cached ablations:
 
 - variance-estimator comparisons
 - semiparametric estimator comparisons
+- panel-DGP estimator comparisons
+- Same Root Basque/California panel case studies with semi-synthetic simulation, horizontal/vertical estimators, synthetic DID, matrix completion, HAC intervals, and donor-placebo inference
 
 ## Testing State
 
