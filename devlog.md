@@ -84,6 +84,7 @@ The current Python module exports:
   - `OLS`
   - `FixedEffectsOLS`
   - `TwoSLS`
+  - `HorizontalPanelRidge`
   - `SyntheticControl`
   - `SyntheticDID`
 - regularized / online:
@@ -109,6 +110,16 @@ The current Python module exports:
   - `Optimizers`
 
 Not every class exposes every method. The broad pattern is still scikit-adjacent, but semiparametric estimators are mostly `fit(...)` plus `summary(...)`, with no meaningful `predict(...)`.
+
+Panel causal API update on the matrix-completion branch:
+
+- `HorizontalPanelRidge`, `SyntheticDID`, and `MatrixCompletion` now use the common public contract `fit(Y, W)`.
+- `Y` is a balanced `(n_units, n_periods)` outcome matrix; `W` is a same-shaped binary absorbing treatment matrix.
+- The estimators infer treated units, first-treatment cohorts, never-treated donors, and event-time structure internally.
+- Fitted summaries now include the modal causal outputs needed for plots/tables: `att`, `counterfactual`, `treatment_effect`, `event_study`, and `group_means`.
+- Event-study summaries include both `unweighted` and treated-count `weighted` aggregations with normal-approximation CI columns; group means retain cohort/event-time rows plus weighted and unweighted event-time aggregates for direct plotting.
+- `SyntheticControl` and `BalancingWeights` remain public low-level weight APIs, but the paved panel path is estimator-first rather than balancing-weights-first.
+- Same Root, panel-DGP, and synthetic-DID docs/examples were migrated to the new `fit(Y, W)` panel API; their Quarto freeze/cache artifacts were flushed and regenerated.
 
 ## Docs Surface
 
@@ -297,6 +308,8 @@ Important cached ablations:
 
 - variance-estimator comparisons
 - semiparametric estimator comparisons
+- panel-DGP estimator comparisons
+- Same Root Basque/California panel case studies with semi-synthetic simulation, the first-class `HorizontalPanelRidge` estimator, vertical ridge, synthetic DID, matrix completion, HAC intervals, and donor-placebo inference
 
 ## Testing State
 

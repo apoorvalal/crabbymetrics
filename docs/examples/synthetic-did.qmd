@@ -104,8 +104,11 @@ sc_weights = np.asarray(sc.summary()["weights"])
 sc_path = observed_panel[control_units].T @ sc_weights
 sc_att = float((treated_mean[t_pre:] - sc_path[t_pre:]).mean())
 
+W = np.zeros_like(observed_panel, dtype=float)
+W[treated_units, t_pre:] = 1.0
+
 sdid = SyntheticDID(zeta_omega=1e-8, zeta_lambda=1e-8, max_iterations=1200)
-sdid.fit(observed_panel, treated_units.tolist(), t_pre)
+sdid.fit(observed_panel, W)
 sdid_summary = sdid.summary()
 
 print("DiD estimate:", round(did_att, 4))
@@ -131,8 +134,8 @@ subject to `w >= 0` and `sum(w) = 1`.
 ## Inspect The Weights
 
 ```{python}
-unit_weights = np.asarray(sdid_summary["unit_weights"])
-time_weights = np.asarray(sdid_summary["time_weights"])
+unit_weights = np.asarray(sdid_summary["unit_weights"])[0, control_units]
+time_weights = np.asarray(sdid_summary["time_weights"])[0, :t_pre]
 
 print("unit weight sum:", round(float(unit_weights.sum()), 8))
 print("time weight sum:", round(float(time_weights.sum()), 8))
@@ -151,7 +154,7 @@ axes[0].plot(time + 1, control_mean, color="#d95f02", lw=1.8, label="Donor mean"
 axes[0].plot(time + 1, sc_path, color="#1b9e77", lw=2.0, label="Synthetic control")
 axes[0].plot(
     time + 1,
-    np.asarray(sdid_summary["synthetic_outcome"]),
+    np.asarray(sdid_summary["counterfactual"])[treated_units].mean(axis=0),
     color="#7570b3",
     lw=2.0,
     label="SDID unit-weighted path",
@@ -179,7 +182,7 @@ axes[1].plot(
 )
 axes[1].plot(
     event_time,
-    np.asarray(sdid_summary["treatment_effect"]),
+    np.asarray(sdid_summary["treatment_effect"])[treated_units].mean(axis=0),
     color="#7570b3",
     lw=2.0,
     label="Treated minus SDID unit path",

@@ -1033,25 +1033,34 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
         zeta_lambda=1e-10,
         max_iterations=2000,
     )
-    model.fit(panel, treated_units, t_pre)
+    w = np.zeros_like(panel)
+    w[treated_units, t_pre:] = 1.0
+    model.fit(panel, w)
     summary = model.summary()
 
-    np.testing.assert_allclose(summary["att"], tau, atol=1e-4, rtol=1e-4)
-    np.testing.assert_allclose(np.asarray(summary["unit_weights"]).sum(), 1.0, atol=1e-8)
-    np.testing.assert_allclose(np.asarray(summary["time_weights"]).sum(), 1.0, atol=1e-8)
-    assert np.all(np.asarray(summary["unit_weights"]) >= 0.0)
-    assert np.all(np.asarray(summary["time_weights"]) >= 0.0)
-    assert summary["pre_rmse"] < 1e-4
-
     control_units = np.asarray(summary["control_units"])
+    unit_weights = np.asarray(summary["unit_weights"])[0, control_units]
+    time_weights = np.asarray(summary["time_weights"])[0, :t_pre]
+
+    np.testing.assert_allclose(summary["att"], tau, atol=1e-4, rtol=1e-4)
+    np.testing.assert_allclose(unit_weights.sum(), 1.0, atol=1e-8)
+    np.testing.assert_allclose(time_weights.sum(), 1.0, atol=1e-8)
+    assert np.all(unit_weights >= 0.0)
+    assert np.all(time_weights >= 0.0)
+    assert summary["pre_rmse"] < 1e-4
+    assert "event_study" in summary
+    assert "group_means" in summary
+    assert "weighted" in summary["group_means"]
+    assert "unweighted" in summary["group_means"]
+
     treated_units_summary = np.asarray(summary["treated_units"])
     y_reordered = np.vstack([panel[control_units], panel[treated_units_summary]])
     unit_vec = np.r_[
-        -np.asarray(summary["unit_weights"]),
+        -unit_weights,
         np.ones(n_treated) / n_treated,
     ]
     time_vec = np.r_[
-        -np.asarray(summary["time_weights"]),
+        -time_weights,
         np.ones(t_post) / t_post,
     ]
     np.testing.assert_allclose(summary["att"], unit_vec @ y_reordered @ time_vec, atol=1e-10)
@@ -1061,9 +1070,14 @@ def test_synthetic_did_rejects_bad_panel_inputs():
     panel = np.ones((4, 5))
     model = cm.SyntheticDID()
 
-    with pytest.raises(ValueError, match="treated_units"):
-        model.fit(panel, [], 3)
-    with pytest.raises(ValueError, match="duplicates"):
-        model.fit(panel, [1, 1], 3)
-    with pytest.raises(ValueError, match="t_pre"):
-        model.fit(panel, [1], 5)
+    w = np.zeros_like(panel)
+    with pytest.raises(ValueError, match="ever-treated"):
+        model.fit(panel, w)
+    bad = np.zeros_like(panel)
+    bad[1, 2:] = 1.0
+    bad[1, 4] = 0.0
+    with pytest.raises(ValueError, match="absorbing"):
+        model.fit(panel, bad)
+    bad = np.zeros((4, 4))
+    with pytest.raises(ValueError, match="same shape"):
+        model.fit(panel, bad)

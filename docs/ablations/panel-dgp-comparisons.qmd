@@ -1,0 +1,315 @@
+---
+title: "Panel Estimator DGP Comparisons"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+This cached ablation compares four panel ATT estimators across a sequence of data-generating processes. The point is not to crown a universal winner; it is to make a failure mode visible. When treatment timing is selected on latent factors, a two-way fixed-effects regression can look precise while estimating the wrong counterfactual trend.
+
+Each Monte Carlo replication generates one panel and sends the **same draw** through four estimators:
+
+- `FixedEffectsOLS`, used as a two-way fixed-effects treatment regression;
+- `SyntheticControl`, fit to the average treated unit's pre-period path;
+- `SyntheticDID`, using the panel estimator exposed by `crabbymetrics`;
+- `MatrixCompletion`, fit after masking treated post-treatment outcomes and using the completed values as counterfactuals.
+
+All four DGPs have the same true post-treatment ATT, $\tau = 1$. The DGPs differ in whether untreated outcomes are additive or low-rank and in whether treatment is randomly assigned or selected on latent factor loadings.
+
+The page uses Quarto execution caching and freezing, so the Monte Carlo runs once and later site renders reuse the saved output unless this file changes.
+
+## Setup
+
+```{python}
+from dataclasses import dataclass
+from html import escape
+
+import matplotlib.pyplot as plt
+import numpy as np
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def html_table(headers, rows):
+    parts = ["<table>", "<thead>", "<tr>"]
+    parts.extend(f"<th>{escape(str(h))}</th>" for h in headers)
+    parts.extend(["</tr>", "</thead>", "<tbody>"])
+    for row in rows:
+        parts.append("<tr>")
+        parts.extend(f"<td>{cell}</td>" for cell in row)
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+
+
+@dataclass(frozen=True)
+class DGP:
+    key: str
+    title: str
+    factor_strength: float
+    selection: str
+    additive_only: bool = False
+    nonlinear: bool = False
+```
+
+## DGP
+
+The untreated potential outcome is
+
+$$
+Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
+$$
+
+with the factor term omitted in the additive benchmark. In selected-adoption designs, the treated units are more likely to have large latent factor scores. In the strongest design, treatment is assigned to the units with the highest factor-selection score, so parallel trends is deliberately false.
+
+```{python}
+def make_panel(
+    rng,
+    dgp,
+    n_control=48,
+    n_treated=6,
+    t_pre=20,
+    t_post=8,
+    tau=1.0,
+    noise=0.18,
+):
+    n = n_control + n_treated
+    tt = t_pre + t_post
+    time = np.arange(tt)
+
+    alpha = rng.normal(scale=0.8, size=n)
+    gamma = 0.06 * time + 0.35 * np.sin(np.linspace(0, 2.2 * np.pi, tt))
+
+    factors = np.column_stack(
+        [
+            np.linspace(-1.0, 1.0, tt),
+            np.sin(np.linspace(0.0, 2.5 * np.pi, tt)),
+            np.cos(np.linspace(0.0, 1.7 * np.pi, tt)),
+        ]
+    )
+    loadings = rng.normal(size=(n, factors.shape[1]))
+    factor_part = np.zeros((n, tt)) if dgp.additive_only else dgp.factor_strength * (loadings @ factors.T)
+    if dgp.nonlinear and not dgp.additive_only:
+        factor_part += 0.35 * (loadings[:, [0]] ** 2 - 1.0) @ np.sin(np.linspace(0, 2 * np.pi, tt))[None, :]
+
+    y0 = alpha[:, None] + gamma[None, :] + factor_part + rng.normal(scale=noise, size=(n, tt))
+
+    if dgp.selection == "random" or dgp.additive_only:
+        treated_units = rng.choice(n, size=n_treated, replace=False)
+    else:
+        score = loadings[:, 0] + 0.7 * loadings[:, 1] + 0.25 * alpha
+        if dgp.selection == "mild":
+            p = np.exp(0.8 * (score - score.mean()) / score.std())
+            p = p / p.sum()
+            treated_units = rng.choice(n, size=n_treated, replace=False, p=p)
+        elif dgp.selection == "strong":
+            treated_units = np.argsort(score)[-n_treated:]
+        else:
+            raise ValueError(dgp.selection)
+
+    treated_units = np.sort(np.asarray(treated_units, dtype=int))
+    y = y0.copy()
+    y[np.ix_(treated_units, np.arange(t_pre, tt))] += tau
+    return y, treated_units.tolist(), t_pre, tau
+
+
+dgps = [
+    DGP("additive", "A. Additive FE / parallel trends", 0.0, "random", additive_only=True),
+    DGP("random_factor", "B. Factor structure / random adoption", 0.75, "random"),
+    DGP("mild_selection", "C. Factor structure / mild selection", 0.95, "mild"),
+    DGP("strong_selection", "D. Factor structure / strong selection", 1.15, "strong", nonlinear=True),
+]
+
+display(
+    HTML(
+        html_table(
+            ["Panel", "Factor structure", "Treatment assignment"],
+            [[d.title, "none" if d.additive_only else f"strength {d.factor_strength}", d.selection] for d in dgps],
+        )
+    )
+)
+```
+
+## Estimators
+
+The estimators are intentionally fed identical panels within a replication. `SyntheticDID` and `MatrixCompletion` use the common `fit(Y, W)` panel API: `Y` is the observed panel and `W` is the same-shaped absorbing treatment matrix. `MatrixCompletion` treats the untreated cells (`W == 0`) as observed and reconstructs $Y(0)$ in exactly the treated cells where the ATT is evaluated.
+
+```{python}
+def estimate_twfe(panel, treated_units, t_pre):
+    n, tt = panel.shape
+    unit = np.repeat(np.arange(n, dtype=np.uint32), tt)
+    time = np.tile(np.arange(tt, dtype=np.uint32), n)
+    treated = np.zeros(n)
+    treated[treated_units] = 1.0
+    post = (np.arange(tt) >= t_pre).astype(float)
+    d = np.repeat(treated, tt) * np.tile(post, n)
+    fe = np.column_stack([unit, time])
+    model = cm.FixedEffectsOLS()
+    model.fit(d[:, None], fe, panel.reshape(-1))
+    return float(np.asarray(model.summary()["coef"])[0])
+
+
+def estimate_sc(panel, treated_units, t_pre):
+    all_units = np.arange(panel.shape[0])
+    controls = np.array([i for i in all_units if i not in set(treated_units)], dtype=int)
+    donors_pre = panel[np.ix_(controls, np.arange(t_pre))].T
+    donors_post = panel[np.ix_(controls, np.arange(t_pre, panel.shape[1]))].T
+    treated_pre = panel[np.ix_(treated_units, np.arange(t_pre))].mean(axis=0)
+    treated_post = panel[np.ix_(treated_units, np.arange(t_pre, panel.shape[1]))].mean(axis=0)
+    model = cm.SyntheticControl(max_iterations=800)
+    model.fit(donors_pre, treated_pre)
+    return float((treated_post - model.predict(donors_post)).mean())
+
+
+def treatment_matrix(panel, treated_units, t_pre):
+    w = np.zeros_like(panel, dtype=float)
+    w[np.ix_(list(treated_units), np.arange(t_pre, panel.shape[1]))] = 1.0
+    return w
+
+
+def estimate_sdid(panel, treated_units, t_pre):
+    model = cm.SyntheticDID(zeta_omega=1e-8, zeta_lambda=1e-8, max_iterations=1500)
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
+    return float(model.summary()["att"])
+
+
+def estimate_mc(panel, treated_units, t_pre):
+    model = cm.MatrixCompletion(lambda_fraction=0.03, max_iterations=500, tolerance=1e-7)
+    model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
+    return float(model.summary()["att"])
+
+
+estimators = [
+    ("TWFE", estimate_twfe),
+    ("SC", estimate_sc),
+    ("SDID", estimate_sdid),
+    ("MC", estimate_mc),
+]
+```
+
+## Monte Carlo
+
+```{python}
+def run_mc(reps=160, seed=2026050202):
+    rng = np.random.default_rng(seed)
+    results = {d.key: {name: [] for name, _ in estimators} for d in dgps}
+    failures = {d.key: {name: 0 for name, _ in estimators} for d in dgps}
+
+    for dgp in dgps:
+        for _ in range(reps):
+            panel, treated_units, t_pre, _tau = make_panel(rng, dgp)
+            for name, fn in estimators:
+                try:
+                    estimate = fn(panel, treated_units, t_pre)
+                    if np.isfinite(estimate):
+                        results[dgp.key][name].append(estimate)
+                    else:
+                        failures[dgp.key][name] += 1
+                except Exception:
+                    failures[dgp.key][name] += 1
+
+    for dgp in dgps:
+        for name, _ in estimators:
+            results[dgp.key][name] = np.asarray(results[dgp.key][name], dtype=float)
+    return results, failures
+
+
+results, failures = run_mc()
+```
+
+## ATT Distribution By DGP
+
+```{python}
+def rmse(vals, truth=1.0):
+    return float(np.sqrt(np.mean((vals - truth) ** 2)))
+
+
+colors = {"TWFE": "#d95f02", "SC": "#7570b3", "SDID": "#1b9e77", "MC": "#315f9f"}
+fig, axes = plt.subplots(2, 2, figsize=(13, 9.5), dpi=160, constrained_layout=True)
+fig.patch.set_facecolor("#f7f4ef")
+bins = np.linspace(-0.5, 4.5, 60)
+summary = {}
+
+for ax, dgp in zip(axes.flat, dgps):
+    ax.set_facecolor("#fbfaf7")
+    ax.axvline(1.0, color="black", lw=2.2, label="truth = 1.0", zorder=5)
+    lines = []
+    summary[dgp.key] = {}
+    for name, _ in estimators:
+        vals = results[dgp.key][name]
+        ax.hist(vals, bins=bins, histtype="step", linewidth=2.0, color=colors[name], density=True, label=name)
+        ax.axvline(vals.mean(), color=colors[name], lw=1.2, ls="--", alpha=0.85)
+        bias = float(vals.mean() - 1.0)
+        method_rmse = rmse(vals)
+        lines.append(f"{name}: bias {bias:+.2f}, RMSE {method_rmse:.2f}")
+        summary[dgp.key][name] = {
+            "n": int(len(vals)),
+            "bias": bias,
+            "rmse": method_rmse,
+            "failures": failures[dgp.key][name],
+        }
+    ax.set_title(dgp.title, fontsize=12, weight="bold")
+    ax.set_xlim(-0.45, 4.5)
+    ax.set_xlabel("ATT estimate")
+    ax.set_ylabel("density")
+    ax.grid(True, color="#ddd6cc", linewidth=0.8, alpha=0.7)
+    ax.text(
+        0.02,
+        0.98,
+        "\n".join(lines),
+        transform=ax.transAxes,
+        va="top",
+        fontsize=8.2,
+        bbox=dict(boxstyle="round,pad=.35", facecolor="white", edgecolor="#d8d0c5", alpha=0.88),
+    )
+
+handles, labels = axes.flat[0].get_legend_handles_labels()
+fig.legend(handles, labels, loc="lower center", ncol=5, frameon=False, bbox_to_anchor=(0.5, -0.01))
+fig.suptitle(
+    "Comparable panel ATT Monte Carlo across DGPs\nSame draw goes through TWFE, Synthetic Control, Synthetic DID, Matrix Completion",
+    fontsize=15,
+    weight="bold",
+)
+plt.show()
+```
+
+## Summary Table
+
+```{python}
+rows = []
+for dgp in dgps:
+    for name, _ in estimators:
+        item = summary[dgp.key][name]
+        rows.append(
+            [
+                dgp.title,
+                name,
+                item["n"],
+                f"{item['bias']:+.3f}",
+                f"{item['rmse']:.3f}",
+                item["failures"],
+            ]
+        )
+
+display(HTML(html_table(["DGP", "Estimator", "Successful reps", "Bias", "RMSE", "Failures"], rows)))
+```
+
+## Takeaways
+
+The additive benchmark is deliberately easy: all estimators are centered near the truth. Random adoption under a factor structure is already harder for TWFE because untreated potential outcomes have richer unit-specific time paths; SC and SDID use the pre-period path and are tighter.
+
+The selected-adoption designs are the main diagnostic. Once treatment is selected on latent factors, TWFE inherits the wrong counterfactual trend and drifts upward. SC and SDID are not magic---the strong nonlinear-selection DGP is hard for them too---but they degrade more gracefully because they explicitly match or reweight pre-treatment panel paths. In these settings, the current matrix-completion default is more fragile than SDID, which is useful information for tuning and API examples rather than a final statement about the estimator class.
