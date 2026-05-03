@@ -4026,10 +4026,10 @@ window.Quarto = {
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Supervised Learning</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression And GLMs</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
@@ -4047,14 +4047,6 @@ window.Quarto = {
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/synthetic-control.html">
- <span class="dropdown-text">Synthetic Control</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples/synthetic-did.html">
- <span class="dropdown-text">Synthetic DID</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4065,10 +4057,6 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../examples/poisson.html">
  <span class="dropdown-text">Poisson</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples/twosls.html">
- <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/gmm.html">
@@ -4085,10 +4073,10 @@ window.Quarto = {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Semiparametrics</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal Inference</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
@@ -4109,13 +4097,37 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Unsupervised Learning</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
         <li>
     <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
  <span class="dropdown-text">PCA And Kernel Basis</span></a>
@@ -4265,7 +4277,7 @@ window.Quarto = {
 <p>The page uses Quarto execution caching and freezing, so the Monte Carlo runs once and later site renders reuse the saved output unless this file changes.</p>
 <section id="setup" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup"><span class="header-section-number">1</span> Setup</h2>
-<div id="b5ef5ebb" class="cell" data-execution_count="1">
+<div id="04b4a6a4" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
@@ -4310,7 +4322,7 @@ window.Quarto = {
 Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i&#39; f_t + \varepsilon_{it},
 \]</span></p>
 <p>with the factor term omitted in the additive benchmark. In selected-adoption designs, the treated units are more likely to have large latent factor scores. In the strongest design, treatment is assigned to the units with the highest factor-selection score, so parallel trends is deliberately false.</p>
-<div id="2f54931b" class="cell" data-execution_count="2">
+<div id="04a6133f" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_panel(</span>
@@ -4417,7 +4429,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i&#39; f_t + \varepsilon_{it},
 <section id="estimators" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="estimators"><span class="header-section-number">3</span> Estimators</h2>
 <p>The estimators are intentionally fed identical panels within a replication. <code>SyntheticDID</code> and <code>MatrixCompletion</code> use the common <code>fit(Y, W)</code> panel API: <code>Y</code> is the observed panel and <code>W</code> is the same-shaped absorbing treatment matrix. <code>MatrixCompletion</code> treats the untreated cells (<code>W == 0</code>) as observed and reconstructs <span class="math inline">\(Y(0)\)</span> in exactly the treated cells where the ATT is evaluated.</p>
-<div id="ce3a8b98" class="cell" data-execution_count="3">
+<div id="20f85d39" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_twfe(panel, treated_units, t_pre):</span>
@@ -4475,7 +4487,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i&#39; f_t + \varepsilon_{it},
 </section>
 <section id="monte-carlo" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="monte-carlo"><span class="header-section-number">4</span> Monte Carlo</h2>
-<div id="99316149" class="cell" data-execution_count="4">
+<div id="49d70224" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_mc(reps<span class="op">=</span><span class="dv">160</span>, seed<span class="op">=</span><span class="dv">2026050202</span>):</span>
@@ -4508,7 +4520,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i&#39; f_t + \varepsilon_{it},
 </section>
 <section id="att-distribution-by-dgp" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="att-distribution-by-dgp"><span class="header-section-number">5</span> ATT Distribution By DGP</h2>
-<div id="54a59b7e" class="cell" data-fig-height="6.4" data-fig-width="9" data-execution_count="5">
+<div id="3efd2358" class="cell" data-fig-height="6.4" data-fig-width="9" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rmse(vals, truth<span class="op">=</span><span class="fl">1.0</span>):</span>
@@ -4574,7 +4586,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i&#39; f_t + \varepsilon_{it},
 </section>
 <section id="summary-table" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="summary-table"><span class="header-section-number">6</span> Summary Table</h2>
-<div id="47aca3c8" class="cell" data-execution_count="6">
+<div id="056c9e9a" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>

@@ -4026,10 +4026,10 @@ window.Quarto = {
 <span class="menu-text">Binding Crash Course</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-supervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Supervised Learning</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression And GLMs</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-supervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
@@ -4047,14 +4047,6 @@ window.Quarto = {
  <span class="dropdown-text">ElasticNet</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/synthetic-control.html">
- <span class="dropdown-text">Synthetic Control</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples/synthetic-did.html">
- <span class="dropdown-text">Synthetic DID</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
   </li>  
@@ -4065,10 +4057,6 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../examples/poisson.html">
  <span class="dropdown-text">Poisson</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../examples/twosls.html">
- <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/gmm.html">
@@ -4085,10 +4073,10 @@ window.Quarto = {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-semiparametrics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Semiparametrics</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal Inference</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-semiparametrics">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
@@ -4109,13 +4097,37 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-unsupervised-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Unsupervised Learning</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-unsupervised-learning">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
         <li>
     <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
  <span class="dropdown-text">PCA And Kernel Basis</span></a>
@@ -4264,7 +4276,7 @@ window.Quarto = {
 <p>Data are vendored under <code>docs/data/</code> so the page renders without network access.</p>
 <section id="setup" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup"><span class="header-section-number">1</span> Setup</h2>
-<div id="e90b55f1" class="cell" data-execution_count="1">
+<div id="5a8ab61b" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
@@ -4320,7 +4332,7 @@ window.Quarto = {
 </section>
 <section id="load-the-two-case-panels" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="load-the-two-case-panels"><span class="header-section-number">2</span> Load The Two Case Panels</h2>
-<div id="282a56dc" class="cell" data-execution_count="2">
+<div id="efc1af5d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wide_from_long(df, unit_col, time_col, outcome_col, units<span class="op">=</span><span class="va">None</span>):</span>
@@ -4451,7 +4463,7 @@ window.Quarto = {
 <li><strong>vertical ridge</strong> remains a short reference calculation: it regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit’s missing counterfactual from its pre-treatment history.</li>
 </ul>
 <p>Synthetic control remains the low-level simplex-weight reference. Synthetic DID and matrix completion now use the same <code>fit(Y, W)</code> panel contract as horizontal ridge, so the vignette no longer constructs estimator-specific masks or treated-unit arguments for the modal panel estimators.</p>
-<div id="bd7a21d5" class="cell" data-execution_count="3">
+<div id="64d7dacf" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
@@ -4597,7 +4609,7 @@ window.Quarto = {
 <li>The <strong>HAC interval</strong> treats the post-treatment effect path as the stochastic object and estimates the standard error of its mean with a Newey-West style long-run variance.</li>
 <li>The <strong>donor-placebo <span class="math inline">\(p\)</span>-value</strong> rotates treatment across donor units at the same intervention date and compares the realized estimate with that placebo distribution.</li>
 </ul>
-<div id="deed770c" class="cell" data-execution_count="4">
+<div id="136e3158" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> normal_cdf(x):</span>
@@ -4656,7 +4668,7 @@ window.Quarto = {
 </section>
 <section id="case-study-estimates" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="case-study-estimates"><span class="header-section-number">5</span> Case Study Estimates</h2>
-<div id="c22872ad" class="cell" data-execution_count="5">
+<div id="1dc7af33" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>case_results <span class="op">=</span> {}</span>
@@ -4855,7 +4867,7 @@ window.Quarto = {
 </section>
 <section id="outcome-paths-and-gaps" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="outcome-paths-and-gaps"><span class="header-section-number">6</span> Outcome Paths And Gaps</h2>
-<div id="0d954c84" class="cell" data-fig-height="7.4" data-fig-width="10" data-execution_count="6">
+<div id="df811372" class="cell" data-fig-height="7.4" data-fig-width="10" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>plot_methods <span class="op">=</span> [<span class="st">&quot;Horizontal ridge&quot;</span>, <span class="st">&quot;Synthetic control&quot;</span>, <span class="st">&quot;Synthetic DID&quot;</span>, <span class="st">&quot;Matrix completion&quot;</span>]</span>
@@ -4916,7 +4928,7 @@ window.Quarto = {
 <section id="semi-synthetic-placebo-simulation" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="semi-synthetic-placebo-simulation"><span class="header-section-number">7</span> Semi-Synthetic Placebo Simulation</h2>
 <p>This simulation keeps the empirical donor panels intact. For each case and each donor unit, we temporarily declare that donor treated, remove the real treated unit from the donor pool, add a known post-treatment effect, and rerun every estimator. This is not a universal Monte Carlo; it is a compact stress test of the estimator/inference code on the two empirical designs used above.</p>
-<div id="923b53eb" class="cell" data-execution_count="7">
+<div id="74086ae3" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_turn_simulation(case):</span>

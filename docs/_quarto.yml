@@ -27,7 +27,7 @@ website:
         text: API
       - href: mechanics-ols.qmd
         text: Binding Crash Course
-      - text: Supervised Learning
+      - text: Regression And GLMs
         menu:
           - href: examples/ols.qmd
             text: OLS
@@ -37,25 +37,19 @@ website:
             text: Fixed Effects OLS
           - href: examples/elastic-net.qmd
             text: ElasticNet
-          - href: examples/synthetic-control.qmd
-            text: Synthetic Control
-          - href: examples/synthetic-did.qmd
-            text: Synthetic DID
           - href: examples/logit.qmd
             text: Logit
           - href: examples/multinomial-logit.qmd
             text: Multinomial Logit
           - href: examples/poisson.qmd
             text: Poisson
-          - href: examples/twosls.qmd
-            text: TwoSLS
           - href: examples/gmm.qmd
             text: GMM
           - href: examples/ftrl.qmd
             text: FTRL
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
-      - text: Semiparametrics
+      - text: Causal Inference
         menu:
           - href: examples/balancing-weights.qmd
             text: Balancing Weights
@@ -67,7 +61,19 @@ website:
             text: Double ML And AIPW
           - href: examples/richer-regression.qmd
             text: Richer Regression
-      - text: Unsupervised Learning
+          - href: examples/twosls.qmd
+            text: TwoSLS
+          - href: examples/synthetic-control.qmd
+            text: Synthetic Control
+          - href: examples/synthetic-did.qmd
+            text: Synthetic DID
+          - href: examples/horizontal-panel-ridge.qmd
+            text: Horizontal Panel Ridge
+          - href: examples/matrix-completion.qmd
+            text: Matrix Completion
+          - href: examples/interactive-fixed-effects.qmd
+            text: Interactive Fixed Effects
+      - text: Transforms
         menu:
           - href: examples/pca-and-kernel-basis.qmd
             text: PCA And Kernel Basis

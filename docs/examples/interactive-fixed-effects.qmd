@@ -1,0 +1,87 @@
+---
+title: "InteractiveFixedEffects Example"
+subtitle: "A compact factor-model helper for balanced panels"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+`InteractiveFixedEffects` is the no-covariate factor-model helper behind the panel tooling. It is not a full treatment-effect estimator by itself; it estimates a balanced-panel decomposition with additive unit/time structure and interactive latent factors. That makes it useful for inspecting whether a panel has low-rank structure before using matrix-completion or factor-style causal designs.
+
+## Simulate A Factor Panel
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import InteractiveFixedEffects
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+```{python}
+rng = np.random.default_rng(4403)
+
+n_units = 40
+n_periods = 32
+rank = 2
+time = np.arange(n_periods)
+
+alpha = rng.normal(scale=0.5, size=n_units)
+xi = 0.04 * time + 0.35 * np.sin(time / 5.0)
+loadings = rng.normal(size=(n_units, rank))
+factors = np.vstack(
+    [
+        np.sin(np.linspace(0.0, 2.4 * np.pi, n_periods)),
+        np.cos(np.linspace(0.0, 1.8 * np.pi, n_periods)),
+    ]
+)
+
+Y_signal = alpha[:, None] + xi[None, :] + loadings @ factors
+Y = Y_signal + rng.normal(scale=0.10, size=Y_signal.shape)
+
+print("Y shape:", Y.shape)
+print("signal variance:", round(float(np.var(Y_signal)), 4))
+print("noise variance:", round(float(np.var(Y - Y_signal)), 4))
+```
+
+## Fit The Factor Model
+
+```{python}
+model = InteractiveFixedEffects(rank=2, force=3)
+model.fit(Y)
+summary = model.summary()
+Y_hat = model.predict()
+
+rmse = np.sqrt(np.mean((Y - Y_hat) ** 2))
+signal_rmse = np.sqrt(np.mean((Y_signal - Y_hat) ** 2))
+print("fit RMSE against noisy panel:", round(float(rmse), 4))
+print("fit RMSE against latent signal:", round(float(signal_rmse), 4))
+print("summary keys:", sorted(summary))
+```
+
+```{python}
+fig, axes = plt.subplots(1, 3, figsize=(13, 4.0), constrained_layout=True)
+
+for ax, matrix, title in [
+    (axes[0], Y, "Observed Panel"),
+    (axes[1], Y_hat, "Fitted Factor Panel"),
+    (axes[2], Y - Y_hat, "Residuals"),
+]:
+    im = ax.imshow(matrix, aspect="auto", cmap="viridis")
+    ax.set_title(title)
+    ax.set_xlabel("Period")
+    ax.set_ylabel("Unit")
+    fig.colorbar(im, ax=ax, shrink=0.78)
+
+plt.show()
+```
+
+`InteractiveFixedEffects` is intentionally narrow: `fit(y)`, `predict()`, and `summary()`. For causal estimation with treatment timing, use the higher-level `HorizontalPanelRidge`, `SyntheticDID`, or `MatrixCompletion` pages, which all own the absorbing-treatment matrix contract.

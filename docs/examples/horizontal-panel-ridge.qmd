@@ -1,0 +1,119 @@
+---
+title: "HorizontalPanelRidge Example"
+subtitle: "Horizontal regression with the matrix panel API"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+`HorizontalPanelRidge` is the horizontal-regression member of the panel causal family. The public API is deliberately small: pass a balanced outcome matrix `Y` and a same-shaped absorbing-treatment matrix `W` to `fit(Y, W)`. The estimator infers treated units, never-treated donors, first-treatment cohorts, pre-period windows, and post-treatment event summaries.
+
+This example simulates a staggered panel where treated paths are predictable from donor histories before treatment, then recovers the average post-treatment effect.
+
+## Simulate A Balanced Panel
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import HorizontalPanelRidge
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+```{python}
+rng = np.random.default_rng(4401)
+
+n_control = 45
+n_treated = 10
+n_periods = 28
+time = np.arange(n_periods)
+
+factors = np.column_stack(
+    [
+        np.linspace(-1.0, 1.3, n_periods),
+        np.sin(np.linspace(0.0, 2.6 * np.pi, n_periods)),
+        np.cos(np.linspace(0.0, 1.4 * np.pi, n_periods)),
+    ]
+)
+control_loadings = rng.normal(size=(n_control, factors.shape[1]))
+control_intercepts = rng.normal(scale=0.35, size=n_control)
+control_panel = (
+    control_intercepts[:, None]
+    + control_loadings @ factors.T
+    + rng.normal(scale=0.10, size=(n_control, n_periods))
+)
+
+active_donors = np.argsort(control_loadings[:, 0])[-8:]
+base_weights = np.zeros(n_control)
+base_weights[active_donors] = rng.dirichlet(np.ones(len(active_donors)))
+treated_base = base_weights @ control_panel
+
+treated_offsets = rng.normal(scale=0.20, size=n_treated)
+treated_untreated = treated_base + treated_offsets[:, None] + rng.normal(
+    scale=0.06, size=(n_treated, n_periods)
+)
+
+Y = np.vstack([control_panel, treated_untreated])
+W = np.zeros_like(Y)
+cohort_starts = np.r_[np.repeat(17, 5), np.repeat(21, 5)]
+for local_idx, start in enumerate(cohort_starts):
+    unit = n_control + local_idx
+    W[unit, start:] = 1.0
+    Y[unit, start:] += 0.7 + 0.07 * np.arange(n_periods - start)
+
+print("Y shape:", Y.shape)
+print("treated units:", np.flatnonzero(W.any(axis=1)))
+print("first treatment periods:", cohort_starts)
+```
+
+## Fit And Inspect The Summary
+
+```{python}
+model = HorizontalPanelRidge(penalty=0.8)
+model.fit(Y, W)
+summary = model.summary()
+
+print("ATT:", round(float(summary["att"]), 4))
+print("pre RMSE:", round(float(summary["pre_rmse"]), 4))
+print("cohorts:", summary["cohorts"])
+print("summary keys:", sorted(summary))
+```
+
+The high-level outputs are available without carrying around long-form panel data: `counterfactual`, `treatment_effect`, `event_study`, and `group_means` all use the same matrix orientation as the input panel.
+
+```{python}
+treated = np.asarray(summary["treated_units"], dtype=int)
+cf = np.asarray(summary["counterfactual"])
+te = np.asarray(summary["treatment_effect"])
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), constrained_layout=True)
+
+axes[0].plot(time + 1, Y[treated].mean(axis=0), color="black", lw=2.1, label="treated observed")
+axes[0].plot(time + 1, cf[treated].mean(axis=0), color="#1b9e77", lw=2.0, label="ridge counterfactual")
+for start in sorted(set(cohort_starts)):
+    axes[0].axvline(start + 1, color="0.65", ls="--", lw=1)
+axes[0].set_title("Average Treated Path")
+axes[0].set_xlabel("Period")
+axes[0].set_ylabel("Outcome")
+axes[0].legend(frameon=False)
+
+axes[1].plot(time + 1, te[treated].mean(axis=0), color="#7570b3", lw=2.0)
+axes[1].axhline(0.0, color="0.5", lw=1)
+for start in sorted(set(cohort_starts)):
+    axes[1].axvline(start + 1, color="0.65", ls="--", lw=1)
+axes[1].set_title("Estimated Treatment Effect")
+axes[1].set_xlabel("Period")
+axes[1].set_ylabel("Observed - counterfactual")
+
+plt.show()
+```
+
+Use this class when the causal story is time-series-style: treated pre-treatment histories can be forecast from donor histories, and post-treatment donor outcomes provide the contemporaneous features for counterfactual prediction.

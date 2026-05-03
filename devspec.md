@@ -41,7 +41,8 @@ Any new work here should usually satisfy most of the following:
   - `PartiallyLinearDML`
   - `AIPW`
 - docs and ablations
-  - semiparametric examples are in the main docs nav
+  - the main docs nav now uses `Regression And GLMs`, `Causal Inference`, and `Transforms` rather than the older supervised / semiparametric / unsupervised grouping
+  - causal examples include separate public-facing pages for `SyntheticControl`, `SyntheticDID`, `HorizontalPanelRidge`, `MatrixCompletion`, and `InteractiveFixedEffects`, with the matrix panel pages using small self-contained synthetic panels
   - cached ablation notebooks cover variance estimators, semiparametric comparisons, panel-DGP comparisons, and the Same Root Basque/California panel case studies with simulation, first-class `HorizontalPanelRidge`, plus HAC/placebo inference
   - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, Chapters 21 and 23, and a narrow Chapter 27 Baron-Kenny mediation page with explicit simulation DGPs
   - the latest R-script cleanup filled in post-stratification, matched-pair regression/FRT, IPW truncation and balance diagnostics, ATT doubly robust formulas, the JOBS IV example, and an Anderson-Rubin IV grid

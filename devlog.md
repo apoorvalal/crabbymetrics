@@ -363,3 +363,10 @@ After the semiparametric and balancing work, the most plausible next branch dire
 5. richer IV / GMM diagnostics
 
 That is the current state the next extension branch should assume.
+
+## 2026-05-03 Docs Taxonomy And Panel Examples
+
+- Refactored the docs navigation away from the old `Supervised Learning`, `Semiparametrics`, and `Unsupervised Learning` buckets.
+- The site now uses `Regression And GLMs`, `Causal Inference`, and `Transforms`; causal pages include semiparametric estimators, IV, synthetic control, synthetic DID, horizontal panel ridge, matrix completion, and interactive fixed effects.
+- Added self-contained panel-data example pages for `HorizontalPanelRidge`, `MatrixCompletion`, and `InteractiveFixedEffects`.
+- Added an `AGENTS.md` docs contract: each public-facing class exposed from `src/lib.rs` should have a clean example/docs page linked from the site navigation; the generated API table is not enough by itself.
