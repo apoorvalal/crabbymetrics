@@ -3966,6 +3966,10 @@ vertical-align: -.125em;
     <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
  <span class="dropdown-text">Interactive Fixed Effects</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4115,7 +4119,7 @@ vertical-align: -.125em;
 <p>This example simulates a staggered panel where treated paths are predictable from donor histories before treatment, then recovers the average post-treatment effect.</p>
 <section id="simulate-a-balanced-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-balanced-panel"><span class="header-section-number">1</span> Simulate A Balanced Panel</h2>
-<div id="52a69801" class="cell" data-execution_count="1">
+<div id="d8187033" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4123,7 +4127,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="4ac22ff9" class="cell" data-execution_count="2">
+<div id="bdf83ba9" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4401</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_control <span class="op">=</span> <span class="dv">45</span></span>
@@ -4176,7 +4180,7 @@ first treatment periods: [17 17 17 17 17 21 21 21 21 21]</code></pre>
 </section>
 <section id="fit-and-inspect-the-summary" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-and-inspect-the-summary"><span class="header-section-number">2</span> Fit And Inspect The Summary</h2>
-<div id="52741290" class="cell" data-execution_count="3">
+<div id="d5d7fd84" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> HorizontalPanelRidge(penalty<span class="op">=</span><span class="fl">0.8</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>model.fit(Y, W)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
@@ -4193,7 +4197,7 @@ summary keys: [&#39;att&#39;, &#39;coef&#39;, &#39;cohort_coef&#39;, &#39;cohort
 </div>
 </div>
 <p>The high-level outputs are available without carrying around long-form panel data: <code>counterfactual</code>, <code>treatment_effect</code>, <code>event_study</code>, and <code>group_means</code> all use the same matrix orientation as the input panel.</p>
-<div id="4a4bd266" class="cell" data-execution_count="4">
+<div id="f1d6c3d8" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>treated <span class="op">=</span> np.asarray(summary[<span class="st">&quot;treated_units&quot;</span>], dtype<span class="op">=</span><span class="bu">int</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>cf <span class="op">=</span> np.asarray(summary[<span class="st">&quot;counterfactual&quot;</span>])</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>te <span class="op">=</span> np.asarray(summary[<span class="st">&quot;treatment_effect&quot;</span>])</span>

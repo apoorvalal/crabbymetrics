@@ -370,3 +370,10 @@ That is the current state the next extension branch should assume.
 - The site now uses `Regression And GLMs`, `Causal Inference`, and `Transforms`; causal pages include semiparametric estimators, IV, synthetic control, synthetic DID, horizontal panel ridge, matrix completion, and interactive fixed effects.
 - Added self-contained panel-data example pages for `HorizontalPanelRidge`, `MatrixCompletion`, and `InteractiveFixedEffects`.
 - Added an `AGENTS.md` docs contract: each public-facing class exposed from `src/lib.rs` should have a clean example/docs page linked from the site navigation; the generated API table is not enough by itself.
+
+## 2026-05-03 Staggered Panel Event-Study Vignette
+
+- Added a causal-inference docs vignette for the Hainmueller--Hangartner 2019 municipal naturalization panel from the local `FTestEventStudy` sandbox.
+- The vignette builds balanced `Y` and absorbing `W` matrices, fits `HorizontalPanelRidge`, `MatrixCompletion`, and `SyntheticDID` via `fit(Y, W)`, and plots the resulting weighted event-study summaries.
+- It also uses local-docs-only `pyfixest` to compare a vanilla binned TWFE event study with a saturated/Sun-Abraham-style event study; no package dependency metadata was added.
+- The page includes explicit source code for each panel of the combined adoption/event-study figure.

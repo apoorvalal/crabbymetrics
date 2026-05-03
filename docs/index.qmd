@@ -66,6 +66,7 @@ execute:
 - [Horizontal Panel Ridge](examples/horizontal-panel-ridge.html): horizontal-regression counterfactual forecasts for staggered treatment panels.
 - [Matrix Completion](examples/matrix-completion.html): low-rank completion of treated panel cells under the shared panel matrix contract.
 - [Interactive Fixed Effects](examples/interactive-fixed-effects.html): factor-model decomposition for balanced panels.
+- [Staggered Panel Event Study](examples/staggered-panel-event-study.html): Hainmueller--Hangartner staggered-adoption panel walkthrough comparing crabbymetrics matrix estimators with pyfixest TWFE and saturated event studies.
 
 ## Transform Examples
 

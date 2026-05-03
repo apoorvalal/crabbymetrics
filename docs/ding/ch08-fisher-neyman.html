@@ -4105,6 +4105,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
  <span class="dropdown-text">Interactive Fixed Effects</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4259,7 +4263,7 @@ window.Quarto = {
 
 
 <p>The full chapter studies several studentized statistics. This translation keeps the core contrast: when treatment effects are heterogeneous, the Neyman average-null and the Fisher sharp-null need not lead to the same finite-sample p-values.</p>
-<div id="3a1b0e70" class="cell" data-execution_count="1">
+<div id="681553ae" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -4272,7 +4276,7 @@ window.Quarto = {
 </div>
 <section id="a-simulation-with-zero-average-effect-but-heterogeneous-individual-effects" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="a-simulation-with-zero-average-effect-but-heterogeneous-individual-effects"><span class="header-section-number">1</span> A Simulation With Zero Average Effect But Heterogeneous Individual Effects</h2>
-<div id="61d35bba" class="cell" data-execution_count="2">
+<div id="4aee4e83" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">8</span>)</span>
@@ -4333,7 +4337,7 @@ Share Neyman &lt;= 0.05: 0.0
 Share Fisher &lt;= 0.05: 0.0</code></pre>
 </div>
 </div>
-<div id="0affe106" class="cell" data-execution_count="3">
+<div id="13fd5fe1" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>

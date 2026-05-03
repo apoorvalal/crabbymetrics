@@ -73,6 +73,8 @@ website:
             text: Matrix Completion
           - href: examples/interactive-fixed-effects.qmd
             text: Interactive Fixed Effects
+          - href: examples/staggered-panel-event-study.qmd
+            text: Staggered Panel Event Study
       - text: Transforms
         menu:
           - href: examples/pca-and-kernel-basis.qmd
