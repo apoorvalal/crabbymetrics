@@ -1,0 +1,533 @@
+# crabbymetrics
+
+> crabbymetrics is a compact Rust-backed Python econometrics package with a NumPy-facing, scikit-adjacent API. It provides linear, IV, panel causal, regularized, likelihood, moment/GMM, semiparametric, balancing-weight, transform, and optimizer utilities while keeping the runtime Python dependency footprint intentionally small: NumPy only.
+
+This file is for coding agents and LLMs that need to use `crabbymetrics` correctly in applications. Prefer this file when you need a dense API map, data-shape conventions, estimator selection guidance, and links into the human documentation site.
+
+Canonical project locations:
+
+- Documentation site: https://apoorvalal.github.io/crabbymetrics/
+- API reference: https://apoorvalal.github.io/crabbymetrics/api.html
+- GitHub repository: https://github.com/apoorvalal/crabbymetrics
+- PyPI package: https://pypi.org/project/crabbymetrics/
+
+## Install and import
+
+Install from PyPI:
+
+```bash
+uv pip install crabbymetrics
+# or
+pip install crabbymetrics
+```
+
+Typical import:
+
+```python
+import numpy as np
+import crabbymetrics as cm
+```
+
+The package is built with PyO3/maturin and ships native wheels. Python package versioning is sourced from `Cargo.toml` in the repository. Runtime dependency: `numpy`.
+
+## Global conventions
+
+- Inputs are NumPy arrays or array-like objects that can be converted to NumPy arrays.
+- Most feature matrices are 2D, shape `(n_observations, n_features)`.
+- Most regression/classification targets are 1D, shape `(n_observations,)`.
+- Estimators mutate in place: instantiate, call `fit(...)`, then call `predict(...)`, `summary(...)`, `bootstrap(...)`, or estimator-specific methods when available.
+- `summary()` returns a plain Python `dict`, not a rich result object. Downstream code should index by keys.
+- `bootstrap(n_bootstrap, seed=None)` returns NumPy arrays or dicts depending on estimator; if an estimator has an intercept, bootstrap draws place the intercept first.
+- OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS fit an intercept internally.
+- `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
+- Weighted fits exist for OLS, Ridge, FixedEffectsOLS, and TwoSLS.
+- Robust covariance conventions vary by estimator; the main linear estimators share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", lags=None, clusters=None)`.
+- The package does not require pandas, scikit-learn, scipy, statsmodels, or polars at runtime. If you start from a DataFrame, convert to NumPy explicitly before fitting.
+
+## Quick estimator selection
+
+Use these defaults unless the application has a reason to do otherwise:
+
+- Plain linear regression with robust standard errors: `cm.OLS()`.
+- Penalized linear regression / shrinkage / cross-validated ridge: `cm.Ridge(penalty=None_or_grid, cv=5)`.
+- Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.
+- Instrumental variables / 2SLS: `cm.TwoSLS()`.
+- Single treated time series with donor paths and simplex donor weights: `cm.SyntheticControl()`.
+- Balanced panel causal ATT with absorbing treatment matrix: start with `cm.SyntheticDID()` or `cm.HorizontalPanelRidge()`; use `cm.MatrixCompletion()` when a low-rank completion model is appropriate.
+- No-covariate interactive fixed-effects factor model on a balanced panel: `cm.InteractiveFixedEffects(rank=..., force=...)`.
+- Binary treatment ATE with nuisance models: `cm.AIPW()`.
+- Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
+- Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
+- Covariate balancing/calibration weights: `cm.BalancingWeights()`.
+- Binary classification: `cm.Logit()` or online-style `cm.FTRL()`.
+- Multiclass classification: `cm.MultinomialLogit()`.
+- Count regression: `cm.Poisson()`.
+- User-supplied moment conditions: `cm.GMM(moment_fn, jacobian_fn=None, ...)`.
+- User-supplied objective and scores: `cm.MEstimator(objective_fn, score_fn, ...)`.
+- Feature transformations: `cm.PCA(...)` and `cm.KernelBasis(...)`.
+- Direct numerical optimization with Python callbacks: `cm.Optimizers.minimize_*`.
+
+## Panel causal API: most important recent contract
+
+The paved panel causal API is matrix-first:
+
+```python
+Y = np.asarray(Y, dtype=float)  # shape (n_units, n_periods)
+W = np.asarray(W, dtype=float)  # same shape; binary 0/1 absorbing treatment indicator
+
+model = cm.SyntheticDID()
+model.fit(Y, W)
+out = model.summary()
+att = out["att"]
+counterfactual = out["counterfactual"]
+treatment_effect = out["treatment_effect"]
+event_study = out["event_study"]
+group_means = out["group_means"]
+```
+
+`Y` is the observed balanced outcome panel. `W` is a same-shaped binary absorbing treatment matrix where `W[i, t] == 1` means unit `i` is treated at time `t`. Never-treated donor units have all-zero rows in `W`. Do not pass long/dataframe inputs to the panel causal estimators.
+
+First-class panel causal estimators using `fit(Y, W)`:
+
+- `HorizontalPanelRidge(penalty=1.0)`: horizontal forecasting estimator. Uses never-treated donor paths as contemporaneous features, trains cohort-specific ridge forecasts on pre-treatment periods, and predicts treated-unit counterfactual paths. Works surprisingly well as a pure forecasting baseline.
+- `SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)`: synthetic difference-in-differences with cohort-specific donor and time weights under the common panel contract.
+- `MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-6)`: matrix completion for panels where untreated cells (`W == 0`) are observed entries and treated cells are completed as counterfactuals.
+
+Common panel summary keys:
+
+- `att`: scalar average treatment effect on treated cells.
+- `counterfactual`: matrix of counterfactual untreated outcomes for treated units/cells in the estimator's natural output shape.
+- `treatment_effect`: observed-minus-counterfactual treatment effect matrix.
+- `event_study`: event-time summaries, including unweighted and treated-count-weighted aggregates with confidence-interval-style columns where available.
+- `group_means`: cohort/event-time rows plus nested unweighted and weighted event-time aggregates for plotting.
+
+Panel caution:
+
+- `HorizontalPanelRidge` and `SyntheticDID` currently assume at least one never-treated donor unit and use cohort-specific donor-based models for staggered timing.
+- Treatment should be absorbing. If a unit is treated at time `t`, later periods for that unit should also be treated.
+- The panel estimators infer treated units, first-treatment cohorts, never-treated donors, pre/post windows, event time, and aggregate summaries internally from `W`.
+
+## Core estimator signatures
+
+These signatures are the public Python surface exposed by the current package.
+
+### Linear and IV estimators
+
+```python
+cm.OLS()
+fit(x, y)
+fit_weighted(x, y, sample_weight)
+predict(x)
+summary(vcov="hc1", lags=None, clusters=None)
+bootstrap(n_bootstrap, seed=None)
+```
+
+`summary()` keys include `intercept`, `coef`, `intercept_se`, and `coef_se`. Use `vcov="hc1"` for heteroskedasticity-robust inference, `vcov="newey_west"` with `lags`, and `vcov="cluster"` with integer cluster labels.
+
+```python
+cm.Ridge(penalty=None, cv=5)
+fit(x, y)
+fit_weighted(x, y, sample_weight)
+predict(x)
+summary(vcov="hc1", lags=None, clusters=None)
+bootstrap(n_bootstrap, seed=None)
+```
+
+`penalty` may be a scalar or a grid. With a grid, Ridge cross-validates, stores coefficient paths, and exposes `penalty`, `penalties`, `best_penalty_index`, `cv_mse`, `intercept_path`, and `coef_path` in addition to coefficient summaries.
+
+```python
+cm.FixedEffectsOLS()
+fit(x, fe, y)
+fit_weighted(x, fe, y, sample_weight)
+summary(vcov="hc1", lags=None, clusters=None)
+bootstrap(n_bootstrap, seed=None)
+```
+
+`fe` is a 2D `uint32`-like matrix of zero-based category codes, shape `(n_observations, n_fixed_effect_dimensions)`. The estimator partials out the fixed effects and estimates slopes without an intercept.
+
+```python
+cm.TwoSLS()
+fit(x_endog, x_exog, z, y)
+fit_weighted(x_endog, x_exog, z, y, sample_weight)
+predict(x)
+summary(vcov="hc1", lags=None, clusters=None)
+bootstrap(n_bootstrap, seed=None)
+```
+
+`x_endog` is the endogenous regressor matrix, `x_exog` is the included exogenous regressor matrix, `z` is the excluded instrument matrix, and `y` is the outcome. Matrix-valued endogenous regressors and instruments are supported.
+
+### Regularized and likelihood estimators
+
+```python
+cm.ElasticNet(penalty=1.0, l1_ratio=0.5, tolerance=1e-4, max_iterations=1000)
+fit(x, y)
+predict(x)
+summary()
+bootstrap(n_bootstrap, seed=None)
+```
+
+`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage.
+
+```python
+cm.Logit(alpha=1.0, max_iterations=100, gradient_tolerance=1e-4)
+fit(x, y)
+predict(x)
+summary()
+bootstrap(n_bootstrap, seed=None)
+```
+
+Binary labels should be integer-coded. Predictions are probabilities or class-like outputs according to the estimator page; inspect the example page for exact usage.
+
+```python
+cm.MultinomialLogit(alpha=1.0, max_iterations=100, gradient_tolerance=1e-4)
+fit(x, y)
+predict(x)
+summary()
+bootstrap(n_bootstrap, seed=None)
+```
+
+Multiclass labels should be integer-coded.
+
+```python
+cm.Poisson(alpha=0.0, max_iterations=100, tolerance=1e-4)
+fit(x, y)
+predict(x)
+summary(vcov="vanilla")
+bootstrap(n_bootstrap, seed=None)
+```
+
+Use Poisson for count regression. The docs demonstrate model-based and QMLE/sandwich inference.
+
+```python
+cm.FTRL(alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0)
+fit(x, y)
+predict(x)
+summary()
+bootstrap(n_bootstrap, seed=None)
+```
+
+FTRL is an online-style binary classification estimator.
+
+### Panel estimators and panel helpers
+
+```python
+cm.HorizontalPanelRidge(penalty=1.0)
+fit(Y, W)
+predict()
+treatment_effect()
+summary()
+```
+
+Important summary keys: `att`, `counterfactual`, `treatment_effect`, `event_study`, `group_means`, `cohort_intercepts`, `cohort_coef`, `pre_rmse`, `penalty`, `control_units`, `treated_units`, `cohorts`.
+
+```python
+cm.SyntheticControl(max_iterations=500)
+fit(donors, treated)
+predict(donors)
+summary()
+bootstrap(n_bootstrap, seed=None)
+```
+
+Low-level simplex donor-weight API for one treated path. `donors` is usually shaped `(n_periods, n_donors)` and `treated` is the treated pre-period vector. Summary keys include `weights` and `pre_rmse`.
+
+```python
+cm.SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)
+fit(Y, W)
+predict()
+treatment_effect()
+summary()
+```
+
+Important summary keys: `att`, `unit_weights`, `time_weights`, `counterfactual`, `synthetic_outcome`, `treatment_effect`, `event_study`, `group_means`, `pre_rmse`, `unit_intercept`, `time_intercept`, `zeta_omega`, `zeta_lambda`, `control_units`, `treated_units`, `cohorts`.
+
+```python
+cm.MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-6)
+fit(Y, W)
+predict()
+summary()
+```
+
+Important summary keys: `att`, `completed`, `counterfactual`, `treatment_effect`, `event_study`, `group_means`, `low_rank`, `unit_effects`, `time_effects`, `singular_values`, `lambda_l`, `objective`, `iterations`, `history_objective`, `history_rmse`.
+
+```python
+cm.InteractiveFixedEffects(rank=0, force=3)
+fit(y)
+predict()
+summary()
+```
+
+No-covariate fect-style principal-components factor model helper for balanced panels. Lower-level helpers `cm.panel_factor(...)` and `cm.panel_fe(...)` are also exported.
+
+### Balancing and semiparametric estimators
+
+```python
+cm.BalancingWeights(objective="quadratic", solver="auto", autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8)
+fit(covariates, target_covariates, baseline_weights=None, target_weights=None)
+get_weights()
+summary()
+```
+
+Low-level calibration/reweighting API. Summary keys include `weights`, `beta`, `weighted_mean`, `target_mean`, `mean_diff`, `l2_diff`, `effective_sample_size`, and `success`.
+
+```python
+cm.EPLM(fd_eps=1e-6)
+fit(y, d, w)
+summary(vcov=None, lags=None, clusters=None)
+```
+
+Robins-Newey partially linear E-estimator for scalar continuous treatment `d` and controls `w`.
+
+```python
+cm.AverageDerivative(method="dr", fd_eps=1e-6)
+fit(y, d, w)
+summary(vcov=None, lags=None, clusters=None)
+```
+
+Average-derivative estimator with `method="ob"`, `"ipw"`, or `"dr"` under a scalar continuous-treatment working model.
+
+```python
+cm.PartiallyLinearDML(penalty=None, cv=5, n_folds=5, seed=42)
+fit(y, d, x)
+summary(vcov=None, lags=None, clusters=None)
+```
+
+Cross-fit ridge nuisance implementation of the partially linear Double ML score for a scalar continuous treatment.
+
+```python
+cm.AIPW(penalty=None, cv=5, n_folds=5, propensity_clip=0.02, seed=42)
+fit(y, d, x)
+summary(vcov=None, lags=None, clusters=None)
+```
+
+Binary-treatment augmented inverse probability weighting estimator for the ATE. Treatment `d` should be coded `0/1`.
+
+### Moment and callback-driven estimators
+
+```python
+cm.GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-6, ridge=1e-8, fd_eps=1e-6)
+fit(data, theta0, weighting="auto")
+summary(vcov="sandwich", omega="iid", lags=None, clusters=None)
+```
+
+`moment_fn(theta, data)` should return a 2D array of per-observation moments. `jacobian_fn` is optional; if omitted, finite differences are used. Use this for custom just-identified or overidentified moment systems.
+
+```python
+cm.MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)
+fit(data, theta0)
+compute_vcov()
+summary()
+bootstrap(n_bootstrap, seed=None)
+```
+
+Lowest-level likelihood-style callback interface. Python supplies the objective and per-observation scores; Rust owns optimization and variance computation.
+
+### Transforms
+
+```python
+cm.PCA(n_components, whiten=False)
+fit(x)
+transform(x)
+fit_transform(x)
+inverse_transform(scores)
+summary()
+```
+
+PCA transformer for design-matrix preprocessing.
+
+```python
+cm.KernelBasis(kernel="gaussian", bandwidth=0.5, coef0=1.0, degree=2.0)
+fit(x)
+transform(x)
+fit_transform(x)
+summary()
+```
+
+Kernel feature basis transformer for richer regression-style applications.
+
+### Optimizers
+
+`cm.Optimizers` exposes scipy-style static methods returning dictionaries with fields such as `x`, `fun`, `nit`, `success`, `message`, and `method`.
+
+```python
+cm.Optimizers.minimize_lbfgs(fun, x0, grad, max_iterations=100, tolerance=1e-6)
+cm.Optimizers.minimize_bfgs(fun, x0, grad, max_iterations=100, tolerance=1e-6)
+cm.Optimizers.minimize_nonlinear_cg(fun, x0, grad, max_iterations=100, restart_iters=10, restart_orthogonality=0.1, tolerance=1e-6)
+cm.Optimizers.minimize_gauss_newton_ls(residual_fn, x0, jacobian_fn, max_iterations=100, tolerance=1e-6)
+cm.Optimizers.minimize_simulated_annealing(fun, x0, lower=None, upper=None, temp=15.0, step_size=0.1, max_iterations=5000, seed=None)
+```
+
+## Minimal working examples
+
+### OLS with robust standard errors
+
+```python
+import numpy as np
+import crabbymetrics as cm
+
+rng = np.random.default_rng(1)
+x = rng.normal(size=(500, 3))
+y = 0.5 + x @ np.array([1.0, -2.0, 0.25]) + rng.normal(size=500)
+
+m = cm.OLS()
+m.fit(x, y)
+s = m.summary(vcov="hc1")
+print(s["intercept"], s["coef"], s["coef_se"])
+```
+
+### Fixed effects OLS
+
+```python
+n = 1000
+x = rng.normal(size=(n, 2))
+unit = rng.integers(0, 50, size=n, dtype=np.uint32)
+time = rng.integers(0, 10, size=n, dtype=np.uint32)
+fe = np.column_stack([unit, time]).astype(np.uint32)
+y = x @ np.array([1.0, -0.5]) + rng.normal(size=n)
+
+m = cm.FixedEffectsOLS()
+m.fit(x, fe, y)
+print(m.summary(vcov="cluster", clusters=unit)["coef"])
+```
+
+### Synthetic DID panel ATT
+
+```python
+n, t = 30, 12
+Y = rng.normal(size=(n, t))
+W = np.zeros((n, t), dtype=float)
+W[20:, 8:] = 1.0
+Y[W == 1.0] += 1.0
+
+m = cm.SyntheticDID()
+m.fit(Y, W)
+out = m.summary()
+print(out["att"])
+print(out["event_study"].keys())
+```
+
+### Matrix completion panel ATT
+
+```python
+m = cm.MatrixCompletion(lambda_fraction=0.05, max_iterations=500)
+m.fit(Y, W)
+out = m.summary()
+print(out["att"])
+cf = out["counterfactual"]
+```
+
+### Balancing weights
+
+```python
+source_x = rng.normal(size=(300, 4))
+target_x = rng.normal(loc=0.25, size=(100, 4))
+
+bw = cm.BalancingWeights(objective="quadratic", autoscale=True)
+bw.fit(source_x, target_x)
+weights = bw.get_weights()
+print(bw.summary()["effective_sample_size"])
+```
+
+### Custom GMM
+
+```python
+def moments(theta, data):
+    y = data[:, 0]
+    x = data[:, 1:]
+    resid = y - x @ theta
+    return x * resid[:, None]
+
+data = np.column_stack([y, np.column_stack([np.ones(len(y)), x])])
+theta0 = np.zeros(data.shape[1] - 1)
+
+g = cm.GMM(moments)
+g.fit(data, theta0)
+print(g.summary())
+```
+
+## Source tree map for agents
+
+If you need to inspect or modify source, start here:
+
+- `src/lib.rs`: PyO3 module registration; exported Python classes and functions.
+- `src/estimators/linear.rs`: OLS, FixedEffectsOLS, TwoSLS, panel estimators, synthetic control, synthetic DID, matrix completion, interactive fixed effects, panel helpers.
+- `src/estimators/regularized.rs`: Ridge, ElasticNet, FTRL.
+- `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
+- `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
+- `src/estimators/balancing.rs`: BalancingWeights.
+- `src/estimators/gmm.rs`: GMM.
+- `src/estimators/transforms.rs`: PCA and KernelBasis.
+- `src/optimizers.rs`: Optimizers namespace.
+- `src/utils.rs`: shared array conversion, linear algebra, covariance, bootstrap, and helper routines.
+- `tests/`: Python tests for public behavior; use these as executable API examples when docs are thin.
+- `docs/examples/*.qmd`: rendered example notebooks.
+- `docs/ablations/*.qmd`: cached numerical experiments and panel case-study workflows.
+- `docs/api.qmd`: generated/verified public-surface reference.
+
+Development commands:
+
+```bash
+uv sync
+uv run maturin develop
+uv run pytest tests -q
+uv sync --extra docs
+uv run quarto render docs
+```
+
+## Documentation links
+
+- [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
+- [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
+- [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
+- [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
+- [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.
+
+## Estimator example pages
+
+- [OLS](https://apoorvalal.github.io/crabbymetrics/examples/ols.html): baseline linear regression and covariance choices.
+- [Ridge](https://apoorvalal.github.io/crabbymetrics/examples/ridge.html): L2 regularization and cross-validated penalty grids.
+- [Fixed Effects OLS](https://apoorvalal.github.io/crabbymetrics/examples/fixed-effects-ols.html): one-way and multi-way fixed effects.
+- [ElasticNet](https://apoorvalal.github.io/crabbymetrics/examples/elastic-net.html): mixed L1/L2 regularized linear regression.
+- [Synthetic Control](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-control.html): low-level simplex donor weights for one treated path.
+- [Synthetic DID](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-did.html): panel `fit(Y, W)` synthetic difference-in-differences workflow.
+- [Logit](https://apoorvalal.github.io/crabbymetrics/examples/logit.html): binary logistic regression.
+- [Multinomial Logit](https://apoorvalal.github.io/crabbymetrics/examples/multinomial-logit.html): multiclass classification.
+- [Poisson](https://apoorvalal.github.io/crabbymetrics/examples/poisson.html): count regression and QMLE/sandwich inference.
+- [TwoSLS](https://apoorvalal.github.io/crabbymetrics/examples/twosls.html): instrumental variables regression.
+- [GMM](https://apoorvalal.github.io/crabbymetrics/examples/gmm.html): custom moment estimators.
+- [FTRL](https://apoorvalal.github.io/crabbymetrics/examples/ftrl.html): online-style binary classification.
+- [MEstimator Poisson](https://apoorvalal.github.io/crabbymetrics/examples/mestimator-poisson.html): callback M-estimation matched against built-in Poisson.
+- [Balancing Weights](https://apoorvalal.github.io/crabbymetrics/examples/balancing-weights.html): entropy/quadratic calibration weights.
+- [EPLM](https://apoorvalal.github.io/crabbymetrics/examples/eplm.html): partially linear E-estimator.
+- [Average Derivative](https://apoorvalal.github.io/crabbymetrics/examples/average-derivative.html): Oaxaca-Blinder, IPW, and doubly robust average derivative.
+- [Double ML And AIPW](https://apoorvalal.github.io/crabbymetrics/examples/double-ml.html): cross-fit nuisance models for DML and binary AIPW.
+- [Richer Regression With Transformer Pipelines](https://apoorvalal.github.io/crabbymetrics/examples/richer-regression.html): KernelBasis/PCA features in downstream regressions.
+- [PCA And Kernel Basis](https://apoorvalal.github.io/crabbymetrics/examples/pca-and-kernel-basis.html): transformer examples.
+- [Optimizers](https://apoorvalal.github.io/crabbymetrics/examples/optimizers.html): direct optimizer usage.
+- [GMM With Optimizers](https://apoorvalal.github.io/crabbymetrics/examples/gmm-with-optimizers.html): lower-level optimizer view of GMM-style estimation.
+
+## Ablation and case-study links
+
+- [Variance Estimators](https://apoorvalal.github.io/crabbymetrics/ablations/variance-estimators.html): Monte Carlo coverage for OLS, Poisson, and GMM variance estimators.
+- [Semiparametric Estimator Comparisons](https://apoorvalal.github.io/crabbymetrics/ablations/semiparametric-estimators.html): EPLM versus DML and regression/balancing/AIPW comparisons.
+- [Bridging Finite And Superpopulation](https://apoorvalal.github.io/crabbymetrics/ablations/bridging-finite-and-superpopulation.html): SATE/PATE coverage comparisons.
+- [Panel Estimator DGP Comparisons](https://apoorvalal.github.io/crabbymetrics/ablations/panel-dgp-comparisons.html): TWFE, synthetic control, synthetic DID, and matrix completion across panel DGPs.
+- [Same Root Panel Case Studies](https://apoorvalal.github.io/crabbymetrics/ablations/same-root-panel-cases.html): Basque Country and California Proposition 99 panel workflows with horizontal/vertical estimators, synthetic DID, matrix completion, HAC intervals, and donor-placebo inference.
+
+## Optional background links
+
+- [First Course Ding overview](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): translation map for Ding causal inference chapters.
+- [Ding chapter pages](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): use the site navigation for chapter-specific causal inference notes and translated examples.
+
+## Common mistakes to avoid
+
+- Do not pass pandas DataFrames directly if you need predictable behavior; convert to NumPy arrays first.
+- Do not use long panel data for `HorizontalPanelRidge`, `SyntheticDID`, or `MatrixCompletion`; use balanced `(n_units, n_periods)` matrices `Y` and `W`.
+- Do not treat `SyntheticControl` and `SyntheticDID` as the same API. `SyntheticControl.fit(donors, treated)` is a low-level one-treated-path donor-weight API; `SyntheticDID.fit(Y, W)` is a panel causal estimator.
+- Do not expect uniform `summary()` keys across estimators. Check the relevant estimator page or the API reference.
+- Do not expect scipy result objects or sklearn estimators. The API is scikit-adjacent but intentionally lightweight.
+- Do not assume every estimator has `predict()` or `bootstrap()`.
+- For fixed effects, `fe` must contain zero-based integer category codes, not strings.
+- For clustered standard errors, pass a 1D cluster-label array aligned with rows.
+- For Newey-West covariance, pass `lags`.
+- For binary treatment AIPW, code treatment as `0/1`.
+- For classification labels, use integer-coded labels.

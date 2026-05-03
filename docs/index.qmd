@@ -20,6 +20,7 @@ execute:
 ## Start Here
 
 - [API reference](api.html): verified public surface, summary schemas, optimizer catalog, and runtime smoke checks.
+- [llms.txt](llms.txt): dense LLM-facing package guide with install notes, data-shape contracts, estimator selection guidance, signatures, examples, source-map pointers, and links.
 - [First Course Ding](first-course-ding.html): chapter-by-chapter translation plan and current implementation status for the Peng Ding notebooks.
 - [Binding Crash Course: OLS](mechanics-ols.html): the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase.
 
