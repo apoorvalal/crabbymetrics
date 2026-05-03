@@ -242,7 +242,7 @@ twfe_tidy = twfe_fit.tidy().reset_index().rename(columns={"Coefficient": "term"}
 
 
 def parse_rel_time(term):
-    match = re.search(r"rel_bin::(-?\\d+)", str(term))
+    match = re.search(r"rel_bin::(-?\d+)", str(term))
     return int(match.group(1)) if match else None
 
 
