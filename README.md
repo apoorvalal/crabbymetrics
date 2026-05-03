@@ -102,7 +102,9 @@ uv run maturin develop
 
 `uv run maturin develop` is sufficient for rebuilding and reinstalling the package in `.venv` once the environment exists. If you change Python dependencies or the `pyproject.toml` metadata, run `uv sync` again first.
 
-Package versioning is sourced from `Cargo.toml`. The Python package metadata is dynamic, and `commit_tag_release.sh` reads the crate version directly before creating the `vX.Y.Z` tag.
+Package versioning is sourced from `Cargo.toml`; the Python package metadata is dynamic.
+
+To release to PyPI, use the **Build wheels** GitHub Actions workflow manually from `master` and enter the next version without the leading `v` (for example `0.6.1`). The workflow bumps `Cargo.toml`, commits to `master`, creates the `vX.Y.Z` tag, runs tests, builds wheels and an sdist, publishes the GitHub Release, and publishes to PyPI. The older `commit_tag_release.sh` script remains as a local fallback for manually tagging the current `Cargo.toml` version.
 
 Rendered examples and API docs live under `docs/`. Rebuild the site with `uv run quarto render docs`.
 For docs work, install the docs extra first: `uv sync --extra docs`.
