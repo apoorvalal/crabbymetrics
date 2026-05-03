@@ -234,12 +234,16 @@ results, failures = run_mc()
 ## ATT Distribution By DGP
 
 ```{python}
+#| fig-width: 9
+#| fig-height: 6.4
+#| fig-align: center
+
 def rmse(vals, truth=1.0):
     return float(np.sqrt(np.mean((vals - truth) ** 2)))
 
 
 colors = {"TWFE": "#d95f02", "SC": "#7570b3", "SDID": "#1b9e77", "MC": "#315f9f"}
-fig, axes = plt.subplots(2, 2, figsize=(13, 9.5), dpi=160, constrained_layout=True)
+fig, axes = plt.subplots(2, 2, figsize=(9, 6.4), dpi=100, constrained_layout=True)
 fig.patch.set_facecolor("#f7f4ef")
 bins = np.linspace(-0.5, 4.5, 60)
 summary = {}

@@ -434,6 +434,10 @@ display(
 ## Outcome Paths And Gaps
 
 ```{python}
+#| fig-width: 10
+#| fig-height: 7.4
+#| fig-align: center
+
 plot_methods = ["Horizontal ridge", "Synthetic control", "Synthetic DID", "Matrix completion"]
 colors = {
     "Donor mean": "#d95f02",
@@ -443,7 +447,7 @@ colors = {
     "Matrix completion": "#315f9f",
 }
 
-fig, axes = plt.subplots(len(cases), 2, figsize=(14, 5.2 * len(cases)), dpi=150, constrained_layout=True)
+fig, axes = plt.subplots(len(cases), 2, figsize=(10, 3.7 * len(cases)), dpi=100, constrained_layout=True)
 if len(cases) == 1:
     axes = np.array([axes])
 fig.patch.set_facecolor("#f7f4ef")
