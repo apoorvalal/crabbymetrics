@@ -1052,6 +1052,9 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
     assert "group_means" in summary
     assert "weighted" in summary["group_means"]
     assert "unweighted" in summary["group_means"]
+    assert "std_error" not in summary["event_study"]["weighted"]
+    assert "lower" not in summary["event_study"]["weighted"]
+    assert "upper" not in summary["event_study"]["weighted"]
 
     treated_units_summary = np.asarray(summary["treated_units"])
     y_reordered = np.vstack([panel[control_units], panel[treated_units_summary]])
@@ -1114,3 +1117,80 @@ def test_synthetic_did_rejects_bad_panel_inputs():
     bad = np.zeros((4, 4))
     with pytest.raises(ValueError, match="same shape"):
         model.fit(panel, bad)
+
+
+def make_synthetic_did_panel(n_control=8, n_treated=3, t_pre=8, t_post=4, seed=991):
+    rng = np.random.default_rng(seed)
+    n_periods = t_pre + t_post
+    time = np.arange(n_periods)
+    factors = np.column_stack(
+        [
+            np.linspace(-1.0, 1.0, n_periods),
+            np.sin(np.linspace(0.0, 2.0 * np.pi, n_periods)),
+        ]
+    )
+    controls = (
+        rng.normal(scale=0.3, size=(n_control, 1))
+        + rng.normal(scale=0.02, size=(n_control, 1)) * time
+        + rng.normal(size=(n_control, factors.shape[1])) @ factors.T
+        + rng.normal(scale=0.03, size=(n_control, n_periods))
+    )
+    true_weights = rng.dirichlet(np.ones(n_control))
+    treated_base = true_weights @ controls
+    treated = (
+        treated_base
+        + np.linspace(-0.1, 0.1, n_treated)[:, None]
+        + np.r_[np.zeros(t_pre), np.full(t_post, 0.8)]
+        + rng.normal(scale=0.02, size=(n_treated, n_periods))
+    )
+    y = np.vstack([controls, treated])
+    w = np.zeros_like(y)
+    w[n_control:, t_pre:] = 1.0
+    return y, w
+
+
+def test_synthetic_did_vcov_bootstrap_and_jackknife_shape_seeded():
+    y, w = make_synthetic_did_panel()
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+
+    boot = np.asarray(model.vcov("bootstrap", replications=12, seed=123))
+    boot_again = np.asarray(model.vcov("bootstrap", replications=12, seed=123))
+    jack = np.asarray(model.vcov("jackknife"))
+
+    assert boot.shape == (1, 1)
+    assert jack.shape == (1, 1)
+    np.testing.assert_allclose(boot, boot_again, atol=0.0, rtol=0.0)
+    assert np.isfinite(boot[0, 0]) and boot[0, 0] >= 0.0
+    assert np.isfinite(jack[0, 0]) and jack[0, 0] >= 0.0
+    np.testing.assert_allclose(model.se("bootstrap", replications=12, seed=123) ** 2, boot[0, 0])
+
+
+def test_synthetic_did_single_treated_bootstrap_jackknife_nan_placebo_works():
+    y, w = make_synthetic_did_panel(n_control=8, n_treated=1, seed=992)
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+
+    assert np.isnan(model.vcov("bootstrap", replications=10, seed=12)[0, 0])
+    assert np.isnan(model.vcov("jackknife")[0, 0])
+    placebo = np.asarray(model.vcov("placebo", replications=10, seed=12))
+    assert placebo.shape == (1, 1)
+    assert np.isfinite(placebo[0, 0]) and placebo[0, 0] >= 0.0
+
+
+def test_synthetic_did_placebo_requires_more_controls_than_treated():
+    y, w = make_synthetic_did_panel(n_control=1, n_treated=1, seed=993)
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+    with pytest.raises(ValueError, match="more controls than treated"):
+        model.vcov("placebo", replications=10, seed=1)
+
+
+def test_synthetic_did_vcov_rejects_bad_method_and_too_few_replications():
+    y, w = make_synthetic_did_panel(seed=994)
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+    with pytest.raises(ValueError, match="method must be"):
+        model.vcov("sandwich")
+    with pytest.raises(ValueError, match="replications must be at least 2"):
+        model.vcov("bootstrap", replications=1)

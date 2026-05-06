@@ -4275,68 +4275,67 @@ window.Quarto = {
 <li>the Basque Country GDP case from Abadie and Gardeazabal;</li>
 <li>the California Proposition 99 tobacco case from Abadie, Diamond, and Hainmueller.</li>
 </ul>
-<p>For each case, the page runs the same panel through DID/TWFE, horizontal ridge prediction, vertical ridge prediction, synthetic control, synthetic DID, and matrix completion. It then reports two deliberately different inferential summaries: a time-series/HAC interval for the post-treatment gap and a donor-placebo <span class="math inline">\(p\)</span>-value that treats the donor pool as the relevant comparison population.</p>
+<p>For each case, the page runs the same panel through DID/TWFE, horizontal ridge prediction, vertical ridge prediction, synthetic control, synthetic DID, and matrix completion. It then reports a donor-placebo <span class="math inline">\(p\)</span>-value that treats the donor pool as the relevant comparison population.</p>
 <p>The final section runs a small semi-synthetic placebo simulation on the two real donor panels: each donor takes a turn as the treated unit, a known effect is added after the historical treatment date, and the estimators are scored against that known truth.</p>
 <p>Data are vendored under <code>docs/data/</code> so the page renders without network access.</p>
 <section id="setup" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup"><span class="header-section-number">1</span> Setup</h2>
-<div id="5a8ab61b" class="cell" data-execution_count="1">
+<div id="6b2b1e6a" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> math <span class="im">import</span> erf, sqrt</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> HTML, display</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>DATA_DIR <span class="op">=</span> Path(<span class="st">&quot;..&quot;</span>) <span class="op">/</span> <span class="st">&quot;data&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> HTML, display</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>DATA_DIR <span class="op">=</span> Path(<span class="st">&quot;..&quot;</span>) <span class="op">/</span> <span class="st">&quot;data&quot;</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> html_table(headers, rows):</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    parts <span class="op">=</span> [<span class="st">&quot;&lt;table&gt;&quot;</span>, <span class="st">&quot;&lt;thead&gt;&quot;</span>, <span class="st">&quot;&lt;tr&gt;&quot;</span>]</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    parts.extend(<span class="ss">f&quot;&lt;th&gt;</span><span class="sc">{</span>escape(<span class="bu">str</span>(h))<span class="sc">}</span><span class="ss">&lt;/th&gt;&quot;</span> <span class="cf">for</span> h <span class="kw">in</span> headers)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    parts.extend([<span class="st">&quot;&lt;/tr&gt;&quot;</span>, <span class="st">&quot;&lt;/thead&gt;&quot;</span>, <span class="st">&quot;&lt;tbody&gt;&quot;</span>])</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> row <span class="kw">in</span> rows:</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        parts.append(<span class="st">&quot;&lt;tr&gt;&quot;</span>)</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>        parts.extend(<span class="ss">f&quot;&lt;td&gt;</span><span class="sc">{</span>cell<span class="sc">}</span><span class="ss">&lt;/td&gt;&quot;</span> <span class="cf">for</span> cell <span class="kw">in</span> row)</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        parts.append(<span class="st">&quot;&lt;/tr&gt;&quot;</span>)</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    parts.extend([<span class="st">&quot;&lt;/tbody&gt;&quot;</span>, <span class="st">&quot;&lt;/table&gt;&quot;</span>])</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">&quot;&quot;</span>.join(parts)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> html_table(headers, rows):</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    parts <span class="op">=</span> [<span class="st">&quot;&lt;table&gt;&quot;</span>, <span class="st">&quot;&lt;thead&gt;&quot;</span>, <span class="st">&quot;&lt;tr&gt;&quot;</span>]</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    parts.extend(<span class="ss">f&quot;&lt;th&gt;</span><span class="sc">{</span>escape(<span class="bu">str</span>(h))<span class="sc">}</span><span class="ss">&lt;/th&gt;&quot;</span> <span class="cf">for</span> h <span class="kw">in</span> headers)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    parts.extend([<span class="st">&quot;&lt;/tr&gt;&quot;</span>, <span class="st">&quot;&lt;/thead&gt;&quot;</span>, <span class="st">&quot;&lt;tbody&gt;&quot;</span>])</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> row <span class="kw">in</span> rows:</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>        parts.append(<span class="st">&quot;&lt;tr&gt;&quot;</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>        parts.extend(<span class="ss">f&quot;&lt;td&gt;</span><span class="sc">{</span>cell<span class="sc">}</span><span class="ss">&lt;/td&gt;&quot;</span> <span class="cf">for</span> cell <span class="kw">in</span> row)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>        parts.append(<span class="st">&quot;&lt;/tr&gt;&quot;</span>)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    parts.extend([<span class="st">&quot;&lt;/tbody&gt;&quot;</span>, <span class="st">&quot;&lt;/table&gt;&quot;</span>])</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">&quot;&quot;</span>.join(parts)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(frozen<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PanelCase:</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    key: <span class="bu">str</span></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    outcome_label: <span class="bu">str</span></span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    panel: np.ndarray</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    units: <span class="bu">list</span>[<span class="bu">str</span>]</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    years: np.ndarray</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    treated_units: <span class="bu">list</span>[<span class="bu">int</span>]</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    t_pre: <span class="bu">int</span></span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    simulation_tau: <span class="bu">float</span></span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> treatment_year(<span class="va">self</span>):</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">int</span>(<span class="va">self</span>.years[<span class="va">self</span>.t_pre])</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> donor_units(<span class="va">self</span>):</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>        treated <span class="op">=</span> <span class="bu">set</span>(<span class="va">self</span>.treated_units)</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [i <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.panel.shape[<span class="dv">0</span>]) <span class="cf">if</span> i <span class="kw">not</span> <span class="kw">in</span> treated]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span>(frozen<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> PanelCase:</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    key: <span class="bu">str</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    title: <span class="bu">str</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    outcome_label: <span class="bu">str</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    panel: np.ndarray</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    units: <span class="bu">list</span>[<span class="bu">str</span>]</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    years: np.ndarray</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    treated_units: <span class="bu">list</span>[<span class="bu">int</span>]</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    t_pre: <span class="bu">int</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    simulation_tau: <span class="bu">float</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> treatment_year(<span class="va">self</span>):</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">int</span>(<span class="va">self</span>.years[<span class="va">self</span>.t_pre])</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">@property</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> donor_units(<span class="va">self</span>):</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>        treated <span class="op">=</span> <span class="bu">set</span>(<span class="va">self</span>.treated_units)</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [i <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="va">self</span>.panel.shape[<span class="dv">0</span>]) <span class="cf">if</span> i <span class="kw">not</span> <span class="kw">in</span> treated]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
 <section id="load-the-two-case-panels" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="load-the-two-case-panels"><span class="header-section-number">2</span> Load The Two Case Panels</h2>
-<div id="efc1af5d" class="cell" data-execution_count="2">
+<div id="b2ed19e0" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wide_from_long(df, unit_col, time_col, outcome_col, units<span class="op">=</span><span class="va">None</span>):</span>
@@ -4467,7 +4466,7 @@ window.Quarto = {
 <li><strong>vertical ridge</strong> remains a short reference calculation: it regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit’s missing counterfactual from its pre-treatment history.</li>
 </ul>
 <p>Synthetic control remains the low-level simplex-weight reference. Synthetic DID and matrix completion now use the same <code>fit(Y, W)</code> panel contract as horizontal ridge, so the vignette no longer constructs estimator-specific masks or treated-unit arguments for the modal panel estimators.</p>
-<div id="64d7dacf" class="cell" data-execution_count="3">
+<div id="4ed21cac" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
@@ -4606,73 +4605,39 @@ window.Quarto = {
 </details>
 </div>
 </section>
-<section id="inference-helpers" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="inference-helpers"><span class="header-section-number">4</span> Inference Helpers</h2>
-<p>The two inferential views answer different questions.</p>
-<ul>
-<li>The <strong>HAC interval</strong> treats the post-treatment effect path as the stochastic object and estimates the standard error of its mean with a Newey-West style long-run variance.</li>
-<li>The <strong>donor-placebo <span class="math inline">\(p\)</span>-value</strong> rotates treatment across donor units at the same intervention date and compares the realized estimate with that placebo distribution.</li>
-</ul>
-<div id="136e3158" class="cell" data-execution_count="4">
+<section id="inference-helper" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-helper"><span class="header-section-number">4</span> Inference Helper</h2>
+<p>The <strong>donor-placebo <span class="math inline">\(p\)</span>-value</strong> rotates treatment across donor units at the same intervention date and compares the realized estimate with that placebo distribution.</p>
+<div id="3a6a6846" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> normal_cdf(x):</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fl">0.5</span> <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">+</span> erf(x <span class="op">/</span> sqrt(<span class="fl">2.0</span>)))</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hac_se_mean(values, lags<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.asarray(values, dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> x[np.isfinite(x)]</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> <span class="bu">len</span>(x)</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> n <span class="op">&lt;=</span> <span class="dv">1</span>:</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">float</span>(<span class="st">&quot;nan&quot;</span>)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> lags <span class="kw">is</span> <span class="va">None</span>:</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        lags <span class="op">=</span> <span class="bu">min</span>(n <span class="op">-</span> <span class="dv">1</span>, <span class="bu">max</span>(<span class="dv">1</span>, <span class="bu">int</span>(np.floor(np.sqrt(n)))))</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    xc <span class="op">=</span> x <span class="op">-</span> x.mean()</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    gamma0 <span class="op">=</span> <span class="bu">float</span>(np.dot(xc, xc) <span class="op">/</span> n)</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    lrvar <span class="op">=</span> gamma0</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ell <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="bu">min</span>(lags, n <span class="op">-</span> <span class="dv">1</span>) <span class="op">+</span> <span class="dv">1</span>):</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        gamma <span class="op">=</span> <span class="bu">float</span>(np.dot(xc[ell:], xc[:<span class="op">-</span>ell]) <span class="op">/</span> n)</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        lrvar <span class="op">+=</span> <span class="fl">2.0</span> <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">-</span> ell <span class="op">/</span> (lags <span class="op">+</span> <span class="fl">1.0</span>)) <span class="op">*</span> gamma</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(np.sqrt(<span class="bu">max</span>(lrvar, <span class="fl">0.0</span>) <span class="op">/</span> n))</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> inference_from_effect_path(effect_path, estimate):</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    se <span class="op">=</span> hac_se_mean(effect_path)</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> np.isfinite(se) <span class="kw">or</span> se <span class="op">&lt;=</span> <span class="dv">0</span>:</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {<span class="st">&quot;se&quot;</span>: np.nan, <span class="st">&quot;lo&quot;</span>: np.nan, <span class="st">&quot;hi&quot;</span>: np.nan, <span class="st">&quot;p&quot;</span>: np.nan}</span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    z <span class="op">=</span> estimate <span class="op">/</span> se</span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    p <span class="op">=</span> <span class="fl">2.0</span> <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">-</span> normal_cdf(<span class="bu">abs</span>(z)))</span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {<span class="st">&quot;se&quot;</span>: se, <span class="st">&quot;lo&quot;</span>: estimate <span class="op">-</span> <span class="fl">1.96</span> <span class="op">*</span> se, <span class="st">&quot;hi&quot;</span>: estimate <span class="op">+</span> <span class="fl">1.96</span> <span class="op">*</span> se, <span class="st">&quot;p&quot;</span>: p}</span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_placebo_distribution(case, estimator_fn, tau_to_add<span class="op">=</span><span class="fl">0.0</span>):</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    actual <span class="op">=</span> <span class="bu">set</span>(case.treated_units)</span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    donor_pool <span class="op">=</span> [i <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(case.panel.shape[<span class="dv">0</span>]) <span class="cf">if</span> i <span class="kw">not</span> <span class="kw">in</span> actual]</span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> []</span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> pseudo <span class="kw">in</span> donor_pool:</span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        sub_units <span class="op">=</span> [pseudo] <span class="op">+</span> [i <span class="cf">for</span> i <span class="kw">in</span> donor_pool <span class="cf">if</span> i <span class="op">!=</span> pseudo]</span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        sub_panel <span class="op">=</span> case.panel[sub_units].copy()</span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> tau_to_add <span class="op">!=</span> <span class="fl">0.0</span>:</span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>            sub_panel[<span class="dv">0</span>, case.t_pre:] <span class="op">+=</span> tau_to_add</span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>            out.append(<span class="bu">float</span>(estimator_fn(sub_panel, [<span class="dv">0</span>], case.t_pre).att))</span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">Exception</span>:</span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>            out.append(np.nan)</span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.asarray(out, dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> placebo_p_value(actual, placebo):</span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>    vals <span class="op">=</span> placebo[np.isfinite(placebo)]</span>
-<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(vals) <span class="op">==</span> <span class="dv">0</span>:</span>
-<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.nan</span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>((<span class="fl">1.0</span> <span class="op">+</span> np.<span class="bu">sum</span>(np.<span class="bu">abs</span>(vals) <span class="op">&gt;=</span> <span class="bu">abs</span>(actual))) <span class="op">/</span> (<span class="bu">len</span>(vals) <span class="op">+</span> <span class="fl">1.0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_placebo_distribution(case, estimator_fn, tau_to_add<span class="op">=</span><span class="fl">0.0</span>):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    actual <span class="op">=</span> <span class="bu">set</span>(case.treated_units)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    donor_pool <span class="op">=</span> [i <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(case.panel.shape[<span class="dv">0</span>]) <span class="cf">if</span> i <span class="kw">not</span> <span class="kw">in</span> actual]</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> []</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> pseudo <span class="kw">in</span> donor_pool:</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        sub_units <span class="op">=</span> [pseudo] <span class="op">+</span> [i <span class="cf">for</span> i <span class="kw">in</span> donor_pool <span class="cf">if</span> i <span class="op">!=</span> pseudo]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        sub_panel <span class="op">=</span> case.panel[sub_units].copy()</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> tau_to_add <span class="op">!=</span> <span class="fl">0.0</span>:</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>            sub_panel[<span class="dv">0</span>, case.t_pre:] <span class="op">+=</span> tau_to_add</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            out.append(<span class="bu">float</span>(estimator_fn(sub_panel, [<span class="dv">0</span>], case.t_pre).att))</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">Exception</span>:</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>            out.append(np.nan)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.asarray(out, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> placebo_p_value(actual, placebo):</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    vals <span class="op">=</span> placebo[np.isfinite(placebo)]</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(vals) <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.nan</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>((<span class="fl">1.0</span> <span class="op">+</span> np.<span class="bu">sum</span>(np.<span class="bu">abs</span>(vals) <span class="op">&gt;=</span> <span class="bu">abs</span>(actual))) <span class="op">/</span> (<span class="bu">len</span>(vals) <span class="op">+</span> <span class="fl">1.0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
 <section id="case-study-estimates" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="case-study-estimates"><span class="header-section-number">5</span> Case Study Estimates</h2>
-<div id="1dc7af33" class="cell" data-execution_count="5">
+<div id="8e548f16" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>case_results <span class="op">=</span> {}</span>
@@ -4680,49 +4645,42 @@ window.Quarto = {
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    case_results[case.key] <span class="op">=</span> {}</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, fn <span class="kw">in</span> ESTIMATORS:</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        est <span class="op">=</span> fn(case.panel, case.treated_units, case.t_pre)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        inf <span class="op">=</span> inference_from_effect_path(est.effect_path, est.att)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        placebo <span class="op">=</span> donor_placebo_distribution(case, fn)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        case_results[case.key][name] <span class="op">=</span> {</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;estimate&quot;</span>: est,</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;inference&quot;</span>: inf,</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;placebo&quot;</span>: placebo,</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;placebo_p&quot;</span>: placebo_p_value(est.att, placebo),</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        }</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> case <span class="kw">in</span> cases:</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, _ <span class="kw">in</span> ESTIMATORS:</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        item <span class="op">=</span> case_results[case.key][name]</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        est <span class="op">=</span> item[<span class="st">&quot;estimate&quot;</span>]</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        inf <span class="op">=</span> item[<span class="st">&quot;inference&quot;</span>]</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>        rows.append(</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>            [</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>                case.title,</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>                name,</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f&quot;</span><span class="sc">{</span>est<span class="sc">.</span>att<span class="sc">:.3f}</span><span class="ss">&quot;</span>,</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;&quot;</span> <span class="cf">if</span> est.pre_rmse <span class="kw">is</span> <span class="va">None</span> <span class="cf">else</span> <span class="ss">f&quot;</span><span class="sc">{</span>est<span class="sc">.</span>pre_rmse<span class="sc">:.3f}</span><span class="ss">&quot;</span>,</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f&quot;[</span><span class="sc">{</span>inf[<span class="st">&#39;lo&#39;</span>]<span class="sc">:.3f}</span><span class="ss">, </span><span class="sc">{</span>inf[<span class="st">&#39;hi&#39;</span>]<span class="sc">:.3f}</span><span class="ss">]&quot;</span> <span class="cf">if</span> np.isfinite(inf[<span class="st">&quot;lo&quot;</span>]) <span class="cf">else</span> <span class="st">&quot;--&quot;</span>,</span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f&quot;</span><span class="sc">{</span>inf[<span class="st">&#39;p&#39;</span>]<span class="sc">:.3f}</span><span class="ss">&quot;</span> <span class="cf">if</span> np.isfinite(inf[<span class="st">&quot;p&quot;</span>]) <span class="cf">else</span> <span class="st">&quot;--&quot;</span>,</span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f&quot;</span><span class="sc">{</span>item[<span class="st">&#39;placebo_p&#39;</span>]<span class="sc">:.3f}</span><span class="ss">&quot;</span> <span class="cf">if</span> np.isfinite(item[<span class="st">&quot;placebo_p&quot;</span>]) <span class="cf">else</span> <span class="st">&quot;--&quot;</span>,</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>            ]</span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>display(</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>            [</span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Case&quot;</span>,</span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Estimator&quot;</span>,</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;ATT&quot;</span>,</span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Pre RMSE&quot;</span>,</span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;HAC 95% CI&quot;</span>,</span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;HAC p&quot;</span>,</span>
-<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Donor-placebo p&quot;</span>,</span>
-<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>            ],</span>
-<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>            rows,</span>
-<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        placebo <span class="op">=</span> donor_placebo_distribution(case, fn)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        case_results[case.key][name] <span class="op">=</span> {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;estimate&quot;</span>: est,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;placebo&quot;</span>: placebo,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;placebo_p&quot;</span>: placebo_p_value(est.att, placebo),</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> case <span class="kw">in</span> cases:</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> name, _ <span class="kw">in</span> ESTIMATORS:</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        item <span class="op">=</span> case_results[case.key][name]</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        est <span class="op">=</span> item[<span class="st">&quot;estimate&quot;</span>]</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        rows.append(</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>            [</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>                case.title,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>                name,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f&quot;</span><span class="sc">{</span>est<span class="sc">.</span>att<span class="sc">:.3f}</span><span class="ss">&quot;</span>,</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;&quot;</span> <span class="cf">if</span> est.pre_rmse <span class="kw">is</span> <span class="va">None</span> <span class="cf">else</span> <span class="ss">f&quot;</span><span class="sc">{</span>est<span class="sc">.</span>pre_rmse<span class="sc">:.3f}</span><span class="ss">&quot;</span>,</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>                <span class="ss">f&quot;</span><span class="sc">{</span>item[<span class="st">&#39;placebo_p&#39;</span>]<span class="sc">:.3f}</span><span class="ss">&quot;</span> <span class="cf">if</span> np.isfinite(item[<span class="st">&quot;placebo_p&quot;</span>]) <span class="cf">else</span> <span class="st">&quot;--&quot;</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>            ]</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>display(</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    HTML(</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>        html_table(</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>            [</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Case&quot;</span>,</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Estimator&quot;</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;ATT&quot;</span>,</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Pre RMSE&quot;</span>,</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Donor-placebo p&quot;</span>,</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>            ],</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>            rows,</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -4732,8 +4690,6 @@ window.Quarto = {
 <th data-quarto-table-cell-role="th">Estimator</th>
 <th data-quarto-table-cell-role="th">ATT</th>
 <th data-quarto-table-cell-role="th">Pre RMSE</th>
-<th data-quarto-table-cell-role="th">HAC 95% CI</th>
-<th data-quarto-table-cell-role="th">HAC p</th>
 <th data-quarto-table-cell-role="th">Donor-placebo p</th>
 </tr>
 </thead>
@@ -4743,8 +4699,6 @@ window.Quarto = {
 <td>DID</td>
 <td>-0.431</td>
 <td></td>
-<td>[-0.708, -0.153]</td>
-<td>0.002</td>
 <td>0.412</td>
 </tr>
 <tr class="even">
@@ -4752,8 +4706,6 @@ window.Quarto = {
 <td>TWFE</td>
 <td>-0.431</td>
 <td></td>
-<td>[-0.708, -0.153]</td>
-<td>0.002</td>
 <td>0.412</td>
 </tr>
 <tr class="odd">
@@ -4761,8 +4713,6 @@ window.Quarto = {
 <td>Horizontal ridge</td>
 <td>-1.035</td>
 <td>0.057</td>
-<td>[-1.435, -0.636]</td>
-<td>0.000</td>
 <td>0.059</td>
 </tr>
 <tr class="even">
@@ -4770,8 +4720,6 @@ window.Quarto = {
 <td>Vertical ridge</td>
 <td>-0.806</td>
 <td></td>
-<td>[-1.156, -0.456]</td>
-<td>0.000</td>
 <td>0.118</td>
 </tr>
 <tr class="odd">
@@ -4779,26 +4727,20 @@ window.Quarto = {
 <td>Synthetic control</td>
 <td>-0.895</td>
 <td>0.076</td>
-<td>[-1.287, -0.502]</td>
-<td>0.000</td>
 <td>0.118</td>
 </tr>
 <tr class="even">
 <td>Basque Country GDP</td>
 <td>Synthetic DID</td>
-<td>-0.923</td>
+<td>-0.909</td>
 <td>0.068</td>
-<td>[-1.382, -0.465]</td>
-<td>0.000</td>
-<td>0.118</td>
+<td>0.059</td>
 </tr>
 <tr class="odd">
 <td>Basque Country GDP</td>
 <td>Matrix completion</td>
 <td>-0.589</td>
 <td>0.062</td>
-<td>[-0.859, -0.319]</td>
-<td>0.000</td>
 <td>0.176</td>
 </tr>
 <tr class="even">
@@ -4806,8 +4748,6 @@ window.Quarto = {
 <td>DID</td>
 <td>-27.349</td>
 <td></td>
-<td>[-34.817, -19.882]</td>
-<td>0.000</td>
 <td>0.103</td>
 </tr>
 <tr class="odd">
@@ -4815,8 +4755,6 @@ window.Quarto = {
 <td>TWFE</td>
 <td>-27.349</td>
 <td></td>
-<td>[-34.817, -19.882]</td>
-<td>0.000</td>
 <td>0.103</td>
 </tr>
 <tr class="even">
@@ -4824,8 +4762,6 @@ window.Quarto = {
 <td>Horizontal ridge</td>
 <td>-15.756</td>
 <td>0.002</td>
-<td>[-20.908, -10.603]</td>
-<td>0.000</td>
 <td>0.308</td>
 </tr>
 <tr class="odd">
@@ -4833,8 +4769,6 @@ window.Quarto = {
 <td>Vertical ridge</td>
 <td>-15.454</td>
 <td></td>
-<td>[-20.269, -10.640]</td>
-<td>0.000</td>
 <td>0.205</td>
 </tr>
 <tr class="even">
@@ -4842,26 +4776,20 @@ window.Quarto = {
 <td>Synthetic control</td>
 <td>-18.998</td>
 <td>2.400</td>
-<td>[-24.454, -13.543]</td>
-<td>0.000</td>
 <td>0.077</td>
 </tr>
 <tr class="odd">
 <td>California Proposition 99</td>
 <td>Synthetic DID</td>
-<td>-11.321</td>
+<td>-10.925</td>
 <td>0.958</td>
-<td>[-15.564, -7.078]</td>
-<td>0.000</td>
-<td>0.282</td>
+<td>0.256</td>
 </tr>
 <tr class="even">
 <td>California Proposition 99</td>
 <td>Matrix completion</td>
 <td>-20.082</td>
 <td>1.105</td>
-<td>[-27.588, -12.576]</td>
-<td>0.000</td>
 <td>0.103</td>
 </tr>
 </tbody>
@@ -4871,7 +4799,7 @@ window.Quarto = {
 </section>
 <section id="outcome-paths-and-gaps" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="outcome-paths-and-gaps"><span class="header-section-number">6</span> Outcome Paths And Gaps</h2>
-<div id="df811372" class="cell" data-fig-height="7.4" data-fig-width="10" data-execution_count="6">
+<div id="dc9e337d" class="cell" data-fig-height="7.4" data-fig-width="10" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>plot_methods <span class="op">=</span> [<span class="st">&quot;Horizontal ridge&quot;</span>, <span class="st">&quot;Synthetic control&quot;</span>, <span class="st">&quot;Synthetic DID&quot;</span>, <span class="st">&quot;Matrix completion&quot;</span>]</span>
@@ -4932,7 +4860,7 @@ window.Quarto = {
 <section id="semi-synthetic-placebo-simulation" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="semi-synthetic-placebo-simulation"><span class="header-section-number">7</span> Semi-Synthetic Placebo Simulation</h2>
 <p>This simulation keeps the empirical donor panels intact. For each case and each donor unit, we temporarily declare that donor treated, remove the real treated unit from the donor pool, add a known post-treatment effect, and rerun every estimator. This is not a universal Monte Carlo; it is a compact stress test of the estimator/inference code on the two empirical designs used above.</p>
-<div id="74086ae3" class="cell" data-execution_count="7">
+<div id="b9b2ee96" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_turn_simulation(case):</span>
@@ -5052,10 +4980,10 @@ window.Quarto = {
 <td>Synthetic DID</td>
 <td>16</td>
 <td>-0.75</td>
-<td>-0.715</td>
-<td>+0.035</td>
-<td>0.415</td>
-<td>0.164</td>
+<td>-0.734</td>
+<td>+0.016</td>
+<td>0.270</td>
+<td>0.153</td>
 </tr>
 <tr class="odd">
 <td>Basque Country GDP</td>
@@ -5122,10 +5050,10 @@ window.Quarto = {
 <td>Synthetic DID</td>
 <td>38</td>
 <td>-15.00</td>
-<td>-14.923</td>
-<td>+0.077</td>
-<td>10.128</td>
-<td>6.848</td>
+<td>-14.685</td>
+<td>+0.315</td>
+<td>10.020</td>
+<td>6.688</td>
 </tr>
 <tr class="even">
 <td>California Proposition 99</td>
