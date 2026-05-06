@@ -377,3 +377,9 @@ That is the current state the next extension branch should assume.
 - The vignette builds balanced `Y` and absorbing `W` matrices, fits `HorizontalPanelRidge`, `MatrixCompletion`, and `SyntheticDID` via `fit(Y, W)`, and plots the resulting weighted event-study summaries.
 - It also uses local-docs-only `pyfixest` to compare a vanilla binned TWFE event study with a saturated/Sun-Abraham-style event study; no package dependency metadata was added.
 - The page includes explicit source code for each panel of the combined adoption/event-study figure.
+
+## 2026-05-03: SyntheticDID time-weight ATT patch
+
+- Patched `SyntheticDID` so scalar `summary()["att"]` uses the cohort-specific synthetic difference-in-differences matrix contrast from the local `synthlearners/notebooks/cvxpy_reference.ipynb` reference: unit weights `[-omega, 1/N1]` and time weights `[-lambda, 1/T1]`.
+- Kept `counterfactual`, `treatment_effect`, and `event_study` as the period-by-period unit-weighted synthetic-control gap path; time weights now enter the scalar ATT rather than rewriting the plotted dynamic path.
+- Added a regression test where the SDID ATT differs from the plain post-treatment synthetic-control gap average.

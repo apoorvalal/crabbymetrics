@@ -148,7 +148,7 @@ plt.show()
 
 ## Fit The crabbymetrics Panel Estimators
 
-`HorizontalPanelRidge`, `MatrixCompletion`, and `SyntheticDID` all consume the same `(Y, W)` matrices and expose fitted summaries with `att`, `counterfactual`, `treatment_effect`, `group_means`, and `event_study` entries.
+`HorizontalPanelRidge`, `MatrixCompletion`, and `SyntheticDID` all consume the same `(Y, W)` matrices and expose fitted summaries with `att`, `counterfactual`, `treatment_effect`, `group_means`, and `event_study` entries. For `SyntheticDID`, the event-study path is the period-by-period unit-weighted synthetic-control gap path; the time weights enter the scalar SDID `att` through the before/after contrast.
 
 ```{python}
 crabby_estimators = {
@@ -451,4 +451,4 @@ fig.text(
 plt.show()
 ```
 
-The matrix estimators and the TWFE variants are not estimating identical objects. The matrix estimators use a balanced-panel counterfactual surface and summarize treated-cell effects. The vanilla TWFE event study imposes a pooled dynamic specification with unit and year fixed effects. The saturated pyfixest event study allows cohort-by-event-time heterogeneity before aggregating back to event time.
+The matrix estimators and the TWFE variants are not estimating identical objects. The matrix estimators use a balanced-panel counterfactual surface and summarize treated-cell effects. For `SyntheticDID`, the plotted event-study gaps come from the unit-weighted synthetic-control path, while the reported scalar ATT also uses the fitted pre-period time weights. The vanilla TWFE event study imposes a pooled dynamic specification with unit and year fixed effects. The saturated pyfixest event study allows cohort-by-event-time heterogeneity before aggregating back to event time.

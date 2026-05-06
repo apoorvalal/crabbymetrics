@@ -2477,6 +2477,8 @@ impl SyntheticDID {
         let mut time_intercepts = Array1::<f64>::zeros(n_cohorts);
         let mut zeta_omegas = Array1::<f64>::zeros(n_cohorts);
         let mut zeta_lambdas = Array1::<f64>::zeros(n_cohorts);
+        let mut att_sum = 0.0;
+        let mut att_weight = 0.0;
 
         for (c_idx, cohort) in treatment_info.cohorts.iter().enumerate() {
             let treated_units = cohort_units(&treatment_info, *cohort);
@@ -2542,6 +2544,25 @@ impl SyntheticDID {
             let control_panel = y.select(Axis(0), control_units);
             let cohort_counterfactual = control_panel.t().dot(&unit_weights) + unit_intercept;
 
+            let mut unit_weight_vec = Array1::<f64>::zeros(n_control + n_treated);
+            for j in 0..n_control {
+                unit_weight_vec[j] = -unit_weights[j];
+            }
+            for j in 0..n_treated {
+                unit_weight_vec[n_control + j] = 1.0 / n_treated as f64;
+            }
+            let mut time_weight_vec = Array1::<f64>::zeros(n_periods);
+            for t in 0..t_pre {
+                time_weight_vec[t] = -lambda_weights[t];
+            }
+            for t in t_pre..n_periods {
+                time_weight_vec[t] = 1.0 / t_post as f64;
+            }
+            let cohort_att = unit_weight_vec.dot(&y_reordered.dot(&time_weight_vec));
+            let cohort_weight = (n_treated * t_post) as f64;
+            att_sum += cohort_att * cohort_weight;
+            att_weight += cohort_weight;
+
             for (j, unit) in control_units.iter().enumerate() {
                 unit_weight_mat[[c_idx, *unit]] = unit_weights[j];
             }
@@ -2561,7 +2582,11 @@ impl SyntheticDID {
             }
         }
 
-        let att = panel_att_from_effects(&w, &treatment_effect);
+        let att = if att_weight > 0.0 {
+            att_sum / att_weight
+        } else {
+            f64::NAN
+        };
         let pre_rmse = panel_group_pre_rmse(&treatment_effect, &treatment_info);
 
         self.att = Some(att);

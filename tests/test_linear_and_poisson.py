@@ -1066,6 +1066,39 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
     np.testing.assert_allclose(summary["att"], unit_vec @ y_reordered @ time_vec, atol=1e-10)
 
 
+def test_synthetic_did_att_uses_time_weights_not_post_gap_average():
+    panel = np.array(
+        [
+            [0.12573022, -0.13210486, 0.64042265, 0.10490012, -0.53566937, 0.36159505, 1.30400005],
+            [0.94708096, -0.70373524, -1.26542147, -0.62327446, 0.04132598, -2.32503077, -0.21879166],
+            [-1.24591095, -0.73226735, -0.54425898, -0.31630016, 0.41163054, 1.04251337, -0.12853466],
+            [1.36646347, -0.66519467, 0.35151007, 0.90347018, 0.09401230, -0.74349925, -0.92172538],
+            [-0.45772583, 0.22019512, -1.00961818, -0.20917557, 1.84077499, 2.54084558, 2.21465912],
+        ]
+    )
+    t_pre = 4
+    w = np.zeros_like(panel)
+    w[-1, t_pre:] = 1.0
+
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=3000)
+    model.fit(panel, w)
+    summary = model.summary()
+
+    control_units = np.asarray(summary["control_units"])
+    treated_units = np.asarray(summary["treated_units"])
+    unit_weights = np.asarray(summary["unit_weights"])[0, control_units]
+    time_weights = np.asarray(summary["time_weights"])[0, :t_pre]
+    y_reordered = np.vstack([panel[control_units], panel[treated_units]])
+    unit_vec = np.r_[-unit_weights, np.ones(treated_units.size) / treated_units.size]
+    time_vec = np.r_[-time_weights, np.ones(panel.shape[1] - t_pre) / (panel.shape[1] - t_pre)]
+
+    sdid_att = unit_vec @ y_reordered @ time_vec
+    post_gap_average = np.nanmean(np.asarray(summary["treatment_effect"])[w == 1])
+
+    np.testing.assert_allclose(summary["att"], sdid_att, atol=1e-10)
+    assert abs(summary["att"] - post_gap_average) > 0.2
+
+
 def test_synthetic_did_rejects_bad_panel_inputs():
     panel = np.ones((4, 5))
     model = cm.SyntheticDID()
