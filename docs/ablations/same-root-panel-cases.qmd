@@ -23,7 +23,7 @@ This cached ablation puts that idea into one reproducible page for two canonical
 - the Basque Country GDP case from Abadie and Gardeazabal;
 - the California Proposition 99 tobacco case from Abadie, Diamond, and Hainmueller.
 
-For each case, the page runs the same panel through DID/TWFE, horizontal ridge prediction, vertical ridge prediction, synthetic control, synthetic DID, and matrix completion. It then reports a donor-placebo $p$-value that treats the donor pool as the relevant comparison population.
+For each case, the page runs the same panel through DID/TWFE, horizontal ridge prediction, vertical ridge prediction, synthetic control, synthetic DID, and matrix completion. It then reports the relevant placebo standard error and donor-placebo $p$-value that treat the donor pool as the comparison population, while leaving bootstrap/jackknife entries null where they are not meaningful for the design.
 
 The final section runs a small semi-synthetic placebo simulation on the two real donor panels: each donor takes a turn as the treated unit, a known effect is added after the historical treatment date, and the estimators are scored against that known truth.
 
@@ -286,7 +286,7 @@ def estimate_sc(panel, treated_units, t_pre):
 
 
 def estimate_sdid(panel, treated_units, t_pre):
-    model = cm.SyntheticDID(zeta_omega=1e-8, zeta_lambda=1e-8, max_iterations=1200)
+    model = cm.SyntheticDID(max_iterations=5000)
     model.fit(panel, treatment_matrix(panel, treated_units, t_pre))
     summary = model.summary()
     y0_hat = panel_counterfactual_mean(summary, treated_units)
@@ -318,7 +318,7 @@ ESTIMATORS = [
 
 ## Inference Helper
 
-The **donor-placebo $p$-value** rotates treatment across donor units at the same intervention date and compares the realized estimate with that placebo distribution.
+The **donor-placebo standard error and $p$-value** rotate treatment across donor units at the same intervention date and compare the realized estimate with that placebo distribution. Bootstrap and jackknife columns are kept explicit in the summary table, but are left null where that inferential leaf is not meaningful or not exposed for the estimator. In particular, both case studies have a single treated unit/group, so SDID's bootstrap and jackknife SEs are undefined; placebo is the relevant SDID inference method here.
 
 ```{python}
 def donor_placebo_distribution(case, estimator_fn, tau_to_add=0.0):
@@ -337,11 +337,30 @@ def donor_placebo_distribution(case, estimator_fn, tau_to_add=0.0):
     return np.asarray(out, dtype=float)
 
 
+def placebo_standard_error(placebo):
+    vals = placebo[np.isfinite(placebo)]
+    if len(vals) <= 1:
+        return np.nan
+    return float(np.std(vals, ddof=1))
+
+
 def placebo_p_value(actual, placebo):
     vals = placebo[np.isfinite(placebo)]
     if len(vals) == 0:
         return np.nan
     return float((1.0 + np.sum(np.abs(vals) >= abs(actual))) / (len(vals) + 1.0))
+
+
+def format_number(value):
+    return f"{value:.3f}" if np.isfinite(value) else "--"
+
+
+def inference_summary(name, placebo):
+    return {
+        "bootstrap_se": np.nan,
+        "jackknife_se": np.nan,
+        "placebo_se": placebo_standard_error(placebo),
+    }
 ```
 
 ## Case Study Estimates
@@ -356,6 +375,7 @@ for case in cases:
         case_results[case.key][name] = {
             "estimate": est,
             "placebo": placebo,
+            "inference": inference_summary(name, placebo),
             "placebo_p": placebo_p_value(est.att, placebo),
         }
 
@@ -364,13 +384,17 @@ for case in cases:
     for name, _ in ESTIMATORS:
         item = case_results[case.key][name]
         est = item["estimate"]
+        inf = item["inference"]
         rows.append(
             [
                 case.title,
                 name,
                 f"{est.att:.3f}",
                 "" if est.pre_rmse is None else f"{est.pre_rmse:.3f}",
-                f"{item['placebo_p']:.3f}" if np.isfinite(item["placebo_p"]) else "--",
+                format_number(inf["bootstrap_se"]),
+                format_number(inf["jackknife_se"]),
+                format_number(inf["placebo_se"]),
+                format_number(item["placebo_p"]),
             ]
         )
 
@@ -382,6 +406,9 @@ display(
                 "Estimator",
                 "ATT",
                 "Pre RMSE",
+                "Bootstrap SE",
+                "Jackknife SE",
+                "Placebo SE",
                 "Donor-placebo p",
             ],
             rows,
@@ -499,6 +526,6 @@ display(
 
 ## Reading The Results
 
-The Basque and California panels are small enough that no single inferential convention should be treated as dispositive. That is exactly the Shen-Ding-Sekhon-Yu lesson. A time-series interval asks whether the estimated post-treatment gap is stable over post-treatment years. A donor-placebo $p$-value asks whether the treated unit looks unusual relative to donor units assigned the same historical intervention date.
+The Basque and California panels are small enough that no single inferential convention should be treated as dispositive. That is exactly the Shen-Ding-Sekhon-Yu lesson. The table therefore keeps unavailable bootstrap/jackknife leaves null and reports the donor-placebo leaf where it is relevant. For SDID in these two single-treated-unit designs, that means placebo inference only. A donor-placebo standard error or $p$-value asks whether the treated unit looks unusual relative to donor units assigned the same historical intervention date.
 
 The semi-synthetic donor-turn simulation is the sanity check: when the true effect is known and injected into real donor paths, the matching and matrix-completion leaves usually beat raw DID/TWFE when pre-treatment factor mismatch is important, but their placebo inference remains limited by the size and quality of the donor pool. In other words, the estimators and the inference really are leaves from the same root, not interchangeable black boxes.
