@@ -819,33 +819,25 @@ fn sdid_sigma_estimator(y_reordered: &Array2<f64>, n_control: usize, t_pre: usiz
         return 0.0;
     }
 
-    let mut row_std = Vec::with_capacity(n_control);
+    let mut diffs = Vec::with_capacity(n_control * (t_pre - 1));
     for i in 0..n_control {
-        let mut diffs = Vec::with_capacity(t_pre - 1);
         for t in 1..t_pre {
             diffs.push(y_reordered[[i, t]] - y_reordered[[i, t - 1]]);
         }
-        let mean = diffs.iter().sum::<f64>() / diffs.len() as f64;
-        let var = diffs
-            .iter()
-            .map(|value| {
-                let centered = *value - mean;
-                centered * centered
-            })
-            .sum::<f64>()
-            / diffs.len() as f64;
-        row_std.push(var.sqrt());
+    }
+    if diffs.len() < 2 {
+        return 0.0;
     }
 
-    let mean = row_std.iter().sum::<f64>() / row_std.len() as f64;
-    let var = row_std
+    let mean = diffs.iter().sum::<f64>() / diffs.len() as f64;
+    let var = diffs
         .iter()
         .map(|value| {
             let centered = *value - mean;
             centered * centered
         })
         .sum::<f64>()
-        / row_std.len() as f64;
+        / (diffs.len() - 1) as f64;
     var.sqrt()
 }
 

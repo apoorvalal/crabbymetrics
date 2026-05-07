@@ -1069,6 +1069,21 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
     np.testing.assert_allclose(summary["att"], unit_vec @ y_reordered @ time_vec, atol=1e-10)
 
 
+def test_synthetic_did_default_zeta_matches_synthdid_first_difference_sd():
+    y, w = make_synthetic_did_panel(n_control=5, n_treated=2, t_pre=6, t_post=3, seed=995)
+    model = cm.SyntheticDID(max_iterations=800)
+    model.fit(y, w)
+    summary = model.summary()
+
+    control_pre = y[:5, :6]
+    sigma = np.diff(control_pre, axis=1).ravel().std(ddof=1)
+    expected_zeta_omega = (2 * 3) ** 0.25 * sigma
+    expected_zeta_lambda = 1e-6 * sigma
+
+    np.testing.assert_allclose(summary["zeta_omega"], [expected_zeta_omega], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(summary["zeta_lambda"], [expected_zeta_lambda], rtol=1e-10, atol=1e-10)
+
+
 def test_synthetic_did_att_uses_time_weights_not_post_gap_average():
     panel = np.array(
         [
