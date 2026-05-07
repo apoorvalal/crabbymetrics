@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -1134,6 +1136,25 @@ def test_synthetic_did_rejects_bad_panel_inputs():
         model.fit(panel, bad)
 
 
+def load_prop99_panel():
+    data_path = Path(__file__).resolve().parents[1] / "docs" / "data" / "california_prop99.csv"
+    data = np.genfromtxt(data_path, delimiter=";", names=True, dtype=None, encoding="utf-8")
+    states = np.array(sorted(np.unique(data["State"])))
+    years = np.array(sorted(np.unique(data["Year"])))
+    state_index = {state: i for i, state in enumerate(states)}
+    year_index = {year: i for i, year in enumerate(years)}
+    y = np.zeros((len(states), len(years)))
+    w = np.zeros_like(y)
+    for row in data:
+        i = state_index[row["State"]]
+        t = year_index[row["Year"]]
+        y[i, t] = row["PacksPerCapita"]
+        w[i, t] = row["treated"]
+    treated = w.sum(axis=1) > 0
+    order = np.r_[np.where(~treated)[0], np.where(treated)[0]]
+    return y[order], w[order]
+
+
 def make_synthetic_did_panel(n_control=8, n_treated=3, t_pre=8, t_post=4, seed=991):
     rng = np.random.default_rng(seed)
     n_periods = t_pre + t_post
@@ -1162,6 +1183,25 @@ def make_synthetic_did_panel(n_control=8, n_treated=3, t_pre=8, t_post=4, seed=9
     w = np.zeros_like(y)
     w[n_control:, t_pre:] = 1.0
     return y, w
+
+
+def test_synthetic_did_prop99_matches_synthdid_readme_point_and_placebo_scale():
+    y, w = load_prop99_panel()
+    model = cm.SyntheticDID(max_iterations=5000)
+    model.fit(y, w)
+
+    # Reference: R synthdid README's california_prop99 panel_estimate table.
+    # The placebo SE is Monte Carlo, so this pins the inference scale with a
+    # small deterministic replication count rather than requiring exact R RNG parity.
+    np.testing.assert_allclose(model.summary()["att"], -15.6038278727, atol=0.01, rtol=0.0)
+    placebo_se = model.se("placebo", replications=40, seed=123)
+    np.testing.assert_allclose(placebo_se, 9.647, atol=1.25, rtol=0.0)
+    np.testing.assert_allclose(
+        np.asarray(model.vcov("placebo", replications=40, seed=123))[0, 0],
+        placebo_se**2,
+        atol=1e-10,
+        rtol=1e-10,
+    )
 
 
 def test_synthetic_did_vcov_bootstrap_and_jackknife_shape_seeded():
