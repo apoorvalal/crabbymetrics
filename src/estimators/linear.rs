@@ -13,6 +13,9 @@ use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
+use rand::SeedableRng;
 use within::{Solver as WithinSolver, SolverParams as WithinSolverParams};
 
 struct FixedEffectsOlsFitResult {
@@ -816,33 +819,25 @@ fn sdid_sigma_estimator(y_reordered: &Array2<f64>, n_control: usize, t_pre: usiz
         return 0.0;
     }
 
-    let mut row_std = Vec::with_capacity(n_control);
+    let mut diffs = Vec::with_capacity(n_control * (t_pre - 1));
     for i in 0..n_control {
-        let mut diffs = Vec::with_capacity(t_pre - 1);
         for t in 1..t_pre {
             diffs.push(y_reordered[[i, t]] - y_reordered[[i, t - 1]]);
         }
-        let mean = diffs.iter().sum::<f64>() / diffs.len() as f64;
-        let var = diffs
-            .iter()
-            .map(|value| {
-                let centered = *value - mean;
-                centered * centered
-            })
-            .sum::<f64>()
-            / diffs.len() as f64;
-        row_std.push(var.sqrt());
+    }
+    if diffs.len() < 2 {
+        return 0.0;
     }
 
-    let mean = row_std.iter().sum::<f64>() / row_std.len() as f64;
-    let var = row_std
+    let mean = diffs.iter().sum::<f64>() / diffs.len() as f64;
+    let var = diffs
         .iter()
         .map(|value| {
             let centered = *value - mean;
             centered * centered
         })
         .sum::<f64>()
-        / row_std.len() as f64;
+        / (diffs.len() - 1) as f64;
     var.sqrt()
 }
 
@@ -857,9 +852,6 @@ struct PanelTreatmentInfo {
 struct PanelEventSummary {
     event_time: Array1<f64>,
     estimate: Array1<f64>,
-    std_error: Array1<f64>,
-    lower: Array1<f64>,
-    upper: Array1<f64>,
     n: Array1<f64>,
 }
 
@@ -974,24 +966,6 @@ fn finite_mean(values: &[f64]) -> f64 {
     }
 }
 
-fn standard_error(values: &[f64]) -> f64 {
-    let finite: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
-    let n = finite.len();
-    if n <= 1 {
-        return f64::NAN;
-    }
-    let mean = finite.iter().sum::<f64>() / n as f64;
-    let var = finite
-        .iter()
-        .map(|value| {
-            let centered = *value - mean;
-            centered * centered
-        })
-        .sum::<f64>()
-        / ((n - 1) as f64);
-    (var / n as f64).sqrt()
-}
-
 fn event_summary_from_groups(rows: &[(i64, f64, f64)]) -> PanelEventSummary {
     let mut event_times: Vec<i64> = rows.iter().map(|row| row.0).collect();
     event_times.sort_unstable();
@@ -999,9 +973,6 @@ fn event_summary_from_groups(rows: &[(i64, f64, f64)]) -> PanelEventSummary {
 
     let mut out_event = Vec::with_capacity(event_times.len());
     let mut out_est = Vec::with_capacity(event_times.len());
-    let mut out_se = Vec::with_capacity(event_times.len());
-    let mut out_lo = Vec::with_capacity(event_times.len());
-    let mut out_hi = Vec::with_capacity(event_times.len());
     let mut out_n = Vec::with_capacity(event_times.len());
 
     for event in event_times {
@@ -1024,29 +995,14 @@ fn event_summary_from_groups(rows: &[(i64, f64, f64)]) -> PanelEventSummary {
         } else {
             f64::NAN
         };
-        let se = standard_error(&values);
         out_event.push(event as f64);
         out_est.push(estimate);
-        out_se.push(se);
-        out_lo.push(if se.is_finite() {
-            estimate - 1.96 * se
-        } else {
-            f64::NAN
-        });
-        out_hi.push(if se.is_finite() {
-            estimate + 1.96 * se
-        } else {
-            f64::NAN
-        });
         out_n.push(total_weight);
     }
 
     PanelEventSummary {
         event_time: Array1::from_vec(out_event),
         estimate: Array1::from_vec(out_est),
-        std_error: Array1::from_vec(out_se),
-        lower: Array1::from_vec(out_lo),
-        upper: Array1::from_vec(out_hi),
         n: Array1::from_vec(out_n),
     }
 }
@@ -1113,9 +1069,6 @@ fn event_summary_to_dict<'py>(
     let dict = PyDict::new(py);
     dict.set_item("event_time", pyarray1_from_f64(py, &summary.event_time))?;
     dict.set_item("estimate", pyarray1_from_f64(py, &summary.estimate))?;
-    dict.set_item("std_error", pyarray1_from_f64(py, &summary.std_error))?;
-    dict.set_item("lower", pyarray1_from_f64(py, &summary.lower))?;
-    dict.set_item("upper", pyarray1_from_f64(py, &summary.upper))?;
     dict.set_item("n", pyarray1_from_f64(py, &summary.n))?;
     Ok(dict)
 }
@@ -2427,6 +2380,319 @@ impl SyntheticControl {
     }
 }
 
+struct SyntheticDidFitResult {
+    att: f64,
+    unit_weights: Array2<f64>,
+    time_weights: Array2<f64>,
+    counterfactual: Array2<f64>,
+    treatment_effect: Array2<f64>,
+    pre_rmse: f64,
+    unit_intercept: Array1<f64>,
+    time_intercept: Array1<f64>,
+    fitted_zeta_omega: Array1<f64>,
+    fitted_zeta_lambda: Array1<f64>,
+    control_units: Vec<usize>,
+    treated_units: Vec<usize>,
+    cohorts: Vec<usize>,
+    treatment_info: PanelTreatmentInfo,
+}
+
+fn fit_synthetic_did_panel(
+    y: &Array2<f64>,
+    w: &Array2<f64>,
+    zeta_omega_opt: Option<f64>,
+    zeta_lambda_opt: Option<f64>,
+    max_iterations: u64,
+) -> PyResult<SyntheticDidFitResult> {
+    let treatment_info = infer_panel_treatment(y, w)?;
+    ensure_panel_has_never_treated(&treatment_info)?;
+    if treatment_info.cohorts.iter().any(|cohort| *cohort == 0) {
+        return Err(PyValueError::new_err(
+            "SyntheticDID needs at least one pre-treatment period for every treated cohort",
+        ));
+    }
+
+    let n_units = y.nrows();
+    let n_periods = y.ncols();
+    let n_cohorts = treatment_info.cohorts.len();
+    let mut counterfactual = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
+    let mut treatment_effect = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
+    let mut unit_weight_mat = Array2::<f64>::zeros((n_cohorts, n_units));
+    let mut time_weight_mat = Array2::<f64>::zeros((n_cohorts, n_periods));
+    let mut unit_intercepts = Array1::<f64>::zeros(n_cohorts);
+    let mut time_intercepts = Array1::<f64>::zeros(n_cohorts);
+    let mut zeta_omegas = Array1::<f64>::zeros(n_cohorts);
+    let mut zeta_lambdas = Array1::<f64>::zeros(n_cohorts);
+    let mut att_sum = 0.0;
+    let mut att_weight = 0.0;
+
+    for (c_idx, cohort) in treatment_info.cohorts.iter().enumerate() {
+        let treated_units = cohort_units(&treatment_info, *cohort);
+        let control_units = &treatment_info.never_treated;
+        let mut order = control_units.clone();
+        order.extend_from_slice(&treated_units);
+        let y_reordered = y.select(Axis(0), &order);
+        let n_control = control_units.len();
+        let n_treated = treated_units.len();
+        let t_pre = *cohort;
+        let t_post = n_periods - t_pre;
+
+        let sigma = sdid_sigma_estimator(&y_reordered, n_control, t_pre);
+        let zeta_omega = match zeta_omega_opt {
+            Some(value) if value.is_finite() && value >= 0.0 => value,
+            Some(_) => {
+                return Err(PyValueError::new_err(
+                    "zeta_omega must be finite and nonnegative",
+                ))
+            }
+            None => ((n_treated * t_post) as f64).powf(0.25) * sigma,
+        };
+        let zeta_lambda = match zeta_lambda_opt {
+            Some(value) if value.is_finite() && value >= 0.0 => value,
+            Some(_) => {
+                return Err(PyValueError::new_err(
+                    "zeta_lambda must be finite and nonnegative",
+                ))
+            }
+            None => 1e-6 * sigma,
+        };
+
+        let y_control_pre = y_reordered.slice(s![0..n_control, 0..t_pre]).to_owned();
+        let y_control_post = y_reordered.slice(s![0..n_control, t_pre..]).to_owned();
+        let y_treated_pre = y_reordered.slice(s![n_control.., 0..t_pre]).to_owned();
+
+        let control_post_mean = y_control_post
+            .mean_axis(Axis(1))
+            .ok_or_else(|| PyValueError::new_err("failed to average control post outcomes"))?;
+        let treated_pre_mean = y_treated_pre
+            .mean_axis(Axis(0))
+            .ok_or_else(|| PyValueError::new_err("failed to average treated pre outcomes"))?;
+
+        let lambda_weights = fit_simplex_least_squares_weights(
+            &y_control_pre,
+            &control_post_mean,
+            zeta_lambda,
+            true,
+            max_iterations,
+        )?;
+        let omega_design = y_control_pre.t().to_owned();
+        let unit_weights = fit_simplex_least_squares_weights(
+            &omega_design,
+            &treated_pre_mean,
+            zeta_omega,
+            true,
+            max_iterations,
+        )?;
+
+        let unit_intercept = simplex_intercept(&omega_design, &treated_pre_mean, &unit_weights);
+        let time_intercept = simplex_intercept(&y_control_pre, &control_post_mean, &lambda_weights);
+        let control_panel = y.select(Axis(0), control_units);
+        let cohort_counterfactual = control_panel.t().dot(&unit_weights) + unit_intercept;
+
+        let mut unit_weight_vec = Array1::<f64>::zeros(n_control + n_treated);
+        for j in 0..n_control {
+            unit_weight_vec[j] = -unit_weights[j];
+        }
+        for j in 0..n_treated {
+            unit_weight_vec[n_control + j] = 1.0 / n_treated as f64;
+        }
+        let mut time_weight_vec = Array1::<f64>::zeros(n_periods);
+        for t in 0..t_pre {
+            time_weight_vec[t] = -lambda_weights[t];
+        }
+        for t in t_pre..n_periods {
+            time_weight_vec[t] = 1.0 / t_post as f64;
+        }
+        let cohort_att = unit_weight_vec.dot(&y_reordered.dot(&time_weight_vec));
+        let cohort_weight = (n_treated * t_post) as f64;
+        att_sum += cohort_att * cohort_weight;
+        att_weight += cohort_weight;
+
+        for (j, unit) in control_units.iter().enumerate() {
+            unit_weight_mat[[c_idx, *unit]] = unit_weights[j];
+        }
+        for t in 0..t_pre {
+            time_weight_mat[[c_idx, t]] = lambda_weights[t];
+        }
+        unit_intercepts[c_idx] = unit_intercept;
+        time_intercepts[c_idx] = time_intercept;
+        zeta_omegas[c_idx] = zeta_omega;
+        zeta_lambdas[c_idx] = zeta_lambda;
+
+        for unit in treated_units {
+            for t in 0..n_periods {
+                counterfactual[[unit, t]] = cohort_counterfactual[t];
+                treatment_effect[[unit, t]] = y[[unit, t]] - cohort_counterfactual[t];
+            }
+        }
+    }
+
+    let att = if att_weight > 0.0 {
+        att_sum / att_weight
+    } else {
+        f64::NAN
+    };
+    let pre_rmse = panel_group_pre_rmse(&treatment_effect, &treatment_info);
+    Ok(SyntheticDidFitResult {
+        att,
+        unit_weights: unit_weight_mat,
+        time_weights: time_weight_mat,
+        counterfactual,
+        treatment_effect,
+        pre_rmse,
+        unit_intercept: unit_intercepts,
+        time_intercept: time_intercepts,
+        fitted_zeta_omega: zeta_omegas,
+        fitted_zeta_lambda: zeta_lambdas,
+        control_units: treatment_info.never_treated.clone(),
+        treated_units: treatment_info.ever_treated.clone(),
+        cohorts: treatment_info.cohorts.clone(),
+        treatment_info,
+    })
+}
+
+fn finite_sample_sd(values: &[f64]) -> f64 {
+    let finite: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    let n = finite.len();
+    if n <= 1 {
+        return f64::NAN;
+    }
+    let mean = finite.iter().sum::<f64>() / n as f64;
+    let var = finite
+        .iter()
+        .map(|value| {
+            let centered = *value - mean;
+            centered * centered
+        })
+        .sum::<f64>()
+        / ((n - 1) as f64);
+    var.sqrt()
+}
+
+fn sdid_bootstrap_se(
+    y: &Array2<f64>,
+    w: &Array2<f64>,
+    zeta_omega: Option<f64>,
+    zeta_lambda: Option<f64>,
+    max_iterations: u64,
+    replications: usize,
+    seed: Option<u64>,
+) -> PyResult<f64> {
+    if replications < 2 {
+        return Err(PyValueError::new_err("replications must be at least 2"));
+    }
+    let info = infer_panel_treatment(y, w)?;
+    if info.ever_treated.len() == 1 {
+        return Ok(f64::NAN);
+    }
+    let idxs = bootstrap_indices(y.nrows(), replications, seed);
+    let mut estimates = Vec::new();
+    for idx in idxs {
+        let y_b = take_rows(y, &idx);
+        let w_b = take_rows(w, &idx);
+        if let Ok(fit) =
+            fit_synthetic_did_panel(&y_b, &w_b, zeta_omega, zeta_lambda, max_iterations)
+        {
+            if fit.att.is_finite() {
+                estimates.push(fit.att);
+            }
+        }
+    }
+    if estimates.len() <= 1 {
+        return Ok(f64::NAN);
+    }
+    Ok(((replications as f64 - 1.0) / replications as f64).sqrt() * finite_sample_sd(&estimates))
+}
+
+fn sdid_jackknife_se(
+    y: &Array2<f64>,
+    w: &Array2<f64>,
+    zeta_omega: Option<f64>,
+    zeta_lambda: Option<f64>,
+    max_iterations: u64,
+) -> PyResult<f64> {
+    let info = infer_panel_treatment(y, w)?;
+    if info.ever_treated.len() == 1 {
+        return Ok(f64::NAN);
+    }
+    let n = y.nrows();
+    if n <= 2 {
+        return Ok(f64::NAN);
+    }
+    let mut estimates = Vec::with_capacity(n);
+    for drop_i in 0..n {
+        let idx: Vec<usize> = (0..n).filter(|i| *i != drop_i).collect();
+        let y_j = take_rows(y, &idx);
+        let w_j = take_rows(w, &idx);
+        let fit = match fit_synthetic_did_panel(&y_j, &w_j, zeta_omega, zeta_lambda, max_iterations)
+        {
+            Ok(fit) => fit,
+            Err(_) => return Ok(f64::NAN),
+        };
+        if !fit.att.is_finite() {
+            return Ok(f64::NAN);
+        }
+        estimates.push(fit.att);
+    }
+    let mean = estimates.iter().sum::<f64>() / n as f64;
+    let sumsq = estimates
+        .iter()
+        .map(|value| {
+            let centered = *value - mean;
+            centered * centered
+        })
+        .sum::<f64>();
+    Ok((((n - 1) as f64 / n as f64) * sumsq).sqrt())
+}
+
+fn sdid_placebo_se(
+    y: &Array2<f64>,
+    w: &Array2<f64>,
+    zeta_omega: Option<f64>,
+    zeta_lambda: Option<f64>,
+    max_iterations: u64,
+    replications: usize,
+    seed: Option<u64>,
+) -> PyResult<f64> {
+    if replications < 2 {
+        return Err(PyValueError::new_err("replications must be at least 2"));
+    }
+    let info = infer_panel_treatment(y, w)?;
+    let n_control = info.never_treated.len();
+    let n_treated = info.ever_treated.len();
+    if n_control <= n_treated {
+        return Err(PyValueError::new_err(
+            "must have more controls than treated units to use the placebo se",
+        ));
+    }
+    let mut rng = match seed {
+        Some(s) => StdRng::seed_from_u64(s),
+        None => StdRng::from_entropy(),
+    };
+    let mut estimates = Vec::new();
+    for _ in 0..replications {
+        let mut controls = info.never_treated.clone();
+        controls.shuffle(&mut rng);
+        let y_p = y.select(Axis(0), &controls);
+        let mut w_p = Array2::<f64>::zeros((n_control, y.ncols()));
+        let placebo_start = n_control - n_treated;
+        for (j, treated_unit) in info.ever_treated.iter().enumerate() {
+            w_p.row_mut(placebo_start + j).assign(&w.row(*treated_unit));
+        }
+        if let Ok(fit) =
+            fit_synthetic_did_panel(&y_p, &w_p, zeta_omega, zeta_lambda, max_iterations)
+        {
+            if fit.att.is_finite() {
+                estimates.push(fit.att);
+            }
+        }
+    }
+    if estimates.len() <= 1 {
+        return Ok(f64::NAN);
+    }
+    Ok(((replications as f64 - 1.0) / replications as f64).sqrt() * finite_sample_sd(&estimates))
+}
+
 #[pymethods]
 impl SyntheticDID {
     #[new]
@@ -2458,151 +2724,28 @@ impl SyntheticDID {
     fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
         let y = to_array2(&y);
         let w = to_array2(&w);
-        let treatment_info = infer_panel_treatment(&y, &w)?;
-        ensure_panel_has_never_treated(&treatment_info)?;
-        if treatment_info.cohorts.iter().any(|cohort| *cohort == 0) {
-            return Err(PyValueError::new_err(
-                "SyntheticDID needs at least one pre-treatment period for every treated cohort",
-            ));
-        }
+        let fit = fit_synthetic_did_panel(
+            &y,
+            &w,
+            self.zeta_omega,
+            self.zeta_lambda,
+            self.max_iterations,
+        )?;
 
-        let n_units = y.nrows();
-        let n_periods = y.ncols();
-        let n_cohorts = treatment_info.cohorts.len();
-        let mut counterfactual = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
-        let mut treatment_effect = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
-        let mut unit_weight_mat = Array2::<f64>::zeros((n_cohorts, n_units));
-        let mut time_weight_mat = Array2::<f64>::zeros((n_cohorts, n_periods));
-        let mut unit_intercepts = Array1::<f64>::zeros(n_cohorts);
-        let mut time_intercepts = Array1::<f64>::zeros(n_cohorts);
-        let mut zeta_omegas = Array1::<f64>::zeros(n_cohorts);
-        let mut zeta_lambdas = Array1::<f64>::zeros(n_cohorts);
-        let mut att_sum = 0.0;
-        let mut att_weight = 0.0;
-
-        for (c_idx, cohort) in treatment_info.cohorts.iter().enumerate() {
-            let treated_units = cohort_units(&treatment_info, *cohort);
-            let control_units = &treatment_info.never_treated;
-            let mut order = control_units.clone();
-            order.extend_from_slice(&treated_units);
-            let y_reordered = y.select(Axis(0), &order);
-            let n_control = control_units.len();
-            let n_treated = treated_units.len();
-            let t_pre = *cohort;
-            let t_post = n_periods - t_pre;
-
-            let sigma = sdid_sigma_estimator(&y_reordered, n_control, t_pre);
-            let zeta_omega = match self.zeta_omega {
-                Some(value) if value.is_finite() && value >= 0.0 => value,
-                Some(_) => {
-                    return Err(PyValueError::new_err(
-                        "zeta_omega must be finite and nonnegative",
-                    ))
-                }
-                None => ((n_treated * t_post) as f64).powf(0.25) * sigma,
-            };
-            let zeta_lambda = match self.zeta_lambda {
-                Some(value) if value.is_finite() && value >= 0.0 => value,
-                Some(_) => {
-                    return Err(PyValueError::new_err(
-                        "zeta_lambda must be finite and nonnegative",
-                    ))
-                }
-                None => 1e-6 * sigma,
-            };
-
-            let y_control_pre = y_reordered.slice(s![0..n_control, 0..t_pre]).to_owned();
-            let y_control_post = y_reordered.slice(s![0..n_control, t_pre..]).to_owned();
-            let y_treated_pre = y_reordered.slice(s![n_control.., 0..t_pre]).to_owned();
-
-            let control_post_mean = y_control_post
-                .mean_axis(Axis(1))
-                .ok_or_else(|| PyValueError::new_err("failed to average control post outcomes"))?;
-            let treated_pre_mean = y_treated_pre
-                .mean_axis(Axis(0))
-                .ok_or_else(|| PyValueError::new_err("failed to average treated pre outcomes"))?;
-
-            let lambda_weights = fit_simplex_least_squares_weights(
-                &y_control_pre,
-                &control_post_mean,
-                zeta_lambda,
-                true,
-                self.max_iterations,
-            )?;
-            let omega_design = y_control_pre.t().to_owned();
-            let unit_weights = fit_simplex_least_squares_weights(
-                &omega_design,
-                &treated_pre_mean,
-                zeta_omega,
-                true,
-                self.max_iterations,
-            )?;
-
-            let unit_intercept = simplex_intercept(&omega_design, &treated_pre_mean, &unit_weights);
-            let time_intercept =
-                simplex_intercept(&y_control_pre, &control_post_mean, &lambda_weights);
-            let control_panel = y.select(Axis(0), control_units);
-            let cohort_counterfactual = control_panel.t().dot(&unit_weights) + unit_intercept;
-
-            let mut unit_weight_vec = Array1::<f64>::zeros(n_control + n_treated);
-            for j in 0..n_control {
-                unit_weight_vec[j] = -unit_weights[j];
-            }
-            for j in 0..n_treated {
-                unit_weight_vec[n_control + j] = 1.0 / n_treated as f64;
-            }
-            let mut time_weight_vec = Array1::<f64>::zeros(n_periods);
-            for t in 0..t_pre {
-                time_weight_vec[t] = -lambda_weights[t];
-            }
-            for t in t_pre..n_periods {
-                time_weight_vec[t] = 1.0 / t_post as f64;
-            }
-            let cohort_att = unit_weight_vec.dot(&y_reordered.dot(&time_weight_vec));
-            let cohort_weight = (n_treated * t_post) as f64;
-            att_sum += cohort_att * cohort_weight;
-            att_weight += cohort_weight;
-
-            for (j, unit) in control_units.iter().enumerate() {
-                unit_weight_mat[[c_idx, *unit]] = unit_weights[j];
-            }
-            for t in 0..t_pre {
-                time_weight_mat[[c_idx, t]] = lambda_weights[t];
-            }
-            unit_intercepts[c_idx] = unit_intercept;
-            time_intercepts[c_idx] = time_intercept;
-            zeta_omegas[c_idx] = zeta_omega;
-            zeta_lambdas[c_idx] = zeta_lambda;
-
-            for unit in treated_units {
-                for t in 0..n_periods {
-                    counterfactual[[unit, t]] = cohort_counterfactual[t];
-                    treatment_effect[[unit, t]] = y[[unit, t]] - cohort_counterfactual[t];
-                }
-            }
-        }
-
-        let att = if att_weight > 0.0 {
-            att_sum / att_weight
-        } else {
-            f64::NAN
-        };
-        let pre_rmse = panel_group_pre_rmse(&treatment_effect, &treatment_info);
-
-        self.att = Some(att);
-        self.unit_weights = Some(unit_weight_mat);
-        self.time_weights = Some(time_weight_mat);
-        self.counterfactual = Some(counterfactual);
-        self.treatment_effect = Some(treatment_effect);
-        self.pre_rmse = Some(pre_rmse);
-        self.unit_intercept = Some(unit_intercepts);
-        self.time_intercept = Some(time_intercepts);
-        self.fitted_zeta_omega = Some(zeta_omegas);
-        self.fitted_zeta_lambda = Some(zeta_lambdas);
-        self.control_units = Some(treatment_info.never_treated.clone());
-        self.treated_units = Some(treatment_info.ever_treated.clone());
-        self.cohorts = Some(treatment_info.cohorts.clone());
-        self.treatment_info = Some(treatment_info);
+        self.att = Some(fit.att);
+        self.unit_weights = Some(fit.unit_weights);
+        self.time_weights = Some(fit.time_weights);
+        self.counterfactual = Some(fit.counterfactual);
+        self.treatment_effect = Some(fit.treatment_effect);
+        self.pre_rmse = Some(fit.pre_rmse);
+        self.unit_intercept = Some(fit.unit_intercept);
+        self.time_intercept = Some(fit.time_intercept);
+        self.fitted_zeta_omega = Some(fit.fitted_zeta_omega);
+        self.fitted_zeta_lambda = Some(fit.fitted_zeta_lambda);
+        self.control_units = Some(fit.control_units);
+        self.treated_units = Some(fit.treated_units);
+        self.cohorts = Some(fit.cohorts);
+        self.treatment_info = Some(fit.treatment_info);
         self.y = Some(y);
         self.w = Some(w);
         Ok(())
@@ -2669,6 +2812,57 @@ impl SyntheticDID {
         dict.set_item("treated_units", self.treated_units.clone())?;
         dict.set_item("cohorts", self.cohorts.clone())?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (method="bootstrap", replications=200, seed=None))]
+    fn vcov<'py>(
+        &self,
+        py: Python<'py>,
+        method: &str,
+        replications: usize,
+        seed: Option<u64>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let se = self.se(method, replications, seed)?;
+        let out = Array2::<f64>::from_elem((1, 1), se * se);
+        Ok(pyarray2_from_f64(py, &out))
+    }
+
+    #[pyo3(signature = (method="bootstrap", replications=200, seed=None))]
+    fn se(&self, method: &str, replications: usize, seed: Option<u64>) -> PyResult<f64> {
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        let w = self
+            .w
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("SyntheticDID model is not fitted"))?;
+        match method {
+            "bootstrap" => sdid_bootstrap_se(
+                y,
+                w,
+                self.zeta_omega,
+                self.zeta_lambda,
+                self.max_iterations,
+                replications,
+                seed,
+            ),
+            "jackknife" => {
+                sdid_jackknife_se(y, w, self.zeta_omega, self.zeta_lambda, self.max_iterations)
+            }
+            "placebo" => sdid_placebo_se(
+                y,
+                w,
+                self.zeta_omega,
+                self.zeta_lambda,
+                self.max_iterations,
+                replications,
+                seed,
+            ),
+            _ => Err(PyValueError::new_err(
+                "method must be 'bootstrap', 'jackknife', or 'placebo'",
+            )),
+        }
     }
 
     fn predict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {

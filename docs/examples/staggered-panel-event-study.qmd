@@ -166,8 +166,6 @@ for name, estimator in crabby_estimators.items():
         "att": float(summary["att"]),
         "event_time": np.asarray(event["event_time"], float),
         "estimate": np.asarray(event["estimate"], float),
-        "lower": np.asarray(event["lower"], float),
-        "upper": np.asarray(event["upper"], float),
         "n": np.asarray(event["n"], float),
     }
 
@@ -177,7 +175,7 @@ for name, result in crabby_results.items():
 
 ## Panel 3: crabbymetrics Event Studies
 
-The third panel overlays the weighted event-study summaries from the crabbymetrics panel estimators. The shaded bands come from the summary's `lower` and `upper` arrays. They are descriptive large-sample bands from the event-study summary helper rather than a full bootstrap or randomization-inference procedure.
+The third panel overlays the weighted event-study summaries from the crabbymetrics panel estimators. These summaries are point estimates only; the core panel estimators do not report event-study standard-error bands.
 
 ```{python}
 colors = {
@@ -201,16 +199,6 @@ for name, result in crabby_results.items():
         color=colors[name],
         label=f"{name} (ATT={result['att']:.2f})",
     )
-    finite = mask & np.isfinite(result["lower"]) & np.isfinite(result["upper"])
-    ax.fill_between(
-        result["event_time"][finite],
-        result["lower"][finite],
-        result["upper"][finite],
-        color=colors[name],
-        alpha=0.08,
-        linewidth=0,
-    )
-
 ax.axhline(0, color="black", lw=1)
 ax.axvline(-0.5, color="0.4", lw=1, ls="--")
 ax.set_title("crabbymetrics panel estimators: weighted event-study summaries")
@@ -396,15 +384,6 @@ for name, result in crabby_results.items():
         lw=2,
         color=colors[name],
         label=f"{name} (ATT={result['att']:.2f})",
-    )
-    finite = mask & np.isfinite(result["lower"]) & np.isfinite(result["upper"])
-    ax2.fill_between(
-        result["event_time"][finite],
-        result["lower"][finite],
-        result["upper"][finite],
-        color=colors[name],
-        alpha=0.08,
-        linewidth=0,
     )
 ax2.axhline(0, color="black", lw=1)
 ax2.axvline(-0.5, color="0.4", lw=1, ls="--")

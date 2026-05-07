@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -1052,6 +1054,9 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
     assert "group_means" in summary
     assert "weighted" in summary["group_means"]
     assert "unweighted" in summary["group_means"]
+    assert "std_error" not in summary["event_study"]["weighted"]
+    assert "lower" not in summary["event_study"]["weighted"]
+    assert "upper" not in summary["event_study"]["weighted"]
 
     treated_units_summary = np.asarray(summary["treated_units"])
     y_reordered = np.vstack([panel[control_units], panel[treated_units_summary]])
@@ -1064,6 +1069,21 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
         np.ones(t_post) / t_post,
     ]
     np.testing.assert_allclose(summary["att"], unit_vec @ y_reordered @ time_vec, atol=1e-10)
+
+
+def test_synthetic_did_default_zeta_matches_synthdid_first_difference_sd():
+    y, w = make_synthetic_did_panel(n_control=5, n_treated=2, t_pre=6, t_post=3, seed=995)
+    model = cm.SyntheticDID(max_iterations=800)
+    model.fit(y, w)
+    summary = model.summary()
+
+    control_pre = y[:5, :6]
+    sigma = np.diff(control_pre, axis=1).ravel().std(ddof=1)
+    expected_zeta_omega = (2 * 3) ** 0.25 * sigma
+    expected_zeta_lambda = 1e-6 * sigma
+
+    np.testing.assert_allclose(summary["zeta_omega"], [expected_zeta_omega], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(summary["zeta_lambda"], [expected_zeta_lambda], rtol=1e-10, atol=1e-10)
 
 
 def test_synthetic_did_att_uses_time_weights_not_post_gap_average():
@@ -1114,3 +1134,118 @@ def test_synthetic_did_rejects_bad_panel_inputs():
     bad = np.zeros((4, 4))
     with pytest.raises(ValueError, match="same shape"):
         model.fit(panel, bad)
+
+
+def load_prop99_panel():
+    data_path = Path(__file__).resolve().parents[1] / "docs" / "data" / "california_prop99.csv"
+    data = np.genfromtxt(data_path, delimiter=";", names=True, dtype=None, encoding="utf-8")
+    states = np.array(sorted(np.unique(data["State"])))
+    years = np.array(sorted(np.unique(data["Year"])))
+    state_index = {state: i for i, state in enumerate(states)}
+    year_index = {year: i for i, year in enumerate(years)}
+    y = np.zeros((len(states), len(years)))
+    w = np.zeros_like(y)
+    for row in data:
+        i = state_index[row["State"]]
+        t = year_index[row["Year"]]
+        y[i, t] = row["PacksPerCapita"]
+        w[i, t] = row["treated"]
+    treated = w.sum(axis=1) > 0
+    order = np.r_[np.where(~treated)[0], np.where(treated)[0]]
+    return y[order], w[order]
+
+
+def make_synthetic_did_panel(n_control=8, n_treated=3, t_pre=8, t_post=4, seed=991):
+    rng = np.random.default_rng(seed)
+    n_periods = t_pre + t_post
+    time = np.arange(n_periods)
+    factors = np.column_stack(
+        [
+            np.linspace(-1.0, 1.0, n_periods),
+            np.sin(np.linspace(0.0, 2.0 * np.pi, n_periods)),
+        ]
+    )
+    controls = (
+        rng.normal(scale=0.3, size=(n_control, 1))
+        + rng.normal(scale=0.02, size=(n_control, 1)) * time
+        + rng.normal(size=(n_control, factors.shape[1])) @ factors.T
+        + rng.normal(scale=0.03, size=(n_control, n_periods))
+    )
+    true_weights = rng.dirichlet(np.ones(n_control))
+    treated_base = true_weights @ controls
+    treated = (
+        treated_base
+        + np.linspace(-0.1, 0.1, n_treated)[:, None]
+        + np.r_[np.zeros(t_pre), np.full(t_post, 0.8)]
+        + rng.normal(scale=0.02, size=(n_treated, n_periods))
+    )
+    y = np.vstack([controls, treated])
+    w = np.zeros_like(y)
+    w[n_control:, t_pre:] = 1.0
+    return y, w
+
+
+def test_synthetic_did_prop99_matches_synthdid_readme_point_and_placebo_scale():
+    y, w = load_prop99_panel()
+    model = cm.SyntheticDID(max_iterations=5000)
+    model.fit(y, w)
+
+    # Reference: R synthdid README's california_prop99 panel_estimate table.
+    # The placebo SE is Monte Carlo, so this pins the inference scale with a
+    # small deterministic replication count rather than requiring exact R RNG parity.
+    np.testing.assert_allclose(model.summary()["att"], -15.6038278727, atol=0.01, rtol=0.0)
+    placebo_se = model.se("placebo", replications=40, seed=123)
+    np.testing.assert_allclose(placebo_se, 9.647, atol=1.25, rtol=0.0)
+    np.testing.assert_allclose(
+        np.asarray(model.vcov("placebo", replications=40, seed=123))[0, 0],
+        placebo_se**2,
+        atol=1e-10,
+        rtol=1e-10,
+    )
+
+
+def test_synthetic_did_vcov_bootstrap_and_jackknife_shape_seeded():
+    y, w = make_synthetic_did_panel()
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+
+    boot = np.asarray(model.vcov("bootstrap", replications=12, seed=123))
+    boot_again = np.asarray(model.vcov("bootstrap", replications=12, seed=123))
+    jack = np.asarray(model.vcov("jackknife"))
+
+    assert boot.shape == (1, 1)
+    assert jack.shape == (1, 1)
+    np.testing.assert_allclose(boot, boot_again, atol=0.0, rtol=0.0)
+    assert np.isfinite(boot[0, 0]) and boot[0, 0] >= 0.0
+    assert np.isfinite(jack[0, 0]) and jack[0, 0] >= 0.0
+    np.testing.assert_allclose(model.se("bootstrap", replications=12, seed=123) ** 2, boot[0, 0])
+
+
+def test_synthetic_did_single_treated_bootstrap_jackknife_nan_placebo_works():
+    y, w = make_synthetic_did_panel(n_control=8, n_treated=1, seed=992)
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+
+    assert np.isnan(model.vcov("bootstrap", replications=10, seed=12)[0, 0])
+    assert np.isnan(model.vcov("jackknife")[0, 0])
+    placebo = np.asarray(model.vcov("placebo", replications=10, seed=12))
+    assert placebo.shape == (1, 1)
+    assert np.isfinite(placebo[0, 0]) and placebo[0, 0] >= 0.0
+
+
+def test_synthetic_did_placebo_requires_more_controls_than_treated():
+    y, w = make_synthetic_did_panel(n_control=1, n_treated=1, seed=993)
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+    with pytest.raises(ValueError, match="more controls than treated"):
+        model.vcov("placebo", replications=10, seed=1)
+
+
+def test_synthetic_did_vcov_rejects_bad_method_and_too_few_replications():
+    y, w = make_synthetic_did_panel(seed=994)
+    model = cm.SyntheticDID(zeta_omega=0.01, zeta_lambda=0.01, max_iterations=800)
+    model.fit(y, w)
+    with pytest.raises(ValueError, match="method must be"):
+        model.vcov("sandwich")
+    with pytest.raises(ValueError, match="replications must be at least 2"):
+        model.vcov("bootstrap", replications=1)
