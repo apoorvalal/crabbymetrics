@@ -18,10 +18,10 @@
 
 ## Rendered Review Previews
 
-- When a docs-heavy PR adds or materially changes a Quarto page, render the page locally and copy the self-contained HTML to the Hetzner draft host so it can be reviewed before merge.
-- Use `QUARTO_PYTHON=.venv/bin/python quarto render <page.qmd>` when rendering Python-backed Quarto docs from this repo.
-- Copy review HTML with `scp <rendered.html> hetz:/root/lalten/drafts/<descriptive-name>.html`, then ensure it is world-readable on the server (`chmod 644`).
-- Share the preview URL as `https://lalten.org/drafts/<descriptive-name>.html`.
+- When a docs-heavy PR adds or materially changes a Quarto page, render the docs locally and copy the whole rendered docs site to the Hetzner draft host so navigation/assets can be reviewed before merge.
+- Use `QUARTO_PYTHON=.venv/bin/python quarto render <page.qmd>` for targeted Python-backed Quarto renders, or render the relevant docs set when navigation/search changed.
+- Copy the rendered site with `rsync -az --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r docs/ hetz:/root/lalten/drafts/<descriptive-name>/`, then ensure files are world-readable if needed.
+- Share the preview URL as `https://lalten.org/drafts/<descriptive-name>/` and, when helpful, the specific page URL under that directory.
 
 ## Bookkeeping
 
