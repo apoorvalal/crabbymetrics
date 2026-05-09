@@ -1,4 +1,4 @@
-use crate::rla::sketch_ols_params;
+use crate::rla::{count_sketch_joint, sketch_ols_params};
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
@@ -27,9 +27,6 @@ struct FixedEffectsOlsFitResult {
 
 struct TwoSlsFitResult {
     params: Array1<f64>,
-    x_design: Array2<f64>,
-    z_design: Array2<f64>,
-    residuals: Array1<f64>,
 }
 
 fn combine_endog_exog(x_endog: &Array2<f64>, x_exog: &Array2<f64>) -> PyResult<Array2<f64>> {
@@ -231,6 +228,58 @@ fn twosls_covariance(
     }
 }
 
+fn fit_two_sls_sketch(
+    x_endog: &Array2<f64>,
+    x_exog: &Array2<f64>,
+    z: &Array2<f64>,
+    y: &Array1<f64>,
+    fit_intercept: bool,
+    sketch_size: usize,
+    seed: Option<u64>,
+) -> PyResult<TwoSlsFitResult> {
+    if x_endog.nrows() != y.len() || x_exog.nrows() != y.len() || z.nrows() != y.len() {
+        return Err(PyValueError::new_err("row count mismatch"));
+    }
+    let x_rhs = combine_endog_exog(x_endog, x_exog)?;
+    let z_rhs = if x_exog.ncols() > 0 {
+        concatenate(Axis(1), &[x_exog.view(), z.view()])
+            .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
+    } else {
+        z.clone()
+    };
+    let x_design = if fit_intercept {
+        add_intercept(&x_rhs)
+    } else {
+        x_rhs
+    };
+    let z_design = if fit_intercept {
+        add_intercept(&z_rhs)
+    } else {
+        z_rhs
+    };
+    if z_design.ncols() < x_design.ncols() {
+        return Err(PyValueError::new_err(
+            "model is underidentified: instrument count is smaller than regressor count",
+        ));
+    }
+    if sketch_size < z_design.ncols().max(x_design.ncols()) {
+        return Err(PyValueError::new_err(
+            "sketch_size must be at least the larger of design and instrument columns",
+        ));
+    }
+
+    let (sketched_mats, sketched_vecs) =
+        count_sketch_joint(&[&x_design, &z_design], &[y], sketch_size, seed)?;
+    let sx = &sketched_mats[0];
+    let sz = &sketched_mats[1];
+    let sy = &sketched_vecs[0];
+    let x_hat = solve_least_squares_mat(sz, sx)
+        .map(|pi_hat| sz.dot(&pi_hat))
+        .map_err(PyValueError::new_err)?;
+    let params = solve_least_squares_vec(&x_hat, sy).map_err(PyValueError::new_err)?;
+    Ok(TwoSlsFitResult { params })
+}
+
 fn fit_two_sls_closed_form(
     x_endog: &Array2<f64>,
     x_exog: &Array2<f64>,
@@ -261,7 +310,7 @@ fn fit_two_sls_closed_form(
         None => y.clone(),
     };
 
-    let (x_design, z_design) =
+    let (_x_design, z_design) =
         build_iv_designs(&x_endog_work, &x_exog_work, &z_work, fit_intercept)?;
     let x_endog_hat =
         solve_least_squares_mat(&z_design, &x_endog_work).map(|pi_hat| z_design.dot(&pi_hat));
@@ -279,15 +328,7 @@ fn fit_two_sls_closed_form(
     };
     let params = solve_least_squares_vec(&x_hat_design, &y_work).map_err(PyValueError::new_err)?;
 
-    let fitted = x_design.dot(&params);
-    let residuals = y_work - &fitted;
-
-    Ok(TwoSlsFitResult {
-        params,
-        x_design,
-        z_design,
-        residuals,
-    })
+    Ok(TwoSlsFitResult { params })
 }
 
 fn softmax_weights(theta: &Array1<f64>) -> Array1<f64> {
@@ -2981,6 +3022,41 @@ impl TwoSLS {
         Ok(())
     }
 
+    #[pyo3(signature = (x_endog, x_exog, z, y, sketch_size, seed=None))]
+    fn fit_sketch(
+        &mut self,
+        x_endog: PyReadonlyArray2<f64>,
+        x_exog: PyReadonlyArray2<f64>,
+        z: PyReadonlyArray2<f64>,
+        y: PyReadonlyArray1<f64>,
+        sketch_size: usize,
+        seed: Option<u64>,
+    ) -> PyResult<()> {
+        let x_endog = to_array2(&x_endog);
+        let x_exog = to_array2(&x_exog);
+        let z = to_array2(&z);
+        let y = to_array1(&y);
+        let fit = fit_two_sls_sketch(
+            &x_endog,
+            &x_exog,
+            &z,
+            &y,
+            self.fit_intercept,
+            sketch_size,
+            seed,
+        )?;
+        let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
+
+        self.coef = Some(coef);
+        self.intercept = intercept;
+        self.x_endog = Some(x_endog);
+        self.x_exog = Some(x_exog);
+        self.z = Some(z);
+        self.y = Some(y);
+        self.sample_weight = None;
+        Ok(())
+    }
+
     fn predict<'py>(
         &self,
         py: Python<'py>,
@@ -3003,7 +3079,8 @@ impl TwoSLS {
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
     ) -> PyResult<Py<PyAny>> {
-        self.coef
+        let fitted_coef = self
+            .coef
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
         let x_endog = self
@@ -3024,14 +3101,32 @@ impl TwoSLS {
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
         let sample_weight = self.sample_weight.as_ref();
 
-        let fit =
-            fit_two_sls_closed_form(x_endog, x_exog, z, y, self.fit_intercept, sample_weight)?;
-        let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
+        let mut params =
+            Array1::<f64>::zeros(fitted_coef.len() + if self.fit_intercept { 1 } else { 0 });
+        if self.fit_intercept {
+            params[0] = self.intercept;
+            params.slice_mut(s![1..]).assign(fitted_coef);
+        } else {
+            params.assign(fitted_coef);
+        }
+        let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+        let (x_design_work, y_work) =
+            apply_sqrt_weights(&x_design, y, sample_weight).map_err(PyValueError::new_err)?;
+        let z_design_work = match sample_weight {
+            Some(weights) => {
+                let sqrt_weight = sqrt_sample_weight(Some(weights), z_design.nrows())
+                    .map_err(PyValueError::new_err)?
+                    .expect("weights were provided");
+                scale_rows(&z_design, &sqrt_weight).map_err(PyValueError::new_err)?
+            }
+            None => z_design.clone(),
+        };
+        let residuals = y_work - &x_design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
         let cov = twosls_covariance(
-            &fit.x_design,
-            &fit.z_design,
-            &fit.residuals,
+            &x_design_work,
+            &z_design_work,
+            &residuals,
             vcov,
             lags,
             cluster_ids.as_ref(),
@@ -3046,8 +3141,8 @@ impl TwoSLS {
         };
 
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
+        dict.set_item("intercept", self.intercept)?;
+        dict.set_item("coef", pyarray1_from_f64(py, fitted_coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         dict.set_item("vcov_type", vcov)?;

@@ -92,7 +92,7 @@ website:
           - href: ablations/same-root-panel-cases.qmd
             text: Same Root Panel Case Studies
           - href: ablations/randomized-sketching-ols.qmd
-            text: Randomized Sketching OLS
+            text: Randomized Sketching And Least Squares
       - text: Optimization
         menu:
           - href: examples/optimizers.qmd

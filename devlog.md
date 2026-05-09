@@ -394,3 +394,10 @@ That is the current state the next extension branch should assume.
 - Moved the sketching OLS ablation into `docs/ablations/randomized-sketching-ols.qmd` with rendered HTML and freeze outputs, and linked it from the docs navbar and index.
 - Rendered review copy: `https://lalten.org/drafts/crabbymetrics-randomized-sketching-ols-pr8.html`.
 - Local gates run on the branch: `cargo check`, `uv run maturin develop`, `uv run pytest`, `QUARTO_PYTHON=.venv/bin/python quarto render docs/ablations/randomized-sketching-ols.qmd`, and `QUARTO_PYTHON=.venv/bin/python quarto render docs/index.qmd`.
+
+## 2026-05-08 Randomized QR And IV Sketching Follow-up
+
+- Extended PR #8 beyond randomized SVD/range and CountSketch OLS.
+- Added `randomized_qr(...)` and `qr_solve(...)` Python exports backed by the native Rust randomized range/QR helpers.
+- Added `TwoSLS.fit_sketch(...)`, which applies one CountSketch embedding jointly to the IV regressor design, instrument design, and outcome before solving the compressed 2SLS problem.
+- Cleaned the randomized sketching docs page so it is official-package math plus OLS/IV ablations, without upstream-package references or development-roadmap language.

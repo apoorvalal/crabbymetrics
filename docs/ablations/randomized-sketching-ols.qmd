@@ -1,5 +1,5 @@
 ---
-title: "Randomized Sketching And OLS"
+title: "Randomized Sketching And Least Squares"
 format:
   html:
     number-sections: true
@@ -16,151 +16,136 @@ freeze: auto
 jupyter: python3
 ---
 
-This page is both a short crash course in randomized numerical linear algebra and a cached ablation for the `crabbymetrics` sketching OLS path.
+## Math
 
-The new library path under test is `OLS.fit_sketch(...)`, which uses a sparse row sketch. The high-level idea is simple: instead of solving a least-squares problem on all rows, multiply the design and outcome by a random compression matrix first, then solve the smaller problem.
+Randomized numerical linear algebra replaces one large deterministic linear algebra problem with a smaller random one. The approximation is useful when the random compression preserves the geometry relevant for the downstream problem.
+
+There are two distinct sketches in this page:
+
+1. **subspace sketches**, which find a low-dimensional basis for the range of a matrix;
+2. **row sketches**, which compress observations before least squares or instrumental variables.
+
+### Subspace sketches
+
+Let $A$ be an $m \times n$ matrix. If $A$ is approximately rank $k$, its columns mostly live in a $k$-dimensional subspace. A randomized range finder draws a random test matrix $\Omega \in \mathbb{R}^{n \times (k+q)}$ and forms
+
+$$
+Y = A\Omega,
+$$
+
+where $q$ is a small oversampling parameter. The columns of $Y$ are random linear combinations of columns of $A$. With high probability, they span nearly the same dominant column space as $A$. Orthogonalizing gives
+
+$$
+Y \approx QR,
+\qquad
+Q'Q = I.
+$$
+
+Then $Q$ is an approximate basis for the range of $A$. This is the primitive behind randomized SVD and randomized QR.
+
+For a randomized SVD, project the matrix into this basis:
+
+$$
+B = Q'A.
+$$
+
+Compute the ordinary SVD of the small matrix,
+
+$$
+B = \widetilde U \Sigma V',
+$$
+
+and lift the left singular vectors back:
+
+$$
+A \approx Q \widetilde U \Sigma V'.
+$$
+
+For a randomized QR approximation, factor the same small projected matrix:
+
+$$
+B = \widetilde Q R,
+$$
+
+then lift back:
+
+$$
+A \approx (Q \widetilde Q) R.
+$$
+
+When singular values decay slowly, the leading subspace is harder to identify. Power iterations sharpen the spectrum by repeatedly applying $A'A$ or $AA'$ before orthogonalizing. Heuristically, singular values are raised to higher powers, so large singular directions become easier to separate from small ones.
+
+### Row sketches for OLS
+
+OLS solves
+
+$$
+\hat\beta = \arg\min_b \lVert y - Xb \rVert_2^2,
+$$
+
+where $X$ is $n \times p$. If $n$ is large and $p$ is moderate, the expensive part is the number of rows. A row sketch draws an $s \times n$ matrix $S$ with $s \ll n$ and solves
 
 $$
 \hat\beta_S
-= \arg\min_b \lVert S y - S X b \rVert_2^2.
+= \arg\min_b \lVert Sy - SXb \rVert_2^2.
 $$
 
-Here $X$ is the full $n \times p$ design, $y$ is the outcome, and $S$ is an $s \times n$ random sketching matrix with $s \ll n$. If $S$ approximately preserves lengths and angles inside the column space of $X$, the sketched problem has nearly the same minimizer as full OLS but is cheaper to solve.
-
-The goal is not to prove that sketching beats full OLS for every moderate problem. It is to explain what the approximation is doing, document the current speed/accuracy tradeoff on a reproducible synthetic design, and make clear which randomized decompositions are worth porting next.
-
-## The Basic Problem: Large Matrices Are Often Effectively Low-Dimensional
-
-Many numerical linear algebra tasks look expensive because the matrix has many rows or columns. But the actual information can live in a much smaller subspace.
-
-Examples:
-
-- a tall regression design has many observations but only $p$ directions that matter for OLS;
-- a panel outcome matrix may be well approximated by a few latent factors;
-- a kernel or feature matrix may have rapidly decaying singular values;
-- a high-dimensional matrix may be useful only through its leading components.
-
-Randomized numerical linear algebra tries to find the important subspace cheaply. The algorithms do not usually try to approximate every entry of $A$. They try to preserve the action of $A$ on the directions that matter for a downstream task.
-
-The recurring pattern is:
-
-1. draw a random test matrix $\Omega$;
-2. multiply $A \Omega$ or $S A$ to compress the matrix;
-3. orthogonalize or factor the compressed object;
-4. solve the expensive problem in the smaller subspace.
-
-Two families matter for this page:
-
-- **range sketches**, which find an approximate basis for the column space of a matrix;
-- **row sketches**, which compress observations before least squares.
-
-## Range Sketches: Finding The Important Columns Space
-
-Suppose $A$ is an $m \times n$ matrix and we want a rank-$k$ approximation. A randomized range finder draws a random $n \times (k+q)$ matrix $\Omega$, where $q$ is a small oversampling parameter, and computes
+The sketch should preserve residual norms in the space spanned by $X$ and $y$:
 
 $$
-Y = A \Omega.
+\lVert S(y-Xb) \rVert_2^2 \approx \lVert y-Xb \rVert_2^2
+\quad \text{for relevant } b.
 $$
 
-The columns of $Y$ are random linear combinations of the columns of $A$. If $A$ has a dominant $k$-dimensional column space, these random combinations usually span it well. Then we orthonormalize $Y$:
+If that approximation is good, the minimizer of the sketched objective is close to the full OLS minimizer.
+
+The implementation uses a CountSketch embedding. Each row $i$ is assigned to one random bucket $h(i) \in \{1,\ldots,s\}$ and one random sign $\sigma_i \in \{-1,+1\}$. The sketched design and outcome are accumulated as
 
 $$
-Y \approx Q R,
-$$
-
-where the columns of $Q$ are orthonormal. The matrix $Q$ is a compressed basis for the range of $A$.
-
-Once we have $Q$, we can project the original matrix into the smaller basis:
-
-$$
-B = Q' A.
-$$
-
-Now $B$ has only $k+q$ rows. Expensive decompositions can run on $B$ rather than $A$.
-
-### Randomized SVD
-
-The randomized SVD in this PR follows exactly that recipe:
-
-1. compute an approximate range basis $Q$;
-2. form $B = Q' A$;
-3. compute the ordinary SVD $B = \tilde U \Sigma V'$;
-4. lift the left singular vectors back as $U = Q \tilde U$.
-
-So the final approximation is
-
-$$
-A \approx U \Sigma V'.
-$$
-
-This is useful when a downstream estimator needs only the leading singular components. In `crabbymetrics`, likely future consumers include matrix completion, panel factor routines, PCA-like transforms, and low-rank causal panel estimators.
-
-### Power Iterations
-
-When singular values decay slowly, the leading subspace is harder to isolate. A standard fix is power iteration. Instead of sketching $A$ once, repeatedly apply $A' A$ before forming the final basis:
-
-$$
-Y = (A A')^r A \Omega.
-$$
-
-This amplifies large singular directions relative to small ones. The cost is more matrix multiplications, but for hard spectra it can substantially improve accuracy.
-
-## Row Sketches: Compressing Least Squares
-
-OLS is different. The object of interest is not a low-rank approximation to $X$ itself; it is the minimizer of
-
-$$
-\min_b \lVert y - X b \rVert_2^2.
-$$
-
-If $X$ is tall, the expensive part is that there are many rows. A row sketch multiplies both $X$ and $y$ by the same random matrix $S$:
-
-$$
-\min_b \lVert S y - S X b \rVert_2^2.
-$$
-
-The sketch should preserve norms in the augmented column space spanned by $X$ and $y$. Informally, if every candidate residual vector $y - Xb$ has nearly the same length after sketching, then minimizing the sketched residual is close to minimizing the full residual.
-
-### Dense Versus Sparse Sketches
-
-A dense Gaussian or Rademacher sketch uses a dense $s \times n$ matrix $S$. That is conceptually simple, but directly forming $S X$ costs $O(s n p)$, which can be worse than just working with the original design.
-
-`OLS.fit_sketch(...)` instead uses **CountSketch**. Each original row is assigned to one random bucket and one random sign. That means each row contributes once:
-
-$$
-(SX)_{h(i), \cdot} \mathrel{+}= \sigma_i X_{i, \cdot},
+(SX)_{h(i), \cdot} \mathrel{+}= \sigma_i X_{i,\cdot},
 \qquad
-(Sy)_{h(i)} \mathrel{+}= \sigma_i y_i,
+(Sy)_{h(i)} \mathrel{+}= \sigma_i y_i.
 $$
 
-where $h(i)$ is a random bucket in $\{1, \ldots, s\}$ and $\sigma_i \in \{-1, +1\}$. The sketch construction is $O(n p)$, not $O(s n p)$, and the final least-squares solve is only on an $s \times p$ design.
+This touches each original row once, so sketch construction is $O(np)$ rather than $O(snp)$.
 
-This is why sketching can help tall OLS: the full data are touched once, then the expensive solve happens on a much smaller synthetic dataset.
+### Row sketches for IV / 2SLS
 
-## What Else From `librla` Is Worth Porting?
+Two-stage least squares can be written with an endogenous/exogenous design $X$ and instrument design $Z$. With an intercept included where needed, the population of matrices is
 
-The reference package includes `orth_sketch`, `qr_sketch`, `svd_sketch`, `id_sketch`, and deterministic `id_qrpiv`. The current PR effectively ports the most important first layer: randomized range finding and randomized SVD, plus a separate CountSketch least-squares path.
+$$
+X = [1, X_{endog}, X_{exog}],
+\qquad
+Z = [1, X_{exog}, Z_{excluded}].
+$$
 
-The remaining pieces are worth thinking about as internal primitives rather than as a big public API dump.
+The usual finite-sample 2SLS estimator is
 
-| Primitive | What it does | Worth porting? | Why |
-|---|---|---:|---|
-| `orth_sketch` / randomized range finder | Finds an approximate orthonormal basis $Q$ for the range of $A$ | Already partly ported | This is the core primitive behind randomized SVD. It should probably remain internal unless users have a clear need for the basis itself. |
-| `qr_sketch` | Builds an approximate rank-revealing QR factorization through a sketched basis | Yes, medium priority | Useful for numerically stable least squares, rank diagnostics, column pivoting, and eventually faster tall-design solvers. More naturally internal than public at first. |
-| `id_sketch` | Interpolative decomposition: approximate a matrix using a subset of actual columns plus interpolation weights | Yes, but later | Interesting for column subset selection, representative controls/features, Nyström-style approximations, and interpretable compression. Less immediately needed than SVD/QR. |
-| `id_qrpiv` | Deterministic QR-pivoted interpolative decomposition | Maybe as a reference path | Good for tests and deterministic fallbacks. Since `nalgebra` already has column-pivoted QR, this is feasible, but it should not be the next flagship feature. |
-| Matrix-free `LinearOperator` support | Uses only matrix-vector products rather than storing $A$ | Defer | Very useful eventually, but it complicates the Python/Rust boundary and is not needed for the current NumPy-first estimator API. |
+$$
+\hat\beta_{2SLS}
+= (X'P_ZX)^{-1}X'P_Zy,
+\qquad
+P_Z = Z(Z'Z)^{-1}Z'.
+$$
 
-My preferred order for `crabbymetrics` is:
+A row-sketched IV fit applies the same sketch $S$ to $X$, $Z$, and $y$, then runs 2SLS on the compressed problem:
 
-1. keep randomized range/SVD as the low-rank backend;
-2. add randomized or pivoted QR when a downstream estimator needs rank diagnostics or a more stable approximate least-squares solve;
-3. add ID only when there is a concrete econometric use case, such as selecting representative controls, features, instruments, or donor columns;
-4. defer matrix-free operators until the package has a stronger reason to expose iterative linear algebra.
+$$
+\hat\beta_{S,2SLS}
+= ((SX)'P_{SZ}(SX))^{-1}(SX)'P_{SZ}(Sy),
+\qquad
+P_{SZ} = (SZ)((SZ)'(SZ))^{-1}(SZ)'.
+$$
 
-So: **QR is the next plausible port**, **ID is useful but should be demand-driven**, and **orth/range is already the right internal building block**.
+Using the same sketch for the regressors, instruments, and outcome is important: the random compression should preserve the joint geometry of the moment condition
 
-## Setup
+$$
+Z'(y-X\beta) = 0.
+$$
+
+The result is an approximate IV fit that can be much cheaper for tall designs, while still using the same first-stage projection logic as ordinary 2SLS.
+
+## Ablation
 
 ```{python}
 from html import escape
@@ -187,12 +172,12 @@ def html_table(headers, rows):
     return "".join(parts)
 ```
 
-## OLS Ablation Design
+### OLS design
 
-The DGP is intentionally friendly to OLS: standardized Gaussian regressors, a dense linear signal, and homoskedastic additive noise. That makes the full OLS solution a useful numerical target. We vary the sketch size as a multiple of the full design dimension, including the intercept.
+The first design is intentionally friendly to OLS: standardized Gaussian regressors, a dense linear signal, and homoskedastic additive noise. Full OLS is the numerical target. The sketch size is a multiple of the full design dimension, including the intercept.
 
 ```{python}
-def run_once(n, p, noise, multiple, seed):
+def run_ols_once(n, p, noise, multiple, seed):
     rng = np.random.default_rng(seed)
     x = rng.normal(size=(n, p))
     beta = rng.normal(size=p)
@@ -219,9 +204,6 @@ def run_once(n, p, noise, multiple, seed):
     sketch_pred = sketch.predict(x_test)
 
     return {
-        "n": n,
-        "p": p,
-        "noise": noise,
         "multiple": multiple,
         "sketch_size": sketch_size,
         "coef_rel_error": float(
@@ -234,24 +216,26 @@ def run_once(n, p, noise, multiple, seed):
     }
 
 
-n = 20_000
-p = 40
-noise = 0.2
+ols_n = 20_000
+ols_p = 40
+ols_noise = 0.2
 multiples = [2, 4, 8, 12, 16]
 seeds = range(5)
 
-rows = [run_once(n, p, noise, multiple, seed) for multiple in multiples for seed in seeds]
-print("replications:", len(rows))
-print("design:", {"n": n, "p": p, "noise": noise})
+ols_rows = [
+    run_ols_once(ols_n, ols_p, ols_noise, multiple, seed)
+    for multiple in multiples
+    for seed in seeds
+]
+print("OLS replications:", len(ols_rows))
+print("OLS design:", {"n": ols_n, "p": ols_p, "noise": ols_noise})
 ```
 
-## Ablation Summary
-
 ```{python}
-summary = []
+ols_summary = []
 for multiple in multiples:
-    block = [row for row in rows if row["multiple"] == multiple]
-    summary.append(
+    block = [row for row in ols_rows if row["multiple"] == multiple]
+    ols_summary.append(
         {
             "multiple": multiple,
             "sketch_size": block[0]["sketch_size"],
@@ -263,7 +247,7 @@ for multiple in multiples:
         }
     )
 
-summary_rows = [
+ols_summary_rows = [
     [
         f"{entry['multiple']}x",
         entry["sketch_size"],
@@ -271,7 +255,7 @@ summary_rows = [
         f"{entry['median_prediction_rmse_vs_full']:.4f}",
         f"{entry['median_speedup']:.2f}x",
     ]
-    for entry in summary
+    for entry in ols_summary
 ]
 
 display(
@@ -284,45 +268,139 @@ display(
                 "Median prediction RMSE vs full OLS",
                 "Median speedup",
             ],
-            summary_rows,
+            ols_summary_rows,
         )
     )
 )
 ```
 
-The expected pattern is monotone accuracy improvement as the sketch dimension grows. Speedups are meaningful here because CountSketch touches each row once and then solves a much smaller least-squares problem.
+### IV design
 
-## Plots
+The second design introduces one endogenous regressor whose first stage depends on excluded instruments and exogenous controls. The structural error is correlated with the first-stage shock, so IV rather than OLS is the relevant target. The comparison is full 2SLS versus sketched 2SLS.
 
 ```{python}
-fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
+def run_iv_once(n, multiple, seed):
+    rng = np.random.default_rng(seed)
+    z = rng.normal(size=(n, 3))
+    x_exog = rng.normal(size=(n, 2))
+    v = rng.normal(size=n)
+    x_endog = 0.8 * z[:, [0]] + 0.4 * z[:, [1]] + 0.3 * x_exog[:, [0]] + v[:, None]
+    eps = 0.6 * v + rng.normal(scale=0.2, size=n)
+    y = 1.0 + 2.0 * x_endog[:, 0] - 0.5 * x_exog[:, 0] + 0.25 * x_exog[:, 1] + eps
 
-x_axis = np.array([entry["multiple"] for entry in summary])
-coef_error = np.array([entry["median_coef_rel_error"] for entry in summary])
-pred_error = np.array([entry["median_prediction_rmse_vs_full"] for entry in summary])
-speedup = np.array([entry["median_speedup"] for entry in summary])
+    # The sketched 2SLS design has intercept + endogenous + exogenous regressors
+    # and intercept + exogenous + excluded instruments.
+    design_dim = max(1 + x_endog.shape[1] + x_exog.shape[1], 1 + x_exog.shape[1] + z.shape[1])
+    sketch_size = int(multiple * design_dim)
 
-axes[0].plot(x_axis, coef_error, marker="o")
-axes[0].set_xlabel("Sketch size / design dimension")
-axes[0].set_ylabel("Median relative coefficient error")
-axes[0].set_title("Coefficient accuracy")
+    full = cm.TwoSLS()
+    t0 = time.perf_counter()
+    full.fit(x_endog, x_exog, z, y)
+    full_time = time.perf_counter() - t0
+    full_summary = full.summary(vcov="vanilla")
+    full_param = np.concatenate([[full_summary["intercept"]], full_summary["coef"]])
 
-axes[1].plot(x_axis, pred_error, marker="o", color="tab:orange")
-axes[1].set_xlabel("Sketch size / design dimension")
-axes[1].set_ylabel("Median RMSE vs full OLS prediction")
-axes[1].set_title("Prediction agreement")
+    sketch = cm.TwoSLS()
+    t0 = time.perf_counter()
+    sketch.fit_sketch(x_endog, x_exog, z, y, sketch_size=sketch_size, seed=seed + 20_000)
+    sketch_time = time.perf_counter() - t0
+    sketch_summary = sketch.summary(vcov="vanilla")
+    sketch_param = np.concatenate([[sketch_summary["intercept"]], sketch_summary["coef"]])
 
-axes[2].plot(x_axis, speedup, marker="o", color="tab:green")
-axes[2].axhline(1.0, color="black", linestyle="--", linewidth=1)
-axes[2].set_xlabel("Sketch size / design dimension")
-axes[2].set_ylabel("Median full/sketch fit time")
-axes[2].set_title("Runtime")
+    x_pred = np.column_stack([x_endog, x_exog])[:2000]
+    full_pred = full.predict(x_pred)
+    sketch_pred = sketch.predict(x_pred)
+
+    return {
+        "multiple": multiple,
+        "sketch_size": sketch_size,
+        "coef_rel_error": float(
+            np.linalg.norm(sketch_param - full_param) / np.linalg.norm(full_param)
+        ),
+        "prediction_rmse_vs_full": float(np.sqrt(np.mean((sketch_pred - full_pred) ** 2))),
+        "full_fit_seconds": full_time,
+        "sketch_fit_seconds": sketch_time,
+        "speedup": full_time / sketch_time if sketch_time > 0 else np.inf,
+    }
+
+
+iv_n = 20_000
+iv_rows = [run_iv_once(iv_n, multiple, seed) for multiple in multiples for seed in seeds]
+print("IV replications:", len(iv_rows))
+print("IV design:", {"n": iv_n, "n_endog": 1, "n_exog": 2, "n_excluded_instruments": 3})
+```
+
+```{python}
+iv_summary = []
+for multiple in multiples:
+    block = [row for row in iv_rows if row["multiple"] == multiple]
+    iv_summary.append(
+        {
+            "multiple": multiple,
+            "sketch_size": block[0]["sketch_size"],
+            "median_coef_rel_error": float(np.median([r["coef_rel_error"] for r in block])),
+            "median_prediction_rmse_vs_full": float(
+                np.median([r["prediction_rmse_vs_full"] for r in block])
+            ),
+            "median_speedup": float(np.median([r["speedup"] for r in block])),
+        }
+    )
+
+iv_summary_rows = [
+    [
+        f"{entry['multiple']}x",
+        entry["sketch_size"],
+        f"{entry['median_coef_rel_error']:.4f}",
+        f"{entry['median_prediction_rmse_vs_full']:.4f}",
+        f"{entry['median_speedup']:.2f}x",
+    ]
+    for entry in iv_summary
+]
+
+display(
+    HTML(
+        html_table(
+            [
+                "Sketch multiple",
+                "Sketch size",
+                "Median coefficient relative error",
+                "Median prediction RMSE vs full 2SLS",
+                "Median speedup",
+            ],
+            iv_summary_rows,
+        )
+    )
+)
+```
+
+### Plots
+
+```{python}
+fig, axes = plt.subplots(2, 3, figsize=(14, 7), constrained_layout=True)
+
+for row_idx, (label, summary) in enumerate([("OLS", ols_summary), ("2SLS", iv_summary)]):
+    x_axis = np.array([entry["multiple"] for entry in summary])
+    coef_error = np.array([entry["median_coef_rel_error"] for entry in summary])
+    pred_error = np.array([entry["median_prediction_rmse_vs_full"] for entry in summary])
+    speedup = np.array([entry["median_speedup"] for entry in summary])
+
+    axes[row_idx, 0].plot(x_axis, coef_error, marker="o")
+    axes[row_idx, 0].set_xlabel("Sketch size / design dimension")
+    axes[row_idx, 0].set_ylabel("Median relative coefficient error")
+    axes[row_idx, 0].set_title(f"{label}: coefficient accuracy")
+
+    axes[row_idx, 1].plot(x_axis, pred_error, marker="o", color="tab:orange")
+    axes[row_idx, 1].set_xlabel("Sketch size / design dimension")
+    axes[row_idx, 1].set_ylabel("Median RMSE vs full fit")
+    axes[row_idx, 1].set_title(f"{label}: prediction agreement")
+
+    axes[row_idx, 2].plot(x_axis, speedup, marker="o", color="tab:green")
+    axes[row_idx, 2].axhline(1.0, color="black", linestyle="--", linewidth=1)
+    axes[row_idx, 2].set_xlabel("Sketch size / design dimension")
+    axes[row_idx, 2].set_ylabel("Median full/sketch fit time")
+    axes[row_idx, 2].set_title(f"{label}: runtime")
 
 plt.show()
 ```
 
-## Takeaway
-
-For this tall, well-conditioned design, a sketch size between $8(p+1)$ and $16(p+1)$ gives roughly one-percent coefficient error relative to full OLS while still reducing fit time by several times. Smaller sketches are visibly faster but can introduce enough coefficient and prediction error that they should be treated as approximate exploratory fits rather than a drop-in replacement for final inference.
-
-The more general development lesson is that sketching is not a single estimator. It is a family of compression tools. Randomized SVD helps when the downstream problem is low-rank structure; CountSketch helps when the downstream problem is tall least squares; randomized QR and ID become valuable when we need rank diagnostics, stable pivots, or interpretable column subsets.
+For these tall, well-conditioned designs, larger sketches move the approximate OLS and IV estimates toward the full-data estimates while keeping the solve on a much smaller synthetic dataset. Very small sketches are useful as fast exploratory approximations; larger sketches are the safer default when coefficient accuracy matters.

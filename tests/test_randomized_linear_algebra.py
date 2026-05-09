@@ -18,6 +18,33 @@ def test_randomized_range_is_orthonormal():
     np.testing.assert_allclose(q.T @ q, np.eye(q.shape[1]), atol=1e-10)
 
 
+def test_randomized_qr_approximates_low_rank_matrix():
+    a = make_low_rank_matrix(seed=11)
+    result = cm.randomized_qr(a, rank=8, oversamples=8, power_iter=2, seed=123)
+    q = result["q"]
+    r = result["r"]
+    assert q.shape == (a.shape[0], 8)
+    assert r.shape == (8, a.shape[1])
+    np.testing.assert_allclose(q.T @ q, np.eye(q.shape[1]), atol=1e-10)
+    approx = q @ r
+    randomized_error = np.linalg.norm(a - approx, ord="fro") / np.linalg.norm(a, ord="fro")
+    assert randomized_error < 1e-3
+
+
+def test_qr_solve_tracks_full_least_squares_on_low_rank_design():
+    rng = np.random.default_rng(12)
+    n = 900
+    p = 12
+    latent = rng.normal(size=(n, 5))
+    loadings = rng.normal(size=(5, p))
+    x = latent @ loadings + 0.01 * rng.normal(size=(n, p))
+    beta = rng.normal(size=(p, 2))
+    y = x @ beta + 0.01 * rng.normal(size=(n, 2))
+    coef = cm.qr_solve(x, y, rank=8, oversamples=4, power_iter=2, seed=45)
+    ref, *_ = np.linalg.lstsq(x, y, rcond=None)
+    assert np.linalg.norm(coef - ref) / np.linalg.norm(ref) < 0.03
+
+
 def test_randomized_svd_approximates_low_rank_matrix():
     a = make_low_rank_matrix(seed=2)
     result = cm.randomized_svd(a, rank=8, oversamples=8, power_iter=2, seed=123)
@@ -72,6 +99,26 @@ def test_ols_fit_sketch_predicts_like_full_ols():
     sketch_pred = sketch.predict(x_test)
     rmse = np.sqrt(np.mean((full_pred - sketch_pred) ** 2))
     assert rmse < 0.08
+
+
+def test_twosls_fit_sketch_tracks_full_twosls():
+    rng = np.random.default_rng(123)
+    n = 4000
+    z = rng.normal(size=(n, 3))
+    x_exog = rng.normal(size=(n, 2))
+    v = rng.normal(size=n)
+    x_endog = (0.8 * z[:, [0]] + 0.4 * z[:, [1]] + 0.3 * x_exog[:, [0]] + v[:, None])
+    eps = 0.6 * v + rng.normal(scale=0.2, size=n)
+    y = 1.0 + 2.0 * x_endog[:, 0] - 0.5 * x_exog[:, 0] + 0.25 * x_exog[:, 1] + eps
+
+    full = cm.TwoSLS()
+    full.fit(x_endog, x_exog, z, y)
+    sketch = cm.TwoSLS()
+    sketch.fit_sketch(x_endog, x_exog, z, y, sketch_size=250, seed=321)
+
+    x_pred = np.column_stack([x_endog, x_exog])[:500]
+    rmse = np.sqrt(np.mean((full.predict(x_pred) - sketch.predict(x_pred)) ** 2))
+    assert rmse < 0.2
 
 
 def test_sketch_ols_rejects_undersized_sketch():

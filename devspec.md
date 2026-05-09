@@ -24,10 +24,11 @@ Any new work here should usually satisfy most of the following:
 
 Branch `feature/randomized-linear-algebra` / PR #8 adds native randomized linear algebra primitives and a sketching OLS path:
 
-- `src/rla.rs` implements randomized range finding, randomized SVD, and CountSketch OLS using the existing `ndarray` + `nalgebra` stack.
-- Python exports include `randomized_range`, `randomized_svd`, and `sketch_ols`.
+- `src/rla.rs` implements randomized range finding, randomized SVD, randomized QR, QR-based approximate least squares, and CountSketch OLS using the existing `ndarray` + `nalgebra` stack.
+- Python exports include `randomized_range`, `randomized_qr`, `randomized_svd`, `qr_solve`, and `sketch_ols`.
 - `OLS.fit_sketch(...)` fits an approximate least-squares model by sketching rows before solving the smaller problem.
-- The ablation lives as a proper cached Quarto docs page at `docs/ablations/randomized-sketching-ols.qmd`, with rendered/freeze outputs and a draft preview copied to `https://lalten.org/drafts/crabbymetrics-randomized-sketching-ols-pr8.html`.
+- `TwoSLS.fit_sketch(...)` applies one CountSketch embedding jointly to the IV regressor design, instrument design, and outcome before solving compressed 2SLS.
+- The ablation lives as a proper cached Quarto docs page at `docs/ablations/randomized-sketching-ols.qmd`, with rendered/freeze outputs and a full-site draft preview copied to `https://lalten.org/drafts/crabbymetrics-pr8-docs/`.
 - Local gates passed on the branch: `cargo check`, `uv run maturin develop`, `uv run pytest`, and targeted Quarto renders for the new ablation page and index.
 
 ### Landed on `master`

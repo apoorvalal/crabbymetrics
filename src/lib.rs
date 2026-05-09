@@ -41,7 +41,9 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<KernelBasis>()?;
     m.add_class::<Optimizers>()?;
     m.add_function(wrap_pyfunction!(crate::rla::randomized_range, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::randomized_qr, m)?)?;
     m.add_function(wrap_pyfunction!(crate::rla::randomized_svd, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::qr_solve, m)?)?;
     m.add_function(wrap_pyfunction!(crate::rla::sketch_ols, m)?)?;
     Ok(())
 }

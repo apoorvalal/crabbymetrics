@@ -1,4 +1,7 @@
-use crate::utils::{add_intercept, pyarray1_from_f64, pyarray2_from_f64, solve_least_squares_vec};
+use crate::utils::{
+    add_intercept, pyarray1_from_f64, pyarray2_from_f64, solve_least_squares_mat,
+    solve_least_squares_vec,
+};
 use nalgebra::DMatrix;
 use ndarray::{s, Array1, Array2};
 use numpy::{PyArray2, PyReadonlyArray1, PyReadonlyArray2};
@@ -12,6 +15,11 @@ pub struct RandomizedSvdResult {
     pub u: Array2<f64>,
     pub singular_values: Array1<f64>,
     pub vt: Array2<f64>,
+}
+
+pub struct RandomizedQrResult {
+    pub q: Array2<f64>,
+    pub r: Array2<f64>,
 }
 
 fn validate_finite_matrix(name: &str, a: &Array2<f64>) -> PyResult<()> {
@@ -110,6 +118,28 @@ pub fn randomized_range_finder(
     Ok(q)
 }
 
+pub fn randomized_qr_impl(
+    a: &Array2<f64>,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<RandomizedQrResult> {
+    validate_finite_matrix("a", a)?;
+    validate_rank_params(a.nrows(), a.ncols(), rank, oversamples, power_iter)?;
+    let q_range = randomized_range_finder(a, rank, oversamples, power_iter, seed)?;
+    let b = q_range.t().dot(a);
+    let b_dm = array2_to_dmatrix(&b);
+    let qr = b_dm.qr();
+    let q_small = qr.q();
+    let r_small = qr.r();
+    let k = rank.min(q_small.ncols()).min(r_small.nrows());
+    let q_small_arr = dmatrix_to_array2(&q_small.columns(0, k).into_owned(), q_small.nrows(), k);
+    let q = q_range.dot(&q_small_arr);
+    let r = dmatrix_to_array2(&r_small.rows(0, k).into_owned(), k, r_small.ncols());
+    Ok(RandomizedQrResult { q, r })
+}
+
 pub fn randomized_svd_impl(
     a: &Array2<f64>,
     rank: usize,
@@ -146,6 +176,66 @@ pub fn randomized_svd_impl(
     })
 }
 
+pub fn count_sketch_joint(
+    matrices: &[&Array2<f64>],
+    vectors: &[&Array1<f64>],
+    sketch_size: usize,
+    seed: Option<u64>,
+) -> PyResult<(Vec<Array2<f64>>, Vec<Array1<f64>>)> {
+    if sketch_size == 0 {
+        return Err(PyValueError::new_err("sketch_size must be positive"));
+    }
+    let n = matrices
+        .first()
+        .map(|matrix| matrix.nrows())
+        .or_else(|| vectors.first().map(|vector| vector.len()))
+        .ok_or_else(|| PyValueError::new_err("at least one matrix or vector must be sketched"))?;
+    for matrix in matrices {
+        if matrix.nrows() != n {
+            return Err(PyValueError::new_err(
+                "all sketched matrices must have the same row count",
+            ));
+        }
+        validate_finite_matrix("matrix", matrix)?;
+    }
+    for vector in vectors {
+        if vector.len() != n {
+            return Err(PyValueError::new_err(
+                "all sketched vectors must match the matrix row count",
+            ));
+        }
+        if vector.iter().any(|value| !value.is_finite()) {
+            return Err(PyValueError::new_err(
+                "sketched vectors must contain only finite values",
+            ));
+        }
+    }
+
+    let mut rng = StdRng::seed_from_u64(seed.unwrap_or(0xBAD5EED));
+    let mut out_mats: Vec<Array2<f64>> = matrices
+        .iter()
+        .map(|matrix| Array2::<f64>::zeros((sketch_size, matrix.ncols())))
+        .collect();
+    let mut out_vecs: Vec<Array1<f64>> = vectors
+        .iter()
+        .map(|_| Array1::<f64>::zeros(sketch_size))
+        .collect();
+
+    for i in 0..n {
+        let bucket = rng.gen_range(0..sketch_size);
+        let sign = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+        for (out, matrix) in out_mats.iter_mut().zip(matrices.iter()) {
+            for j in 0..matrix.ncols() {
+                out[[bucket, j]] += sign * matrix[[i, j]];
+            }
+        }
+        for (out, vector) in out_vecs.iter_mut().zip(vectors.iter()) {
+            out[bucket] += sign * vector[i];
+        }
+    }
+    Ok((out_mats, out_vecs))
+}
+
 fn sketch_design_response(
     design: &Array2<f64>,
     y: &Array1<f64>,
@@ -166,22 +256,8 @@ fn sketch_design_response(
         return Err(PyValueError::new_err("sketch_size must be positive"));
     }
 
-    // CountSketch row embedding: every original observation contributes once to a
-    // signed bucket. This keeps the work O(n p), unlike a dense Gaussian/Rademacher
-    // sketch which costs O(sketch_size * n * p), and is the right primitive for
-    // tall econometric designs.
-    let mut rng = StdRng::seed_from_u64(seed.unwrap_or(0xBAD5EED));
-    let mut sx = Array2::<f64>::zeros((sketch_size, p));
-    let mut sy = Array1::<f64>::zeros(sketch_size);
-    for i in 0..n {
-        let bucket = rng.gen_range(0..sketch_size);
-        let sign = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
-        for j in 0..p {
-            sx[[bucket, j]] += sign * design[[i, j]];
-        }
-        sy[bucket] += sign * y[i];
-    }
-    Ok((sx, sy))
+    let (mats, vecs) = count_sketch_joint(&[design], &[y], sketch_size, seed)?;
+    Ok((mats[0].clone(), vecs[0].clone()))
 }
 
 pub fn sketch_ols_params(
@@ -202,6 +278,49 @@ pub fn sketch_ols_params(
     };
     let (sx, sy) = sketch_design_response(&design, y, sketch_size, seed)?;
     solve_least_squares_vec(&sx, &sy).map_err(PyValueError::new_err)
+}
+
+#[pyfunction]
+#[pyo3(signature = (a, rank, oversamples=10, power_iter=1, seed=None))]
+pub fn randomized_qr<'py>(
+    py: Python<'py>,
+    a: PyReadonlyArray2<f64>,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<Py<PyAny>> {
+    let a = crate::utils::to_array2(&a);
+    let result = randomized_qr_impl(&a, rank, oversamples, power_iter, seed)?;
+    let dict = PyDict::new(py);
+    dict.set_item("q", pyarray2_from_f64(py, &result.q))?;
+    dict.set_item("r", pyarray2_from_f64(py, &result.r))?;
+    Ok(dict.into())
+}
+
+#[pyfunction]
+#[pyo3(signature = (a, b, rank, oversamples=10, power_iter=1, seed=None))]
+pub fn qr_solve<'py>(
+    py: Python<'py>,
+    a: PyReadonlyArray2<f64>,
+    b: PyReadonlyArray2<f64>,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<Bound<'py, PyArray2<f64>>> {
+    let a = crate::utils::to_array2(&a);
+    let b = crate::utils::to_array2(&b);
+    if a.nrows() != b.nrows() {
+        return Err(PyValueError::new_err(
+            "a and b must have the same row count",
+        ));
+    }
+    let q = randomized_range_finder(&a, rank, oversamples, power_iter, seed)?;
+    let small_a = q.t().dot(&a);
+    let small_b = q.t().dot(&b);
+    let coef = solve_least_squares_mat(&small_a, &small_b).map_err(PyValueError::new_err)?;
+    Ok(pyarray2_from_f64(py, &coef))
 }
 
 #[pyfunction]
