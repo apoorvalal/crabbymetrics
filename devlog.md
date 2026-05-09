@@ -383,3 +383,14 @@ That is the current state the next extension branch should assume.
 - Patched `SyntheticDID` so scalar `summary()["att"]` uses the cohort-specific synthetic difference-in-differences matrix contrast from the local `synthlearners/notebooks/cvxpy_reference.ipynb` reference: unit weights `[-omega, 1/N1]` and time weights `[-lambda, 1/T1]`.
 - Kept `counterfactual`, `treatment_effect`, and `event_study` as the period-by-period unit-weighted synthetic-control gap path; time weights now enter the scalar ATT rather than rewriting the plotted dynamic path.
 - Added a regression test where the SDID ATT differs from the plain post-treatment synthetic-control gap average.
+
+## 2026-05-08 Randomized Linear Algebra Sketches PR
+
+- Branch: `feature/randomized-linear-algebra`, PR #8.
+- Added native Rust randomized linear algebra helpers in `src/rla.rs` using `ndarray` and `nalgebra` rather than vendoring external code.
+- Exposed Python functions `randomized_range`, `randomized_svd`, and `sketch_ols`.
+- Added `OLS.fit_sketch(...)` backed by a CountSketch row embedding for tall least-squares designs.
+- Added regression tests in `tests/test_randomized_linear_algebra.py` covering randomized range orthonormality, randomized SVD reconstruction, standalone `sketch_ols`, `OLS.fit_sketch`, and sketch-size validation.
+- Moved the sketching OLS ablation into `docs/ablations/randomized-sketching-ols.qmd` with rendered HTML and freeze outputs, and linked it from the docs navbar and index.
+- Rendered review copy: `https://lalten.org/drafts/crabbymetrics-randomized-sketching-ols-pr8.html`.
+- Local gates run on the branch: `cargo check`, `uv run maturin develop`, `uv run pytest`, `QUARTO_PYTHON=.venv/bin/python quarto render docs/ablations/randomized-sketching-ols.qmd`, and `QUARTO_PYTHON=.venv/bin/python quarto render docs/index.qmd`.
