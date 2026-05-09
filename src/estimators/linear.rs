@@ -1,3 +1,4 @@
+use crate::rla::sketch_ols_params;
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
@@ -1356,6 +1357,29 @@ impl OLS {
         self.x = Some(x);
         self.y = Some(y);
         self.sample_weight = Some(sample_weight);
+        Ok(())
+    }
+
+    #[pyo3(signature = (x, y, sketch_size, seed=None))]
+    fn fit_sketch(
+        &mut self,
+        x: PyReadonlyArray2<f64>,
+        y: PyReadonlyArray1<f64>,
+        sketch_size: usize,
+        seed: Option<u64>,
+    ) -> PyResult<()> {
+        let x = to_array2(&x);
+        let y = to_array1(&y);
+        if x.nrows() != y.len() {
+            return Err(PyValueError::new_err("x rows must match y length"));
+        }
+        let params = sketch_ols_params(&x, &y, self.fit_intercept, sketch_size, seed)?;
+        let (intercept, coef) = split_params(&params, self.fit_intercept);
+        self.intercept = intercept;
+        self.coef = Some(coef);
+        self.x = Some(x);
+        self.y = Some(y);
+        self.sample_weight = None;
         Ok(())
     }
 

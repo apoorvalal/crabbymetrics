@@ -1,5 +1,6 @@
 mod estimators;
 mod optimizers;
+mod rla;
 mod utils;
 
 use crate::estimators::{
@@ -39,5 +40,8 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PcaTransformer>()?;
     m.add_class::<KernelBasis>()?;
     m.add_class::<Optimizers>()?;
+    m.add_function(wrap_pyfunction!(crate::rla::randomized_range, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::randomized_svd, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::sketch_ols, m)?)?;
     Ok(())
 }
