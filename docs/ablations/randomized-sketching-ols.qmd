@@ -1,5 +1,5 @@
 ---
-title: "Randomized Sketching OLS"
+title: "Randomized Sketching And OLS"
 format:
   html:
     number-sections: true
@@ -16,18 +16,149 @@ freeze: auto
 jupyter: python3
 ---
 
-This cached ablation checks the new randomized sketching path for tall least-squares designs.
+This page is both a short crash course in randomized numerical linear algebra and a cached ablation for the `crabbymetrics` sketching OLS path.
 
-The library path under test is `OLS.fit_sketch(...)`, which uses a CountSketch row embedding. Each original observation is assigned to one signed sketch bucket, so the sketch construction is $O(np)$ for an $n \times p$ design. The sketched estimator then solves the smaller least-squares problem
+The new library path under test is `OLS.fit_sketch(...)`, which uses a sparse row sketch. The high-level idea is simple: instead of solving a least-squares problem on all rows, multiply the design and outcome by a random compression matrix first, then solve the smaller problem.
 
 $$
 \hat\beta_S
-= \arg\min_b \lVert S y - S X b \rVert_2^2,
+= \arg\min_b \lVert S y - S X b \rVert_2^2.
 $$
 
-where $S$ is the sparse signed embedding. This is deliberately different from a dense Gaussian/Rademacher sketch, whose direct construction would cost $O(snp)$ for sketch size $s$.
+Here $X$ is the full $n \times p$ design, $y$ is the outcome, and $S$ is an $s \times n$ random sketching matrix with $s \ll n$. If $S$ approximately preserves lengths and angles inside the column space of $X$, the sketched problem has nearly the same minimizer as full OLS but is cheaper to solve.
 
-The goal here is not to show that sketching beats full OLS for every moderate problem. It is to document the accuracy/speed tradeoff on a reproducible synthetic design and catch obvious regressions in the implementation.
+The goal is not to prove that sketching beats full OLS for every moderate problem. It is to explain what the approximation is doing, document the current speed/accuracy tradeoff on a reproducible synthetic design, and make clear which randomized decompositions are worth porting next.
+
+## The Basic Problem: Large Matrices Are Often Effectively Low-Dimensional
+
+Many numerical linear algebra tasks look expensive because the matrix has many rows or columns. But the actual information can live in a much smaller subspace.
+
+Examples:
+
+- a tall regression design has many observations but only $p$ directions that matter for OLS;
+- a panel outcome matrix may be well approximated by a few latent factors;
+- a kernel or feature matrix may have rapidly decaying singular values;
+- a high-dimensional matrix may be useful only through its leading components.
+
+Randomized numerical linear algebra tries to find the important subspace cheaply. The algorithms do not usually try to approximate every entry of $A$. They try to preserve the action of $A$ on the directions that matter for a downstream task.
+
+The recurring pattern is:
+
+1. draw a random test matrix $\Omega$;
+2. multiply $A \Omega$ or $S A$ to compress the matrix;
+3. orthogonalize or factor the compressed object;
+4. solve the expensive problem in the smaller subspace.
+
+Two families matter for this page:
+
+- **range sketches**, which find an approximate basis for the column space of a matrix;
+- **row sketches**, which compress observations before least squares.
+
+## Range Sketches: Finding The Important Columns Space
+
+Suppose $A$ is an $m \times n$ matrix and we want a rank-$k$ approximation. A randomized range finder draws a random $n \times (k+q)$ matrix $\Omega$, where $q$ is a small oversampling parameter, and computes
+
+$$
+Y = A \Omega.
+$$
+
+The columns of $Y$ are random linear combinations of the columns of $A$. If $A$ has a dominant $k$-dimensional column space, these random combinations usually span it well. Then we orthonormalize $Y$:
+
+$$
+Y \approx Q R,
+$$
+
+where the columns of $Q$ are orthonormal. The matrix $Q$ is a compressed basis for the range of $A$.
+
+Once we have $Q$, we can project the original matrix into the smaller basis:
+
+$$
+B = Q' A.
+$$
+
+Now $B$ has only $k+q$ rows. Expensive decompositions can run on $B$ rather than $A$.
+
+### Randomized SVD
+
+The randomized SVD in this PR follows exactly that recipe:
+
+1. compute an approximate range basis $Q$;
+2. form $B = Q' A$;
+3. compute the ordinary SVD $B = \tilde U \Sigma V'$;
+4. lift the left singular vectors back as $U = Q \tilde U$.
+
+So the final approximation is
+
+$$
+A \approx U \Sigma V'.
+$$
+
+This is useful when a downstream estimator needs only the leading singular components. In `crabbymetrics`, likely future consumers include matrix completion, panel factor routines, PCA-like transforms, and low-rank causal panel estimators.
+
+### Power Iterations
+
+When singular values decay slowly, the leading subspace is harder to isolate. A standard fix is power iteration. Instead of sketching $A$ once, repeatedly apply $A' A$ before forming the final basis:
+
+$$
+Y = (A A')^r A \Omega.
+$$
+
+This amplifies large singular directions relative to small ones. The cost is more matrix multiplications, but for hard spectra it can substantially improve accuracy.
+
+## Row Sketches: Compressing Least Squares
+
+OLS is different. The object of interest is not a low-rank approximation to $X$ itself; it is the minimizer of
+
+$$
+\min_b \lVert y - X b \rVert_2^2.
+$$
+
+If $X$ is tall, the expensive part is that there are many rows. A row sketch multiplies both $X$ and $y$ by the same random matrix $S$:
+
+$$
+\min_b \lVert S y - S X b \rVert_2^2.
+$$
+
+The sketch should preserve norms in the augmented column space spanned by $X$ and $y$. Informally, if every candidate residual vector $y - Xb$ has nearly the same length after sketching, then minimizing the sketched residual is close to minimizing the full residual.
+
+### Dense Versus Sparse Sketches
+
+A dense Gaussian or Rademacher sketch uses a dense $s \times n$ matrix $S$. That is conceptually simple, but directly forming $S X$ costs $O(s n p)$, which can be worse than just working with the original design.
+
+`OLS.fit_sketch(...)` instead uses **CountSketch**. Each original row is assigned to one random bucket and one random sign. That means each row contributes once:
+
+$$
+(SX)_{h(i), \cdot} \mathrel{+}= \sigma_i X_{i, \cdot},
+\qquad
+(Sy)_{h(i)} \mathrel{+}= \sigma_i y_i,
+$$
+
+where $h(i)$ is a random bucket in $\{1, \ldots, s\}$ and $\sigma_i \in \{-1, +1\}$. The sketch construction is $O(n p)$, not $O(s n p)$, and the final least-squares solve is only on an $s \times p$ design.
+
+This is why sketching can help tall OLS: the full data are touched once, then the expensive solve happens on a much smaller synthetic dataset.
+
+## What Else From `librla` Is Worth Porting?
+
+The reference package includes `orth_sketch`, `qr_sketch`, `svd_sketch`, `id_sketch`, and deterministic `id_qrpiv`. The current PR effectively ports the most important first layer: randomized range finding and randomized SVD, plus a separate CountSketch least-squares path.
+
+The remaining pieces are worth thinking about as internal primitives rather than as a big public API dump.
+
+| Primitive | What it does | Worth porting? | Why |
+|---|---|---:|---|
+| `orth_sketch` / randomized range finder | Finds an approximate orthonormal basis $Q$ for the range of $A$ | Already partly ported | This is the core primitive behind randomized SVD. It should probably remain internal unless users have a clear need for the basis itself. |
+| `qr_sketch` | Builds an approximate rank-revealing QR factorization through a sketched basis | Yes, medium priority | Useful for numerically stable least squares, rank diagnostics, column pivoting, and eventually faster tall-design solvers. More naturally internal than public at first. |
+| `id_sketch` | Interpolative decomposition: approximate a matrix using a subset of actual columns plus interpolation weights | Yes, but later | Interesting for column subset selection, representative controls/features, Nyström-style approximations, and interpretable compression. Less immediately needed than SVD/QR. |
+| `id_qrpiv` | Deterministic QR-pivoted interpolative decomposition | Maybe as a reference path | Good for tests and deterministic fallbacks. Since `nalgebra` already has column-pivoted QR, this is feasible, but it should not be the next flagship feature. |
+| Matrix-free `LinearOperator` support | Uses only matrix-vector products rather than storing $A$ | Defer | Very useful eventually, but it complicates the Python/Rust boundary and is not needed for the current NumPy-first estimator API. |
+
+My preferred order for `crabbymetrics` is:
+
+1. keep randomized range/SVD as the low-rank backend;
+2. add randomized or pivoted QR when a downstream estimator needs rank diagnostics or a more stable approximate least-squares solve;
+3. add ID only when there is a concrete econometric use case, such as selecting representative controls, features, instruments, or donor columns;
+4. defer matrix-free operators until the package has a stronger reason to expose iterative linear algebra.
+
+So: **QR is the next plausible port**, **ID is useful but should be demand-driven**, and **orth/range is already the right internal building block**.
 
 ## Setup
 
@@ -56,7 +187,7 @@ def html_table(headers, rows):
     return "".join(parts)
 ```
 
-## Design
+## OLS Ablation Design
 
 The DGP is intentionally friendly to OLS: standardized Gaussian regressors, a dense linear signal, and homoskedastic additive noise. That makes the full OLS solution a useful numerical target. We vary the sketch size as a multiple of the full design dimension, including the intercept.
 
@@ -114,7 +245,7 @@ print("replications:", len(rows))
 print("design:", {"n": n, "p": p, "noise": noise})
 ```
 
-## Summary
+## Ablation Summary
 
 ```{python}
 summary = []
@@ -193,3 +324,5 @@ plt.show()
 ## Takeaway
 
 For this tall, well-conditioned design, a sketch size between $8(p+1)$ and $16(p+1)$ gives roughly one-percent coefficient error relative to full OLS while still reducing fit time by several times. Smaller sketches are visibly faster but can introduce enough coefficient and prediction error that they should be treated as approximate exploratory fits rather than a drop-in replacement for final inference.
+
+The more general development lesson is that sketching is not a single estimator. It is a family of compression tools. Randomized SVD helps when the downstream problem is low-rank structure; CountSketch helps when the downstream problem is tall least squares; randomized QR and ID become valuable when we need rank diagnostics, stable pivots, or interpretable column subsets.
