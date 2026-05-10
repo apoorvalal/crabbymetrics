@@ -401,3 +401,12 @@ That is the current state the next extension branch should assume.
 - Added `randomized_qr(...)` and `qr_solve(...)` Python exports backed by the native Rust randomized range/QR helpers.
 - Added `TwoSLS.fit_sketch(...)`, which applies one CountSketch embedding jointly to the IV regressor design, instrument design, and outcome before solving the compressed 2SLS problem.
 - Cleaned the randomized sketching docs page so it is official-package math plus OLS/IV ablations, without upstream-package references or development-roadmap language.
+
+## 2026-05-09 Estimator-Level RLA Integrations
+
+- Completed the follow-on sketching sequence on `feature/randomized-linear-algebra` as opt-in estimator integrations rather than changing exact defaults.
+- Added randomized SVD paths to `MatrixCompletion` and panel-factor extraction (`panel_factor` / `InteractiveFixedEffects`) with explicit rank/oversampling/power-iteration/seed controls.
+- Added reusable transform classes `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` for kernel approximations and wide-feature compression before downstream estimators such as `Ridge` and `BalancingWeights`.
+- Added conservative `GMM.fit_sketch(...)` for many-moment systems using a fixed Rademacher projection over moments/Jacobians.
+- Fixed weighted `TwoSLS.summary(...)` so weighted summaries use the same transformed-design convention as weighted fitting.
+- Local gates: `cargo fmt`, `cargo check`, `uv run maturin develop`, targeted estimator tests, and full `uv run pytest -q` (`94 passed`).

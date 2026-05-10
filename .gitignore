@@ -28,3 +28,5 @@ uv.lock
 pyfixest
 within
 scratch.ipynb
+ding_w_source
+docs/ablations/.jupyter_cache/

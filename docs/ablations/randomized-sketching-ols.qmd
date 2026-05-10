@@ -1,5 +1,5 @@
 ---
-title: "Randomized Sketching And Least Squares"
+title: "Randomized Sketching And Kernel Approximation"
 format:
   html:
     number-sections: true
@@ -18,132 +18,336 @@ jupyter: python3
 
 ## Math
 
-Randomized numerical linear algebra replaces one large deterministic linear algebra problem with a smaller random one. The approximation is useful when the random compression preserves the geometry relevant for the downstream problem.
+Randomized numerical linear algebra is useful when an estimator spends most of its time on a large matrix whose relevant geometry is much smaller than the matrix itself. The central move is to replace a large deterministic linear algebra problem by a smaller random problem that preserves the pieces of geometry the estimator actually uses.
 
-There are two distinct sketches in this page:
+This page separates five families of randomized approximations now exposed in `crabbymetrics`:
 
-1. **subspace sketches**, which find a low-dimensional basis for the range of a matrix;
-2. **row sketches**, which compress observations before least squares or instrumental variables.
+1. **subspace sketches** for low-rank range finding, SVD, QR, matrix completion, and factor models;
+2. **row sketches** for tall least squares;
+3. **kernel sketches** via Nyström features and random Fourier features;
+4. **moment sketches** for many-moment GMM;
+5. **feature compression** before balancing or synthetic-control-style weighting.
 
-### Subspace sketches
+The important design choice is conservative: exact algorithms remain the defaults for estimator classes. Sketching is opt-in through explicit method arguments or reusable transform classes.
 
-Let $A$ be an $m \times n$ matrix. If $A$ is approximately rank $k$, its columns mostly live in a $k$-dimensional subspace. A randomized range finder draws a random test matrix $\Omega \in \mathbb{R}^{n \times (k+q)}$ and forms
+### The projection view
+
+Let $A \in \mathbb{R}^{m \times n}$. Many estimators do not need all of $A$; they need either:
+
+- the action of $A$ on a low-dimensional subspace;
+- the dominant left/right singular subspaces;
+- the Gram matrix $A'A$ or $AA'$;
+- the solution to a least-squares or moment equation involving $A$.
+
+A sketch introduces a random linear map and solves a smaller problem. There are two common orientations.
+
+A **range sketch** multiplies on the right:
 
 $$
 Y = A\Omega,
-$$
-
-where $q$ is a small oversampling parameter. The columns of $Y$ are random linear combinations of columns of $A$. With high probability, they span nearly the same dominant column space as $A$. Orthogonalizing gives
-
-$$
-Y \approx QR,
 \qquad
-Q'Q = I.
+\Omega \in \mathbb{R}^{n \times \ell},
+\qquad
+\ell = k + q,
 $$
 
-Then $Q$ is an approximate basis for the range of $A$. This is the primitive behind randomized SVD and randomized QR.
-
-For a randomized SVD, project the matrix into this basis:
+where $k$ is the target rank and $q$ is an oversampling buffer. If $A$ is exactly or approximately rank $k$, the columns of $Y$ span approximately the dominant column space of $A$. After orthogonalizing,
 
 $$
-B = Q'A.
+Y = QR,
+\qquad
+Q'Q = I_\ell,
 $$
 
-Compute the ordinary SVD of the small matrix,
+we approximate
 
 $$
-B = \widetilde U \Sigma V',
+A \approx QQ'A.
 $$
 
-and lift the left singular vectors back:
+A **row sketch** multiplies on the left:
 
 $$
-A \approx Q \widetilde U \Sigma V'.
+\widetilde A = SA,
+\qquad
+S \in \mathbb{R}^{s \times m},
+\qquad
+s \ll m.
 $$
 
-For a randomized QR approximation, factor the same small projected matrix:
+For regression, this compresses observations. The sketch should be a subspace embedding: for vectors $v$ in the relevant column span,
 
 $$
-B = \widetilde Q R,
+(1-\varepsilon)\lVert v \rVert_2^2
+\le
+\lVert Sv \rVert_2^2
+\le
+(1+\varepsilon)\lVert v \rVert_2^2.
 $$
 
-then lift back:
+This condition is stronger than merely preserving pairwise distances for a few rows. It says that the random map approximately preserves the whole low-dimensional residual geometry.
+
+### Randomized range finding and SVD
+
+The randomized SVD in `crabbymetrics` starts from the range sketch above. Given $A \in \mathbb{R}^{m \times n}$ and a requested rank $k$:
+
+1. draw $\Omega \in \mathbb{R}^{n \times (k+q)}$;
+2. form $Y=A\Omega$;
+3. optionally perform power iterations;
+4. orthogonalize $Y=QR$;
+5. compute the small SVD of $B=Q'A$:
 
 $$
-A \approx (Q \widetilde Q) R.
+B = \widetilde U \Sigma V';
 $$
 
-When singular values decay slowly, the leading subspace is harder to identify. Power iterations sharpen the spectrum by repeatedly applying $A'A$ or $AA'$ before orthogonalizing. Heuristically, singular values are raised to higher powers, so large singular directions become easier to separate from small ones.
-
-### Row sketches for OLS
-
-OLS solves
+6. lift the left singular vectors:
 
 $$
-\hat\beta = \arg\min_b \lVert y - Xb \rVert_2^2,
+U \approx Q\widetilde U,
+\qquad
+A \approx U\Sigma V'.
 $$
 
-where $X$ is $n \times p$. If $n$ is large and $p$ is moderate, the expensive part is the number of rows. A row sketch draws an $s \times n$ matrix $S$ with $s \ll n$ and solves
+If the singular values of $A$ decay quickly, a small $q$ is often enough. If singular values decay slowly, the leading subspace is harder to identify. Power iteration improves separation by replacing the sampled range with roughly
+
+$$
+Y = (AA')^r A\Omega.
+$$
+
+The singular values are effectively transformed from $\sigma_j$ to $\sigma_j^{2r+1}$, so dominant directions stand out more sharply. The tradeoff is additional passes over $A$.
+
+The useful error heuristic is:
+
+$$
+\lVert A - QQ'A \rVert
+\approx
+\text{tail singular value scale},
+$$
+
+not machine precision. Randomized SVD is an approximation to a low-rank target, not a replacement for an exact full-rank factorization.
+
+### Randomized QR and approximate least squares
+
+Randomized QR uses the same range basis. If $Q$ approximately spans the column space of $A$, then QR can be computed on the compressed coordinates and lifted back. Equivalently, randomized least squares can be viewed as solving on a sketch that preserves the column space of the design.
+
+For a tall design $X \in \mathbb{R}^{n \times p}$ with $n \gg p$, OLS is
+
+$$
+\hat\beta
+= \arg\min_b \lVert y-Xb \rVert_2^2.
+$$
+
+A sketched least-squares fit draws $S \in \mathbb{R}^{s \times n}$ and solves
 
 $$
 \hat\beta_S
-= \arg\min_b \lVert Sy - SXb \rVert_2^2.
+= \arg\min_b \lVert S(y-Xb) \rVert_2^2.
 $$
 
-The sketch should preserve residual norms in the space spanned by $X$ and $y$:
+If $S$ is a subspace embedding for $\operatorname{span}([X,y])$, then the sketched objective is uniformly close to the full objective over the relevant parameter region. That is the reason a smaller problem can recover a similar coefficient vector.
+
+### CountSketch row embeddings
+
+The row-sketching path uses CountSketch. Each original row $i$ receives:
+
+- a bucket $h(i) \in \{1,\ldots,s\}$;
+- a sign $\sigma_i \in \{-1,+1\}$.
+
+Then rows are accumulated as
 
 $$
-\lVert S(y-Xb) \rVert_2^2 \approx \lVert y-Xb \rVert_2^2
-\quad \text{for relevant } b.
-$$
-
-If that approximation is good, the minimizer of the sketched objective is close to the full OLS minimizer.
-
-The implementation uses a CountSketch embedding. Each row $i$ is assigned to one random bucket $h(i) \in \{1,\ldots,s\}$ and one random sign $\sigma_i \in \{-1,+1\}$. The sketched design and outcome are accumulated as
-
-$$
-(SX)_{h(i), \cdot} \mathrel{+}= \sigma_i X_{i,\cdot},
+(SX)_{h(i),\cdot} \mathrel{+}= \sigma_i X_{i,\cdot},
 \qquad
 (Sy)_{h(i)} \mathrel{+}= \sigma_i y_i.
 $$
 
-This touches each original row once, so sketch construction is $O(np)$ rather than $O(snp)$.
+The matrix $S$ is never materialized densely. Construction is one pass through the rows, so the cost is proportional to the number of nonzero entries touched. For dense $X$, that is $O(np)$ to build the sketch plus the cost of solving the $s \times p$ compressed least-squares problem.
 
-### Row sketches for IV / 2SLS
+The sketch size $s$ controls the bias--variance approximation tradeoff. A very small sketch is fast but noisy; a larger sketch approaches the full estimator.
 
-Two-stage least squares can be written with an endogenous/exogenous design $X$ and instrument design $Z$. With an intercept included where needed, the population of matrices is
+### Matrix completion via randomized singular-value thresholding
+
+Panel matrix completion repeatedly solves a low-rank denoising problem. A stylized singular-value-thresholding update is
 
 $$
-X = [1, X_{endog}, X_{exog}],
+M^{(t+1)}
+= \mathcal{S}_\lambda(A^{(t)}),
+$$
+
+where $\mathcal{S}_\lambda$ soft-thresholds singular values. If
+
+$$
+A^{(t)} = U\operatorname{diag}(\sigma_j)V',
+$$
+
+then
+
+$$
+\mathcal{S}_\lambda(A^{(t)})
+= U\operatorname{diag}((\sigma_j-\lambda)_+)V'.
+$$
+
+When the desired panel signal is low rank, most singular values are discarded or heavily shrunk. Computing a full exact SVD in every iteration can therefore waste work. The randomized path computes an approximate rank-$k$ SVD and applies the same soft-thresholding to the retained singular values.
+
+This is why the `MatrixCompletion` sketching knobs are explicit:
+
+- `svd_method="exact"` keeps the deterministic path;
+- `svd_method="randomized"` uses randomized SVD;
+- `svd_rank` controls the retained rank ceiling;
+- oversampling and power-iteration controls tune approximation quality.
+
+The approximation changes the low-rank update, so it should be tested against exact SVD on small panels before being trusted on large panels.
+
+### Interactive fixed effects and randomized factor extraction
+
+Interactive fixed effects use a low-rank factor structure such as
+
+$$
+Y_{it}(0) \approx \lambda_i'f_t + \alpha_i + \xi_t.
+$$
+
+After additive effects are handled, factor extraction is again an SVD problem on a residualized panel matrix. Exact factor extraction computes leading singular vectors of the full matrix. The randomized path approximates the same leading subspace with randomized SVD.
+
+The target is not equality of individual factor signs or rotations. Factors are only identified up to invertible transformations. The relevant comparisons are reconstructed fitted values, counterfactual paths, and treatment-effect summaries.
+
+### Kernel approximation: Nyström features
+
+Kernel methods replace dot products with similarities
+
+$$
+K(x_i,x_j).
+$$
+
+A full kernel matrix for $n$ observations costs $O(n^2)$ memory. Nyström approximation chooses $m \ll n$ landmarks $L = \{\ell_1,\ldots,\ell_m\}$ and forms
+
+$$
+K_{nm} = K(X,L),
 \qquad
-Z = [1, X_{exog}, Z_{excluded}].
+K_{mm} = K(L,L).
 $$
 
-The usual finite-sample 2SLS estimator is
+The low-rank kernel approximation is
 
 $$
-\hat\beta_{2SLS}
-= (X'P_ZX)^{-1}X'P_Zy,
+K(X,X) \approx K_{nm}K_{mm}^{\dagger}K_{mn}.
+$$
+
+A convenient feature representation is
+
+$$
+\Phi_{Nys}(X) = K_{nm}K_{mm}^{-1/2},
+$$
+
+so that
+
+$$
+\Phi_{Nys}(X)\Phi_{Nys}(X)' \approx K(X,X).
+$$
+
+`NystromBasis` exposes these features as a transformer. Downstream estimators can stay ordinary linear estimators, e.g. ridge on Nyström features.
+
+### Kernel approximation: random Fourier features
+
+For shift-invariant kernels $K(x,z)=\kappa(x-z)$, Bochner's theorem says that a continuous positive-definite kernel is the Fourier transform of a nonnegative measure. For the Gaussian/RBF kernel,
+
+$$
+K(x,z) = \exp\left(-\frac{\lVert x-z\rVert^2}{2b^2}\right),
+$$
+
+one can draw random frequencies
+
+$$
+\omega_j \sim N(0, b^{-2}I)
+$$
+
+and phases
+
+$$
+b_j \sim \operatorname{Uniform}(0,2\pi),
+$$
+
+then construct features
+
+$$
+\phi_j(x)
+= \sqrt{\frac{2}{D}}\cos(\omega_j'x+b_j),
+\qquad j=1,\ldots,D.
+$$
+
+The inner product approximates the kernel:
+
+$$
+\phi(x)'\phi(z) \approx K(x,z).
+$$
+
+`RandomFourierFeatures` is useful when a smooth nonlinear relationship can be learned by a linear estimator after random nonlinear expansion.
+
+### Many-moment GMM sketching
+
+A GMM estimator solves moments
+
+$$
+\bar g(\theta) = \frac{1}{n}\sum_{i=1}^n g_i(\theta) \in \mathbb{R}^q,
+$$
+
+by minimizing
+
+$$
+Q(\theta) = \bar g(\theta)'W\bar g(\theta).
+$$
+
+When $q$ is large, the moment system and weighting matrix can dominate computation. A moment sketch draws a projection
+
+$$
+R \in \mathbb{R}^{s \times q},
+\qquad s < q,
+$$
+
+and fits the compressed moments
+
+$$
+\widetilde g(\theta) = R\bar g(\theta).
+$$
+
+The Jacobian is compressed consistently:
+
+$$
+\widetilde G(\theta) = R G(\theta),
 \qquad
-P_Z = Z(Z'Z)^{-1}Z'.
+G(\theta)=\frac{\partial \bar g(\theta)}{\partial \theta'}.
 $$
 
-A row-sketched IV fit applies the same sketch $S$ to $X$, $Z$, and $y$, then runs 2SLS on the compressed problem:
+`GMM.fit_sketch(...)` uses a fixed Rademacher projection. The conservative interpretation is important: the fitted and summarized model is the sketched moment problem, not the full moment problem with magically free inference. Moment sketching is most appropriate when there are many redundant or highly correlated moments.
+
+### Randomized PCA before balancing weights
+
+Balancing weights solve for weights $w_i$ that make weighted source covariates match target covariates. In the simplest form, the balance condition is
 
 $$
-\hat\beta_{S,2SLS}
-= ((SX)'P_{SZ}(SX))^{-1}(SX)'P_{SZ}(Sy),
-\qquad
-P_{SZ} = (SZ)((SZ)'(SZ))^{-1}(SZ)'.
+\sum_i w_i x_i \approx \bar x_{target}.
 $$
 
-Using the same sketch for the regressors, instruments, and outcome is important: the random compression should preserve the joint geometry of the moment condition
+If $x_i$ is a long donor history or wide feature vector, exact balance can be high-dimensional and unstable. One explicit compression strategy is to first map covariates to randomized principal-component scores:
 
 $$
-Z'(y-X\beta) = 0.
+z_i = V_k'(x_i-\bar x),
 $$
 
-The result is an approximate IV fit that can be much cheaper for tall designs, while still using the same first-stage projection logic as ordinary 2SLS.
+where $V_k$ is obtained by randomized SVD. Balance is then imposed on $z_i$ rather than the full $x_i$.
+
+This is deliberately exposed as `RandomizedPCA`, not hidden inside `BalancingWeights` or synthetic-control estimators. Compression changes the estimand-relevant diagnostics: balance in compressed coordinates does not imply exact balance in original coordinates unless the discarded directions are irrelevant.
+
+### Practical tuning rules
+
+- Keep exact defaults for small problems.
+- Use randomized SVD when a matrix is large and plausibly low rank.
+- Increase `oversamples` when approximation quality is unstable.
+- Increase `power_iter` when singular values decay slowly.
+- Use row sketches when $n$ is large relative to the number of regressors and the least-squares geometry is well conditioned.
+- Treat GMM moment sketching as a point-estimation acceleration first; be cautious with inference.
+- For kernel approximations, choose the feature dimension by validation or an approximation diagnostic, not by aesthetics.
+- For balancing compression, always inspect balance in original variables as a diagnostic.
 
 ## Ablation
 
@@ -274,103 +478,188 @@ display(
 )
 ```
 
-### IV design
+### Kernel ridge design
 
-The second design introduces one endogenous regressor whose first stage depends on excluded instruments and exogenous controls. The structural error is correlated with the first-stage shock, so IV rather than OLS is the relevant target. The comparison is full 2SLS versus sketched 2SLS.
+The second design is nonlinear. The full target is Gaussian kernel ridge regression using the full $n \times n$ training kernel. The randomized alternatives replace the full kernel by explicit features: Nyström features from sampled landmarks and random Fourier features. This makes the downstream regression an ordinary ridge problem on a much smaller feature matrix.
+
+The comparison reports two things:
+
+- the relative Frobenius error of the training-kernel approximation, $\lVert K-\Phi\Phi'\rVert_F / \lVert K\rVert_F$;
+- downstream test RMSE against the true regression function and against the full kernel-ridge predictor.
 
 ```{python}
-def run_iv_once(n, multiple, seed):
+def rbf_kernel(x, z, bandwidth):
+    x_norm = np.sum(x * x, axis=1)[:, None]
+    z_norm = np.sum(z * z, axis=1)[None, :]
+    sqdist = np.maximum(x_norm + z_norm - 2.0 * x @ z.T, 0.0)
+    return np.exp(-sqdist / bandwidth)
+
+
+def ridge_on_features(phi_train, y_train, phi_test, penalty):
+    gram = phi_train.T @ phi_train
+    rhs = phi_train.T @ y_train
+    coef = np.linalg.solve(gram + penalty * np.eye(gram.shape[0]), rhs)
+    return phi_test @ coef
+
+
+def run_kernel_once(n_train, n_test, n_features, bandwidth, penalty, components, seed):
     rng = np.random.default_rng(seed)
-    z = rng.normal(size=(n, 3))
-    x_exog = rng.normal(size=(n, 2))
-    v = rng.normal(size=n)
-    x_endog = 0.8 * z[:, [0]] + 0.4 * z[:, [1]] + 0.3 * x_exog[:, [0]] + v[:, None]
-    eps = 0.6 * v + rng.normal(scale=0.2, size=n)
-    y = 1.0 + 2.0 * x_endog[:, 0] - 0.5 * x_exog[:, 0] + 0.25 * x_exog[:, 1] + eps
+    x_train = rng.uniform(-3.0, 3.0, size=(n_train, n_features))
+    x_test = rng.uniform(-3.0, 3.0, size=(n_test, n_features))
 
-    # The sketched 2SLS design has intercept + endogenous + exogenous regressors
-    # and intercept + exogenous + excluded instruments.
-    design_dim = max(1 + x_endog.shape[1] + x_exog.shape[1], 1 + x_exog.shape[1] + z.shape[1])
-    sketch_size = int(multiple * design_dim)
+    def signal(x):
+        return (
+            np.sin(1.4 * x[:, 0])
+            + 0.7 * np.cos(1.1 * x[:, 1] * x[:, 2])
+            + 0.3 * x[:, 3] ** 2
+            - 0.2 * x[:, 4]
+        )
 
-    full = cm.TwoSLS()
+    f_train = signal(x_train)
+    f_test = signal(x_test)
+    y_train = f_train + 0.15 * rng.normal(size=n_train)
+
     t0 = time.perf_counter()
-    full.fit(x_endog, x_exog, z, y)
+    k_train = rbf_kernel(x_train, x_train, bandwidth)
+    k_test = rbf_kernel(x_test, x_train, bandwidth)
+    alpha = np.linalg.solve(k_train + penalty * np.eye(n_train), y_train)
+    full_pred = k_test @ alpha
     full_time = time.perf_counter() - t0
-    full_summary = full.summary(vcov="vanilla")
-    full_param = np.concatenate([[full_summary["intercept"]], full_summary["coef"]])
 
-    sketch = cm.TwoSLS()
-    t0 = time.perf_counter()
-    sketch.fit_sketch(x_endog, x_exog, z, y, sketch_size=sketch_size, seed=seed + 20_000)
-    sketch_time = time.perf_counter() - t0
-    sketch_summary = sketch.summary(vcov="vanilla")
-    sketch_param = np.concatenate([[sketch_summary["intercept"]], sketch_summary["coef"]])
+    out = []
+    for method in ["Nyström", "Random Fourier"]:
+        t0 = time.perf_counter()
+        if method == "Nyström":
+            basis = cm.NystromBasis(
+                components,
+                kernel="gaussian",
+                bandwidth=bandwidth,
+                ridge=1e-10,
+                seed=seed + 30_000,
+            )
+        else:
+            basis = cm.RandomFourierFeatures(
+                components,
+                bandwidth=bandwidth,
+                seed=seed + 40_000,
+            )
+        phi_train = basis.fit_transform(x_train)
+        phi_test = basis.transform(x_test)
+        sketch_pred = ridge_on_features(phi_train, y_train, phi_test, penalty)
+        sketch_time = time.perf_counter() - t0
+        k_approx = phi_train @ phi_train.T
 
-    x_pred = np.column_stack([x_endog, x_exog])[:2000]
-    full_pred = full.predict(x_pred)
-    sketch_pred = sketch.predict(x_pred)
+        out.append(
+            {
+                "method": method,
+                "components": components,
+                "kernel_rel_error": float(
+                    np.linalg.norm(k_approx - k_train, ord="fro")
+                    / np.linalg.norm(k_train, ord="fro")
+                ),
+                "rmse_vs_truth": float(np.sqrt(np.mean((sketch_pred - f_test) ** 2))),
+                "rmse_vs_full_krr": float(np.sqrt(np.mean((sketch_pred - full_pred) ** 2))),
+                "full_rmse_vs_truth": float(np.sqrt(np.mean((full_pred - f_test) ** 2))),
+                "full_fit_seconds": full_time,
+                "sketch_fit_seconds": sketch_time,
+                "speedup": full_time / sketch_time if sketch_time > 0 else np.inf,
+            }
+        )
+    return out
 
-    return {
-        "multiple": multiple,
-        "sketch_size": sketch_size,
-        "coef_rel_error": float(
-            np.linalg.norm(sketch_param - full_param) / np.linalg.norm(full_param)
-        ),
-        "prediction_rmse_vs_full": float(np.sqrt(np.mean((sketch_pred - full_pred) ** 2))),
-        "full_fit_seconds": full_time,
-        "sketch_fit_seconds": sketch_time,
-        "speedup": full_time / sketch_time if sketch_time > 0 else np.inf,
-    }
 
+kernel_n_train = 1_200
+kernel_n_test = 600
+kernel_n_features = 5
+kernel_bandwidth = 8.0
+kernel_penalty = 1.0
+component_grid = [50, 100, 200, 400]
+kernel_seeds = range(3)
 
-iv_n = 20_000
-iv_rows = [run_iv_once(iv_n, multiple, seed) for multiple in multiples for seed in seeds]
-print("IV replications:", len(iv_rows))
-print("IV design:", {"n": iv_n, "n_endog": 1, "n_exog": 2, "n_excluded_instruments": 3})
+kernel_rows = [
+    row
+    for components in component_grid
+    for seed in kernel_seeds
+    for row in run_kernel_once(
+        kernel_n_train,
+        kernel_n_test,
+        kernel_n_features,
+        kernel_bandwidth,
+        kernel_penalty,
+        components,
+        seed,
+    )
+]
+print("Kernel replications:", len(kernel_rows))
+print(
+    "Kernel design:",
+    {
+        "n_train": kernel_n_train,
+        "n_test": kernel_n_test,
+        "p": kernel_n_features,
+        "bandwidth": kernel_bandwidth,
+        "penalty": kernel_penalty,
+    },
+)
 ```
 
 ```{python}
-iv_summary = []
-for multiple in multiples:
-    block = [row for row in iv_rows if row["multiple"] == multiple]
-    iv_summary.append(
-        {
-            "multiple": multiple,
-            "sketch_size": block[0]["sketch_size"],
-            "median_coef_rel_error": float(np.median([r["coef_rel_error"] for r in block])),
-            "median_prediction_rmse_vs_full": float(
-                np.median([r["prediction_rmse_vs_full"] for r in block])
-            ),
-            "median_speedup": float(np.median([r["speedup"] for r in block])),
-        }
-    )
+kernel_summary = []
+for method in ["Nyström", "Random Fourier"]:
+    for components in component_grid:
+        block = [
+            row
+            for row in kernel_rows
+            if row["method"] == method and row["components"] == components
+        ]
+        kernel_summary.append(
+            {
+                "method": method,
+                "components": components,
+                "median_kernel_rel_error": float(
+                    np.median([r["kernel_rel_error"] for r in block])
+                ),
+                "median_rmse_vs_truth": float(np.median([r["rmse_vs_truth"] for r in block])),
+                "median_rmse_vs_full_krr": float(
+                    np.median([r["rmse_vs_full_krr"] for r in block])
+                ),
+                "median_speedup": float(np.median([r["speedup"] for r in block])),
+                "median_full_rmse_vs_truth": float(
+                    np.median([r["full_rmse_vs_truth"] for r in block])
+                ),
+            }
+        )
 
-iv_summary_rows = [
+kernel_summary_rows = [
     [
-        f"{entry['multiple']}x",
-        entry["sketch_size"],
-        f"{entry['median_coef_rel_error']:.4f}",
-        f"{entry['median_prediction_rmse_vs_full']:.4f}",
+        entry["method"],
+        entry["components"],
+        f"{entry['median_kernel_rel_error']:.4f}",
+        f"{entry['median_rmse_vs_truth']:.4f}",
+        f"{entry['median_rmse_vs_full_krr']:.4f}",
         f"{entry['median_speedup']:.2f}x",
     ]
-    for entry in iv_summary
+    for entry in kernel_summary
 ]
 
 display(
     HTML(
         html_table(
             [
-                "Sketch multiple",
-                "Sketch size",
-                "Median coefficient relative error",
-                "Median prediction RMSE vs full 2SLS",
-                "Median speedup",
+                "Approximation",
+                "Features",
+                "Median kernel relative error",
+                "Median test RMSE vs truth",
+                "Median test RMSE vs full KRR",
+                "Median full/sketch time",
             ],
-            iv_summary_rows,
+            kernel_summary_rows,
         )
     )
 )
+
+full_rmse = kernel_summary[0]["median_full_rmse_vs_truth"]
+print(f"Median full-kernel KRR test RMSE vs truth: {full_rmse:.4f}")
 ```
 
 ### Plots
@@ -378,29 +667,70 @@ display(
 ```{python}
 fig, axes = plt.subplots(2, 3, figsize=(14, 7), constrained_layout=True)
 
-for row_idx, (label, summary) in enumerate([("OLS", ols_summary), ("2SLS", iv_summary)]):
-    x_axis = np.array([entry["multiple"] for entry in summary])
-    coef_error = np.array([entry["median_coef_rel_error"] for entry in summary])
-    pred_error = np.array([entry["median_prediction_rmse_vs_full"] for entry in summary])
-    speedup = np.array([entry["median_speedup"] for entry in summary])
+ols_x = np.array([entry["multiple"] for entry in ols_summary])
+axes[0, 0].plot(ols_x, [entry["median_coef_rel_error"] for entry in ols_summary], marker="o")
+axes[0, 0].set_xlabel("Sketch size / design dimension")
+axes[0, 0].set_ylabel("Median relative coefficient error")
+axes[0, 0].set_title("OLS: coefficient accuracy")
 
-    axes[row_idx, 0].plot(x_axis, coef_error, marker="o")
-    axes[row_idx, 0].set_xlabel("Sketch size / design dimension")
-    axes[row_idx, 0].set_ylabel("Median relative coefficient error")
-    axes[row_idx, 0].set_title(f"{label}: coefficient accuracy")
+axes[0, 1].plot(
+    ols_x,
+    [entry["median_prediction_rmse_vs_full"] for entry in ols_summary],
+    marker="o",
+    color="tab:orange",
+)
+axes[0, 1].set_xlabel("Sketch size / design dimension")
+axes[0, 1].set_ylabel("Median RMSE vs full OLS")
+axes[0, 1].set_title("OLS: prediction agreement")
 
-    axes[row_idx, 1].plot(x_axis, pred_error, marker="o", color="tab:orange")
-    axes[row_idx, 1].set_xlabel("Sketch size / design dimension")
-    axes[row_idx, 1].set_ylabel("Median RMSE vs full fit")
-    axes[row_idx, 1].set_title(f"{label}: prediction agreement")
+axes[0, 2].plot(ols_x, [entry["median_speedup"] for entry in ols_summary], marker="o", color="tab:green")
+axes[0, 2].axhline(1.0, color="black", linestyle="--", linewidth=1)
+axes[0, 2].set_xlabel("Sketch size / design dimension")
+axes[0, 2].set_ylabel("Median full/sketch fit time")
+axes[0, 2].set_title("OLS: runtime")
 
-    axes[row_idx, 2].plot(x_axis, speedup, marker="o", color="tab:green")
-    axes[row_idx, 2].axhline(1.0, color="black", linestyle="--", linewidth=1)
-    axes[row_idx, 2].set_xlabel("Sketch size / design dimension")
-    axes[row_idx, 2].set_ylabel("Median full/sketch fit time")
-    axes[row_idx, 2].set_title(f"{label}: runtime")
+for method, color in [("Nyström", "tab:blue"), ("Random Fourier", "tab:purple")]:
+    block = [entry for entry in kernel_summary if entry["method"] == method]
+    x_axis = np.array([entry["components"] for entry in block])
+    axes[1, 0].plot(
+        x_axis,
+        [entry["median_kernel_rel_error"] for entry in block],
+        marker="o",
+        label=method,
+        color=color,
+    )
+    axes[1, 1].plot(
+        x_axis,
+        [entry["median_rmse_vs_full_krr"] for entry in block],
+        marker="o",
+        label=method,
+        color=color,
+    )
+    axes[1, 2].plot(
+        x_axis,
+        [entry["median_speedup"] for entry in block],
+        marker="o",
+        label=method,
+        color=color,
+    )
+
+axes[1, 0].set_xlabel("Feature dimension")
+axes[1, 0].set_ylabel("Median relative Frobenius error")
+axes[1, 0].set_title("Kernel: approximation error")
+axes[1, 0].legend()
+
+axes[1, 1].set_xlabel("Feature dimension")
+axes[1, 1].set_ylabel("Median RMSE vs full KRR")
+axes[1, 1].set_title("Kernel: downstream prediction agreement")
+axes[1, 1].legend()
+
+axes[1, 2].axhline(1.0, color="black", linestyle="--", linewidth=1)
+axes[1, 2].set_xlabel("Feature dimension")
+axes[1, 2].set_ylabel("Median full/sketch fit time")
+axes[1, 2].set_title("Kernel: runtime")
+axes[1, 2].legend()
 
 plt.show()
 ```
 
-For these tall, well-conditioned designs, larger sketches move the approximate OLS and IV estimates toward the full-data estimates while keeping the solve on a much smaller synthetic dataset. Very small sketches are useful as fast exploratory approximations; larger sketches are the safer default when coefficient accuracy matters.
+For the tall OLS design, larger row sketches move the approximate coefficients and predictions toward the full-data fit while keeping the solve on a smaller synthetic dataset. For the nonlinear design, explicit kernel features trade approximation error against a much smaller ridge problem. The useful diagnostic is not just whether $\Phi\Phi'$ resembles $K$, but whether the downstream ridge predictions track the full kernel-ridge benchmark.

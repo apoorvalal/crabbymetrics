@@ -1,4 +1,4 @@
-use crate::rla::{count_sketch_joint, sketch_ols_params};
+use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
@@ -603,6 +603,64 @@ fn svt(matrix: &Array2<f64>, threshold: f64) -> PyResult<(Array2<f64>, Array1<f6
     Ok((out, shrunk))
 }
 
+fn svt_randomized(
+    matrix: &Array2<f64>,
+    threshold: f64,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<(Array2<f64>, Array1<f64>)> {
+    let min_dim = matrix.nrows().min(matrix.ncols());
+    if rank == 0 || rank > min_dim {
+        return Err(PyValueError::new_err(
+            "svd_rank must be between 1 and min(Y.shape)",
+        ));
+    }
+    let result = randomized_svd_impl(matrix, rank, oversamples, power_iter, seed)?;
+    let k = result.singular_values.len();
+    let mut shrunk = Array1::<f64>::zeros(k);
+    let mut scaled_u = result.u.clone();
+    for j in 0..k {
+        let value = (result.singular_values[j] - threshold).max(0.0);
+        shrunk[j] = value;
+        for i in 0..scaled_u.nrows() {
+            scaled_u[[i, j]] *= value;
+        }
+    }
+    let reconstructed = scaled_u.dot(&result.vt);
+    Ok((reconstructed, shrunk))
+}
+
+fn svt_with_method(
+    matrix: &Array2<f64>,
+    threshold: f64,
+    svd_method: &str,
+    svd_rank: Option<usize>,
+    svd_oversamples: usize,
+    svd_power_iter: usize,
+    svd_seed: Option<u64>,
+) -> PyResult<(Array2<f64>, Array1<f64>)> {
+    match svd_method {
+        "exact" => svt(matrix, threshold),
+        "randomized" => {
+            let min_dim = matrix.nrows().min(matrix.ncols());
+            let rank = svd_rank.unwrap_or(min_dim);
+            svt_randomized(
+                matrix,
+                threshold,
+                rank,
+                svd_oversamples,
+                svd_power_iter,
+                svd_seed,
+            )
+        }
+        _ => Err(PyValueError::new_err(
+            "svd_method must be either 'exact' or 'randomized'",
+        )),
+    }
+}
+
 struct PanelFactorFit {
     factor: Array2<f64>,
     loading: Array2<f64>,
@@ -676,6 +734,73 @@ fn panel_factor_fit(e: &Array2<f64>, rank: usize) -> PyResult<PanelFactorFit> {
         vnt,
         fixed_effect: dmatrix_to_array2(&fixed_effect_dm),
     })
+}
+
+fn panel_factor_fit_randomized(
+    e: &Array2<f64>,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<PanelFactorFit> {
+    let t = e.nrows();
+    let n = e.ncols();
+    if rank > t.min(n) {
+        return Err(PyValueError::new_err(
+            "rank must be <= min(n_periods, n_units)",
+        ));
+    }
+    if rank == 0 {
+        return Ok(PanelFactorFit {
+            factor: Array2::<f64>::zeros((t, 0)),
+            loading: Array2::<f64>::zeros((n, 0)),
+            vnt: Array2::<f64>::zeros((0, 0)),
+            fixed_effect: Array2::<f64>::zeros((t, n)),
+        });
+    }
+
+    let svd = randomized_svd_impl(e, rank, oversamples, power_iter, seed)?;
+    let mut factor = svd.u.clone();
+    let factor_scale = (t as f64).sqrt();
+    factor.mapv_inplace(|value| value * factor_scale);
+
+    let mut loading = Array2::<f64>::zeros((n, rank));
+    for k in 0..rank {
+        let scale = svd.singular_values[k] / factor_scale;
+        for j in 0..n {
+            loading[[j, k]] = svd.vt[[k, j]] * scale;
+        }
+    }
+    let fixed_effect = factor.dot(&loading.t());
+    let mut vnt = Array2::<f64>::zeros((rank, rank));
+    let denom = (n * t) as f64;
+    for j in 0..rank {
+        vnt[[j, j]] = svd.singular_values[j] * svd.singular_values[j] / denom;
+    }
+
+    Ok(PanelFactorFit {
+        factor,
+        loading,
+        vnt,
+        fixed_effect,
+    })
+}
+
+fn panel_factor_fit_with_method(
+    e: &Array2<f64>,
+    rank: usize,
+    factor_method: &str,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<PanelFactorFit> {
+    match factor_method {
+        "exact" => panel_factor_fit(e, rank),
+        "randomized" => panel_factor_fit_randomized(e, rank, oversamples, power_iter, seed),
+        _ => Err(PyValueError::new_err(
+            "factor_method must be either 'exact' or 'randomized'",
+        )),
+    }
 }
 
 fn panel_fe_fect(e: &Array2<f64>, lambda: f64, hard: bool) -> PyResult<(Array2<f64>, Array1<f64>)> {
@@ -1712,6 +1837,10 @@ pub struct TwoSLS {
 pub struct InteractiveFixedEffects {
     rank: usize,
     force: i32,
+    factor_method: String,
+    factor_oversamples: usize,
+    factor_power_iter: usize,
+    factor_seed: Option<u64>,
     fit: Option<Array2<f64>>,
     residuals: Option<Array2<f64>>,
     mu: Option<f64>,
@@ -1725,14 +1854,33 @@ pub struct InteractiveFixedEffects {
 #[pymethods]
 impl InteractiveFixedEffects {
     #[new]
-    #[pyo3(signature = (rank=0, force=3))]
-    fn new(rank: usize, force: i32) -> PyResult<Self> {
+    #[pyo3(signature = (rank=0, force=3, factor_method="exact".to_string(), factor_oversamples=10, factor_power_iter=1, factor_seed=None))]
+    fn new(
+        rank: usize,
+        force: i32,
+        factor_method: String,
+        factor_oversamples: usize,
+        factor_power_iter: usize,
+        factor_seed: Option<u64>,
+    ) -> PyResult<Self> {
         if !(0..=3).contains(&force) {
             return Err(PyValueError::new_err("force must be one of {0, 1, 2, 3}"));
+        }
+        if factor_method != "exact" && factor_method != "randomized" {
+            return Err(PyValueError::new_err(
+                "factor_method must be either 'exact' or 'randomized'",
+            ));
+        }
+        if factor_power_iter > 10 {
+            return Err(PyValueError::new_err("factor_power_iter must be <= 10"));
         }
         Ok(Self {
             rank,
             force,
+            factor_method,
+            factor_oversamples,
+            factor_power_iter,
+            factor_seed,
             fit: None,
             residuals: None,
             mu: None,
@@ -1750,7 +1898,14 @@ impl InteractiveFixedEffects {
             return Err(PyValueError::new_err("y must be a non-empty 2D matrix"));
         }
         let (demeaned, mu, alpha, xi) = additive_demean_balanced(&y, self.force)?;
-        let pf = panel_factor_fit(&demeaned, self.rank)?;
+        let pf = panel_factor_fit_with_method(
+            &demeaned,
+            self.rank,
+            &self.factor_method,
+            self.factor_oversamples,
+            self.factor_power_iter,
+            self.factor_seed,
+        )?;
         let mut fitted = pf.fixed_effect.clone();
         for i in 0..fitted.nrows() {
             for j in 0..fitted.ncols() {
@@ -1819,20 +1974,27 @@ impl InteractiveFixedEffects {
         dict.set_item("vnt", pyarray2_from_f64(py, vnt))?;
         dict.set_item("rank", self.rank)?;
         dict.set_item("force", self.force)?;
+        dict.set_item("factor_method", self.factor_method.clone())?;
+        dict.set_item("factor_oversamples", self.factor_oversamples)?;
+        dict.set_item("factor_power_iter", self.factor_power_iter)?;
         Ok(dict.into())
     }
 }
 
 #[pyfunction]
-#[pyo3(signature = (e, rank))]
+#[pyo3(signature = (e, rank, factor_method="exact".to_string(), oversamples=10, power_iter=1, seed=None))]
 pub fn panel_factor<'py>(
     py: Python<'py>,
     e: PyReadonlyArray2<f64>,
     rank: usize,
+    factor_method: String,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
 ) -> PyResult<Py<PyAny>> {
     let e = to_array2(&e);
     validate_finite_matrix("e", &e)?;
-    let pf = panel_factor_fit(&e, rank)?;
+    let pf = panel_factor_fit_with_method(&e, rank, &factor_method, oversamples, power_iter, seed)?;
     let dict = pyo3::types::PyDict::new(py);
     dict.set_item("factor", pyarray2_from_f64(py, &pf.factor))?;
     dict.set_item("loading", pyarray2_from_f64(py, &pf.loading))?;
@@ -1867,6 +2029,11 @@ pub struct MatrixCompletion {
     max_iterations: usize,
     effect_iterations: usize,
     tolerance: f64,
+    svd_method: String,
+    svd_rank: Option<usize>,
+    svd_oversamples: usize,
+    svd_power_iter: usize,
+    svd_seed: Option<u64>,
     completed: Option<Array2<f64>>,
     low_rank: Option<Array2<f64>>,
     unit_effects: Option<Array1<f64>>,
@@ -1887,7 +2054,7 @@ pub struct MatrixCompletion {
 #[pymethods]
 impl MatrixCompletion {
     #[new]
-    #[pyo3(signature = (lambda_l=None, lambda_fraction=0.25, fit_unit_effects=true, fit_time_effects=true, max_iterations=500, effect_iterations=2, tolerance=1e-6))]
+    #[pyo3(signature = (lambda_l=None, lambda_fraction=0.25, fit_unit_effects=true, fit_time_effects=true, max_iterations=500, effect_iterations=2, tolerance=1e-6, svd_method="exact".to_string(), svd_rank=None, svd_oversamples=10, svd_power_iter=1, svd_seed=None))]
     fn new(
         lambda_l: Option<f64>,
         lambda_fraction: f64,
@@ -1896,6 +2063,11 @@ impl MatrixCompletion {
         max_iterations: usize,
         effect_iterations: usize,
         tolerance: f64,
+        svd_method: String,
+        svd_rank: Option<usize>,
+        svd_oversamples: usize,
+        svd_power_iter: usize,
+        svd_seed: Option<u64>,
     ) -> PyResult<Self> {
         if let Some(value) = lambda_l {
             if !value.is_finite() || value < 0.0 {
@@ -1914,6 +2086,17 @@ impl MatrixCompletion {
                 "tolerance must be finite and nonnegative",
             ));
         }
+        if svd_method != "exact" && svd_method != "randomized" {
+            return Err(PyValueError::new_err(
+                "svd_method must be either 'exact' or 'randomized'",
+            ));
+        }
+        if matches!(svd_rank, Some(0)) {
+            return Err(PyValueError::new_err("svd_rank must be positive"));
+        }
+        if svd_power_iter > 10 {
+            return Err(PyValueError::new_err("svd_power_iter must be <= 10"));
+        }
         Ok(Self {
             lambda_l,
             lambda_fraction,
@@ -1922,6 +2105,11 @@ impl MatrixCompletion {
             max_iterations,
             effect_iterations,
             tolerance,
+            svd_method,
+            svd_rank,
+            svd_oversamples,
+            svd_power_iter,
+            svd_seed,
             completed: None,
             low_rank: None,
             unit_effects: None,
@@ -2013,7 +2201,18 @@ impl MatrixCompletion {
                     }
                 }
             }
-            let (updated_low_rank, updated_singular_values) = svt(&projected, threshold)?;
+            let seed = self
+                .svd_seed
+                .map(|value| value.wrapping_add(iteration as u64));
+            let (updated_low_rank, updated_singular_values) = svt_with_method(
+                &projected,
+                threshold,
+                &self.svd_method,
+                self.svd_rank,
+                self.svd_oversamples,
+                self.svd_power_iter,
+                seed,
+            )?;
             low_rank = updated_low_rank;
             singular_values = updated_singular_values;
 
@@ -2126,6 +2325,10 @@ impl MatrixCompletion {
         dict.set_item("iterations", self.iterations)?;
         dict.set_item("history_objective", self.history_objective.clone())?;
         dict.set_item("history_rmse", self.history_rmse.clone())?;
+        dict.set_item("svd_method", self.svd_method.clone())?;
+        dict.set_item("svd_rank", self.svd_rank)?;
+        dict.set_item("svd_oversamples", self.svd_oversamples)?;
+        dict.set_item("svd_power_iter", self.svd_power_iter)?;
         dict.set_item("att", self.att)?;
         dict.set_item("counterfactual", pyarray2_from_f64(py, completed))?;
         dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;

@@ -15,4 +15,6 @@ pub use linear::{
 pub use mle::{Logit, MEstimator, MultinomialLogit, Poisson};
 pub use regularized::{ElasticNet, Ridge, FTRL};
 pub use semiparametric::{AverageDerivative, PartiallyLinearDML, AIPW, EPLM};
-pub use transforms::{KernelBasis, PcaTransformer};
+pub use transforms::{
+    KernelBasis, NystromBasis, PcaTransformer, RandomFourierFeatures, RandomizedPcaTransformer,
+};
