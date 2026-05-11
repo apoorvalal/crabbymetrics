@@ -20,6 +20,61 @@ Any new work here should usually satisfy most of the following:
 
 ## Current Extension Status
 
+### Active PR: randomized linear algebra sketches
+
+Branch `feature/randomized-linear-algebra` / PR #8 adds native randomized linear algebra primitives and a sketching OLS path:
+
+- `src/rla.rs` implements randomized range finding, randomized SVD, randomized QR, QR-based approximate least squares, and CountSketch OLS using the existing `ndarray` + `nalgebra` stack.
+- Python exports include `randomized_range`, `randomized_qr`, `randomized_svd`, `qr_solve`, and `sketch_ols`.
+- `OLS.fit_sketch(...)` fits an approximate least-squares model by sketching rows before solving the smaller problem.
+- `TwoSLS.fit_sketch(...)` applies one CountSketch embedding jointly to the IV regressor design, instrument design, and outcome before solving compressed 2SLS.
+- The ablation lives as a proper cached Quarto docs page at `docs/ablations/randomized-sketching-ols.qmd`, with rendered/freeze outputs and a full-site draft preview copied to `https://lalten.org/drafts/crabbymetrics-pr8-docs/`.
+- Local gates passed on the branch: `cargo check`, `uv run maturin develop`, `uv run pytest`, and targeted Quarto renders for the new ablation page and index.
+
+- Commit check, 2026-05-09: the current branch has already done the first and fifth sketching items from the informal queue: reusable randomized SVD/range finding and sketch-and-solve OLS/IV helpers. The remaining sketching work should therefore focus on estimator integrations rather than another primitive-only pass.
+
+### Sketching / randomized linear algebra follow-on plan
+
+The branch now has enough primitives to make sketching useful inside estimators. The prioritized sequence from the 2026-05-09 pass has been knocked out as explicit opt-in estimator integrations and reusable transformers, while preserving exact defaults for existing APIs.
+
+1. **MatrixCompletion acceleration**
+   - Status: implemented.
+   - `MatrixCompletion` keeps `svd_method="exact"` as the default and accepts `svd_method="randomized"` with `svd_rank`, `svd_oversamples`, `svd_power_iter`, and `svd_seed` for randomized singular-value-thresholding updates.
+   - Tests compare exact and randomized paths on controlled low-rank panels.
+
+2. **InteractiveFixedEffects / panel-factor acceleration**
+   - Status: implemented.
+   - `panel_factor(...)` and `InteractiveFixedEffects` keep `factor_method="exact"` as the default and accept `factor_method="randomized"` with oversampling, power-iteration, and seed knobs.
+   - Tests check randomized factor extraction, fitted values, and treatment-effect summaries against exact low-rank behavior.
+
+3. **Nyström kernel approximation**
+   - Status: implemented.
+   - Added reusable `NystromBasis`, which samples landmarks, computes `K_nm K_mm^{-1/2}` features, and is intended to pair with existing `Ridge` / `OLS` estimators downstream.
+   - Tests cover output shape, reproducibility, summary metadata, and kernel-ridge-style approximation behavior.
+
+4. **Random Fourier features for shift-invariant kernels**
+   - Status: implemented.
+   - Added reusable `RandomFourierFeatures` for RBF/Gaussian features with explicit `n_components`, `bandwidth`, and `seed` controls.
+   - Tests cover output shape, reproducibility, transformed test designs, and nonlinear ridge approximation behavior.
+
+5. **Many-moment GMM sketching**
+   - Status: implemented conservatively.
+   - Added `GMM.fit_sketch(...)`, which applies a fixed Rademacher projection to many moments and their Jacobian before fitting the compressed moment system.
+   - Summaries report sketched moment metadata; inference remains tied to the fitted/sketched moment system rather than silently pretending to use the full original moments.
+
+6. **Balancing / synthetic-control feature compression**
+   - Status: implemented as reusable preprocessing rather than hidden estimator behavior.
+   - Added `RandomizedPCA` as an explicit randomized low-rank feature-compression transformer for long donor histories or wide balance designs.
+   - Tests cover reproducibility, reconstruction quality on low-rank designs, and a `BalancingWeights` workflow on compressed features.
+
+Implementation guardrails for sketching work:
+
+- Default exact algorithms should remain available and should usually remain the default for small problems.
+- Expose sketching as explicit `method`/`approximation` knobs, not separate estimator classes unless a transformer is naturally reusable.
+- Tests should compare approximate paths to exact paths on controlled low-rank or smooth-kernel designs.
+- Docs should report accuracy/runtime tradeoffs; do not present sketching as a free lunch.
+- Avoid adding BLAS/LAPACK-heavy Python dependencies; keep the hot path in Rust and reuse `ndarray`/`nalgebra`.
+
 ### Landed on `master`
 
 - unified robust covariance support for the main linear estimators

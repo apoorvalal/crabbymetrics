@@ -60,3 +60,44 @@ def test_matrix_completion_large_lambda_zeroes_low_rank_component():
     probe.fit(y, w)
 
     assert np.linalg.norm(probe.summary()["low_rank"]) < 1e-6
+
+
+def test_matrix_completion_randomized_svd_tracks_exact_path():
+    y, _ = make_low_rank_panel(seed=11, n=32, t=24, rank=2, noise=0.01)
+    w = make_treatment(*y.shape, n_treated=8, t0=16)
+
+    exact = cm.MatrixCompletion(lambda_fraction=0.06, max_iterations=120, tolerance=1e-7)
+    exact.fit(y, w)
+
+    randomized = cm.MatrixCompletion(
+        lambda_fraction=0.06,
+        max_iterations=120,
+        tolerance=1e-7,
+        svd_method="randomized",
+        svd_rank=6,
+        svd_oversamples=6,
+        svd_power_iter=2,
+        svd_seed=123,
+    )
+    randomized.fit(y, w)
+
+    exact_summary = exact.summary()
+    randomized_summary = randomized.summary()
+    treated_cells = w > 0.5
+
+    assert randomized_summary["svd_method"] == "randomized"
+    assert randomized_summary["svd_rank"] == 6
+    np.testing.assert_allclose(
+        randomized.predict()[treated_cells],
+        exact.predict()[treated_cells],
+        rtol=0.12,
+        atol=0.12,
+    )
+    assert abs(randomized_summary["att"] - exact_summary["att"]) < 0.12
+
+
+def test_matrix_completion_rejects_bad_randomized_svd_options():
+    with np.testing.assert_raises(ValueError):
+        cm.MatrixCompletion(svd_method="fast-ish")
+    with np.testing.assert_raises(ValueError):
+        cm.MatrixCompletion(svd_method="randomized", svd_rank=0)

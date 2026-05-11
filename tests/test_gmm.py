@@ -217,3 +217,53 @@ def test_gmm_summary_supports_vanilla_newey_west_and_cluster_covariances():
     np.testing.assert_allclose(vanilla["vcov"], vanilla_manual, atol=1e-10, rtol=0.0)
     np.testing.assert_allclose(cluster["vcov"], cluster_manual, atol=1e-10, rtol=0.0)
     np.testing.assert_allclose(hac["vcov"], hac_manual, atol=1e-10, rtol=0.0)
+
+
+def test_gmm_fit_sketch_tracks_many_moment_linear_iv():
+    rng = np.random.default_rng(20260509)
+    n = 2500
+    p = 3
+    m = 40
+    beta_true = np.array([0.7, -0.4, 1.1])
+    z_base = rng.normal(size=(n, p))
+    z_extra = rng.normal(size=(n, m - p))
+    z = np.column_stack([z_base, z_extra])
+    x = z_base + 0.2 * rng.normal(size=(n, p))
+    y = x @ beta_true + rng.normal(scale=0.4, size=n)
+
+    def iv_moments(theta, data):
+        resid = data["y"] - data["x"] @ theta
+        return data["z"] * resid[:, None]
+
+    def iv_jacobian(theta, data):
+        del theta
+        return -(data["z"].T @ data["x"]) / data["x"].shape[0]
+
+    full = cm.GMM(iv_moments, jacobian_fn=iv_jacobian, max_iterations=200, tolerance=1e-10)
+    full.fit({"x": x, "y": y, "z": z}, np.zeros(p), weighting="identity")
+
+    sketch = cm.GMM(iv_moments, jacobian_fn=iv_jacobian, max_iterations=200, tolerance=1e-10)
+    sketch.fit_sketch(
+        {"x": x, "y": y, "z": z},
+        np.zeros(p),
+        sketch_size=16,
+        weighting="identity",
+        seed=33,
+    )
+    full_summary = full.summary(vcov="vanilla")
+    sketch_summary = sketch.summary(vcov="vanilla")
+
+    assert sketch_summary["n_moments"] == 16
+    assert sketch_summary["original_n_moments"] == m
+    assert sketch_summary["sketch_size"] == 16
+    np.testing.assert_allclose(sketch_summary["coef"], full_summary["coef"], atol=0.08, rtol=0.0)
+
+
+def test_gmm_fit_sketch_rejects_too_small_sketch():
+    def moments(theta, data):
+        del data
+        return np.ones((5, 3)) * theta[0]
+
+    model = cm.GMM(moments)
+    with np.testing.assert_raises(ValueError):
+        model.fit_sketch({}, np.zeros(2), sketch_size=1)

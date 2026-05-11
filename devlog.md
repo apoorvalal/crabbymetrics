@@ -383,3 +383,30 @@ That is the current state the next extension branch should assume.
 - Patched `SyntheticDID` so scalar `summary()["att"]` uses the cohort-specific synthetic difference-in-differences matrix contrast from the local `synthlearners/notebooks/cvxpy_reference.ipynb` reference: unit weights `[-omega, 1/N1]` and time weights `[-lambda, 1/T1]`.
 - Kept `counterfactual`, `treatment_effect`, and `event_study` as the period-by-period unit-weighted synthetic-control gap path; time weights now enter the scalar ATT rather than rewriting the plotted dynamic path.
 - Added a regression test where the SDID ATT differs from the plain post-treatment synthetic-control gap average.
+
+## 2026-05-08 Randomized Linear Algebra Sketches PR
+
+- Branch: `feature/randomized-linear-algebra`, PR #8.
+- Added native Rust randomized linear algebra helpers in `src/rla.rs` using `ndarray` and `nalgebra` rather than vendoring external code.
+- Exposed Python functions `randomized_range`, `randomized_svd`, and `sketch_ols`.
+- Added `OLS.fit_sketch(...)` backed by a CountSketch row embedding for tall least-squares designs.
+- Added regression tests in `tests/test_randomized_linear_algebra.py` covering randomized range orthonormality, randomized SVD reconstruction, standalone `sketch_ols`, `OLS.fit_sketch`, and sketch-size validation.
+- Moved the sketching OLS ablation into `docs/ablations/randomized-sketching-ols.qmd` with rendered HTML and freeze outputs, and linked it from the docs navbar and index.
+- Rendered review copy: `https://lalten.org/drafts/crabbymetrics-randomized-sketching-ols-pr8.html`.
+- Local gates run on the branch: `cargo check`, `uv run maturin develop`, `uv run pytest`, `QUARTO_PYTHON=.venv/bin/python quarto render docs/ablations/randomized-sketching-ols.qmd`, and `QUARTO_PYTHON=.venv/bin/python quarto render docs/index.qmd`.
+
+## 2026-05-08 Randomized QR And IV Sketching Follow-up
+
+- Extended PR #8 beyond randomized SVD/range and CountSketch OLS.
+- Added `randomized_qr(...)` and `qr_solve(...)` Python exports backed by the native Rust randomized range/QR helpers.
+- Added `TwoSLS.fit_sketch(...)`, which applies one CountSketch embedding jointly to the IV regressor design, instrument design, and outcome before solving the compressed 2SLS problem.
+- Cleaned the randomized sketching docs page so it is official-package math plus OLS/IV ablations, without upstream-package references or development-roadmap language.
+
+## 2026-05-09 Estimator-Level RLA Integrations
+
+- Completed the follow-on sketching sequence on `feature/randomized-linear-algebra` as opt-in estimator integrations rather than changing exact defaults.
+- Added randomized SVD paths to `MatrixCompletion` and panel-factor extraction (`panel_factor` / `InteractiveFixedEffects`) with explicit rank/oversampling/power-iteration/seed controls.
+- Added reusable transform classes `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` for kernel approximations and wide-feature compression before downstream estimators such as `Ridge` and `BalancingWeights`.
+- Added conservative `GMM.fit_sketch(...)` for many-moment systems using a fixed Rademacher projection over moments/Jacobians.
+- Fixed weighted `TwoSLS.summary(...)` so weighted summaries use the same transformed-design convention as weighted fitting.
+- Local gates: `cargo fmt`, `cargo check`, `uv run maturin develop`, targeted estimator tests, and full `uv run pytest -q` (`94 passed`).

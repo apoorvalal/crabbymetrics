@@ -6,6 +6,8 @@ use ndarray::{Array1, Array2, Axis};
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 fn identity_matrix(n: usize) -> Array2<f64> {
     let mut eye = Array2::<f64>::zeros((n, n));
@@ -138,6 +140,64 @@ fn criterion_value(gbar: &Array1<f64>, weight: &Array2<f64>) -> f64 {
     0.5 * gbar.dot(&weight.dot(gbar))
 }
 
+fn rademacher_moment_projection(
+    n_moments: usize,
+    sketch_size: usize,
+    seed: Option<u64>,
+) -> PyResult<Array2<f64>> {
+    if sketch_size == 0 {
+        return Err(PyValueError::new_err("sketch_size must be positive"));
+    }
+    if sketch_size > n_moments {
+        return Err(PyValueError::new_err(
+            "sketch_size must be <= the number of moments",
+        ));
+    }
+    let mut rng = StdRng::seed_from_u64(seed.unwrap_or(0x6A44_5EED));
+    let scale = 1.0 / (sketch_size as f64).sqrt();
+    Ok(Array2::from_shape_fn((n_moments, sketch_size), |_| {
+        if rng.gen_bool(0.5) {
+            scale
+        } else {
+            -scale
+        }
+    }))
+}
+
+fn project_moments(
+    moments: Array2<f64>,
+    projection: Option<&Array2<f64>>,
+) -> PyResult<Array2<f64>> {
+    match projection {
+        Some(projection) => {
+            if moments.ncols() != projection.nrows() {
+                return Err(PyValueError::new_err(
+                    "moment projection row count must match moment count",
+                ));
+            }
+            Ok(moments.dot(projection))
+        }
+        None => Ok(moments),
+    }
+}
+
+fn project_jacobian(
+    jacobian: Array2<f64>,
+    projection: Option<&Array2<f64>>,
+) -> PyResult<Array2<f64>> {
+    match projection {
+        Some(projection) => {
+            if jacobian.nrows() != projection.nrows() {
+                return Err(PyValueError::new_err(
+                    "moment projection row count must match jacobian row count",
+                ));
+            }
+            Ok(projection.t().dot(&jacobian))
+        }
+        None => Ok(jacobian),
+    }
+}
+
 struct FitResult {
     theta: Array1<f64>,
     criterion: f64,
@@ -151,6 +211,7 @@ fn solve_gauss_newton(
     data: &Py<PyAny>,
     theta0: &Array1<f64>,
     weight: &Array2<f64>,
+    projection: Option<&Array2<f64>>,
     max_iterations: usize,
     tolerance: f64,
     ridge: f64,
@@ -160,9 +221,12 @@ fn solve_gauss_newton(
     let mut iter = 0usize;
 
     loop {
-        let moments = call_moments(py, moment_fn, &theta, data)?;
+        let moments = project_moments(call_moments(py, moment_fn, &theta, data)?, projection)?;
         let gbar = sample_mean_moments(&moments).map_err(PyValueError::new_err)?;
-        let jacobian = sample_jacobian(py, moment_fn, jacobian_fn, &theta, data, fd_eps)?;
+        let jacobian = project_jacobian(
+            sample_jacobian(py, moment_fn, jacobian_fn, &theta, data, fd_eps)?,
+            projection,
+        )?;
 
         if jacobian.nrows() != gbar.len() || jacobian.ncols() != theta.len() {
             return Err(PyValueError::new_err(format!(
@@ -196,7 +260,8 @@ fn solve_gauss_newton(
 
         while alpha >= 1e-8 {
             let candidate = &theta - &(step.mapv(|v| alpha * v));
-            let candidate_moments = call_moments(py, moment_fn, &candidate, data)?;
+            let candidate_moments =
+                project_moments(call_moments(py, moment_fn, &candidate, data)?, projection)?;
             let candidate_gbar =
                 sample_mean_moments(&candidate_moments).map_err(PyValueError::new_err)?;
             let candidate_criterion = criterion_value(&candidate_gbar, weight);
@@ -244,6 +309,8 @@ pub struct GMM {
     weighting: Option<String>,
     n_obs: Option<usize>,
     n_moments: Option<usize>,
+    original_n_moments: Option<usize>,
+    moment_projection: Option<Array2<f64>>,
 }
 
 #[pymethods]
@@ -287,6 +354,8 @@ impl GMM {
             weighting: None,
             n_obs: None,
             n_moments: None,
+            original_n_moments: None,
+            moment_projection: None,
         })
     }
 
@@ -342,6 +411,7 @@ impl GMM {
             &data,
             &theta0,
             &identity,
+            None,
             self.max_iterations,
             self.tolerance,
             self.ridge,
@@ -361,6 +431,7 @@ impl GMM {
                     &data,
                     &first_step.theta,
                     &weight_matrix,
+                    None,
                     self.max_iterations,
                     self.tolerance,
                     self.ridge,
@@ -392,6 +463,125 @@ impl GMM {
         self.weighting = Some(chosen_weighting);
         self.n_obs = Some(n);
         self.n_moments = Some(m);
+        self.original_n_moments = Some(m);
+        self.moment_projection = None;
+        Ok(())
+    }
+
+    #[pyo3(signature = (data, theta0, sketch_size, weighting="auto", seed=None))]
+    fn fit_sketch(
+        &mut self,
+        py: Python,
+        data: Py<PyAny>,
+        theta0: PyReadonlyArray1<f64>,
+        sketch_size: usize,
+        weighting: &str,
+        seed: Option<u64>,
+    ) -> PyResult<()> {
+        let theta0 = to_array1(&theta0);
+        let initial_moments_full = call_moments(py, &self.moment_fn, &theta0, &data)?;
+        let n = initial_moments_full.nrows();
+        let m_full = initial_moments_full.ncols();
+        let p = theta0.len();
+        if sketch_size < p {
+            return Err(PyValueError::new_err(
+                "sketch_size must be at least the number of parameters",
+            ));
+        }
+        let projection = rademacher_moment_projection(m_full, sketch_size, seed)?;
+        let m = sketch_size;
+        if m < p {
+            return Err(PyValueError::new_err(format!(
+                "model is underidentified after sketching: {} moments for {} parameters",
+                m, p
+            )));
+        }
+        let chosen_weighting = match weighting {
+            "auto" => {
+                if m == p {
+                    "identity".to_string()
+                } else {
+                    "two_step".to_string()
+                }
+            }
+            "identity" => "identity".to_string(),
+            "two_step" => {
+                if m == p {
+                    "identity".to_string()
+                } else {
+                    "two_step".to_string()
+                }
+            }
+            _ => {
+                return Err(PyValueError::new_err(
+                    "weighting must be one of {'auto', 'identity', 'two_step'}",
+                ));
+            }
+        };
+        let identity = identity_matrix(m);
+        let first_step = solve_gauss_newton(
+            py,
+            &self.moment_fn,
+            self.jacobian_fn.as_ref(),
+            &data,
+            &theta0,
+            &identity,
+            Some(&projection),
+            self.max_iterations,
+            self.tolerance,
+            self.ridge,
+            self.fd_eps,
+        )?;
+        let (theta, criterion, nit, weight_matrix, first_step_theta) =
+            if chosen_weighting == "two_step" {
+                let first_moments = project_moments(
+                    call_moments(py, &self.moment_fn, &first_step.theta, &data)?,
+                    Some(&projection),
+                )?;
+                let omega = omega_iid(&first_moments);
+                let weight_matrix =
+                    invert_with_ridge(&omega, self.ridge).map_err(PyValueError::new_err)?;
+                let second_step = solve_gauss_newton(
+                    py,
+                    &self.moment_fn,
+                    self.jacobian_fn.as_ref(),
+                    &data,
+                    &first_step.theta,
+                    &weight_matrix,
+                    Some(&projection),
+                    self.max_iterations,
+                    self.tolerance,
+                    self.ridge,
+                    self.fd_eps,
+                )?;
+                (
+                    second_step.theta,
+                    second_step.criterion,
+                    first_step.nit + second_step.nit,
+                    weight_matrix,
+                    Some(first_step.theta),
+                )
+            } else {
+                (
+                    first_step.theta,
+                    first_step.criterion,
+                    first_step.nit,
+                    identity,
+                    None,
+                )
+            };
+
+        self.theta = Some(theta);
+        self.data = Some(data);
+        self.weight_matrix = Some(weight_matrix);
+        self.first_step_theta = first_step_theta;
+        self.criterion = Some(criterion);
+        self.nit = Some(nit);
+        self.weighting = Some(chosen_weighting);
+        self.n_obs = Some(n);
+        self.n_moments = Some(m);
+        self.original_n_moments = Some(m_full);
+        self.moment_projection = Some(projection);
         Ok(())
     }
 
@@ -417,15 +607,19 @@ impl GMM {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No fitted weight matrix stored"))?;
 
-        let moments = call_moments(py, &self.moment_fn, theta, data)?;
+        let projection = self.moment_projection.as_ref();
+        let moments = project_moments(call_moments(py, &self.moment_fn, theta, data)?, projection)?;
         let gbar = sample_mean_moments(&moments).map_err(PyValueError::new_err)?;
-        let jacobian = sample_jacobian(
-            py,
-            &self.moment_fn,
-            self.jacobian_fn.as_ref(),
-            theta,
-            data,
-            self.fd_eps,
+        let jacobian = project_jacobian(
+            sample_jacobian(
+                py,
+                &self.moment_fn,
+                self.jacobian_fn.as_ref(),
+                theta,
+                data,
+                self.fd_eps,
+            )?,
+            projection,
         )?;
 
         if jacobian.nrows() != moments.ncols() || jacobian.ncols() != theta.len() {
@@ -506,6 +700,11 @@ impl GMM {
         dict.set_item("weight_matrix", pyarray2_from_f64(py, weight_matrix))?;
         dict.set_item("nobs", n)?;
         dict.set_item("n_moments", moments.ncols())?;
+        dict.set_item("original_n_moments", self.original_n_moments)?;
+        dict.set_item(
+            "sketch_size",
+            self.moment_projection.as_ref().map(|p| p.ncols()),
+        )?;
         dict.set_item("j_stat", j_stat)?;
         dict.set_item("j_df", j_df)?;
         Ok(dict.into())

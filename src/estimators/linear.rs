@@ -1,3 +1,4 @@
+use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
@@ -26,9 +27,6 @@ struct FixedEffectsOlsFitResult {
 
 struct TwoSlsFitResult {
     params: Array1<f64>,
-    x_design: Array2<f64>,
-    z_design: Array2<f64>,
-    residuals: Array1<f64>,
 }
 
 fn combine_endog_exog(x_endog: &Array2<f64>, x_exog: &Array2<f64>) -> PyResult<Array2<f64>> {
@@ -230,6 +228,58 @@ fn twosls_covariance(
     }
 }
 
+fn fit_two_sls_sketch(
+    x_endog: &Array2<f64>,
+    x_exog: &Array2<f64>,
+    z: &Array2<f64>,
+    y: &Array1<f64>,
+    fit_intercept: bool,
+    sketch_size: usize,
+    seed: Option<u64>,
+) -> PyResult<TwoSlsFitResult> {
+    if x_endog.nrows() != y.len() || x_exog.nrows() != y.len() || z.nrows() != y.len() {
+        return Err(PyValueError::new_err("row count mismatch"));
+    }
+    let x_rhs = combine_endog_exog(x_endog, x_exog)?;
+    let z_rhs = if x_exog.ncols() > 0 {
+        concatenate(Axis(1), &[x_exog.view(), z.view()])
+            .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
+    } else {
+        z.clone()
+    };
+    let x_design = if fit_intercept {
+        add_intercept(&x_rhs)
+    } else {
+        x_rhs
+    };
+    let z_design = if fit_intercept {
+        add_intercept(&z_rhs)
+    } else {
+        z_rhs
+    };
+    if z_design.ncols() < x_design.ncols() {
+        return Err(PyValueError::new_err(
+            "model is underidentified: instrument count is smaller than regressor count",
+        ));
+    }
+    if sketch_size < z_design.ncols().max(x_design.ncols()) {
+        return Err(PyValueError::new_err(
+            "sketch_size must be at least the larger of design and instrument columns",
+        ));
+    }
+
+    let (sketched_mats, sketched_vecs) =
+        count_sketch_joint(&[&x_design, &z_design], &[y], sketch_size, seed)?;
+    let sx = &sketched_mats[0];
+    let sz = &sketched_mats[1];
+    let sy = &sketched_vecs[0];
+    let x_hat = solve_least_squares_mat(sz, sx)
+        .map(|pi_hat| sz.dot(&pi_hat))
+        .map_err(PyValueError::new_err)?;
+    let params = solve_least_squares_vec(&x_hat, sy).map_err(PyValueError::new_err)?;
+    Ok(TwoSlsFitResult { params })
+}
+
 fn fit_two_sls_closed_form(
     x_endog: &Array2<f64>,
     x_exog: &Array2<f64>,
@@ -260,7 +310,7 @@ fn fit_two_sls_closed_form(
         None => y.clone(),
     };
 
-    let (x_design, z_design) =
+    let (_x_design, z_design) =
         build_iv_designs(&x_endog_work, &x_exog_work, &z_work, fit_intercept)?;
     let x_endog_hat =
         solve_least_squares_mat(&z_design, &x_endog_work).map(|pi_hat| z_design.dot(&pi_hat));
@@ -278,15 +328,7 @@ fn fit_two_sls_closed_form(
     };
     let params = solve_least_squares_vec(&x_hat_design, &y_work).map_err(PyValueError::new_err)?;
 
-    let fitted = x_design.dot(&params);
-    let residuals = y_work - &fitted;
-
-    Ok(TwoSlsFitResult {
-        params,
-        x_design,
-        z_design,
-        residuals,
-    })
+    Ok(TwoSlsFitResult { params })
 }
 
 fn softmax_weights(theta: &Array1<f64>) -> Array1<f64> {
@@ -561,6 +603,64 @@ fn svt(matrix: &Array2<f64>, threshold: f64) -> PyResult<(Array2<f64>, Array1<f6
     Ok((out, shrunk))
 }
 
+fn svt_randomized(
+    matrix: &Array2<f64>,
+    threshold: f64,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<(Array2<f64>, Array1<f64>)> {
+    let min_dim = matrix.nrows().min(matrix.ncols());
+    if rank == 0 || rank > min_dim {
+        return Err(PyValueError::new_err(
+            "svd_rank must be between 1 and min(Y.shape)",
+        ));
+    }
+    let result = randomized_svd_impl(matrix, rank, oversamples, power_iter, seed)?;
+    let k = result.singular_values.len();
+    let mut shrunk = Array1::<f64>::zeros(k);
+    let mut scaled_u = result.u.clone();
+    for j in 0..k {
+        let value = (result.singular_values[j] - threshold).max(0.0);
+        shrunk[j] = value;
+        for i in 0..scaled_u.nrows() {
+            scaled_u[[i, j]] *= value;
+        }
+    }
+    let reconstructed = scaled_u.dot(&result.vt);
+    Ok((reconstructed, shrunk))
+}
+
+fn svt_with_method(
+    matrix: &Array2<f64>,
+    threshold: f64,
+    svd_method: &str,
+    svd_rank: Option<usize>,
+    svd_oversamples: usize,
+    svd_power_iter: usize,
+    svd_seed: Option<u64>,
+) -> PyResult<(Array2<f64>, Array1<f64>)> {
+    match svd_method {
+        "exact" => svt(matrix, threshold),
+        "randomized" => {
+            let min_dim = matrix.nrows().min(matrix.ncols());
+            let rank = svd_rank.unwrap_or(min_dim);
+            svt_randomized(
+                matrix,
+                threshold,
+                rank,
+                svd_oversamples,
+                svd_power_iter,
+                svd_seed,
+            )
+        }
+        _ => Err(PyValueError::new_err(
+            "svd_method must be either 'exact' or 'randomized'",
+        )),
+    }
+}
+
 struct PanelFactorFit {
     factor: Array2<f64>,
     loading: Array2<f64>,
@@ -634,6 +734,73 @@ fn panel_factor_fit(e: &Array2<f64>, rank: usize) -> PyResult<PanelFactorFit> {
         vnt,
         fixed_effect: dmatrix_to_array2(&fixed_effect_dm),
     })
+}
+
+fn panel_factor_fit_randomized(
+    e: &Array2<f64>,
+    rank: usize,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<PanelFactorFit> {
+    let t = e.nrows();
+    let n = e.ncols();
+    if rank > t.min(n) {
+        return Err(PyValueError::new_err(
+            "rank must be <= min(n_periods, n_units)",
+        ));
+    }
+    if rank == 0 {
+        return Ok(PanelFactorFit {
+            factor: Array2::<f64>::zeros((t, 0)),
+            loading: Array2::<f64>::zeros((n, 0)),
+            vnt: Array2::<f64>::zeros((0, 0)),
+            fixed_effect: Array2::<f64>::zeros((t, n)),
+        });
+    }
+
+    let svd = randomized_svd_impl(e, rank, oversamples, power_iter, seed)?;
+    let mut factor = svd.u.clone();
+    let factor_scale = (t as f64).sqrt();
+    factor.mapv_inplace(|value| value * factor_scale);
+
+    let mut loading = Array2::<f64>::zeros((n, rank));
+    for k in 0..rank {
+        let scale = svd.singular_values[k] / factor_scale;
+        for j in 0..n {
+            loading[[j, k]] = svd.vt[[k, j]] * scale;
+        }
+    }
+    let fixed_effect = factor.dot(&loading.t());
+    let mut vnt = Array2::<f64>::zeros((rank, rank));
+    let denom = (n * t) as f64;
+    for j in 0..rank {
+        vnt[[j, j]] = svd.singular_values[j] * svd.singular_values[j] / denom;
+    }
+
+    Ok(PanelFactorFit {
+        factor,
+        loading,
+        vnt,
+        fixed_effect,
+    })
+}
+
+fn panel_factor_fit_with_method(
+    e: &Array2<f64>,
+    rank: usize,
+    factor_method: &str,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
+) -> PyResult<PanelFactorFit> {
+    match factor_method {
+        "exact" => panel_factor_fit(e, rank),
+        "randomized" => panel_factor_fit_randomized(e, rank, oversamples, power_iter, seed),
+        _ => Err(PyValueError::new_err(
+            "factor_method must be either 'exact' or 'randomized'",
+        )),
+    }
 }
 
 fn panel_fe_fect(e: &Array2<f64>, lambda: f64, hard: bool) -> PyResult<(Array2<f64>, Array1<f64>)> {
@@ -1359,6 +1526,29 @@ impl OLS {
         Ok(())
     }
 
+    #[pyo3(signature = (x, y, sketch_size, seed=None))]
+    fn fit_sketch(
+        &mut self,
+        x: PyReadonlyArray2<f64>,
+        y: PyReadonlyArray1<f64>,
+        sketch_size: usize,
+        seed: Option<u64>,
+    ) -> PyResult<()> {
+        let x = to_array2(&x);
+        let y = to_array1(&y);
+        if x.nrows() != y.len() {
+            return Err(PyValueError::new_err("x rows must match y length"));
+        }
+        let params = sketch_ols_params(&x, &y, self.fit_intercept, sketch_size, seed)?;
+        let (intercept, coef) = split_params(&params, self.fit_intercept);
+        self.intercept = intercept;
+        self.coef = Some(coef);
+        self.x = Some(x);
+        self.y = Some(y);
+        self.sample_weight = None;
+        Ok(())
+    }
+
     fn predict<'py>(
         &self,
         py: Python<'py>,
@@ -1647,6 +1837,10 @@ pub struct TwoSLS {
 pub struct InteractiveFixedEffects {
     rank: usize,
     force: i32,
+    factor_method: String,
+    factor_oversamples: usize,
+    factor_power_iter: usize,
+    factor_seed: Option<u64>,
     fit: Option<Array2<f64>>,
     residuals: Option<Array2<f64>>,
     mu: Option<f64>,
@@ -1660,14 +1854,33 @@ pub struct InteractiveFixedEffects {
 #[pymethods]
 impl InteractiveFixedEffects {
     #[new]
-    #[pyo3(signature = (rank=0, force=3))]
-    fn new(rank: usize, force: i32) -> PyResult<Self> {
+    #[pyo3(signature = (rank=0, force=3, factor_method="exact".to_string(), factor_oversamples=10, factor_power_iter=1, factor_seed=None))]
+    fn new(
+        rank: usize,
+        force: i32,
+        factor_method: String,
+        factor_oversamples: usize,
+        factor_power_iter: usize,
+        factor_seed: Option<u64>,
+    ) -> PyResult<Self> {
         if !(0..=3).contains(&force) {
             return Err(PyValueError::new_err("force must be one of {0, 1, 2, 3}"));
+        }
+        if factor_method != "exact" && factor_method != "randomized" {
+            return Err(PyValueError::new_err(
+                "factor_method must be either 'exact' or 'randomized'",
+            ));
+        }
+        if factor_power_iter > 10 {
+            return Err(PyValueError::new_err("factor_power_iter must be <= 10"));
         }
         Ok(Self {
             rank,
             force,
+            factor_method,
+            factor_oversamples,
+            factor_power_iter,
+            factor_seed,
             fit: None,
             residuals: None,
             mu: None,
@@ -1685,7 +1898,14 @@ impl InteractiveFixedEffects {
             return Err(PyValueError::new_err("y must be a non-empty 2D matrix"));
         }
         let (demeaned, mu, alpha, xi) = additive_demean_balanced(&y, self.force)?;
-        let pf = panel_factor_fit(&demeaned, self.rank)?;
+        let pf = panel_factor_fit_with_method(
+            &demeaned,
+            self.rank,
+            &self.factor_method,
+            self.factor_oversamples,
+            self.factor_power_iter,
+            self.factor_seed,
+        )?;
         let mut fitted = pf.fixed_effect.clone();
         for i in 0..fitted.nrows() {
             for j in 0..fitted.ncols() {
@@ -1754,20 +1974,27 @@ impl InteractiveFixedEffects {
         dict.set_item("vnt", pyarray2_from_f64(py, vnt))?;
         dict.set_item("rank", self.rank)?;
         dict.set_item("force", self.force)?;
+        dict.set_item("factor_method", self.factor_method.clone())?;
+        dict.set_item("factor_oversamples", self.factor_oversamples)?;
+        dict.set_item("factor_power_iter", self.factor_power_iter)?;
         Ok(dict.into())
     }
 }
 
 #[pyfunction]
-#[pyo3(signature = (e, rank))]
+#[pyo3(signature = (e, rank, factor_method="exact".to_string(), oversamples=10, power_iter=1, seed=None))]
 pub fn panel_factor<'py>(
     py: Python<'py>,
     e: PyReadonlyArray2<f64>,
     rank: usize,
+    factor_method: String,
+    oversamples: usize,
+    power_iter: usize,
+    seed: Option<u64>,
 ) -> PyResult<Py<PyAny>> {
     let e = to_array2(&e);
     validate_finite_matrix("e", &e)?;
-    let pf = panel_factor_fit(&e, rank)?;
+    let pf = panel_factor_fit_with_method(&e, rank, &factor_method, oversamples, power_iter, seed)?;
     let dict = pyo3::types::PyDict::new(py);
     dict.set_item("factor", pyarray2_from_f64(py, &pf.factor))?;
     dict.set_item("loading", pyarray2_from_f64(py, &pf.loading))?;
@@ -1802,6 +2029,11 @@ pub struct MatrixCompletion {
     max_iterations: usize,
     effect_iterations: usize,
     tolerance: f64,
+    svd_method: String,
+    svd_rank: Option<usize>,
+    svd_oversamples: usize,
+    svd_power_iter: usize,
+    svd_seed: Option<u64>,
     completed: Option<Array2<f64>>,
     low_rank: Option<Array2<f64>>,
     unit_effects: Option<Array1<f64>>,
@@ -1822,7 +2054,7 @@ pub struct MatrixCompletion {
 #[pymethods]
 impl MatrixCompletion {
     #[new]
-    #[pyo3(signature = (lambda_l=None, lambda_fraction=0.25, fit_unit_effects=true, fit_time_effects=true, max_iterations=500, effect_iterations=2, tolerance=1e-6))]
+    #[pyo3(signature = (lambda_l=None, lambda_fraction=0.25, fit_unit_effects=true, fit_time_effects=true, max_iterations=500, effect_iterations=2, tolerance=1e-6, svd_method="exact".to_string(), svd_rank=None, svd_oversamples=10, svd_power_iter=1, svd_seed=None))]
     fn new(
         lambda_l: Option<f64>,
         lambda_fraction: f64,
@@ -1831,6 +2063,11 @@ impl MatrixCompletion {
         max_iterations: usize,
         effect_iterations: usize,
         tolerance: f64,
+        svd_method: String,
+        svd_rank: Option<usize>,
+        svd_oversamples: usize,
+        svd_power_iter: usize,
+        svd_seed: Option<u64>,
     ) -> PyResult<Self> {
         if let Some(value) = lambda_l {
             if !value.is_finite() || value < 0.0 {
@@ -1849,6 +2086,17 @@ impl MatrixCompletion {
                 "tolerance must be finite and nonnegative",
             ));
         }
+        if svd_method != "exact" && svd_method != "randomized" {
+            return Err(PyValueError::new_err(
+                "svd_method must be either 'exact' or 'randomized'",
+            ));
+        }
+        if matches!(svd_rank, Some(0)) {
+            return Err(PyValueError::new_err("svd_rank must be positive"));
+        }
+        if svd_power_iter > 10 {
+            return Err(PyValueError::new_err("svd_power_iter must be <= 10"));
+        }
         Ok(Self {
             lambda_l,
             lambda_fraction,
@@ -1857,6 +2105,11 @@ impl MatrixCompletion {
             max_iterations,
             effect_iterations,
             tolerance,
+            svd_method,
+            svd_rank,
+            svd_oversamples,
+            svd_power_iter,
+            svd_seed,
             completed: None,
             low_rank: None,
             unit_effects: None,
@@ -1948,7 +2201,18 @@ impl MatrixCompletion {
                     }
                 }
             }
-            let (updated_low_rank, updated_singular_values) = svt(&projected, threshold)?;
+            let seed = self
+                .svd_seed
+                .map(|value| value.wrapping_add(iteration as u64));
+            let (updated_low_rank, updated_singular_values) = svt_with_method(
+                &projected,
+                threshold,
+                &self.svd_method,
+                self.svd_rank,
+                self.svd_oversamples,
+                self.svd_power_iter,
+                seed,
+            )?;
             low_rank = updated_low_rank;
             singular_values = updated_singular_values;
 
@@ -2061,6 +2325,10 @@ impl MatrixCompletion {
         dict.set_item("iterations", self.iterations)?;
         dict.set_item("history_objective", self.history_objective.clone())?;
         dict.set_item("history_rmse", self.history_rmse.clone())?;
+        dict.set_item("svd_method", self.svd_method.clone())?;
+        dict.set_item("svd_rank", self.svd_rank)?;
+        dict.set_item("svd_oversamples", self.svd_oversamples)?;
+        dict.set_item("svd_power_iter", self.svd_power_iter)?;
         dict.set_item("att", self.att)?;
         dict.set_item("counterfactual", pyarray2_from_f64(py, completed))?;
         dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
@@ -2957,6 +3225,41 @@ impl TwoSLS {
         Ok(())
     }
 
+    #[pyo3(signature = (x_endog, x_exog, z, y, sketch_size, seed=None))]
+    fn fit_sketch(
+        &mut self,
+        x_endog: PyReadonlyArray2<f64>,
+        x_exog: PyReadonlyArray2<f64>,
+        z: PyReadonlyArray2<f64>,
+        y: PyReadonlyArray1<f64>,
+        sketch_size: usize,
+        seed: Option<u64>,
+    ) -> PyResult<()> {
+        let x_endog = to_array2(&x_endog);
+        let x_exog = to_array2(&x_exog);
+        let z = to_array2(&z);
+        let y = to_array1(&y);
+        let fit = fit_two_sls_sketch(
+            &x_endog,
+            &x_exog,
+            &z,
+            &y,
+            self.fit_intercept,
+            sketch_size,
+            seed,
+        )?;
+        let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
+
+        self.coef = Some(coef);
+        self.intercept = intercept;
+        self.x_endog = Some(x_endog);
+        self.x_exog = Some(x_exog);
+        self.z = Some(z);
+        self.y = Some(y);
+        self.sample_weight = None;
+        Ok(())
+    }
+
     fn predict<'py>(
         &self,
         py: Python<'py>,
@@ -2979,7 +3282,8 @@ impl TwoSLS {
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
     ) -> PyResult<Py<PyAny>> {
-        self.coef
+        let fitted_coef = self
+            .coef
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
         let x_endog = self
@@ -3000,14 +3304,41 @@ impl TwoSLS {
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
         let sample_weight = self.sample_weight.as_ref();
 
-        let fit =
-            fit_two_sls_closed_form(x_endog, x_exog, z, y, self.fit_intercept, sample_weight)?;
-        let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
+        let mut params =
+            Array1::<f64>::zeros(fitted_coef.len() + if self.fit_intercept { 1 } else { 0 });
+        if self.fit_intercept {
+            params[0] = self.intercept;
+            params.slice_mut(s![1..]).assign(fitted_coef);
+        } else {
+            params.assign(fitted_coef);
+        }
+        let (x_design_work, z_design_work, y_work) = match sample_weight {
+            Some(weights) => {
+                let sqrt_weight = sqrt_sample_weight(Some(weights), y.len())
+                    .map_err(PyValueError::new_err)?
+                    .expect("weights were provided");
+                let x_endog_work =
+                    scale_rows(x_endog, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let x_exog_work =
+                    scale_rows(x_exog, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let z_work = scale_rows(z, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let y_work = scale_vec(y, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let (x_design_work, z_design_work) =
+                    build_iv_designs(&x_endog_work, &x_exog_work, &z_work, self.fit_intercept)?;
+                (x_design_work, z_design_work, y_work)
+            }
+            None => {
+                let (x_design, z_design) =
+                    build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+                (x_design, z_design, y.clone())
+            }
+        };
+        let residuals = y_work - &x_design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
         let cov = twosls_covariance(
-            &fit.x_design,
-            &fit.z_design,
-            &fit.residuals,
+            &x_design_work,
+            &z_design_work,
+            &residuals,
             vcov,
             lags,
             cluster_ids.as_ref(),
@@ -3022,8 +3353,8 @@ impl TwoSLS {
         };
 
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
+        dict.set_item("intercept", self.intercept)?;
+        dict.set_item("coef", pyarray1_from_f64(py, fitted_coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         dict.set_item("vcov_type", vcov)?;

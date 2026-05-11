@@ -1,12 +1,14 @@
 mod estimators;
 mod optimizers;
+mod rla;
 mod utils;
 
 use crate::estimators::{
     AverageDerivative, BalancingWeights, ElasticNet, FixedEffectsOLS, HorizontalPanelRidge,
     InteractiveFixedEffects, KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit,
-    PartiallyLinearDML, PcaTransformer, Poisson, Ridge, SyntheticControl, SyntheticDID, TwoSLS,
-    AIPW, EPLM, FTRL, GMM, OLS,
+    NystromBasis, PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures,
+    RandomizedPcaTransformer, Ridge, SyntheticControl, SyntheticDID, TwoSLS, AIPW, EPLM, FTRL, GMM,
+    OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -38,6 +40,14 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AIPW>()?;
     m.add_class::<PcaTransformer>()?;
     m.add_class::<KernelBasis>()?;
+    m.add_class::<NystromBasis>()?;
+    m.add_class::<RandomFourierFeatures>()?;
+    m.add_class::<RandomizedPcaTransformer>()?;
     m.add_class::<Optimizers>()?;
+    m.add_function(wrap_pyfunction!(crate::rla::randomized_range, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::randomized_qr, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::randomized_svd, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::qr_solve, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rla::sketch_ols, m)?)?;
     Ok(())
 }
