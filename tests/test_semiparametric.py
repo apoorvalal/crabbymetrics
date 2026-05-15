@@ -27,6 +27,48 @@ def _ridge_predict(x, params):
     return design @ params
 
 
+
+def _sigmoid(v):
+    return 1.0 / (1.0 + np.exp(-v))
+
+
+def _weighted_ridge_fit(x, y, weights, penalty):
+    design = np.column_stack([np.ones(x.shape[0]), x])
+    sw = np.sqrt(np.maximum(weights, 1e-8))
+    wx = design * sw[:, None]
+    wy = y * sw
+    if penalty > 0.0:
+        p = design.shape[1]
+        aug = np.zeros((design.shape[0] + p - 1, p))
+        aug[: design.shape[0], :] = wx
+        for j in range(1, p):
+            aug[design.shape[0] + j - 1, j] = np.sqrt(penalty)
+        wx = aug
+        wy = np.concatenate([wy, np.zeros(p - 1)])
+    return np.linalg.lstsq(wx, wy, rcond=None)[0]
+
+
+def _logistic_ridge_fit(x, y, penalty, max_iter=50, tol=1e-8):
+    design = np.column_stack([np.ones(x.shape[0]), x])
+    y_mean = np.clip(y.mean(), 1e-6, 1 - 1e-6)
+    beta = np.zeros(design.shape[1])
+    beta[0] = np.log(y_mean / (1.0 - y_mean))
+    for _ in range(max_iter):
+        eta = design @ beta
+        p = np.clip(_sigmoid(eta), 1e-6, 1 - 1e-6)
+        w = np.maximum(p * (1.0 - p), 1e-6)
+        z = eta + (y - p) / w
+        next_beta = _weighted_ridge_fit(x, z, w, penalty)
+        step = np.abs(next_beta - beta).sum()
+        beta = next_beta
+        if step < tol:
+            break
+    return beta
+
+
+def _logistic_predict(x, params):
+    return _sigmoid(np.column_stack([np.ones(x.shape[0]), x]) @ params)
+
 def _manual_iv(x, z, y):
     z_pi = np.linalg.lstsq(z, x, rcond=None)[0]
     x_hat = z @ z_pi
@@ -258,6 +300,64 @@ def test_att_aipw_rejects_nonbinary_treatment_and_bad_constructor_args():
 
     with pytest.raises(ValueError, match="0/1"):
         cm.ATTAIPW(penalty=0.1, n_folds=3, seed=7).fit(y, d, x)
+
+
+def test_did_semiparametric_or_ipw_aipw_match_manual_hajek_scores():
+    rng = np.random.default_rng(97531)
+    x = rng.normal(size=(620, 6))
+    logits = -0.1 + x @ np.array([0.35, -0.45, 0.25, 0.15, -0.2, 0.1])
+    d = rng.binomial(1, _sigmoid(logits), size=x.shape[0]).astype(float)
+    y0 = 0.8 + x @ np.array([0.2, -0.3, 0.1, 0.05, 0.15, -0.1]) + rng.normal(scale=0.5, size=x.shape[0])
+    untreated_trend = 0.4 + x @ np.array([0.3, -0.1, 0.2, -0.25, 0.1, 0.05])
+    tau = 1.25 + 0.2 * x[:, 0]
+    y1 = y0 + untreated_trend + d * tau + rng.normal(scale=0.35, size=x.shape[0])
+    delta = y1 - y0
+
+    mu = np.zeros_like(delta)
+    for train_idx, test_idx in _kfold_splits(len(delta), 5, 11):
+        control = train_idx[d[train_idx] == 0.0]
+        params = _ridge_fit(x[control], delta[control], 0.1)
+        mu[test_idx] = _ridge_predict(x[test_idx], params)
+    rho = d.mean()
+    expected_or = np.mean(d * (delta - mu) / rho)
+
+    pi = np.zeros_like(delta)
+    for train_idx, test_idx in _kfold_splits(len(delta), 5, 28):
+        params = _logistic_ridge_fit(x[train_idx], d[train_idx], 0.1)
+        pi[test_idx] = np.clip(_logistic_predict(x[test_idx], params), 0.02, 0.98)
+    odds = pi / (1.0 - pi)
+    expected_ipw = delta[d == 1.0].mean() - np.average(delta[d == 0.0], weights=odds[d == 0.0])
+    residual = delta - mu
+    expected_aipw = residual[d == 1.0].mean() - np.average(residual[d == 0.0], weights=odds[d == 0.0])
+
+    or_model = cm.DIDSemiparametric(method="or", penalty=0.1, n_folds=5, seed=11)
+    or_model.fit(y0, y1, d, x)
+    np.testing.assert_allclose(or_model.summary()["att"], expected_or, atol=1e-8, rtol=1e-8)
+
+    ipw_model = cm.DIDSemiparametric(method="ipw", penalty=0.1, n_folds=5, seed=11)
+    ipw_model.fit(y0, y1, d, x)
+    np.testing.assert_allclose(ipw_model.summary()["att"], expected_ipw, atol=1e-8, rtol=1e-8)
+
+    aipw_model = cm.DIDSemiparametric(method="aipw", penalty=0.1, n_folds=5, seed=11)
+    aipw_model.fit(y0, y1, d, x)
+    summary = aipw_model.summary()
+    np.testing.assert_allclose(summary["att"], expected_aipw, atol=1e-8, rtol=1e-8)
+    assert summary["se"] > 0.0
+    assert summary["method"] == "aipw"
+
+
+def test_did_semiparametric_rejects_bad_inputs():
+    rng = np.random.default_rng(8642)
+    y0 = rng.normal(size=50)
+    y1 = rng.normal(size=50)
+    d = rng.normal(size=50)
+    x = rng.normal(size=(50, 3))
+    with pytest.raises(ValueError, match="method must be"):
+        cm.DIDSemiparametric(method="did")
+    with pytest.raises(ValueError, match="basis must be"):
+        cm.DIDSemiparametric(method="aipw", basis="sieve")
+    with pytest.raises(ValueError, match="0/1"):
+        cm.DIDSemiparametric(method="aipw", penalty=0.1).fit(y0, y1, d, x)
 
 def test_semiparametric_estimators_reject_nonfinite_inputs():
     rng = np.random.default_rng(1234)
