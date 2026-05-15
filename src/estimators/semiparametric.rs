@@ -961,6 +961,237 @@ pub struct AIPW {
     propensity_penalties: Option<Array1<f64>>,
 }
 
+#[pyclass]
+pub struct ATTAIPW {
+    penalties: Array1<f64>,
+    cv: usize,
+    n_folds: usize,
+    seed: u64,
+    propensity_clip: f64,
+    att: Option<f64>,
+    y: Option<Array1<f64>>,
+    d: Option<Array1<f64>>,
+    x: Option<Array2<f64>>,
+    mu0_hat: Option<Array1<f64>>,
+    pi_hat: Option<Array1<f64>>,
+    outcome0_penalties: Option<Array1<f64>>,
+    propensity_penalties: Option<Array1<f64>>,
+}
+
+#[pymethods]
+impl ATTAIPW {
+    #[new]
+    #[pyo3(signature = (penalty=None, cv=5, n_folds=5, propensity_clip=0.02, seed=42))]
+    fn new(
+        py: Python<'_>,
+        penalty: Option<Py<PyAny>>,
+        cv: usize,
+        n_folds: usize,
+        propensity_clip: f64,
+        seed: u64,
+    ) -> PyResult<Self> {
+        let penalties = match penalty {
+            Some(value) => parse_penalties(value.bind(py))?,
+            None => Array1::from_vec(vec![1.0]),
+        };
+        if cv < 2 {
+            return Err(PyValueError::new_err("cv must be at least 2"));
+        }
+        if n_folds < 2 {
+            return Err(PyValueError::new_err("n_folds must be at least 2"));
+        }
+        if !(0.0..0.5).contains(&propensity_clip) {
+            return Err(PyValueError::new_err(
+                "propensity_clip must lie in [0, 0.5)",
+            ));
+        }
+        Ok(Self {
+            penalties,
+            cv,
+            n_folds,
+            seed,
+            propensity_clip,
+            att: None,
+            y: None,
+            d: None,
+            x: None,
+            mu0_hat: None,
+            pi_hat: None,
+            outcome0_penalties: None,
+            propensity_penalties: None,
+        })
+    }
+
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray1<f64>,
+        d: PyReadonlyArray1<f64>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<()> {
+        let y = to_array1(&y);
+        let d = to_array1(&d);
+        let x = to_array2(&x);
+        if y.len() != d.len() || x.nrows() != y.len() {
+            return Err(PyValueError::new_err("row count mismatch"));
+        }
+        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite_2d("x", &x).map_err(PyValueError::new_err)?;
+        validate_binary(&d).map_err(PyValueError::new_err)?;
+
+        let splits =
+            make_kfold_splits(y.len(), self.n_folds, self.seed).map_err(PyValueError::new_err)?;
+        let mut mu0_hat = Array1::<f64>::zeros(y.len());
+        let mut pi_hat = Array1::<f64>::zeros(y.len());
+        let mut outcome0_penalties = Array1::<f64>::zeros(splits.len());
+        let mut propensity_penalties = Array1::<f64>::zeros(splits.len());
+
+        for (fold, (train_idx, test_idx)) in splits.iter().enumerate() {
+            let x_train = take_rows(&x, train_idx);
+            let y_train = take_rows_vec(&y, train_idx);
+            let d_train = take_rows_vec(&d, train_idx);
+            let x_test = take_rows(&x, test_idx);
+
+            let control_train: Vec<usize> =
+                (0..d_train.len()).filter(|i| d_train[*i] == 0.0).collect();
+            if control_train.is_empty() || control_train.len() == d_train.len() {
+                return Err(PyValueError::new_err(
+                    "each training fold must contain both treated and control observations",
+                ));
+            }
+
+            let x_control = take_rows(&x_train, &control_train);
+            let y_control = take_rows_vec(&y_train, &control_train);
+
+            let (mu0_params, mu0_penalty, _) =
+                select_ridge_penalty(&x_control, &y_control, &self.penalties, self.cv)
+                    .map_err(PyValueError::new_err)?;
+            let (pi_params, pi_penalty, _) =
+                select_ridge_penalty(&x_train, &d_train, &self.penalties, self.cv)
+                    .map_err(PyValueError::new_err)?;
+
+            let mu0_pred = ridge_predict(&x_test, &mu0_params).map_err(PyValueError::new_err)?;
+            let pi_pred = ridge_predict(&x_test, &pi_params).map_err(PyValueError::new_err)?;
+
+            for (local, idx) in test_idx.iter().enumerate() {
+                mu0_hat[*idx] = mu0_pred[local];
+                pi_hat[*idx] =
+                    pi_pred[local].clamp(self.propensity_clip, 1.0 - self.propensity_clip);
+            }
+
+            outcome0_penalties[fold] = mu0_penalty;
+            propensity_penalties[fold] = pi_penalty;
+        }
+
+        let pseudo =
+            att_aipw_hajek_scores(&y, &d, &mu0_hat, &pi_hat).map_err(PyValueError::new_err)?;
+        let att = pseudo
+            .mean()
+            .ok_or_else(|| PyValueError::new_err("empty pseudo-outcome"))?;
+
+        self.att = Some(att);
+        self.y = Some(y);
+        self.d = Some(d);
+        self.x = Some(x);
+        self.mu0_hat = Some(mu0_hat);
+        self.pi_hat = Some(pi_hat);
+        self.outcome0_penalties = Some(outcome0_penalties);
+        self.propensity_penalties = Some(propensity_penalties);
+        Ok(())
+    }
+
+    #[pyo3(signature = (vcov=None, lags=None, clusters=None))]
+    fn summary<'py>(
+        &self,
+        py: Python<'py>,
+        vcov: Option<&str>,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Py<PyAny>> {
+        let att = self
+            .att
+            .ok_or_else(|| PyValueError::new_err("ATTAIPW model is not fitted"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let d = self
+            .d
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let mu0_hat = self
+            .mu0_hat
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No nuisance predictions stored"))?;
+        let pi_hat = self
+            .pi_hat
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No nuisance predictions stored"))?;
+        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let vcov = vcov.unwrap_or("hc1");
+
+        let pseudo = att_aipw_hajek_scores(y, d, mu0_hat, pi_hat).map_err(PyValueError::new_err)?;
+        let score = column_array(&(pseudo - att));
+        let jac = Array2::from_elem((1, 1), -1.0);
+        let cov = exact_identified_covariance(&score, &jac, vcov, lags, cluster_ids.as_ref())
+            .map_err(PyValueError::new_err)?;
+        let se = cov[[0, 0]].abs().sqrt();
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("att", att)?;
+        dict.set_item("se", se)?;
+        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
+        if let Some(penalties) = &self.outcome0_penalties {
+            dict.set_item("outcome0_penalties", pyarray1_from_f64(py, penalties))?;
+        }
+        if let Some(penalties) = &self.propensity_penalties {
+            dict.set_item("propensity_penalties", pyarray1_from_f64(py, penalties))?;
+        }
+        Ok(dict.into())
+    }
+}
+
+fn att_aipw_hajek_scores(
+    y: &Array1<f64>,
+    d: &Array1<f64>,
+    mu0_hat: &Array1<f64>,
+    pi_hat: &Array1<f64>,
+) -> Result<Array1<f64>, String> {
+    if y.len() != d.len() || y.len() != mu0_hat.len() || y.len() != pi_hat.len() {
+        return Err("row count mismatch".to_string());
+    }
+    let n = y.len() as f64;
+    let rho = d.sum() / n;
+    if rho <= 0.0 || rho >= 1.0 {
+        return Err("need both treated and control observations".to_string());
+    }
+    let mut odds_sum = 0.0;
+    let mut odds = Array1::<f64>::zeros(y.len());
+    for i in 0..y.len() {
+        if pi_hat[i] <= 0.0 || pi_hat[i] >= 1.0 {
+            return Err("propensity scores must lie strictly between 0 and 1".to_string());
+        }
+        if d[i] == 0.0 {
+            odds[i] = pi_hat[i] / (1.0 - pi_hat[i]);
+            odds_sum += odds[i];
+        }
+    }
+    if odds_sum <= 0.0 || !odds_sum.is_finite() {
+        return Err("control odds weights have zero or nonfinite mass".to_string());
+    }
+    let q = odds_sum / n;
+    let residual = y - mu0_hat;
+    let mut pseudo = Array1::<f64>::zeros(y.len());
+    for i in 0..y.len() {
+        pseudo[i] = if d[i] == 1.0 {
+            residual[i] / rho
+        } else {
+            -odds[i] * residual[i] / q
+        };
+    }
+    Ok(pseudo)
+}
+
 #[pymethods]
 impl AIPW {
     #[new]

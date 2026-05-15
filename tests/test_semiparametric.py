@@ -206,6 +206,59 @@ def test_aipw_matches_manual_crossfit_formula():
     assert summary["se"] > 0.0
 
 
+
+def test_att_aipw_hajek_matches_manual_crossfit_formula():
+    rng = np.random.default_rng(2468)
+    x = rng.normal(size=(540, 5))
+    pi_true = 1.0 / (1.0 + np.exp(-(0.1 + x @ np.array([0.5, -0.4, 0.25, 0.15, -0.2]))))
+    d = rng.binomial(1, pi_true, size=540).astype(float)
+    mu0 = 0.7 + x @ np.array([0.3, -0.2, 0.15, 0.25, -0.1])
+    tau = 1.0 + 0.4 * x[:, 0]
+    y = mu0 + tau * d + rng.normal(scale=0.6, size=540)
+
+    mu0_hat = np.zeros_like(y)
+    pi_hat = np.zeros_like(y)
+    for train_idx, test_idx in _kfold_splits(len(y), 5, 31):
+        train_d = d[train_idx]
+        control_idx = train_idx[train_d == 0.0]
+
+        mu0_params = _ridge_fit(x[control_idx], y[control_idx], 0.0)
+        pi_params = _ridge_fit(x[train_idx], d[train_idx], 0.0)
+
+        mu0_hat[test_idx] = _ridge_predict(x[test_idx], mu0_params)
+        pi_hat[test_idx] = np.clip(_ridge_predict(x[test_idx], pi_params), 0.02, 0.98)
+
+    residual = y - mu0_hat
+    odds = pi_hat / (1.0 - pi_hat)
+    treated_component = residual[d == 1.0].mean()
+    control_component = np.average(residual[d == 0.0], weights=odds[d == 0.0])
+    expected = treated_component - control_component
+
+    model = cm.ATTAIPW(penalty=0.0, n_folds=5, seed=31)
+    model.fit(y, d, x)
+    summary = model.summary()
+
+    np.testing.assert_allclose(summary["att"], expected, atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(summary["propensity_penalties"], np.zeros(5))
+    np.testing.assert_allclose(summary["outcome0_penalties"], np.zeros(5))
+    assert summary["se"] > 0.0
+
+
+def test_att_aipw_rejects_nonbinary_treatment_and_bad_constructor_args():
+    rng = np.random.default_rng(1357)
+    y = rng.normal(size=40)
+    d = rng.normal(size=40)
+    x = rng.normal(size=(40, 4))
+
+    with pytest.raises(ValueError, match="cv must be at least 2"):
+        cm.ATTAIPW(penalty=np.array([0.1, 1.0]), cv=1, n_folds=3)
+
+    with pytest.raises(ValueError, match="n_folds must be at least 2"):
+        cm.ATTAIPW(penalty=0.1, n_folds=1)
+
+    with pytest.raises(ValueError, match="0/1"):
+        cm.ATTAIPW(penalty=0.1, n_folds=3, seed=7).fit(y, d, x)
+
 def test_semiparametric_estimators_reject_nonfinite_inputs():
     rng = np.random.default_rng(1234)
     y = rng.normal(size=30)
