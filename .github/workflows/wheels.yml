@@ -37,7 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin master --tags
+          git fetch --force origin master --tags
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             if [[ "${GITHUB_REF_NAME}" != "master" ]]; then
