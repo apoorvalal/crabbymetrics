@@ -1,0 +1,184 @@
+project:
+  type: website
+  output-dir: .
+  render:
+    - index.qmd
+    - api.qmd
+    - reference/*.qmd
+    - first-course-ding.qmd
+    - ding/*.qmd
+    - mechanics-ols.qmd
+    - mechanics-poisson.qmd
+    - mechanics-mestimator.qmd
+    - ablations/*.qmd
+    - examples/*.qmd
+
+format:
+  html:
+    theme: solar
+
+website:
+  title: "crabbymetrics"
+  navbar:
+    logo: logo.png
+    left:
+      - href: index.qmd
+        text: Home
+      - text: API
+        menu:
+          - href: api.qmd
+            text: API Overview
+          - text: Regression And GLMs
+          - href: reference/OLS.qmd
+            text: OLS
+          - href: reference/Ridge.qmd
+            text: Ridge
+          - href: reference/FixedEffectsOLS.qmd
+            text: FixedEffectsOLS
+          - href: reference/ElasticNet.qmd
+            text: ElasticNet
+          - href: reference/Logit.qmd
+            text: Logit
+          - href: reference/MultinomialLogit.qmd
+            text: MultinomialLogit
+          - href: reference/Poisson.qmd
+            text: Poisson
+          - href: reference/FTRL.qmd
+            text: FTRL
+          - text: Causal Inference And Panels
+          - href: reference/TwoSLS.qmd
+            text: TwoSLS
+          - href: reference/BalancingWeights.qmd
+            text: BalancingWeights
+          - href: reference/EPLM.qmd
+            text: EPLM
+          - href: reference/AverageDerivative.qmd
+            text: AverageDerivative
+          - href: reference/PartiallyLinearDML.qmd
+            text: PartiallyLinearDML
+          - href: reference/AIPW.qmd
+            text: AIPW
+          - href: reference/SyntheticControl.qmd
+            text: SyntheticControl
+          - href: reference/HorizontalPanelRidge.qmd
+            text: HorizontalPanelRidge
+          - href: reference/SyntheticDID.qmd
+            text: SyntheticDID
+          - href: reference/MatrixCompletion.qmd
+            text: MatrixCompletion
+          - href: reference/InteractiveFixedEffects.qmd
+            text: InteractiveFixedEffects
+          - text: Transforms
+          - href: reference/PCA.qmd
+            text: PCA
+          - href: reference/KernelBasis.qmd
+            text: KernelBasis
+          - text: Estimation Interfaces
+          - href: reference/GMM.qmd
+            text: GMM
+          - href: reference/MEstimator.qmd
+            text: MEstimator
+          - href: reference/Optimizers.qmd
+            text: Optimizers
+      - href: mechanics-ols.qmd
+        text: Binding Crash Course
+      - text: Regression And GLMs
+        menu:
+          - href: examples/ols.qmd
+            text: OLS
+          - href: examples/ridge.qmd
+            text: Ridge
+          - href: examples/fixed-effects-ols.qmd
+            text: Fixed Effects OLS
+          - href: examples/elastic-net.qmd
+            text: ElasticNet
+          - href: examples/logit.qmd
+            text: Logit
+          - href: examples/multinomial-logit.qmd
+            text: Multinomial Logit
+          - href: examples/poisson.qmd
+            text: Poisson
+          - href: examples/gmm.qmd
+            text: GMM
+          - href: examples/ftrl.qmd
+            text: FTRL
+          - href: examples/mestimator-poisson.qmd
+            text: MEstimator Poisson
+      - text: Causal Inference
+        menu:
+          - href: examples/balancing-weights.qmd
+            text: Balancing Weights
+          - href: examples/eplm.qmd
+            text: EPLM
+          - href: examples/average-derivative.qmd
+            text: Average Derivative
+          - href: examples/double-ml.qmd
+            text: Double ML And AIPW
+          - href: examples/richer-regression.qmd
+            text: Richer Regression
+          - href: examples/twosls.qmd
+            text: TwoSLS
+          - href: examples/synthetic-control.qmd
+            text: Synthetic Control
+          - href: examples/synthetic-did.qmd
+            text: Synthetic DID
+          - href: examples/horizontal-panel-ridge.qmd
+            text: Horizontal Panel Ridge
+          - href: examples/matrix-completion.qmd
+            text: Matrix Completion
+          - href: examples/interactive-fixed-effects.qmd
+            text: Interactive Fixed Effects
+          - href: examples/staggered-panel-event-study.qmd
+            text: Staggered Panel Event Study
+      - text: Transforms
+        menu:
+          - href: examples/pca-and-kernel-basis.qmd
+            text: PCA And Kernel Basis
+      - text: Ablations
+        menu:
+          - href: ablations/variance-estimators.qmd
+            text: Variance Estimators
+          - href: ablations/semiparametric-estimators.qmd
+            text: Semiparametric Estimator Comparisons
+          - href: ablations/two-period-did-semiparametric.qmd
+            text: Two-Period Semiparametric DID
+          - href: ablations/bridging-finite-and-superpopulation.qmd
+            text: Bridging Finite And Superpopulation
+          - href: ablations/panel-dgp-comparisons.qmd
+            text: Panel Estimator DGP Comparisons
+          - href: ablations/same-root-panel-cases.qmd
+            text: Same Root Panel Case Studies
+          - href: ablations/randomized-sketching-ols.qmd
+            text: Randomized Sketching And Least Squares
+      - text: Optimization
+        menu:
+          - href: examples/optimizers.qmd
+            text: Optimizers
+          - href: examples/gmm-with-optimizers.qmd
+            text: GMM With Optimizers
+      - text: "Ding: First Course"
+        menu:
+          - href: first-course-ding.qmd
+            text: Overview And TOC
+          - href: ding/ch01-correlation-simpson.qmd
+            text: Ch 1 Correlation And Simpson
+          - href: ding/ch02-potential-outcomes.qmd
+            text: Ch 2 Potential Outcomes
+          - href: ding/ch03-cre-frt.qmd
+            text: Ch 3 CRE And Fisher RT
+          - href: ding/ch04-cre-neyman.qmd
+            text: Ch 4 CRE And Neyman
+          - href: ablations/bridging-finite-and-superpopulation.qmd
+            text: Ch 9 Bridging Finite And Superpopulation
+          - href: ding/ch11-propensity-score.qmd
+            text: Ch 11 Propensity Score
+          - href: ding/ch12-double-robust-ate.qmd
+            text: Ch 12 Double Robust ATE
+          - href: ding/ch13-double-robust-att.qmd
+            text: Ch 13 Double Robust ATT
+          - href: ding/ch21-iv-experiments.qmd
+            text: Ch 21 Experimental IV
+          - href: ding/ch23-iv-econometrics.qmd
+            text: Ch 23 Econometric IV
+          - href: ding/ch27-mediation.qmd
+            text: Ch 27 Mediation
