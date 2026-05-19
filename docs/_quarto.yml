@@ -85,6 +85,8 @@ website:
             text: Variance Estimators
           - href: ablations/semiparametric-estimators.qmd
             text: Semiparametric Estimator Comparisons
+          - href: ablations/two-period-did-semiparametric.qmd
+            text: Two-Period Semiparametric DID
           - href: ablations/bridging-finite-and-superpopulation.qmd
             text: Bridging Finite And Superpopulation
           - href: ablations/panel-dgp-comparisons.qmd

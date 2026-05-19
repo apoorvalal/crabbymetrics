@@ -4152,6 +4152,10 @@ window.Quarto = {
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
@@ -4162,6 +4166,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
     </ul>
   </li>
@@ -4316,7 +4324,7 @@ Z_i = D_i - e(W_i),
 \hat Z_i = D_i - \hat e(W_i),
 \]</span></p>
 <p>but <code>summary()</code> reports a stacked-moment sandwich covariance so the nuisance estimation step is accounted for directly.</p>
-<div id="af2ac88e" class="cell" data-execution_count="1">
+<div id="97cabe2b" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>

@@ -4013,6 +4013,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
@@ -4023,6 +4027,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
     </ul>
   </li>
@@ -4142,7 +4150,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 
 <p>Matched-pairs experiments replace unrestricted treatment permutations with sign flips inside pairs. The Darwin maize data in the source folder make that logic transparent.</p>
-<div id="755f895a" class="cell" data-execution_count="1">
+<div id="a31be22c" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4166,7 +4174,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <section id="exact-sign-flip-distribution" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="exact-sign-flip-distribution"><span class="header-section-number">1</span> Exact Sign-Flip Distribution</h2>
-<div id="91c836b6" class="cell" data-execution_count="2">
+<div id="bf83ee41" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>zea <span class="op">=</span> pd.read_csv(data_dir <span class="op">/</span> <span class="st">&quot;ZeaMays.csv&quot;</span>)</span>
@@ -4220,7 +4228,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="62183c43" class="cell" data-execution_count="3">
+<div id="f0c07743" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -4243,7 +4251,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="matched-pairs-with-a-pair-level-covariate" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="matched-pairs-with-a-pair-level-covariate"><span class="header-section-number">2</span> Matched Pairs With A Pair-Level Covariate</h2>
 <p>The second worked example in the R script is the Imbens-Rubin television data. Each row is a matched pair. The outcome contrast is <code>diffy</code>, and <code>diffx</code> is a pre-treatment pair difference. The unadjusted paired estimator is the intercept-only regression of <code>diffy</code>; the adjusted estimator is the intercept in a pair-level regression of <code>diffy</code> on <code>diffx</code>.</p>
-<div id="3504c9e2" class="cell" data-execution_count="4">
+<div id="f831d940" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>tv <span class="op">=</span> np.array(</span>
@@ -4331,7 +4339,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="559cd02f" class="cell" data-execution_count="5">
+<div id="a164456c" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>

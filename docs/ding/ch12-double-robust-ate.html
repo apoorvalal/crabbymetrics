@@ -3997,6 +3997,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
@@ -4007,6 +4011,10 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
     </ul>
   </li>
@@ -4125,7 +4133,7 @@ vertical-align: -.125em;
 
 
 <p>The original notebook compares regression adjustment, inverse-probability weighting, and doubly robust estimation across misspecification cases. This version keeps the same logic but builds the nuisance fits with <code>crabbymetrics</code>.</p>
-<div id="1b129e0f" class="cell" data-execution_count="1">
+<div id="b57b9590" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4226,7 +4234,7 @@ vertical-align: -.125em;
 </div>
 <section id="four-misspecification-cases" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="four-misspecification-cases"><span class="header-section-number">1</span> Four Misspecification Cases</h2>
-<div id="41a2b101" class="cell" data-execution_count="2">
+<div id="799a1805" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>regimes <span class="op">=</span> [</span>
@@ -4278,7 +4286,7 @@ Both bad
 </section>
 <section id="a-native-aipw-check-on-one-sample" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="a-native-aipw-check-on-one-sample"><span class="header-section-number">2</span> A Native <code>AIPW</code> Check On One Sample</h2>
-<div id="6492c590" class="cell" data-execution_count="3">
+<div id="34ef1a91" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> pd.read_csv(repo_root() <span class="op">/</span> <span class="st">&quot;ding_w_source&quot;</span> <span class="op">/</span> <span class="st">&quot;repl&quot;</span> <span class="op">/</span> <span class="st">&quot;nhanes_bmi.csv&quot;</span>)</span>

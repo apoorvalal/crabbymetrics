@@ -4152,6 +4152,10 @@ window.Quarto = {
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
@@ -4162,6 +4166,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
     </ul>
   </li>
@@ -4281,7 +4289,7 @@ window.Quarto = {
 
 
 <p>Chapter 21 treats IV as an experimental design problem: assignment <span class="math inline">\(Z\)</span> shifts treatment uptake <span class="math inline">\(D\)</span>, and the Wald ratio turns those two reduced-form contrasts into a complier-effect estimate.</p>
-<div id="5d213990" class="cell" data-execution_count="1">
+<div id="f57b98b7" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4350,7 +4358,7 @@ window.Quarto = {
 </div>
 <section id="compliance-class-simulation" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="compliance-class-simulation"><span class="header-section-number">1</span> Compliance-Class Simulation</h2>
-<div id="70cc7d9f" class="cell" data-execution_count="2">
+<div id="6b705917" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">21</span>)</span>
@@ -4385,7 +4393,7 @@ Very weak IV mean Wald =  1.4279, empirical sd =  11.7076, mean delta se =  18.0
 </section>
 <section id="wald-and-twosls-with-covariates" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="wald-and-twosls-with-covariates"><span class="header-section-number">2</span> Wald And TwoSLS With Covariates</h2>
-<div id="464358fc" class="cell" data-execution_count="3">
+<div id="4c537f4f" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2101</span>)</span>
@@ -4417,7 +4425,7 @@ TwoSLS HC1 SE: 0.2846</code></pre>
 <section id="jobs-one-sided-noncompliance-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="jobs-one-sided-noncompliance-example"><span class="header-section-number">3</span> JOBS One-Sided Noncompliance Example</h2>
 <p>The R script closes with the JOBS data from the <code>mediation</code> package. Assignment to the job-search intervention is the instrument, actual compliance is the treatment uptake, and job-search self-efficacy is the outcome. Because the design has one-sided noncompliance, the Wald estimand is the complier effect of uptake among those induced to comply by assignment.</p>
-<div id="6a508058" class="cell" data-execution_count="4">
+<div id="647056c2" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>jobs <span class="op">=</span> pd.read_csv(repo_root() <span class="op">/</span> <span class="st">&quot;ding_w_source&quot;</span> <span class="op">/</span> <span class="st">&quot;repl&quot;</span> <span class="op">/</span> <span class="st">&quot;jobsdata.csv&quot;</span>)</span>

@@ -76,6 +76,7 @@ execute:
 
 - [Variance Estimators](ablations/variance-estimators.html): cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.
 - [Semiparametric Estimator Comparisons](ablations/semiparametric-estimators.html): cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.
+- [Two-Period Semiparametric DID](ablations/two-period-did-semiparametric.html): cached Monte Carlo comparisons for unadjusted, outcome-model, IPW, and AIPW two-period DID under unconditional and conditional parallel trends regimes.
 - [Bridging Finite And Superpopulation](ablations/bridging-finite-and-superpopulation.html): cached Monte Carlo coverage comparisons for HC2, Ding's closed-form correction, a raw-row bootstrap, and stacked GMM when the same adjusted estimator is evaluated against SATE and PATE.
 - [Panel Estimator DGP Comparisons](ablations/panel-dgp-comparisons.html): cached Monte Carlo ATT comparisons for TWFE, synthetic control, synthetic DID, and matrix completion across additive, factor, and selected-adoption panel DGPs.
 - [Randomized Sketching And Least Squares](ablations/randomized-sketching-ols.html): math notes and cached ablations for randomized QR/SVD sketches, CountSketch OLS, and sketched IV/2SLS on tall designs.

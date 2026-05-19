@@ -4013,6 +4013,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
@@ -4023,6 +4027,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
         <li>
     <a class="dropdown-item" href="./ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
     </ul>
   </li>
@@ -4170,7 +4178,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li>A sitrep on the current state of the library.</li>
 <li>A verified API reference rendered against the live Python module in this repository.</li>
 </ul>
-<div id="0109632f" class="cell" data-execution_count="1">
+<div id="3ee2adf6" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -4220,7 +4228,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="public-surface" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="public-surface"><span class="header-section-number">3</span> Public Surface</h2>
 <p>The table below is generated from the live module so the constructor and method signatures match the current build.</p>
-<div id="9e7b9693" class="cell" data-execution_count="2">
+<div id="0f497d3c" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>classes <span class="op">=</span> [</span>
@@ -4286,6 +4294,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <td><code>OLS()</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, y)</code><br>
+<code>fit_sketch(self, /, x, y, sketch_size, seed=None)</code><br>
 <code>fit_weighted(self, /, x, y, sample_weight)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
@@ -4323,17 +4332,19 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <td><code>SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)</code></td>
 <td><code>fit(self, /, y, w)</code><br>
 <code>predict(self, /)</code><br>
+<code>se(self, /, method=&#39;bootstrap&#39;, replications=200, seed=None)</code><br>
 <code>summary(self, /)</code><br>
-<code>treatment_effect(self, /)</code></td>
+<code>treatment_effect(self, /)</code><br>
+<code>vcov(self, /, method=&#39;bootstrap&#39;, replications=200, seed=None)</code></td>
 </tr>
 <tr class="odd">
-<td><code>MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-06)</code></td>
+<td><code>MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-06, svd_method=Ellipsis, svd_rank=None, svd_oversamples=10, svd_power_iter=1, svd_seed=None)</code></td>
 <td><code>fit(self, /, y, w)</code><br>
 <code>predict(self, /)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
 <tr class="even">
-<td><code>InteractiveFixedEffects(rank=0, force=3)</code></td>
+<td><code>InteractiveFixedEffects(rank=0, force=3, factor_method=Ellipsis, factor_oversamples=10, factor_power_iter=1, factor_seed=None)</code></td>
 <td><code>fit(self, /, y)</code><br>
 <code>predict(self, /)</code><br>
 <code>summary(self, /)</code></td>
@@ -4396,6 +4407,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <td><code>TwoSLS()</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x_endog, x_exog, z, y)</code><br>
+<code>fit_sketch(self, /, x_endog, x_exog, z, y, sketch_size, seed=None)</code><br>
 <code>fit_weighted(self, /, x_endog, x_exog, z, y, sample_weight)</code><br>
 <code>predict(self, /, x)</code><br>
 <code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
@@ -4403,6 +4415,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <tr class="odd">
 <td><code>GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-06, ridge=1e-08, fd_eps=1e-06)</code></td>
 <td><code>fit(self, /, data, theta0, weighting=&#39;auto&#39;)</code><br>
+<code>fit_sketch(self, /, data, theta0, sketch_size, weighting=&#39;auto&#39;, seed=None)</code><br>
 <code>summary(self, /, vcov=&#39;sandwich&#39;, omega=&#39;iid&#39;, lags=None, clusters=None)</code></td>
 </tr>
 <tr class="even">
@@ -4450,7 +4463,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="optimizer-surface" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="optimizer-surface"><span class="header-section-number">4</span> Optimizer Surface</h2>
 <p>The optimizer helpers live under <code>cm.Optimizers</code> as static methods. They mirror the usual scipy pattern: pass a Python callback, a starting value, and any derivative information the method needs, then receive a plain dictionary with <code>x</code>, <code>fun</code>, <code>nit</code>, <code>success</code>, <code>message</code>, and <code>method</code>.</p>
-<div id="56a699bf" class="cell" data-execution_count="3">
+<div id="9a371f72" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>optimizer_rows <span class="op">=</span> []</span>
@@ -4520,7 +4533,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="estimator-reference" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="estimator-reference"><span class="header-section-number">6</span> Estimator Reference</h2>
-<div id="8b422b47" class="cell" data-execution_count="4">
+<div id="dab1b772" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>reference_rows <span class="op">=</span> [</span>
@@ -4880,7 +4893,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="transformer-reference" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="transformer-reference"><span class="header-section-number">7</span> Transformer Reference</h2>
-<div id="c82002ea" class="cell" data-execution_count="5">
+<div id="abfe6bab" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>transformer_rows <span class="op">=</span> [</span>
@@ -4942,7 +4955,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="optimizer-reference" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="optimizer-reference"><span class="header-section-number">8</span> Optimizer Reference</h2>
-<div id="825384cf" class="cell" data-execution_count="6">
+<div id="61064f30" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>optimizer_reference_rows <span class="op">=</span> [</span>
@@ -5036,7 +5049,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="verified-runtime-snapshot" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="verified-runtime-snapshot"><span class="header-section-number">9</span> Verified Runtime Snapshot</h2>
 <p>The next chunk fits each estimator on synthetic data and records the key summary schema and bootstrap output shape. This acts as a lightweight executable check that the reference above matches the current build.</p>
-<div id="87cf9ada" class="cell" data-execution_count="7">
+<div id="a61851f9" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
@@ -5342,7 +5355,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </tr>
 <tr class="even">
 <td><code>GMM</code></td>
-<td>coef, se, vcov, criterion, nit, weighting, vcov_type, omega_type, weight_matrix, nobs, n_moments, j_stat, j_df</td>
+<td>coef, se, vcov, criterion, nit, weighting, vcov_type, omega_type, weight_matrix, nobs, n_moments, original_n_moments, sketch_size, j_stat, j_df</td>
 <td>n/a</td>
 </tr>
 <tr class="odd">
@@ -5359,7 +5372,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <h2 data-number="10" class="anchored" data-anchor-id="usage-examples"><span class="header-section-number">10</span> Usage Examples</h2>
 <section id="ols" class="level3" data-number="10.1">
 <h3 data-number="10.1" class="anchored" data-anchor-id="ols"><span class="header-section-number">10.1</span> OLS</h3>
-<div id="79ad8068" class="cell" data-execution_count="8">
+<div id="6a9f35d5" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">200</span>, <span class="dv">3</span>))</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.5</span>])</span>
@@ -5386,7 +5399,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="ridge" class="level3" data-number="10.2">
 <h3 data-number="10.2" class="anchored" data-anchor-id="ridge"><span class="header-section-number">10.2</span> Ridge</h3>
-<div id="57830445" class="cell" data-execution_count="9">
+<div id="00c3e712" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">250</span>, <span class="dv">4</span>))</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>beta <span class="op">=</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.8</span>, <span class="fl">0.0</span>, <span class="fl">0.3</span>])</span>
@@ -5412,7 +5425,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="poisson" class="level3" data-number="10.3">
 <h3 data-number="10.3" class="anchored" data-anchor-id="poisson"><span class="header-section-number">10.3</span> Poisson</h3>
-<div id="5fe921f1" class="cell" data-execution_count="10">
+<div id="428d7284" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">2</span>))</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(<span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.25</span>]))</span>
@@ -5432,7 +5445,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="twosls" class="level3" data-number="10.4">
 <h3 data-number="10.4" class="anchored" data-anchor-id="twosls"><span class="header-section-number">10.4</span> TwoSLS</h3>
-<div id="332087ad" class="cell" data-execution_count="11">
+<div id="a7ff68da" class="cell" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">500</span></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
@@ -5458,7 +5471,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="eplm" class="level3" data-number="10.5">
 <h3 data-number="10.5" class="anchored" data-anchor-id="eplm"><span class="header-section-number">10.5</span> EPLM</h3>
-<div id="21b19975" class="cell" data-execution_count="12">
+<div id="acbb3c72" class="cell" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">3</span>))</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">300</span>)</span>
@@ -5476,7 +5489,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="averagederivative" class="level3" data-number="10.6">
 <h3 data-number="10.6" class="anchored" data-anchor-id="averagederivative"><span class="header-section-number">10.6</span> AverageDerivative</h3>
-<div id="28def658" class="cell" data-execution_count="13">
+<div id="0f0296df" class="cell" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">8</span>)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">320</span>, <span class="dv">2</span>))</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.2</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.6</span>, size<span class="op">=</span><span class="dv">320</span>)</span>
@@ -5495,7 +5508,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="partiallylineardml" class="level3" data-number="10.7">
 <h3 data-number="10.7" class="anchored" data-anchor-id="partiallylineardml"><span class="header-section-number">10.7</span> PartiallyLinearDML</h3>
-<div id="45c8c754" class="cell" data-execution_count="14">
+<div id="bd921301" class="cell" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">10</span>)</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">400</span>, <span class="dv">4</span>))</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.3</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span><span class="dv">400</span>)</span>
@@ -5515,7 +5528,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="aipw" class="level3" data-number="10.8">
 <h3 data-number="10.8" class="anchored" data-anchor-id="aipw"><span class="header-section-number">10.8</span> AIPW</h3>
-<div id="4bba554d" class="cell" data-execution_count="15">
+<div id="22438502" class="cell" data-execution_count="15">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">450</span>, <span class="dv">3</span>))</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="fl">0.1</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.2</span>]))))</span>
@@ -5536,7 +5549,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="gmm" class="level3" data-number="10.9">
 <h3 data-number="10.9" class="anchored" data-anchor-id="gmm"><span class="header-section-number">10.9</span> GMM</h3>
-<div id="bb2477bb" class="cell" data-execution_count="16">
+<div id="224287d5" class="cell" data-execution_count="16">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simple_iv_moments(theta, data):</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>] <span class="op">-</span> data[<span class="st">&quot;x&quot;</span>] <span class="op">*</span> theta[<span class="dv">0</span>]</span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> data[<span class="st">&quot;z&quot;</span>] <span class="op">*</span> resid[:, <span class="va">None</span>]</span>
@@ -5570,7 +5583,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="fixedeffectsols" class="level3" data-number="10.10">
 <h3 data-number="10.10" class="anchored" data-anchor-id="fixedeffectsols"><span class="header-section-number">10.10</span> FixedEffectsOLS</h3>
 <p>This estimator follows the Frisch-Waugh-Lovell path directly: partial out the fixed effects with <code>within</code>, then regress the residualized outcome on the residualized regressors with no intercept.</p>
-<div id="1cfe7fea" class="cell" data-execution_count="17">
+<div id="b3e0fd81" class="cell" data-execution_count="17">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -5605,7 +5618,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li><code>score_fn(theta, data)</code> must return an <code>(n_obs, n_params)</code> matrix of per-observation scores.</li>
 <li>For bootstrap support, the <code>data</code> dictionary must include <code>n</code>, and user code should respect an optional <code>indices</code> key.</li>
 </ul>
-<div id="71e6026a" class="cell" data-execution_count="18">
+<div id="d4a8ee9e" class="cell" data-execution_count="18">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>

@@ -4152,6 +4152,10 @@ window.Quarto = {
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
   </li>  
@@ -4162,6 +4166,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
     </ul>
   </li>
@@ -4338,7 +4346,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 \hat \mu_1(X),\qquad \hat \mu_0(X),\qquad \hat \pi(X)
 \]</span></p>
 <p>are all cross-fit ridge nuisance models. The implementation clips <span class="math inline">\(\hat \pi(X)\)</span> away from <span class="math inline">\(0\)</span> and <span class="math inline">\(1\)</span> to stabilize the finite-sample weights.</p>
-<div id="5031db06" class="cell" data-execution_count="1">
+<div id="3b0d45b3" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -4371,7 +4379,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </section>
 <section id="continuous-treatment-example" class="level2">
 <h2 class="anchored" data-anchor-id="continuous-treatment-example">Continuous Treatment Example</h2>
-<div id="799f104c" class="cell" data-execution_count="2">
+<div id="ee3072b0" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2028</span>)</span>
@@ -4417,7 +4425,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </table>
 </div>
 </div>
-<div id="f6aa6849" class="cell" data-execution_count="3">
+<div id="68437721" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -4476,7 +4484,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </section>
 <section id="binary-treatment-example" class="level2">
 <h2 class="anchored" data-anchor-id="binary-treatment-example">Binary Treatment Example</h2>
-<div id="b221ddc7" class="cell" data-execution_count="4">
+<div id="ed2db6a3" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2029</span>)</span>
@@ -4521,7 +4529,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </table>
 </div>
 </div>
-<div id="108c4cfa" class="cell" data-execution_count="5">
+<div id="04c691c2" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>display(</span>
