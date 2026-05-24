@@ -32,19 +32,20 @@
   - `QUARTO_PYTHON=.venv/bin/python quarto render docs/examples/<page>.qmd`
   - or `QUARTO_PYTHON=.venv/bin/python quarto render docs` for broad nav/search changes.
 - Commit the source `.qmd`, rendered `.html`, relevant `docs/_freeze/...` files, `docs/search.json`, and nav changes on `master`, then push `master`.
-- To deploy, copy the rendered `docs/` tree to a `gh-pages` worktree and push that branch:
+- To deploy, copy the rendered `docs/` tree to a fresh `gh-pages` clone and push that branch. Use a clone, not a worktree: `rsync --delete` can delete a worktree's `.git` file.
 
 ```bash
 TMPDIR=$(mktemp -d)
-git worktree add -B gh-pages "$TMPDIR" origin/gh-pages
+git clone --branch gh-pages --single-branch git@github.com:apoorvalal/crabbymetrics.git "$TMPDIR"
 rsync -az --delete \
   --exclude '.git/' \
   --exclude '.quarto/' \
   --exclude '**/.jupyter_cache/' \
   --exclude '**/*.quarto_ipynb' \
   docs/ "$TMPDIR"/
+touch "$TMPDIR/.nojekyll"
 (cd "$TMPDIR" && git add -A && git commit -m "Publish rendered docs site" && git push origin gh-pages)
-git worktree remove "$TMPDIR"
+rm -rf "$TMPDIR"
 ```
 
 - If the `gh-pages` commit has no changes, there was nothing new to deploy. Otherwise, check the Pages deployment in GitHub Actions and spot-check the public URL after it finishes.
