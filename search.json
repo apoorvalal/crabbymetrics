@@ -875,83 +875,6 @@
     "text": "5 Suggested Next Steps\nThe next concrete implementation batch should be:\n\nChapter 10 to bridge the randomized and observational sections.\nChapters 15 through 20 once matching and sensitivity helpers are scoped.\nChapters 22, 24, and 25 as the remaining IV material.\nChapter 26 only after the necessary latent-structure support exists; Chapter 27 now has a narrow Baron-Kenny translation, but a general mediation module remains future work."
   },
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "crabbymetrics",
-    "section": "",
-    "text": "crabbymetrics logo\ncrabbymetrics is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active First Course Ding translation track, regression/GLM examples, causal-inference examples, transform notes, focused numerical ablations, and a small set of supporting internals pages."
-  },
-  {
-    "objectID": "index.html#start-here",
-    "href": "index.html#start-here",
-    "title": "crabbymetrics",
-    "section": "Start Here",
-    "text": "Start Here\n\nAPI reference: verified public surface, summary schemas, optimizer catalog, and runtime smoke checks.\nllms.txt: dense LLM-facing package guide with install notes, data-shape contracts, estimator selection guidance, signatures, examples, source-map pointers, and links.\nFirst Course Ding: chapter-by-chapter translation plan and current implementation status for the Peng Ding notebooks.\nBinding Crash Course: OLS: the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase."
-  },
-  {
-    "objectID": "index.html#first-course-ding",
-    "href": "index.html#first-course-ding",
-    "title": "crabbymetrics",
-    "section": "First Course Ding",
-    "text": "First Course Ding\n\nOverview And TOC: planning page and chapter map for the full Ding translation pass.\nTranslated so far: Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 9, Chapter 11, Chapter 12, Chapter 13, Chapter 21, and Chapter 23.\nThe next obvious tranche is Chapters 15 through 20, where matching, sensitivity analysis, and RD helpers start to matter."
-  },
-  {
-    "objectID": "index.html#regression-and-glm-examples",
-    "href": "index.html#regression-and-glm-examples",
-    "title": "crabbymetrics",
-    "section": "Regression And GLM Examples",
-    "text": "Regression And GLM Examples\n\nOLS: baseline linear regression with switchable vanilla and HC1 covariance estimators.\nRidge: closed-form L2-regularized least squares with a scalar penalty or a penalty grid plus cross-validation.\nFixed Effects OLS: partial out one-way or multi-way categorical fixed effects with within, then estimate slopes without an intercept.\nElasticNet: regularized linear regression.\nLogit: binary logistic regression.\nMultinomial Logit: multiclass classification.\nPoisson: count regression, with model-based or QMLE sandwich inference available from summary(vcov=...).\nGMM: fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class GMM estimator.\nFTRL: online-style binary classification.\nMEstimator Poisson: callback-driven estimation matched against the built-in Poisson estimator."
-  },
-  {
-    "objectID": "index.html#causal-inference-examples",
-    "href": "index.html#causal-inference-examples",
-    "title": "crabbymetrics",
-    "section": "Causal Inference Examples",
-    "text": "Causal Inference Examples\n\nBalancing Weights: entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.\nEPLM: the Robins-Newey partially linear E-estimator, implemented as a stacked-moment estimator for a scalar continuous treatment.\nAverage Derivative: Oaxaca-Blinder, generalized IPW, and doubly robust average-derivative estimators in the Graham-Pinto style under a continuous-treatment working model.\nDouble ML And AIPW: cross-fit ridge nuisance estimation for partially linear DML and binary-treatment AIPW.\nRicher Regression With Transformer Pipelines: a longer semiparametric-style example built on KernelBasis and PCA.\nTwoSLS: instrumental variables regression, including multiple endogenous regressors and multiple excluded instruments.\nSynthetic Control: simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.\nSynthetic DID: matrix-panel synthetic difference-in-differences with fit(Y, W).\nHorizontal Panel Ridge: horizontal-regression counterfactual forecasts for staggered treatment panels.\nMatrix Completion: low-rank completion of treated panel cells under the shared panel matrix contract.\nInteractive Fixed Effects: factor-model decomposition for balanced panels.\nStaggered Panel Event Study: Hainmueller–Hangartner staggered-adoption panel walkthrough comparing crabbymetrics matrix estimators with pyfixest TWFE and saturated event studies."
-  },
-  {
-    "objectID": "index.html#transform-examples",
-    "href": "index.html#transform-examples",
-    "title": "crabbymetrics",
-    "section": "Transform Examples",
-    "text": "Transform Examples\n\nPCA And Kernel Basis: transformer examples for richer design matrices and nonlinear geometry."
-  },
-  {
-    "objectID": "index.html#ablations",
-    "href": "index.html#ablations",
-    "title": "crabbymetrics",
-    "section": "Ablations",
-    "text": "Ablations\n\nVariance Estimators: cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.\nSemiparametric Estimator Comparisons: cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.\nTwo-Period Semiparametric DID: cached Monte Carlo comparisons for unadjusted, outcome-model, IPW, and AIPW two-period DID under unconditional and conditional parallel trends regimes.\nBridging Finite And Superpopulation: cached Monte Carlo coverage comparisons for HC2, Ding’s closed-form correction, a raw-row bootstrap, and stacked GMM when the same adjusted estimator is evaluated against SATE and PATE.\nPanel Estimator DGP Comparisons: cached Monte Carlo ATT comparisons for TWFE, synthetic control, synthetic DID, and matrix completion across additive, factor, and selected-adoption panel DGPs.\nRandomized Sketching And Least Squares: math notes and cached ablations for randomized QR/SVD sketches, CountSketch OLS, and sketched IV/2SLS on tall designs.\nSame Root Panel Case Studies: cached Basque Country and California Proposition 99 case-study comparisons that put simulation, horizontal/vertical estimators, synthetic DID, matrix completion, and donor-placebo inference in one workflow."
-  },
-  {
-    "objectID": "index.html#optimization",
-    "href": "index.html#optimization",
-    "title": "crabbymetrics",
-    "section": "Optimization",
-    "text": "Optimization\n\nOptimizers: direct optimizer usage for smooth likelihoods, rougher objective surfaces, and solver behavior comparisons.\nGMM With Optimizers: the lower-level notebook that motivated the first-class GMM estimator and still shows the residual-collection view directly."
-  },
-  {
-    "objectID": "index.html#supporting-pages",
-    "href": "index.html#supporting-pages",
-    "title": "crabbymetrics",
-    "section": "Supporting Pages",
-    "text": "Supporting Pages\n\nBinding Internals: Poisson: a deeper built-in-estimator walkthrough after the OLS crash course.\nBinding Internals: MEstimator: the callback-heavy bridge where Rust owns optimization and Python supplies the objective and scores."
-  },
-  {
-    "objectID": "index.html#runtime-snapshot",
-    "href": "index.html#runtime-snapshot",
-    "title": "crabbymetrics",
-    "section": "Runtime Snapshot",
-    "text": "Runtime Snapshot\n\n\n\nRepo-level runtime comparison for OLS, Logit, Poisson, and MultinomialLogit across crabbymetrics, scikit-learn, and statsmodels. Lower is faster.\n\n\nThe benchmark figure is generated from the repo-level benchmark assets in benchmarks/ and gives a quick scale check for the estimators that overlap cleanly with mainstream Python baselines."
-  },
-  {
-    "objectID": "index.html#notes",
-    "href": "index.html#notes",
-    "title": "crabbymetrics",
-    "section": "Notes",
-    "text": "Notes\n\napi.qmd remains the main documentation page and renders to api.html.\nThe site is a Quarto website, so shared navigation and search are generated under docs/.\nAll pages are rendered with embedded resources so the checked-in HTML files remain self-contained."
-  },
-  {
     "objectID": "api.html",
     "href": "api.html",
     "title": "crabbymetrics API Reference",
@@ -1034,6 +957,90 @@
     "title": "crabbymetrics API Reference",
     "section": "11 Current Sharp Edges",
     "text": "11 Current Sharp Edges\n\nThere is still no rich result object layer. Consumers should expect raw dictionaries and NumPy arrays.\nMost estimators do not expose fit statistics or formula handling.\nGMM is intentionally narrow: closed-form linear IV still lives in TwoSLS, and the generic class only does just-identified Gauss-Newton or two-step overidentified weighting.\nMEstimator favors flexibility over guardrails. If your objective has fragile regions, add clipping or other stability controls inside the callback."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "crabbymetrics",
+    "section": "",
+    "text": "crabbymetrics logo\ncrabbymetrics is a Rust-backed econometrics library with a compact Python API. The docs are organized around the public API, a single binding crash course, an active First Course Ding translation track, regression/GLM examples, causal-inference examples, transform notes, focused numerical ablations, and a small set of supporting internals pages."
+  },
+  {
+    "objectID": "index.html#start-here",
+    "href": "index.html#start-here",
+    "title": "crabbymetrics",
+    "section": "Start Here",
+    "text": "Start Here\n\nAPI reference: verified public surface, summary schemas, optimizer catalog, and runtime smoke checks.\nllms.txt: dense LLM-facing package guide with install notes, data-shape contracts, estimator selection guidance, signatures, examples, source-map pointers, and links.\nFirst Course Ding: chapter-by-chapter translation plan and current implementation status for the Peng Ding notebooks.\nBinding Crash Course: OLS: the shortest end-to-end walkthrough of the Rust-to-Python wrapper pattern in this codebase."
+  },
+  {
+    "objectID": "index.html#first-course-ding",
+    "href": "index.html#first-course-ding",
+    "title": "crabbymetrics",
+    "section": "First Course Ding",
+    "text": "First Course Ding\n\nOverview And TOC: planning page and chapter map for the full Ding translation pass.\nTranslated so far: Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 9, Chapter 11, Chapter 12, Chapter 13, Chapter 21, and Chapter 23.\nThe next obvious tranche is Chapters 15 through 20, where matching, sensitivity analysis, and RD helpers start to matter."
+  },
+  {
+    "objectID": "index.html#regression-and-glm-examples",
+    "href": "index.html#regression-and-glm-examples",
+    "title": "crabbymetrics",
+    "section": "Regression And GLM Examples",
+    "text": "Regression And GLM Examples\n\nOLS: baseline linear regression with switchable vanilla and HC1 covariance estimators.\nRidge: closed-form L2-regularized least squares with a scalar penalty or a penalty grid plus cross-validation.\nFixed Effects OLS: partial out one-way or multi-way categorical fixed effects with within, then estimate slopes without an intercept.\nElasticNet: regularized linear regression.\nLogit: binary logistic regression.\nMultinomial Logit: multiclass classification.\nPoisson: count regression, with model-based or QMLE sandwich inference available from summary(vcov=...).\nGMM: fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class GMM estimator.\nFTRL: online-style binary classification.\nMEstimator Poisson: callback-driven estimation matched against the built-in Poisson estimator."
+  },
+  {
+    "objectID": "index.html#causal-inference-examples",
+    "href": "index.html#causal-inference-examples",
+    "title": "crabbymetrics",
+    "section": "Causal Inference Examples",
+    "text": "Causal Inference Examples\n\nBalancing Weights: entropy and quadratic calibration weights for ATT-style reweighting, covariate shift, and domain adaptation.\nEPLM: the Robins-Newey partially linear E-estimator, implemented as a stacked-moment estimator for a scalar continuous treatment.\nAverage Derivative: Oaxaca-Blinder, generalized IPW, and doubly robust average-derivative estimators in the Graham-Pinto style under a continuous-treatment working model.\nDouble ML And AIPW: cross-fit ridge nuisance estimation for partially linear DML and binary-treatment AIPW.\nRicher Regression With Transformer Pipelines: a longer semiparametric-style example built on KernelBasis and PCA.\nTwoSLS: instrumental variables regression, including multiple endogenous regressors and multiple excluded instruments.\nSynthetic Control: simplex-constrained donor weighting for treated-versus-donor panel matching under latent-factor drift.\nSynthetic DID: matrix-panel synthetic difference-in-differences with fit(Y, W).\nHorizontal Panel Ridge: horizontal-regression counterfactual forecasts for staggered treatment panels.\nMatrix Completion: low-rank completion of treated panel cells under the shared panel matrix contract.\nInteractive Fixed Effects: factor-model decomposition for balanced panels.\nStaggered Panel Event Study: Hainmueller–Hangartner staggered-adoption panel walkthrough comparing crabbymetrics matrix estimators with pyfixest TWFE and saturated event studies."
+  },
+  {
+    "objectID": "index.html#transform-examples",
+    "href": "index.html#transform-examples",
+    "title": "crabbymetrics",
+    "section": "Transform Examples",
+    "text": "Transform Examples\n\nPCA And Kernel Basis: transformer examples for richer design matrices and nonlinear geometry."
+  },
+  {
+    "objectID": "index.html#ablations",
+    "href": "index.html#ablations",
+    "title": "crabbymetrics",
+    "section": "Ablations",
+    "text": "Ablations\n\nVariance Estimators: cached Monte Carlo coverage experiments for OLS, Poisson, and GMM variance estimators under heteroskedasticity or overdispersion.\nSemiparametric Estimator Comparisons: cached Monte Carlo comparisons for EPLM versus partially linear DML under continuous-treatment misspecification, and for vanilla regression versus balancing weights versus AIPW under binary treatment.\nTwo-Period Semiparametric DID: cached Monte Carlo comparisons for unadjusted, outcome-model, IPW, and AIPW two-period DID under unconditional and conditional parallel trends regimes.\nBridging Finite And Superpopulation: cached Monte Carlo coverage comparisons for HC2, Ding’s closed-form correction, a raw-row bootstrap, and stacked GMM when the same adjusted estimator is evaluated against SATE and PATE.\nPanel Estimator DGP Comparisons: cached Monte Carlo ATT comparisons for TWFE, synthetic control, synthetic DID, and matrix completion across additive, factor, and selected-adoption panel DGPs.\nRandomized Sketching And Least Squares: math notes and cached ablations for randomized QR/SVD sketches, CountSketch OLS, and sketched IV/2SLS on tall designs.\nSame Root Panel Case Studies: cached Basque Country and California Proposition 99 case-study comparisons that put simulation, horizontal/vertical estimators, synthetic DID, matrix completion, and donor-placebo inference in one workflow."
+  },
+  {
+    "objectID": "index.html#optimization",
+    "href": "index.html#optimization",
+    "title": "crabbymetrics",
+    "section": "Optimization",
+    "text": "Optimization\n\nOptimizers: direct optimizer usage for smooth likelihoods, rougher objective surfaces, and solver behavior comparisons.\nGMM With Optimizers: the lower-level notebook that motivated the first-class GMM estimator and still shows the residual-collection view directly."
+  },
+  {
+    "objectID": "index.html#supporting-pages",
+    "href": "index.html#supporting-pages",
+    "title": "crabbymetrics",
+    "section": "Supporting Pages",
+    "text": "Supporting Pages\n\nBinding Internals: Poisson: a deeper built-in-estimator walkthrough after the OLS crash course.\nBinding Internals: MEstimator: the callback-heavy bridge where Rust owns optimization and Python supplies the objective and scores."
+  },
+  {
+    "objectID": "index.html#runtime-snapshot",
+    "href": "index.html#runtime-snapshot",
+    "title": "crabbymetrics",
+    "section": "Runtime Snapshot",
+    "text": "Runtime Snapshot\n\n\n\nRepo-level runtime comparison for OLS, Logit, Poisson, and MultinomialLogit across crabbymetrics, scikit-learn, and statsmodels. Lower is faster.\n\n\nThe benchmark figure is generated from the repo-level benchmark assets in benchmarks/ and gives a quick scale check for the estimators that overlap cleanly with mainstream Python baselines."
+  },
+  {
+    "objectID": "index.html#notes",
+    "href": "index.html#notes",
+    "title": "crabbymetrics",
+    "section": "Notes",
+    "text": "Notes\n\napi.qmd remains the main documentation page and renders to api.html.\nThe site is a Quarto website, so shared navigation and search are generated under docs/.\nAll pages are rendered with embedded resources so the checked-in HTML files remain self-contained."
+  },
+  {
+    "objectID": "reference/HypothesisTests.html",
+    "href": "reference/HypothesisTests.html",
+    "title": "Hypothesis tests",
+    "section": "",
+    "text": "crabbymetrics exposes hypothesis tests in two layers:\n\nFitted estimators with covariance support expose wald_test(...) methods for linear restrictions \\(R\\beta = q\\).\nTwoSLS also exposes anderson_rubin_test(...) for weak-IV-robust scalar endogenous-regressor tests.\nModule-level helpers remain available for lower-level workflows: wald_test(coef, vcov, r, q=None), likelihood_ratio_test(...), and the shorter lr_test(...) alias.\n\nThe estimator method is the preferred path when the fitted object owns the covariance calculation.\n\nimport numpy as np\nimport crabbymetrics as cm\n\nrng = np.random.default_rng(123)\nx = rng.normal(size=(300, 3))\ny = 1.0 + x @ np.array([0.0, 0.0, 0.8]) + rng.normal(scale=0.7, size=300)\n\nmodel = cm.OLS()\nmodel.fit(x, y)\n\n# Joint test that the first two slope coefficients are zero.\nR = np.array([\n    [0.0, 1.0, 0.0, 0.0],\n    [0.0, 0.0, 1.0, 0.0],\n])\nmodel.wald_test(R, vcov=\"hc1\")\n\n{'statistic': 1.1440001997700853,\n 'df': 2,\n 'p_value': 0.5643954617446911,\n 'test': 'wald'}\n\n\nFor intercept-bearing estimators, the restriction matrix uses coefficient order [intercept, slopes...]. For fixed-effects summaries without an intercept, use the reported slope order.\nThe same test can be run manually from arrays when needed:\n\nsummary = model.summary(vcov=\"hc1\")\ncoef = np.r_[summary[\"intercept\"], summary[\"coef\"]]\ncm.wald_test(coef, summary[\"vcov\"], R)\n\n{'statistic': 1.1440001997700853,\n 'df': 2,\n 'p_value': 0.5643954617446911,\n 'test': 'wald'}\n\n\nFor IV models with one endogenous regressor, the Anderson Rubin method tests \\(H_0: \\beta = \\beta_0\\) by checking whether the excluded instruments predict y - beta0 * d after accounting for included exogenous regressors. This remains valid under weak instruments.\n\nn = 300\nx_exog = rng.normal(size=(n, 2))\nz = rng.normal(size=(n, 2))\nx_endog = 0.8 * z[:, [0]] - 0.4 * z[:, [1]] + rng.normal(size=(n, 1))\ny_iv = 0.5 + 1.2 * x_endog[:, 0] + x_exog @ np.array([0.3, -0.2]) + rng.normal(size=n)\n\niv = cm.TwoSLS()\niv.fit(x_endog, x_exog, z, y_iv)\niv.anderson_rubin_test(beta=1.2, vcov=\"hc1\")\n\n{'statistic': 0.492874433101036,\n 'wald_statistic': 0.985748866202072,\n 'df_num': 2,\n 'df_denom': 295,\n 'p_value': 0.611370092172306,\n 'beta': 1.2,\n 'vcov_type': 'hc1',\n 'test': 'Anderson Rubin'}\n\n\nLikelihood-ratio tests are intentionally kept as array/scalar utilities for now, because they compare two nested likelihood values rather than one fitted covariance summary.\n\ncm.lr_test(unrestricted_loglik=-100.0, restricted_loglik=-103.0, df=2)\n\n{'statistic': 6.0,\n 'df': 2,\n 'p_value': 0.04978706836786395,\n 'test': 'likelihood_ratio'}"
   },
   {
     "objectID": "ding/ch01-correlation-simpson.html",

@@ -4,6 +4,7 @@ project:
   render:
     - index.qmd
     - api.qmd
+    - reference/*.qmd
     - first-course-ding.qmd
     - ding/*.qmd
     - mechanics-ols.qmd
@@ -23,8 +24,12 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: api.qmd
-        text: API
+      - text: API
+        menu:
+          - href: api.qmd
+            text: Overview
+          - href: reference/HypothesisTests.qmd
+            text: Hypothesis Tests
       - href: mechanics-ols.qmd
         text: Binding Crash Course
       - text: Regression And GLMs
