@@ -24,7 +24,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip maturin ".[test]"
+        run: python -m pip install --upgrade pip maturin pytest ".[test]"
 
       - name: Build wheel
         run: maturin build --release --interpreter python
