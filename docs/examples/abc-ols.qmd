@@ -483,13 +483,45 @@ base_names = [
     "group[1]:sex[1]",
     "group[2]:sex[1]",
 ]
-for name, coef in zip(base_names, beta_base):
-    print(f"{name:18s} {coef: .4f}")
+theta = dict(zip(full_names, theta_crabby))
+abc_as_base = np.array([
+    theta["Intercept"] + theta["g0"] + theta["s0"] + theta["g0:s0"],
+    theta["x0"] + theta["x0:g0"],
+    theta["g1"] - theta["g0"] + theta["g1:s0"] - theta["g0:s0"],
+    theta["g2"] - theta["g0"] + theta["g2:s0"] - theta["g0:s0"],
+    theta["s1"] - theta["s0"] + theta["g0:s1"] - theta["g0:s0"],
+    theta["x0:g1"] - theta["x0:g0"],
+    theta["x0:g2"] - theta["x0:g0"],
+    theta["g1:s1"] - theta["g1:s0"] - theta["g0:s1"] + theta["g0:s0"],
+    theta["g2:s1"] - theta["g2:s0"] - theta["g0:s1"] + theta["g0:s0"],
+])
 
 print("max fitted-value difference:", np.max(np.abs(np.asarray(abc.fitted_values()) - yhat_base)))
+
+from IPython.display import Markdown, display
+
+def markdown_table(headers, rows):
+    out = ["| " + " | ".join(headers) + " |", "| " + " | ".join(["---"] * len(headers)) + " |"]
+    out += ["| " + " | ".join(row) + " |" for row in rows]
+    return "\n".join(out)
+
+abc_rows = [
+    [name, f"{value:.4f}"]
+    for name, value in zip(full_names, theta_crabby)
+]
+display(Markdown(markdown_table(["ABC overcomplete coefficient", "ABCOLS estimate"], abc_rows)))
+
+comparison_rows = [
+    [name, f"{base:.4f}", f"{abc_equiv:.4f}", f"{base - abc_equiv:.2e}"]
+    for name, base, abc_equiv in zip(base_names, beta_base, abc_as_base)
+]
+display(Markdown(markdown_table(
+    ["Vanilla one-hot / reference-coded coefficient", "Vanilla OLS", "Same coefficient implied by ABC", "Difference"],
+    comparison_rows,
+)))
 ```
 
-The fitted values agree because the two designs span the same column space. The coefficients differ because the parameterizations answer different questions.
+The first table is the `ABCOLS` coefficient table in the overcomplete ABC coordinates. The second table translates those ABC coefficients back into the ordinary one-hot/reference-coded coordinates and compares them to a vanilla OLS fit. The fitted values agree because the two designs span the same column space. The coefficients differ because the parameterizations answer different questions, but the translated coefficients agree up to numerical precision.
 
 ## Interpreting the ABC slope
 
