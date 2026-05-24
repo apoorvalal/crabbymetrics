@@ -16,6 +16,11 @@ docs = [
     "matplotlib",
     "pandas>=2.3.3",
 ]
+test = [
+    "pyfixest>=0.50.1",
+    "scipy>=1.15.3",
+    "statsmodels>=0.14.6",
+]
 
 [project.urls]
 Homepage = "https://github.com/apoorvalal/crabbymetrics"
@@ -39,4 +44,11 @@ dev = [
     "jupyter>=1.1.1",
     "maturin>=1.12.6",
     "pytest>=8.3.5",
+    "statsmodels>=0.14.6",
+]
+test = [
+    "pyfixest>=0.50.1",
+    "pytest>=8.3.5",
+    "scipy>=1.15.3",
+    "statsmodels>=0.14.6",
 ]

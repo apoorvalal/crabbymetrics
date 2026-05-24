@@ -1,3 +1,4 @@
+use crate::hyptests::wald_test_arrays;
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, fisher_cov_multinomial,
     fisher_cov_poisson, invert_matrix, pyarray1_from_f64, pyarray1_from_i32, pyarray2_from_f64,
@@ -14,6 +15,7 @@ use ndarray::{array, concatenate, s, Array1, Array2, ArrayView1, ArrayView2, Axi
 use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use rand::{Rng, SeedableRng};
 
 #[pyclass]
@@ -113,7 +115,43 @@ impl Logit {
         dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (r, q=None))]
+    fn wald_test<'py>(
+        &self,
+        py: Python<'py>,
+        r: PyReadonlyArray2<f64>,
+        q: Option<PyReadonlyArray1<f64>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Logit model is not fitted"))?;
+        let x = self
+            .x
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let probs = model.predict_probabilities(x);
+        let design = if self.fit_intercept {
+            add_intercept(x)
+        } else {
+            x.clone()
+        };
+        let cov = fisher_cov_binary(&design, &probs).map_err(PyValueError::new_err)?;
+        let mut params =
+            Array1::<f64>::zeros(model.params().len() + if self.fit_intercept { 1 } else { 0 });
+        if self.fit_intercept {
+            params[0] = model.intercept();
+            params.slice_mut(s![1..]).assign(model.params());
+        } else {
+            params.assign(model.params());
+        }
+        let rmat = to_array2(&r);
+        let qvec = q.as_ref().map(to_array1);
+        wald_test_arrays(py, &params, &cov, &rmat, qvec.as_ref())
     }
 
     #[pyo3(signature = (n_bootstrap, seed=None))]
@@ -556,8 +594,59 @@ impl Poisson {
         dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", if vcov == "qmle" { "sandwich" } else { vcov })?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (r, q=None, vcov="vanilla"))]
+    fn wald_test<'py>(
+        &self,
+        py: Python<'py>,
+        r: PyReadonlyArray2<f64>,
+        q: Option<PyReadonlyArray1<f64>>,
+        vcov: &str,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Poisson model is not fitted"))?;
+        let x = self
+            .x
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No response stored"))?;
+        let eta = x.dot(coef) + self.intercept;
+        let mu = eta.mapv(|v| v.exp());
+        let design = if self.fit_intercept {
+            add_intercept(x)
+        } else {
+            x.clone()
+        };
+        let cov = match vcov {
+            "vanilla" => fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?,
+            "sandwich" | "qmle" => {
+                qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?
+            }
+            _ => {
+                return Err(PyValueError::new_err(
+                    "vcov must be one of {'vanilla', 'sandwich', 'qmle'}",
+                ));
+            }
+        };
+        let mut params = Array1::<f64>::zeros(coef.len() + if self.fit_intercept { 1 } else { 0 });
+        if self.fit_intercept {
+            params[0] = self.intercept;
+            params.slice_mut(s![1..]).assign(coef);
+        } else {
+            params.assign(coef);
+        }
+        let rmat = to_array2(&r);
+        let qvec = q.as_ref().map(to_array1);
+        wald_test_arrays(py, &params, &cov, &rmat, qvec.as_ref())
     }
 
     #[pyo3(signature = (n_bootstrap, seed=None))]

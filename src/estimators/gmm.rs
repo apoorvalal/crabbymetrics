@@ -1,11 +1,13 @@
+use crate::hyptests::wald_test_arrays;
 use crate::utils::{
     default_newey_west_lags, diag_sqrt, invert_matrix, pyarray1_from_f64, pyarray2_from_f64,
     score_cov_cluster, score_cov_iid, score_cov_newey_west, to_array1, to_array1_i64, to_array2,
 };
 use ndarray::{Array1, Array2, Axis};
-use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1};
+use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -708,5 +710,97 @@ impl GMM {
         dict.set_item("j_stat", j_stat)?;
         dict.set_item("j_df", j_df)?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (r, q=None, vcov="sandwich", omega="iid", lags=None, clusters=None))]
+    fn wald_test<'py>(
+        &self,
+        py: Python<'py>,
+        r: PyReadonlyArray2<f64>,
+        q: Option<PyReadonlyArray1<f64>>,
+        vcov: &str,
+        omega: &str,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let theta = self
+            .theta
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("GMM model is not fitted"))?;
+        let data = self
+            .data
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let weight_matrix = self
+            .weight_matrix
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fitted weight matrix stored"))?;
+
+        let projection = self.moment_projection.as_ref();
+        let moments = project_moments(call_moments(py, &self.moment_fn, theta, data)?, projection)?;
+        let jacobian = project_jacobian(
+            sample_jacobian(
+                py,
+                &self.moment_fn,
+                self.jacobian_fn.as_ref(),
+                theta,
+                data,
+                self.fd_eps,
+            )?,
+            projection,
+        )?;
+
+        if jacobian.nrows() != moments.ncols() || jacobian.ncols() != theta.len() {
+            return Err(PyValueError::new_err(format!(
+                "jacobian_fn returned shape ({}, {}), expected ({}, {})",
+                jacobian.nrows(),
+                jacobian.ncols(),
+                moments.ncols(),
+                theta.len()
+            )));
+        }
+
+        let a_matrix = jacobian.t().dot(weight_matrix).dot(&jacobian);
+        let a_inv = invert_with_ridge(&a_matrix, self.ridge).map_err(PyValueError::new_err)?;
+        let n = moments.nrows();
+        let covariance = match vcov {
+            "vanilla" => a_inv.mapv(|v| v / (n as f64)),
+            "sandwich" => {
+                let omega_hat = match omega {
+                    "iid" => omega_iid(&moments),
+                    "newey_west" => omega_newey_west(
+                        &moments,
+                        lags.unwrap_or_else(|| default_newey_west_lags(n)),
+                    ),
+                    "cluster" => {
+                        let clusters = clusters.ok_or_else(|| {
+                            PyValueError::new_err("clusters must be provided for omega='cluster'")
+                        })?;
+                        let cluster_ids = to_array1_i64(&clusters);
+                        omega_cluster(&moments, &cluster_ids).map_err(PyValueError::new_err)?
+                    }
+                    _ => {
+                        return Err(PyValueError::new_err(
+                            "omega must be one of {'iid', 'newey_west', 'cluster'}",
+                        ));
+                    }
+                };
+                let middle = jacobian
+                    .t()
+                    .dot(weight_matrix)
+                    .dot(&omega_hat)
+                    .dot(weight_matrix)
+                    .dot(&jacobian);
+                a_inv.dot(&middle).dot(&a_inv).mapv(|v| v / (n as f64))
+            }
+            _ => {
+                return Err(PyValueError::new_err(
+                    "vcov must be one of {'vanilla', 'sandwich'}",
+                ));
+            }
+        };
+        let rmat = to_array2(&r);
+        let qvec = q.as_ref().map(to_array1);
+        wald_test_arrays(py, theta, &covariance, &rmat, qvec.as_ref())
     }
 }
