@@ -54,7 +54,7 @@ rm -rf "$TMPDIR"
 
 ## Release Packaging
 
-- **Never ship rendered docs in the PyPI sdist.** A `v0.6.6` release attempt tried to upload a 100+ MB source tarball because rendered Quarto docs were included in the sdist; PyPI rejected it. Keep `docs/**/*` excluded from sdists in `pyproject.toml` (`[tool.maturin].exclude`) and verify with `maturin sdist --out /tmp/...` before tagging releases when docs changed. A normal sdist should be small, not tens/hundreds of MB.
+- **Never ship rendered docs in the PyPI sdist.** This was a slow packaging regression: `crabbymetrics-0.5.1.tar.gz` was already 84.2 MB / 80.3 MiB, `0.6.5` reached 102.2 MB / 97.5 MiB, and the `v0.6.6` release attempt finally failed when rendered Quarto docs pushed the sdist to 100+ MB. PyPI rejected that upload. Keep `docs/**/*` excluded from sdists in `pyproject.toml` (`[tool.maturin].exclude`) and verify with `maturin sdist --out /tmp/...` before tagging releases when docs changed. A normal sdist should be small, not tens/hundreds of MB; after excluding docs, `0.6.7` was about 0.4 MB.
 
 ## Bookkeeping
 
