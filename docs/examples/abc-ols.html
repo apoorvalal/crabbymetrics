@@ -4376,7 +4376,12 @@ window.Quarto = {
   <li><a href="#continuous-by-categorical-interactions" id="toc-continuous-by-categorical-interactions" class="nav-link" data-scroll-target="#continuous-by-categorical-interactions"><span class="header-section-number">4</span> Continuous-by-categorical interactions</a></li>
   <li><a href="#categorical-by-categorical-interactions" id="toc-categorical-by-categorical-interactions" class="nav-link" data-scroll-target="#categorical-by-categorical-interactions"><span class="header-section-number">5</span> Categorical-by-categorical interactions</a></li>
   <li><a href="#null-space-implementation" id="toc-null-space-implementation" class="nav-link" data-scroll-target="#null-space-implementation"><span class="header-section-number">6</span> Null-space implementation</a></li>
-  <li><a href="#example-abc-versus-base-category-coding" id="toc-example-abc-versus-base-category-coding" class="nav-link" data-scroll-target="#example-abc-versus-base-category-coding"><span class="header-section-number">7</span> Example: ABC versus base-category coding</a></li>
+  <li><a href="#example-abc-versus-base-category-coding" id="toc-example-abc-versus-base-category-coding" class="nav-link" data-scroll-target="#example-abc-versus-base-category-coding"><span class="header-section-number">7</span> Example: ABC versus base-category coding</a>
+  <ul class="collapse">
+  <li><a href="#the-concrete-overparameterized-design" id="toc-the-concrete-overparameterized-design" class="nav-link" data-scroll-target="#the-concrete-overparameterized-design"><span class="header-section-number">7.1</span> The concrete overparameterized design</a></li>
+  <li><a href="#raw-numpy-constrained-solve" id="toc-raw-numpy-constrained-solve" class="nav-link" data-scroll-target="#raw-numpy-constrained-solve"><span class="header-section-number">7.2</span> Raw NumPy constrained solve</a></li>
+  <li><a href="#the-crabbymetrics-solution" id="toc-the-crabbymetrics-solution" class="nav-link" data-scroll-target="#the-crabbymetrics-solution"><span class="header-section-number">7.3</span> The <code>crabbymetrics</code> solution</a></li>
+  </ul></li>
   <li><a href="#interpreting-the-abc-slope" id="toc-interpreting-the-abc-slope" class="nav-link" data-scroll-target="#interpreting-the-abc-slope"><span class="header-section-number">8</span> Interpreting the ABC slope</a></li>
   <li><a href="#interpreting-the-abc-categorical-effects" id="toc-interpreting-the-abc-categorical-effects" class="nav-link" data-scroll-target="#interpreting-the-abc-categorical-effects"><span class="header-section-number">9</span> Interpreting the ABC categorical effects</a></li>
   <li><a href="#current-implementation-contract" id="toc-current-implementation-contract" class="nav-link" data-scroll-target="#current-implementation-contract"><span class="header-section-number">10</span> Current implementation contract</a></li>
@@ -4459,7 +4464,7 @@ s_{j\ell} = \alpha_j + \gamma_{jk\ell}.
 </section>
 <section id="categorical-by-categorical-interactions" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="categorical-by-categorical-interactions"><span class="header-section-number">5</span> Categorical-by-categorical interactions</h2>
-<p>For two categorical variables <span class="math inline">\(A\)</span> and $B`, the overcomplete model includes a cell coefficient <span class="math inline">\(\delta_{ab}\)</span> for every observed cell:</p>
+<p>For two categorical variables <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span>, the overcomplete model includes a cell coefficient <span class="math inline">\(\delta_{ab}\)</span> for every observed cell:</p>
 <p><span class="math display">\[
 \sum_a\sum_b 1\{A_i=a,B_i=b\}\delta_{ab}.
 \]</span></p>
@@ -4523,7 +4528,7 @@ A\theta = 0.
 <section id="example-abc-versus-base-category-coding" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="example-abc-versus-base-category-coding"><span class="header-section-number">7</span> Example: ABC versus base-category coding</h2>
 <p>The example below cooks an unbalanced sample with a three-level categorical modifier <code>group</code> and a two-level categorical variable <code>sex</code>. The true data-generating process has group-specific intercept and slope deviations.</p>
-<div id="8c656763" class="cell" data-execution_count="1">
+<div id="3931c062" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -4554,73 +4559,250 @@ A\theta = 0.
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>Fit <code>ABCOLS</code> with a continuous-by-categorical interaction and a categorical-by-categorical interaction:</p>
-<div id="44f9e95d" class="cell" data-execution_count="2">
+<section id="the-concrete-overparameterized-design" class="level3" data-number="7.1">
+<h3 data-number="7.1" class="anchored" data-anchor-id="the-concrete-overparameterized-design"><span class="header-section-number">7.1</span> The concrete overparameterized design</h3>
+<p>For this simulation, the overparameterized coefficient vector is ordered as</p>
+<p><span class="math display">\[
+\theta =
+(\alpha,\ \beta,\
+g_0,g_1,g_2,\
+s_0,s_1,\
+h_0,h_1,h_2,\
+d_{00},d_{01},d_{10},d_{11},d_{20},d_{21})&#39;.
+\]</span></p>
+<p>Here <span class="math inline">\(\alpha\)</span> is the intercept, <span class="math inline">\(\beta\)</span> is the main slope on centered <code>x0</code>, <span class="math inline">\(g_a\)</span> is the <code>group=a</code> main effect, <span class="math inline">\(s_b\)</span> is the <code>sex=b</code> main effect, <span class="math inline">\(h_a\)</span> is the <code>x0:group=a</code> slope deviation, and <span class="math inline">\(d_{ab}\)</span> is the <code>group=a:sex=b</code> interaction cell coefficient.</p>
+<p>The sample abundances are fixed by construction:</p>
+<p><span class="math display">\[
+\hat\pi_g = (0.30,0.45,0.25), \qquad
+\hat\pi_s = (0.50,0.50),
+\]</span></p>
+<p>and, because <code>sex</code> alternates within each group,</p>
+<p><span class="math display">\[
+\hat\pi_{00}=0.150,\quad \hat\pi_{01}=0.150,\quad
+\hat\pi_{10}=0.225,\quad \hat\pi_{11}=0.225,\quad
+\hat\pi_{20}=0.125,\quad \hat\pi_{21}=0.125.
+\]</span></p>
+<p>Thus the concrete constraint system <span class="math inline">\(A\theta=0\)</span> is</p>
+<p><span class="math display">\[
+0.30g_0 + 0.45g_1 + 0.25g_2 = 0,
+\]</span></p>
+<p><span class="math display">\[
+0.50s_0 + 0.50s_1 = 0,
+\]</span></p>
+<p><span class="math display">\[
+0.30h_0 + 0.45h_1 + 0.25h_2 = 0,
+\]</span></p>
+<p>and, for the <code>group:sex</code> interaction,</p>
+<p><span class="math display">\[
+0.150d_{00}+0.150d_{01}=0,
+\]</span></p>
+<p><span class="math display">\[
+0.225d_{10}+0.225d_{11}=0,
+\]</span></p>
+<p><span class="math display">\[
+0.125d_{20}+0.125d_{21}=0,
+\]</span></p>
+<p><span class="math display">\[
+0.150d_{01}+0.225d_{11}+0.125d_{21}=0.
+\]</span></p>
+<p>There are 16 overparameterized coefficients and 7 independent constraints, so the constrained coefficient space is 9-dimensional. One especially readable null-space parameterization chooses</p>
+<p><span class="math display">\[
+\phi = (\alpha,\beta,g_1,g_2,s_1,h_1,h_2,d_{11},d_{21})&#39;.
+\]</span></p>
+<p>Then <span class="math inline">\(\theta = Q_{\rm hand}\phi\)</span> where the constrained coefficients are recovered as</p>
+<p><span class="math display">\[
+g_0 = -\frac{3}{2}g_1 - \frac{5}{6}g_2,
+\qquad
+s_0 = -s_1,
+\qquad
+h_0 = -\frac{3}{2}h_1 - \frac{5}{6}h_2,
+\]</span></p>
+<p>and</p>
+<p><span class="math display">\[
+d_{01} = -\frac{3}{2}d_{11} - \frac{5}{6}d_{21},
+\qquad
+d_{00} = \frac{3}{2}d_{11} + \frac{5}{6}d_{21},
+\qquad
+d_{10} = -d_{11},
+\qquad
+d_{20} = -d_{21}.
+\]</span></p>
+<p>Equivalently, the columns of <span class="math inline">\(Q_{\rm hand}\)</span> are: the intercept direction, the main-slope direction, two weighted group-effect contrast directions, one sex-effect contrast direction, two weighted group-slope contrast directions, and two weighted interaction contrast directions. The package uses a numerical orthonormal basis for the same span; the coordinate system for <span class="math inline">\(\phi\)</span> can rotate, but the implied constrained <span class="math inline">\(\hat\theta\)</span> and fitted values are invariant.</p>
+</section>
+<section id="raw-numpy-constrained-solve" class="level3" data-number="7.2">
+<h3 data-number="7.2" class="anchored" data-anchor-id="raw-numpy-constrained-solve"><span class="header-section-number">7.2</span> Raw NumPy constrained solve</h3>
+<p>Before using <code>crabbymetrics</code>, we can solve the overparameterized constrained least-squares problem directly in NumPy. First construct <span class="math inline">\(X_{\rm full}\)</span>, <span class="math inline">\(A\)</span>, and the hand-written null-space basis <span class="math inline">\(Q_{\rm hand}\)</span>.</p>
+<div id="8a18bc69" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>abc <span class="op">=</span> cm.ABCOLS()</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>abc.fit(</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    y,</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    x,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    cats,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    cont_cat_interactions<span class="op">=</span>[(<span class="dv">0</span>, <span class="dv">0</span>)],</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    cat_cat_interactions<span class="op">=</span>[(<span class="dv">0</span>, <span class="dv">1</span>)],</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>abc_summary <span class="op">=</span> abc.summary()</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, coef, se <span class="kw">in</span> <span class="bu">zip</span>(</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    abc_summary[<span class="st">&quot;column_names&quot;</span>],</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    abc_summary[<span class="st">&quot;coef&quot;</span>],</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    abc_summary[<span class="st">&quot;se&quot;</span>],</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>):</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> name <span class="kw">in</span> [<span class="st">&quot;Intercept&quot;</span>, <span class="st">&quot;x0&quot;</span>, <span class="st">&quot;c0[0]&quot;</span>, <span class="st">&quot;c0[1]&quot;</span>, <span class="st">&quot;c0[2]&quot;</span>, <span class="st">&quot;x0:c0[0]&quot;</span>, <span class="st">&quot;x0:c0[1]&quot;</span>, <span class="st">&quot;x0:c0[2]&quot;</span>]:</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;</span><span class="sc">{</span>name<span class="sc">:12s}</span><span class="ss"> </span><span class="sc">{</span>coef<span class="sc">: .4f}</span><span class="ss">  se=</span><span class="sc">{</span>se<span class="sc">:.4f}</span><span class="ss">&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> overparameterized_design(x_centered, group, sex):</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">=</span> [np.ones_like(x_centered), x_centered]</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [(group <span class="op">==</span> a).astype(<span class="bu">float</span>) <span class="cf">for</span> a <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)]</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [(sex <span class="op">==</span> b).astype(<span class="bu">float</span>) <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>)]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [x_centered <span class="op">*</span> (group <span class="op">==</span> a) <span class="cf">for</span> a <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [((group <span class="op">==</span> a) <span class="op">&amp;</span> (sex <span class="op">==</span> b)).astype(<span class="bu">float</span>) <span class="cf">for</span> a <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>) <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>)]</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack(cols)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>full_names <span class="op">=</span> [</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Intercept&quot;</span>, <span class="st">&quot;x0&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g0&quot;</span>, <span class="st">&quot;g1&quot;</span>, <span class="st">&quot;g2&quot;</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;s0&quot;</span>, <span class="st">&quot;s1&quot;</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0:g0&quot;</span>, <span class="st">&quot;x0:g1&quot;</span>, <span class="st">&quot;x0:g2&quot;</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g0:s0&quot;</span>, <span class="st">&quot;g0:s1&quot;</span>, <span class="st">&quot;g1:s0&quot;</span>, <span class="st">&quot;g1:s1&quot;</span>, <span class="st">&quot;g2:s0&quot;</span>, <span class="st">&quot;g2:s1&quot;</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>X_full <span class="op">=</span> overparameterized_design(x_centered, group, sex)</span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max constraint violation:&quot;</span>, abc_summary[<span class="st">&quot;max_constraint_violation&quot;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>A <span class="op">=</span> np.zeros((<span class="dv">7</span>, <span class="dv">16</span>))</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">0</span>, [<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>]] <span class="op">=</span> [<span class="fl">0.30</span>, <span class="fl">0.45</span>, <span class="fl">0.25</span>]</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">1</span>, [<span class="dv">5</span>, <span class="dv">6</span>]] <span class="op">=</span> [<span class="fl">0.50</span>, <span class="fl">0.50</span>]</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">2</span>, [<span class="dv">7</span>, <span class="dv">8</span>, <span class="dv">9</span>]] <span class="op">=</span> [<span class="fl">0.30</span>, <span class="fl">0.45</span>, <span class="fl">0.25</span>]</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">3</span>, [<span class="dv">10</span>, <span class="dv">11</span>]] <span class="op">=</span> [<span class="fl">0.150</span>, <span class="fl">0.150</span>]</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">4</span>, [<span class="dv">12</span>, <span class="dv">13</span>]] <span class="op">=</span> [<span class="fl">0.225</span>, <span class="fl">0.225</span>]</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">5</span>, [<span class="dv">14</span>, <span class="dv">15</span>]] <span class="op">=</span> [<span class="fl">0.125</span>, <span class="fl">0.125</span>]</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>A[<span class="dv">6</span>, [<span class="dv">11</span>, <span class="dv">13</span>, <span class="dv">15</span>]] <span class="op">=</span> [<span class="fl">0.150</span>, <span class="fl">0.225</span>, <span class="fl">0.125</span>]</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>Q_hand <span class="op">=</span> np.zeros((<span class="dv">16</span>, <span class="dv">9</span>))</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Free coordinates: alpha, beta, g1, g2, s1, h1, h2, d11, d21.</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">0</span>, <span class="dv">0</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">2</span>, <span class="dv">2</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">1.5</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">3</span>, <span class="dv">2</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">2</span>, <span class="dv">3</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">5.0</span> <span class="op">/</span> <span class="fl">6.0</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">4</span>, <span class="dv">3</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">5</span>, <span class="dv">4</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">1.0</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">6</span>, <span class="dv">4</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">7</span>, <span class="dv">5</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">1.5</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">8</span>, <span class="dv">5</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">7</span>, <span class="dv">6</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">5.0</span> <span class="op">/</span> <span class="fl">6.0</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">9</span>, <span class="dv">6</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">10</span>, <span class="dv">7</span>] <span class="op">=</span> <span class="fl">1.5</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">11</span>, <span class="dv">7</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">1.5</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">12</span>, <span class="dv">7</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">1.0</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">13</span>, <span class="dv">7</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">10</span>, <span class="dv">8</span>] <span class="op">=</span> <span class="fl">5.0</span> <span class="op">/</span> <span class="fl">6.0</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">11</span>, <span class="dv">8</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">5.0</span> <span class="op">/</span> <span class="fl">6.0</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">14</span>, <span class="dv">8</span>] <span class="op">=</span> <span class="op">-</span><span class="fl">1.0</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>Q_hand[<span class="dv">15</span>, <span class="dv">8</span>] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;rank(A):&quot;</span>, np.linalg.matrix_rank(A))</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;Q_hand shape:&quot;</span>, Q_hand.shape)</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max |A Q_hand|:&quot;</span>, np.<span class="bu">max</span>(np.<span class="bu">abs</span>(A <span class="op">@</span> Q_hand)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Intercept     1.5120  se=0.0084
-x0            1.1752  se=0.0089
-c0[0]        -0.8346  se=0.0128
-c0[1]         0.0782  se=0.0093
-c0[2]         0.8608  se=0.0146
-x0:c0[0]      0.3830  se=0.0156
-x0:c0[1]     -0.2675  se=0.0096
-x0:c0[2]      0.0219  se=0.0140
+<pre><code>rank(A): 7
+Q_hand shape: (16, 9)
+max |A Q_hand|: 5.551115123125783e-17</code></pre>
+</div>
+</div>
+<p>Now solve the reduced problem <span class="math inline">\(\min_\phi \|y - X_{\rm full}Q_{\rm hand}\phi\|^2\)</span> and map back to the overparameterized coefficients.</p>
+<div id="7fa6f4d6" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Z_hand <span class="op">=</span> X_full <span class="op">@</span> Q_hand</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>phi_np, <span class="op">*</span>_ <span class="op">=</span> np.linalg.lstsq(Z_hand, y, rcond<span class="op">=</span><span class="va">None</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>theta_np <span class="op">=</span> Q_hand <span class="op">@</span> phi_np</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>yhat_np <span class="op">=</span> X_full <span class="op">@</span> theta_np</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;rank(X_full Q_hand):&quot;</span>, np.linalg.matrix_rank(Z_hand))</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max |A theta_np|:&quot;</span>, np.<span class="bu">max</span>(np.<span class="bu">abs</span>(A <span class="op">@</span> theta_np)))</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, value <span class="kw">in</span> <span class="bu">zip</span>(full_names, theta_np):</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f&quot;</span><span class="sc">{</span>name<span class="sc">:10s}</span><span class="ss"> </span><span class="sc">{</span>value<span class="sc">: .4f}</span><span class="ss">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>rank(X_full Q_hand): 9
+max |A theta_np|: 1.3877787807814457e-17
+Intercept   1.5120
+x0          1.1752
+g0         -0.8346
+g1          0.0782
+g2          0.8608
+s0         -0.1750
+s1          0.1750
+x0:g0       0.3830
+x0:g1      -0.2675
+x0:g2       0.0219
+g0:s0       0.0055
+g0:s1      -0.0055
+g1:s0      -0.0021
+g1:s1       0.0021
+g2:s0      -0.0027
+g2:s1       0.0027</code></pre>
+</div>
+</div>
+<p>This is the ABC solution in raw NumPy. Notice that <span class="math inline">\(Q_{\rm hand}\)</span> is not orthonormal. It does not need to be: any full-rank basis for <span class="math inline">\(\operatorname{null}(A)\)</span> gives the same constrained fitted values.</p>
+</section>
+<section id="the-crabbymetrics-solution" class="level3" data-number="7.3">
+<h3 data-number="7.3" class="anchored" data-anchor-id="the-crabbymetrics-solution"><span class="header-section-number">7.3</span> The <code>crabbymetrics</code> solution</h3>
+<p>Now fit <code>ABCOLS</code> with the same continuous-by-categorical and categorical-by-categorical interactions:</p>
+<div id="6c71b29f" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>abc <span class="op">=</span> cm.ABCOLS()</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>abc.fit(</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    y,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    x,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    cats,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    cont_cat_interactions<span class="op">=</span>[(<span class="dv">0</span>, <span class="dv">0</span>)],</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    cat_cat_interactions<span class="op">=</span>[(<span class="dv">0</span>, <span class="dv">1</span>)],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>abc_summary <span class="op">=</span> abc.summary()</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>abc_coef <span class="op">=</span> <span class="bu">dict</span>(<span class="bu">zip</span>(abc_summary[<span class="st">&quot;column_names&quot;</span>], abc_summary[<span class="st">&quot;coef&quot;</span>]))</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>name_map <span class="op">=</span> {</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Intercept&quot;</span>: <span class="st">&quot;Intercept&quot;</span>,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0&quot;</span>: <span class="st">&quot;x0&quot;</span>,</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g0&quot;</span>: <span class="st">&quot;c0[0]&quot;</span>, <span class="st">&quot;g1&quot;</span>: <span class="st">&quot;c0[1]&quot;</span>, <span class="st">&quot;g2&quot;</span>: <span class="st">&quot;c0[2]&quot;</span>,</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;s0&quot;</span>: <span class="st">&quot;c1[0]&quot;</span>, <span class="st">&quot;s1&quot;</span>: <span class="st">&quot;c1[1]&quot;</span>,</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0:g0&quot;</span>: <span class="st">&quot;x0:c0[0]&quot;</span>, <span class="st">&quot;x0:g1&quot;</span>: <span class="st">&quot;x0:c0[1]&quot;</span>, <span class="st">&quot;x0:g2&quot;</span>: <span class="st">&quot;x0:c0[2]&quot;</span>,</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g0:s0&quot;</span>: <span class="st">&quot;c0[0]:c1[0]&quot;</span>, <span class="st">&quot;g0:s1&quot;</span>: <span class="st">&quot;c0[0]:c1[1]&quot;</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g1:s0&quot;</span>: <span class="st">&quot;c0[1]:c1[0]&quot;</span>, <span class="st">&quot;g1:s1&quot;</span>: <span class="st">&quot;c0[1]:c1[1]&quot;</span>,</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g2:s0&quot;</span>: <span class="st">&quot;c0[2]:c1[0]&quot;</span>, <span class="st">&quot;g2:s1&quot;</span>: <span class="st">&quot;c0[2]:c1[1]&quot;</span>,</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>theta_crabby <span class="op">=</span> np.array([abc_coef[name_map[name]] <span class="cf">for</span> name <span class="kw">in</span> full_names])</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max |theta_np - theta_crabby|:&quot;</span>, np.<span class="bu">max</span>(np.<span class="bu">abs</span>(theta_np <span class="op">-</span> theta_crabby)))</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max |yhat_np - yhat_crabby|:&quot;</span>, np.<span class="bu">max</span>(np.<span class="bu">abs</span>(yhat_np <span class="op">-</span> np.asarray(abc.fitted_values()))))</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max constraint violation:&quot;</span>, abc_summary[<span class="st">&quot;max_constraint_violation&quot;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>max |theta_np - theta_crabby|: 9.2148511043888e-15
+max |yhat_np - yhat_crabby|: 1.2156942119645464e-14
 max constraint violation: 6.245004513516506e-17</code></pre>
 </div>
 </div>
+<p>The package is doing the same constrained least-squares operation. The only implementation difference is that <code>ABCOLS</code> computes a numerical orthonormal null-space basis internally rather than using the hand-written <span class="math inline">\(Q_{\rm hand}\)</span> above.</p>
 <p>Now fit the same linear span using ordinary base-category coding. This drops <code>group=0</code>, <code>sex=0</code>, and the corresponding interaction baseline columns.</p>
-<div id="37c9dc50" class="cell" data-execution_count="3">
+<div id="e19e5143" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> base_category_design(x_centered, group, sex):</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">=</span> [np.ones_like(x_centered), x_centered]</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [(group <span class="op">==</span> <span class="dv">1</span>).astype(<span class="bu">float</span>), (group <span class="op">==</span> <span class="dv">2</span>).astype(<span class="bu">float</span>)]</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [(sex <span class="op">==</span> <span class="dv">1</span>).astype(<span class="bu">float</span>)]</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [x_centered <span class="op">*</span> (group <span class="op">==</span> <span class="dv">1</span>), x_centered <span class="op">*</span> (group <span class="op">==</span> <span class="dv">2</span>)]</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [((group <span class="op">==</span> <span class="dv">1</span>) <span class="op">&amp;</span> (sex <span class="op">==</span> <span class="dv">1</span>)).astype(<span class="bu">float</span>), ((group <span class="op">==</span> <span class="dv">2</span>) <span class="op">&amp;</span> (sex <span class="op">==</span> <span class="dv">1</span>)).astype(<span class="bu">float</span>)]</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack(cols)</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>X_base <span class="op">=</span> base_category_design(x_centered, group, sex)</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>beta_base, <span class="op">*</span>_ <span class="op">=</span> np.linalg.lstsq(X_base, y, rcond<span class="op">=</span><span class="va">None</span>)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>yhat_base <span class="op">=</span> X_base <span class="op">@</span> beta_base</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>base_names <span class="op">=</span> [</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Intercept&quot;</span>,</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0&quot;</span>,</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[1]&quot;</span>,</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[2]&quot;</span>,</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;sex[1]&quot;</span>,</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0:group[1]&quot;</span>,</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0:group[2]&quot;</span>,</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[1]:sex[1]&quot;</span>,</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[2]:sex[1]&quot;</span>,</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, coef <span class="kw">in</span> <span class="bu">zip</span>(base_names, beta_base):</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f&quot;</span><span class="sc">{</span>name<span class="sc">:18s}</span><span class="ss"> </span><span class="sc">{</span>coef<span class="sc">: .4f}</span><span class="ss">&quot;</span>)</span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max fitted-value difference:&quot;</span>, np.<span class="bu">max</span>(np.<span class="bu">abs</span>(np.asarray(abc.fitted_values()) <span class="op">-</span> yhat_base)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> base_category_design(x_centered, group, sex):</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">=</span> [np.ones_like(x_centered), x_centered]</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [(group <span class="op">==</span> <span class="dv">1</span>).astype(<span class="bu">float</span>), (group <span class="op">==</span> <span class="dv">2</span>).astype(<span class="bu">float</span>)]</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [(sex <span class="op">==</span> <span class="dv">1</span>).astype(<span class="bu">float</span>)]</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [x_centered <span class="op">*</span> (group <span class="op">==</span> <span class="dv">1</span>), x_centered <span class="op">*</span> (group <span class="op">==</span> <span class="dv">2</span>)]</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">+=</span> [((group <span class="op">==</span> <span class="dv">1</span>) <span class="op">&amp;</span> (sex <span class="op">==</span> <span class="dv">1</span>)).astype(<span class="bu">float</span>), ((group <span class="op">==</span> <span class="dv">2</span>) <span class="op">&amp;</span> (sex <span class="op">==</span> <span class="dv">1</span>)).astype(<span class="bu">float</span>)]</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack(cols)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>X_base <span class="op">=</span> base_category_design(x_centered, group, sex)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>beta_base, <span class="op">*</span>_ <span class="op">=</span> np.linalg.lstsq(X_base, y, rcond<span class="op">=</span><span class="va">None</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>yhat_base <span class="op">=</span> X_base <span class="op">@</span> beta_base</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>base_names <span class="op">=</span> [</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Intercept&quot;</span>,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0&quot;</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[1]&quot;</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[2]&quot;</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;sex[1]&quot;</span>,</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0:group[1]&quot;</span>,</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;x0:group[2]&quot;</span>,</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[1]:sex[1]&quot;</span>,</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;group[2]:sex[1]&quot;</span>,</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, coef <span class="kw">in</span> <span class="bu">zip</span>(base_names, beta_base):</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f&quot;</span><span class="sc">{</span>name<span class="sc">:18s}</span><span class="ss"> </span><span class="sc">{</span>coef<span class="sc">: .4f}</span><span class="ss">&quot;</span>)</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;max fitted-value difference:&quot;</span>, np.<span class="bu">max</span>(np.<span class="bu">abs</span>(np.asarray(abc.fitted_values()) <span class="op">-</span> yhat_base)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Intercept           0.5078
@@ -4637,20 +4819,21 @@ max fitted-value difference: 3.9968028886505635e-15</code></pre>
 </div>
 <p>The fitted values agree because the two designs span the same column space. The coefficients differ because the parameterizations answer different questions.</p>
 </section>
+</section>
 <section id="interpreting-the-abc-slope" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="interpreting-the-abc-slope"><span class="header-section-number">8</span> Interpreting the ABC slope</h2>
 <p>Under ABC coding, <code>x0</code> is the abundance-weighted average of group-specific slopes. We can verify this directly.</p>
-<div id="0f96916d" class="cell" data-execution_count="4">
+<div id="c355d6fe" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> <span class="bu">dict</span>(<span class="bu">zip</span>(abc_summary[<span class="st">&quot;column_names&quot;</span>], abc_summary[<span class="st">&quot;coef&quot;</span>]))</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>weights <span class="op">=</span> np.bincount(group) <span class="op">/</span> <span class="bu">len</span>(group)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>group_slopes <span class="op">=</span> np.array([coef[<span class="st">&quot;x0&quot;</span>] <span class="op">+</span> coef[<span class="ss">f&quot;x0:c0[</span><span class="sc">{</span>level<span class="sc">}</span><span class="ss">]&quot;</span>] <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)])</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weights:&quot;</span>, weights.<span class="bu">round</span>(<span class="dv">3</span>))</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;group slopes:&quot;</span>, group_slopes.<span class="bu">round</span>(<span class="dv">4</span>))</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weighted average slope:&quot;</span>, <span class="bu">float</span>(weights <span class="op">@</span> group_slopes))</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;ABC main slope:&quot;</span>, coef[<span class="st">&quot;x0&quot;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> <span class="bu">dict</span>(<span class="bu">zip</span>(abc_summary[<span class="st">&quot;column_names&quot;</span>], abc_summary[<span class="st">&quot;coef&quot;</span>]))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>weights <span class="op">=</span> np.bincount(group) <span class="op">/</span> <span class="bu">len</span>(group)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>group_slopes <span class="op">=</span> np.array([coef[<span class="st">&quot;x0&quot;</span>] <span class="op">+</span> coef[<span class="ss">f&quot;x0:c0[</span><span class="sc">{</span>level<span class="sc">}</span><span class="ss">]&quot;</span>] <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)])</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weights:&quot;</span>, weights.<span class="bu">round</span>(<span class="dv">3</span>))</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;group slopes:&quot;</span>, group_slopes.<span class="bu">round</span>(<span class="dv">4</span>))</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weighted average slope:&quot;</span>, <span class="bu">float</span>(weights <span class="op">@</span> group_slopes))</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;ABC main slope:&quot;</span>, coef[<span class="st">&quot;x0&quot;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>weights: [0.3  0.45 0.25]
@@ -4664,12 +4847,12 @@ ABC main slope: 1.175173399782689</code></pre>
 <section id="interpreting-the-abc-categorical-effects" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="interpreting-the-abc-categorical-effects"><span class="header-section-number">9</span> Interpreting the ABC categorical effects</h2>
 <p>The same logic applies to categorical main effects. The ABC group effects have sample-weighted mean zero:</p>
-<div id="ba9fe554" class="cell" data-execution_count="5">
+<div id="04bbed84" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>group_effects <span class="op">=</span> np.array([coef[<span class="ss">f&quot;c0[</span><span class="sc">{</span>level<span class="sc">}</span><span class="ss">]&quot;</span>] <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)])</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;group effects:&quot;</span>, group_effects.<span class="bu">round</span>(<span class="dv">4</span>))</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weighted mean group effect:&quot;</span>, <span class="bu">float</span>(weights <span class="op">@</span> group_effects))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>group_effects <span class="op">=</span> np.array([coef[<span class="ss">f&quot;c0[</span><span class="sc">{</span>level<span class="sc">}</span><span class="ss">]&quot;</span>] <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)])</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;group effects:&quot;</span>, group_effects.<span class="bu">round</span>(<span class="dv">4</span>))</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;weighted mean group effect:&quot;</span>, <span class="bu">float</span>(weights <span class="op">@</span> group_effects))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>group effects: [-0.8346  0.0782  0.8608]
@@ -4681,15 +4864,15 @@ weighted mean group effect: -2.7755575615628914e-17</code></pre>
 <section id="current-implementation-contract" class="level2" data-number="10">
 <h2 data-number="10" class="anchored" data-anchor-id="current-implementation-contract"><span class="header-section-number">10</span> Current implementation contract</h2>
 <p><code>cm.ABCOLS()</code> is intentionally low-level and NumPy-first:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.ABCOLS()</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>model.fit(</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    y,                         <span class="co"># 1D float array</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    x,                         <span class="co"># 2D float array of continuous covariates</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    categories,                <span class="co"># 2D uint32 array of zero-based categorical codes</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    cont_cat_interactions<span class="op">=</span>[],  <span class="co"># list of (continuous_col, categorical_col)</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    cat_cat_interactions<span class="op">=</span>[],   <span class="co"># list of (categorical_col_a, categorical_col_b)</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    center_continuous<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.ABCOLS()</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>model.fit(</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    y,                         <span class="co"># 1D float array</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    x,                         <span class="co"># 2D float array of continuous covariates</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    categories,                <span class="co"># 2D uint32 array of zero-based categorical codes</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    cont_cat_interactions<span class="op">=</span>[],  <span class="co"># list of (continuous_col, categorical_col)</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    cat_cat_interactions<span class="op">=</span>[],   <span class="co"># list of (categorical_col_a, categorical_col_b)</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    center_continuous<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Important restrictions in the first implementation:</p>
 <ul>
 <li>categorical levels must be contiguous observed integer codes starting at zero;</li>
