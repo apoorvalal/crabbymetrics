@@ -3885,11 +3885,112 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
     <ul class="dropdown-menu" aria-labelledby="nav-menu-api">
         <li>
     <a class="dropdown-item" href="../api.html">
- <span class="dropdown-text">Overview</span></a>
+ <span class="dropdown-text">API Overview</span></a>
   </li>
+        <li class="dropdown-header">Regression And GLMs</li>
+        <li>
+    <a class="dropdown-item" href="../reference/OLS.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/Ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/FixedEffectsOLS.html">
+ <span class="dropdown-text">FixedEffectsOLS</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/ElasticNet.html">
+ <span class="dropdown-text">ElasticNet</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/Logit.html">
+ <span class="dropdown-text">Logit</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/MultinomialLogit.html">
+ <span class="dropdown-text">MultinomialLogit</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/Poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/FTRL.html">
+ <span class="dropdown-text">FTRL</span></a>
+  </li>
+        <li class="dropdown-header">Causal Inference And Panels</li>
+        <li>
+    <a class="dropdown-item" href="../reference/TwoSLS.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/BalancingWeights.html">
+ <span class="dropdown-text">BalancingWeights</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/EPLM.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/AverageDerivative.html">
+ <span class="dropdown-text">AverageDerivative</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/PartiallyLinearDML.html">
+ <span class="dropdown-text">PartiallyLinearDML</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/AIPW.html">
+ <span class="dropdown-text">AIPW</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/SyntheticControl.html">
+ <span class="dropdown-text">SyntheticControl</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/HorizontalPanelRidge.html">
+ <span class="dropdown-text">HorizontalPanelRidge</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/SyntheticDID.html">
+ <span class="dropdown-text">SyntheticDID</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/MatrixCompletion.html">
+ <span class="dropdown-text">MatrixCompletion</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/InteractiveFixedEffects.html">
+ <span class="dropdown-text">InteractiveFixedEffects</span></a>
+  </li>
+        <li class="dropdown-header">Hypothesis Testing</li>
         <li>
     <a class="dropdown-item" href="../reference/HypothesisTests.html">
  <span class="dropdown-text">Hypothesis Tests</span></a>
+  </li>
+        <li class="dropdown-header">Transforms</li>
+        <li>
+    <a class="dropdown-item" href="../reference/PCA.html">
+ <span class="dropdown-text">PCA</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/KernelBasis.html">
+ <span class="dropdown-text">KernelBasis</span></a>
+  </li>
+        <li class="dropdown-header">Estimation Interfaces</li>
+        <li>
+    <a class="dropdown-item" href="../reference/GMM.html">
+ <span class="dropdown-text">GMM</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/MEstimator.html">
+ <span class="dropdown-text">MEstimator</span></a>
+  </li>
+        <li>
+    <a class="dropdown-item" href="../reference/Optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
   </li>
     </ul>
   </li>
@@ -4172,7 +4273,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 
 <p>Matched-pairs experiments replace unrestricted treatment permutations with sign flips inside pairs. The Darwin maize data in the source folder make that logic transparent.</p>
-<div id="8a3b46e5" class="cell" data-execution_count="1">
+<div id="f361bd77" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4196,7 +4297,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <section id="exact-sign-flip-distribution" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="exact-sign-flip-distribution"><span class="header-section-number">1</span> Exact Sign-Flip Distribution</h2>
-<div id="fd60335d" class="cell" data-execution_count="2">
+<div id="9c9c9983" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>zea <span class="op">=</span> pd.read_csv(data_dir <span class="op">/</span> <span class="st">&quot;ZeaMays.csv&quot;</span>)</span>
@@ -4250,7 +4351,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="5c73f13f" class="cell" data-execution_count="3">
+<div id="fb54a22d" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -4273,7 +4374,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="matched-pairs-with-a-pair-level-covariate" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="matched-pairs-with-a-pair-level-covariate"><span class="header-section-number">2</span> Matched Pairs With A Pair-Level Covariate</h2>
 <p>The second worked example in the R script is the Imbens-Rubin television data. Each row is a matched pair. The outcome contrast is <code>diffy</code>, and <code>diffx</code> is a pre-treatment pair difference. The unadjusted paired estimator is the intercept-only regression of <code>diffy</code>; the adjusted estimator is the intercept in a pair-level regression of <code>diffy</code> on <code>diffx</code>.</p>
-<div id="0353a623" class="cell" data-execution_count="4">
+<div id="ae1d60fd" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>tv <span class="op">=</span> np.array(</span>
@@ -4361,7 +4462,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="b66d22be" class="cell" data-execution_count="5">
+<div id="4e52507e" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>
