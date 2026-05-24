@@ -202,6 +202,58 @@ y = (
 )
 ```
 
+The raw simulation parameters are therefore:
+
+$$
+\alpha_0 = 1.25,
+\qquad
+\beta_0 = 1.10,
+\qquad
+\gamma_g = (-0.75,\ 0.15,\ 0.95),
+\qquad
+\eta_g = (0.45,\ -0.20,\ 0.10),
+\qquad
+\delta_s = (0,\ 0.35),
+\qquad
+\sigma = 0.08.
+$$
+
+Here $\gamma_g$ are the raw group intercept deviations, $\eta_g$ are the raw
+`x0:group` slope deviations, and $\delta_s$ is the raw sex main effect. Since
+ABC reports abundance-centered effects, the population coefficients in the
+ABC parameterization shift these raw effects by their sample-abundance
+averages. With $\hat\pi_g=(0.30,0.45,0.25)$ and
+$\hat\pi_s=(0.50,0.50)$,
+
+$$
+\bar\gamma = \hat\pi_g'\gamma = 0.08,
+\qquad
+\bar\eta = \hat\pi_g'\eta = 0.07,
+\qquad
+\bar\delta = \hat\pi_s'\delta = 0.175.
+$$
+
+So the true ABC-centered coefficients implied by the DGP are
+
+$$
+\alpha = 1.25 + 0.08 + 0.175 = 1.505,
+\qquad
+\beta = 1.10 + 0.07 = 1.17,
+$$
+
+$$
+g = (-0.83,\ 0.07,\ 0.87),
+\qquad
+s = (-0.175,\ 0.175),
+\qquad
+h = (0.38,\ -0.27,\ 0.03),
+\qquad
+d_{ab}=0 \;\; \text{for all cells}.
+$$
+
+These are the targets to keep in mind before looking at the overcomplete
+design matrix and its constraints.
+
 ### The concrete overparameterized design
 
 For this simulation, the overparameterized coefficient vector is ordered as
