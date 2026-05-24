@@ -129,3 +129,7 @@ website:
             text: Ch 23 Econometric IV
           - href: ding/ch27-mediation.qmd
             text: Ch 27 Mediation
+    right:
+      - icon: github
+        href: https://github.com/apoorvalal/crabbymetrics
+        aria-label: GitHub repository
