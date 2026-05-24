@@ -3584,7 +3584,7 @@ impl TwoSLS {
         };
         if design.nrows() <= design.ncols() {
             return Err(PyValueError::new_err(
-                "not enough residual degrees of freedom for Anderson-Rubin test",
+                "not enough residual degrees of freedom for Anderson Rubin test",
             ));
         }
 
@@ -3621,7 +3621,7 @@ impl TwoSLS {
         out.set_item("p_value", p_value)?;
         out.set_item("beta", beta)?;
         out.set_item("vcov_type", vcov)?;
-        out.set_item("test", "anderson_rubin")?;
+        out.set_item("test", "Anderson Rubin")?;
         Ok(out)
     }
 

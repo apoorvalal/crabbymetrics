@@ -48,7 +48,7 @@ coef = np.r_[summary["intercept"], summary["coef"]]
 cm.wald_test(coef, summary["vcov"], R)
 ```
 
-For IV models with one endogenous regressor, the Anderson-Rubin method tests $H_0: \beta = \beta_0$ by checking whether the excluded instruments predict `y - beta0 * d` after accounting for included exogenous regressors. This remains valid under weak instruments.
+For IV models with one endogenous regressor, the Anderson Rubin method tests $H_0: \beta = \beta_0$ by checking whether the excluded instruments predict `y - beta0 * d` after accounting for included exogenous regressors. This remains valid under weak instruments.
 
 ```{python}
 n = 300

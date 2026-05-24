@@ -139,7 +139,7 @@ The latest Ding pass filled in several places where the first Python pages were 
 - Chapter 11 now includes propensity-score stratification over multiple stratum counts, IPW truncation, and balance diagnostics.
 - Chapter 13 now includes the ATT doubly robust formula alongside odds weighting and balancing weights.
 - Chapter 21 now includes the JOBS one-sided noncompliance example.
-- Chapter 23 now includes an Anderson-Rubin grid in addition to `TwoSLS`, `GMM`, and the control-function view.
+- Chapter 23 now includes an Anderson Rubin grid in addition to `TwoSLS`, `GMM`, and the control-function view.
 - Chapter 27 now spells out the simulation DGPs before the NDE/NIE histograms.
 
 The translation rule for that section is:

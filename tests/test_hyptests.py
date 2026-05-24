@@ -196,7 +196,7 @@ def test_twosls_anderson_rubin_test_matches_statsmodels_reduced_form_f_test():
     model = cm.TwoSLS()
     model.fit(x_endog, x_exog, z, y)
 
-    # Anderson-Rubin test of H0: beta = beta0 is the joint test that the
+    # Anderson Rubin test of H0: beta = beta0 is the joint test that the
     # excluded instruments have zero coefficients in the reduced-form
     # regression of y - beta0 * d on exogenous controls and instruments.
     y_null = y - beta0 * x_endog[:, 0]
@@ -210,7 +210,7 @@ def test_twosls_anderson_rubin_test_matches_statsmodels_reduced_form_f_test():
     ]:
         out = model.anderson_rubin_test(beta0, vcov=vcov)
         ref = sm_res.wald_test(r, use_f=True, scalar=True)
-        assert out["test"] == "anderson_rubin"
+        assert out["test"] == "Anderson Rubin"
         assert out["df_num"] == z.shape[1]
         assert out["df_denom"] == n - (1 + x_exog.shape[1] + z.shape[1])
         np.testing.assert_allclose(out["statistic"], scalar_stat(ref), atol=1e-8, rtol=1e-8)
