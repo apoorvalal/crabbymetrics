@@ -27,9 +27,62 @@ website:
       - text: API
         menu:
           - href: api.qmd
-            text: Overview
+            text: API Overview
+          - text: Regression And GLMs
+          - href: reference/OLS.qmd
+            text: OLS
+          - href: reference/Ridge.qmd
+            text: Ridge
+          - href: reference/FixedEffectsOLS.qmd
+            text: FixedEffectsOLS
+          - href: reference/ElasticNet.qmd
+            text: ElasticNet
+          - href: reference/Logit.qmd
+            text: Logit
+          - href: reference/MultinomialLogit.qmd
+            text: MultinomialLogit
+          - href: reference/Poisson.qmd
+            text: Poisson
+          - href: reference/FTRL.qmd
+            text: FTRL
+          - text: Causal Inference And Panels
+          - href: reference/TwoSLS.qmd
+            text: TwoSLS
+          - href: reference/BalancingWeights.qmd
+            text: BalancingWeights
+          - href: reference/EPLM.qmd
+            text: EPLM
+          - href: reference/AverageDerivative.qmd
+            text: AverageDerivative
+          - href: reference/PartiallyLinearDML.qmd
+            text: PartiallyLinearDML
+          - href: reference/AIPW.qmd
+            text: AIPW
+          - href: reference/SyntheticControl.qmd
+            text: SyntheticControl
+          - href: reference/HorizontalPanelRidge.qmd
+            text: HorizontalPanelRidge
+          - href: reference/SyntheticDID.qmd
+            text: SyntheticDID
+          - href: reference/MatrixCompletion.qmd
+            text: MatrixCompletion
+          - href: reference/InteractiveFixedEffects.qmd
+            text: InteractiveFixedEffects
+          - text: Hypothesis Testing
           - href: reference/HypothesisTests.qmd
             text: Hypothesis Tests
+          - text: Transforms
+          - href: reference/PCA.qmd
+            text: PCA
+          - href: reference/KernelBasis.qmd
+            text: KernelBasis
+          - text: Estimation Interfaces
+          - href: reference/GMM.qmd
+            text: GMM
+          - href: reference/MEstimator.qmd
+            text: MEstimator
+          - href: reference/Optimizers.qmd
+            text: Optimizers
       - href: mechanics-ols.qmd
         text: Binding Crash Course
       - text: Regression And GLMs
