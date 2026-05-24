@@ -1,0 +1,318 @@
+---
+title: "Abundance-Based Constraints For OLS"
+subtitle: "Weighted effect coding for categorical modifiers"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Motivation
+
+Reference-category coding answers questions relative to an arbitrary omitted level. That is often fine for prediction, but it is awkward when the goal is to read lower-order coefficients as population or sample-average effects in the presence of categorical modifiers.
+
+The abundance-based constraints (ABC) construction of Kowal, *Facilitating heterogeneous effect estimation via statistically efficient categorical modifiers*, JASA, DOI [10.1080/01621459.2026.2635078](https://www.tandfonline.com/doi/full/10.1080/01621459.2026.2635078), replaces reference-level interpretations with empirical-abundance-weighted interpretations. In OLS, this is a pure reparameterization: fitted values are the same as a full-rank ordinary dummy-coded regression, but the displayed coefficients answer different questions.
+
+This page documents the `crabbymetrics` OLS implementation, `cm.ABCOLS()`.
+
+## Setup
+
+Let $y_i \in \mathbb R$, continuous covariates $x_i \in \mathbb R^p$, and categorical covariates $c_i = (c_{i1}, \ldots, c_{iK})$. For a categorical variable $C_k$ with levels $\ell = 0, \ldots, L_k - 1$, define empirical level abundances
+
+$$
+\hat\pi_{k\ell} = \frac{1}{n}\sum_{i=1}^n 1\{c_{ik}=\ell\}.
+$$
+
+For two categorical variables $A$ and $B$, define empirical cell abundances
+
+$$
+\hat\pi_{ab} = \frac{1}{n}\sum_{i=1}^n 1\{A_i=a, B_i=b\}.
+$$
+
+`ABCOLS` expects categorical variables to be supplied as zero-based integer codes in a dense matrix. This keeps the runtime dependency footprint NumPy-only; callers with pandas categoricals should convert levels to stable codes before fitting.
+
+## Main-effect constraints
+
+For categorical main effects, the overcomplete model includes one coefficient for every level:
+
+$$
+\mu_i = \alpha_0 + x_i'\alpha + \sum_{\ell=0}^{L_k-1} 1\{C_{ik}=\ell\}\beta_{k\ell}.
+$$
+
+The abundance-based identifying constraint is
+
+$$
+\sum_{\ell=0}^{L_k-1} \hat\pi_{k\ell}\beta_{k\ell}=0.
+$$
+
+So $\beta_{k\ell}$ is the deviation of level $\ell$ from the sample-abundance-weighted average, not the deviation from a reference level. With centered continuous covariates, the intercept is interpretable as the sample-weighted grand mean at the sample mean of $x$.
+
+## Continuous-by-categorical interactions
+
+For a continuous variable $x_j$ and categorical modifier $C_k$, the overcomplete model adds
+
+$$
+\sum_{\ell=0}^{L_k-1} x_{ij}1\{C_{ik}=\ell\}\gamma_{jk\ell}.
+$$
+
+`ABCOLS` imposes
+
+$$
+\sum_{\ell=0}^{L_k-1} \hat\pi_{k\ell}\gamma_{jk\ell}=0.
+$$
+
+The group-specific slope in level $\ell$ is
+
+$$
+ s_{j\ell} = \alpha_j + \gamma_{jk\ell}.
+$$
+
+The constraint implies
+
+$$
+\alpha_j = \sum_{\ell=0}^{L_k-1}\hat\pi_{k\ell}s_{j\ell}.
+$$
+
+Thus the continuous main effect remains the empirical-abundance-weighted average of group-specific slopes.
+
+## Categorical-by-categorical interactions
+
+For two categorical variables $A$ and $B`, the overcomplete model includes a cell coefficient $\delta_{ab}$ for every observed cell:
+
+$$
+\sum_a\sum_b 1\{A_i=a,B_i=b\}\delta_{ab}.
+$$
+
+The ABC constraints impose weighted zero margins:
+
+$$
+\sum_b \hat\pi_{ab}\delta_{ab}=0 \quad \text{for each } a,
+$$
+
+and
+
+$$
+\sum_a \hat\pi_{ab}\delta_{ab}=0 \quad \text{for each } b.
+$$
+
+One of these constraints is redundant. `ABCOLS` uses a deterministic rule: it includes all $A$-margin constraints and all but the first $B$-margin constraint.
+
+## Null-space implementation
+
+Rather than hand-building weighted contrast columns, `ABCOLS` uses the constraint/null-space route.
+
+First build an overcomplete design matrix $X_{\rm full}$ containing:
+
+1. an intercept;
+2. centered continuous variables;
+3. one indicator for every categorical level;
+4. one column $x_j1\{C_k=\ell\}$ for every requested continuous-categorical interaction level;
+5. one column $1\{A=a,B=b\}$ for every requested categorical-categorical interaction cell.
+
+Let $\theta$ collect all overcomplete coefficients. The ABC restrictions are linear:
+
+$$
+A\theta = 0.
+$$
+
+Let $Q$ be a basis for the null space of $A$, so $AQ=0$. Write
+
+$$
+\theta = Q\phi.
+$$
+
+Then fit the unconstrained OLS problem
+
+$$
+\hat\phi = \arg\min_\phi \|y - X_{\rm full}Q\phi\|_2^2.
+$$
+
+With $Z = X_{\rm full}Q$,
+
+$$
+\hat\phi = (Z'Z)^{-1}Z'y,
+\qquad
+\hat\theta = Q\hat\phi.
+$$
+
+The fitted values are
+
+$$
+\hat y = X_{\rm full}\hat\theta = Z\hat\phi.
+$$
+
+For homoskedastic OLS inference in the reduced coordinates,
+
+$$
+\widehat{\operatorname{Var}}(\hat\phi)
+= \hat\sigma^2 (Z'Z)^{-1},
+\qquad
+\hat\sigma^2 = \frac{\|y - Z\hat\phi\|_2^2}{n - \operatorname{rank}(Z)}.
+$$
+
+Mapping back gives
+
+$$
+\widehat{\operatorname{Var}}(\hat\theta)
+= Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
+$$
+
+The implementation reports coefficient standard errors from the diagonal of this matrix and records the maximum constraint violation $\|A\hat\theta\|_\infty$ as a numerical check.
+
+## Example: ABC versus base-category coding
+
+The example below cooks an unbalanced sample with a three-level categorical modifier `group` and a two-level categorical variable `sex`. The true data-generating process has group-specific intercept and slope deviations.
+
+```{python}
+import numpy as np
+import crabbymetrics as cm
+
+rng = np.random.default_rng(2026)
+
+group = np.repeat(np.array([0, 1, 2], dtype=np.uint32), [36, 54, 30])
+sex = np.tile(np.array([0, 1], dtype=np.uint32), len(group) // 2)
+cats = np.column_stack([group, sex]).astype(np.uint32)
+
+x_raw = rng.normal(size=len(group))
+x = x_raw[:, None]
+x_centered = x_raw - x_raw.mean()
+
+level_effect = np.array([-0.75, 0.15, 0.95])
+slope_deviation = np.array([0.45, -0.20, 0.10])
+sex_effect = 0.35 * sex
+noise = rng.normal(scale=0.08, size=len(group))
+
+y = (
+    1.25
+    + 1.10 * x_centered
+    + level_effect[group]
+    + slope_deviation[group] * x_centered
+    + sex_effect
+    + noise
+)
+```
+
+Fit `ABCOLS` with a continuous-by-categorical interaction and a categorical-by-categorical interaction:
+
+```{python}
+abc = cm.ABCOLS()
+abc.fit(
+    y,
+    x,
+    cats,
+    cont_cat_interactions=[(0, 0)],
+    cat_cat_interactions=[(0, 1)],
+)
+abc_summary = abc.summary()
+
+for name, coef, se in zip(
+    abc_summary["column_names"],
+    abc_summary["coef"],
+    abc_summary["se"],
+):
+    if name in ["Intercept", "x0", "c0[0]", "c0[1]", "c0[2]", "x0:c0[0]", "x0:c0[1]", "x0:c0[2]"]:
+        print(f"{name:12s} {coef: .4f}  se={se:.4f}")
+
+print("max constraint violation:", abc_summary["max_constraint_violation"])
+```
+
+Now fit the same linear span using ordinary base-category coding. This drops `group=0`, `sex=0`, and the corresponding interaction baseline columns.
+
+```{python}
+def base_category_design(x_centered, group, sex):
+    cols = [np.ones_like(x_centered), x_centered]
+    cols += [(group == 1).astype(float), (group == 2).astype(float)]
+    cols += [(sex == 1).astype(float)]
+    cols += [x_centered * (group == 1), x_centered * (group == 2)]
+    cols += [((group == 1) & (sex == 1)).astype(float), ((group == 2) & (sex == 1)).astype(float)]
+    return np.column_stack(cols)
+
+X_base = base_category_design(x_centered, group, sex)
+beta_base, *_ = np.linalg.lstsq(X_base, y, rcond=None)
+yhat_base = X_base @ beta_base
+
+base_names = [
+    "Intercept",
+    "x0",
+    "group[1]",
+    "group[2]",
+    "sex[1]",
+    "x0:group[1]",
+    "x0:group[2]",
+    "group[1]:sex[1]",
+    "group[2]:sex[1]",
+]
+for name, coef in zip(base_names, beta_base):
+    print(f"{name:18s} {coef: .4f}")
+
+print("max fitted-value difference:", np.max(np.abs(np.asarray(abc.fitted_values()) - yhat_base)))
+```
+
+The fitted values agree because the two designs span the same column space. The coefficients differ because the parameterizations answer different questions.
+
+## Interpreting the ABC slope
+
+Under ABC coding, `x0` is the abundance-weighted average of group-specific slopes. We can verify this directly.
+
+```{python}
+coef = dict(zip(abc_summary["column_names"], abc_summary["coef"]))
+weights = np.bincount(group) / len(group)
+group_slopes = np.array([coef["x0"] + coef[f"x0:c0[{level}]"] for level in range(3)])
+
+print("weights:", weights.round(3))
+print("group slopes:", group_slopes.round(4))
+print("weighted average slope:", float(weights @ group_slopes))
+print("ABC main slope:", coef["x0"])
+```
+
+In the base-category fit, the coefficient on `x0` is the slope for the omitted group. In the ABC fit, the coefficient on `x0` is the empirical-abundance-weighted average slope.
+
+## Interpreting the ABC categorical effects
+
+The same logic applies to categorical main effects. The ABC group effects have sample-weighted mean zero:
+
+```{python}
+group_effects = np.array([coef[f"c0[{level}]"] for level in range(3)])
+print("group effects:", group_effects.round(4))
+print("weighted mean group effect:", float(weights @ group_effects))
+```
+
+By contrast, base-category coefficients are deviations from `group=0`. They change if a different base group is selected; the ABC coefficients do not have that arbitrary reference-level dependence.
+
+## Current implementation contract
+
+`cm.ABCOLS()` is intentionally low-level and NumPy-first:
+
+```python
+model = cm.ABCOLS()
+model.fit(
+    y,                         # 1D float array
+    x,                         # 2D float array of continuous covariates
+    categories,                # 2D uint32 array of zero-based categorical codes
+    cont_cat_interactions=[],  # list of (continuous_col, categorical_col)
+    cat_cat_interactions=[],   # list of (categorical_col_a, categorical_col_b)
+    center_continuous=True,
+)
+```
+
+Important restrictions in the first implementation:
+
+- categorical levels must be contiguous observed integer codes starting at zero;
+- empty categorical levels raise an error;
+- requested categorical-categorical interactions must have all cells observed;
+- inference is homoskedastic OLS in the constrained parameterization;
+- robust covariance, formula parsing, pandas categorical handling, and sparse empty-cell handling are natural follow-ups.
+
+## Takeaway
+
+ABC OLS is not a new fitted-value model for unpenalized least squares. It is a disciplined coefficient coordinate system. The constraints make lower-order coefficients stable and interpretable as sample-abundance-weighted averages when categorical modifiers and interactions enter the model.

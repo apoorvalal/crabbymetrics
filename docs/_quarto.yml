@@ -89,6 +89,8 @@ website:
         menu:
           - href: examples/ols.qmd
             text: OLS
+          - href: examples/abc-ols.qmd
+            text: ABC OLS
           - href: examples/ridge.qmd
             text: Ridge
           - href: examples/fixed-effects-ols.qmd

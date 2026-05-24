@@ -49,6 +49,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 Use these defaults unless the application has a reason to do otherwise:
 
 - Plain linear regression with robust standard errors: `cm.OLS()`.
+- Linear regression with abundance-based constraints / weighted effect coding for categorical main effects and categorical modifiers: `cm.ABCOLS()`.
 - Penalized linear regression / shrinkage / cross-validated ridge: `cm.Ridge(penalty=None_or_grid, cv=5)`.
 - Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.
 - Instrumental variables / 2SLS: `cm.TwoSLS()`.
@@ -123,6 +124,20 @@ bootstrap(n_bootstrap, seed=None)
 ```
 
 `summary()` keys include `intercept`, `coef`, `intercept_se`, and `coef_se`. Use `vcov="hc1"` for heteroskedasticity-robust inference, `vcov="newey_west"` with `lags`, and `vcov="cluster"` with integer cluster labels.
+
+```python
+cm.ABCOLS()
+fit(y, x, categories, cont_cat_interactions=None, cat_cat_interactions=None, center_continuous=True)
+predict(x, categories)
+summary()
+fitted_values()
+residuals()
+design_matrix()
+constraint_matrix()
+column_names()
+```
+
+`ABCOLS` is an OLS reparameterization for categorical modifiers using abundance-based constraints / weighted effect coding. `x` is a 2D float matrix of continuous covariates; `categories` is a 2D `uint32`-like matrix of zero-based contiguous observed category codes. Categorical main effects use one coefficient per level with empirical-abundance-weighted mean zero. `cont_cat_interactions=[(j, k)]` adds and constrains `x_j:C_k` so the continuous main slope is the sample-abundance-weighted average group-specific slope. `cat_cat_interactions=[(a, b)]` adds all `C_a:C_b` cells with weighted zero-margin constraints. `summary()` keys include `coef`, `se`, `column_names`, `constraint_names`, `sigma2`, `df_resid`, `rank`, `max_constraint_violation`, `continuous_means`, and `n_levels`. Current inference is homoskedastic OLS in the constrained parameterization.
 
 ```python
 cm.Ridge(penalty=None, cv=5)

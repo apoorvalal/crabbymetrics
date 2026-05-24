@@ -1,9 +1,11 @@
+mod abc;
 mod estimators;
 mod hyptests;
 mod optimizers;
 mod rla;
 mod utils;
 
+use crate::abc::ABCOLS;
 use crate::estimators::{
     AverageDerivative, BalancingWeights, ElasticNet, FixedEffectsOLS, HorizontalPanelRidge,
     InteractiveFixedEffects, KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit,
@@ -16,6 +18,7 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<ABCOLS>()?;
     m.add_class::<OLS>()?;
     m.add_class::<FixedEffectsOLS>()?;
     m.add_class::<ElasticNet>()?;
