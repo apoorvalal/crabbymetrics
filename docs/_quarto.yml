@@ -75,6 +75,8 @@ website:
             text: Interactive Fixed Effects
           - href: examples/staggered-panel-event-study.qmd
             text: Staggered Panel Event Study
+          - href: examples/joint-hypothesis-tests-causal.qmd
+            text: Joint Hypothesis Tests
       - text: Transforms
         menu:
           - href: examples/pca-and-kernel-basis.qmd

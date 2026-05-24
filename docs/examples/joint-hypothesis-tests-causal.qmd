@@ -1,0 +1,208 @@
+---
+title: "Joint Hypothesis Tests For Causal Models"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+Joint tests are useful causal diagnostics when the scientific question is not whether one coefficient differs from zero, but whether a whole block of model-implied deviations is needed. Two common cases are:
+
+1. treatment-effect heterogeneity in a Lin-style interacted regression;
+2. cohort-level dynamic treatment-effect heterogeneity in a staggered-adoption event study.
+
+Both are linear-restriction problems. Estimate a model with the potentially heterogeneous terms included, then test whether those terms are jointly zero. In `crabbymetrics`, this is a fitted-estimator `wald_test(...)` call.
+
+```{python}
+import numpy as np
+import pandas as pd
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Case 1: Lin-Style Treatment Effect Heterogeneity
+
+In a completely randomized experiment, a Lin-style specification augments the treatment indicator with covariates and treatment-by-covariate interactions:
+
+$$
+Y_i = \alpha + \tau W_i + X_i'\beta + W_i X_i'\gamma + \varepsilon_i.
+$$
+
+The omnibus heterogeneity null is
+
+$$
+H_0: \gamma = 0.
+$$
+
+If the true DGP has no explained heterogeneity, the joint test should usually not reject. If treatment effects vary with observed covariates, the same test should reject with enough signal and sample size.
+
+```{python}
+def lin_design(x, w):
+    w_col = w.reshape(-1, 1)
+    return np.column_stack([w_col, x, w_col * x])
+
+
+def fit_lin_case(gamma, seed=123, n=1200):
+    rng = np.random.default_rng(seed)
+    x = rng.normal(size=(n, 3))
+    w = rng.binomial(1, 0.5, size=n).astype(float)
+    beta = np.array([0.6, -0.4, 0.2])
+    tau = 1.0
+    y = 0.5 + tau * w + x @ beta + (w[:, None] * x) @ gamma + rng.normal(scale=1.0, size=n)
+
+    model = cm.OLS()
+    model.fit(lin_design(x, w), y)
+
+    # Coefficient order is [intercept, W, X1, X2, X3, W:X1, W:X2, W:X3].
+    r = np.zeros((3, 8))
+    r[:, 5:8] = np.eye(3)
+    test = model.wald_test(r, vcov="hc1")
+    return model.summary(vcov="hc1"), test
+
+summary_hom, test_hom = fit_lin_case(gamma=np.array([0.0, 0.0, 0.0]), seed=10)
+summary_het, test_het = fit_lin_case(gamma=np.array([0.7, -0.5, 0.4]), seed=11)
+
+print("No heterogeneity DGP:")
+print(test_hom)
+print("\nHeterogeneous DGP:")
+print(test_het)
+```
+
+In the first simulation, the interaction coefficients are nuisance parameters that are truly zero. In the second, they are the target of the diagnostic: a small p-value says the constant-treatment-effect summary is leaving systematic treatment-effect variation on the table.
+
+This is the same logic as asking whether a richer regression has earned its extra interaction block. The test does not identify which covariate drives heterogeneity; it is an omnibus screen for whether the block is jointly useful.
+
+## Case 2: When Is A Pooled Event Study Good Enough?
+
+The same idea applies to staggered-adoption panels. A conventional two-way fixed-effect event study pools dynamic treatment effects across adoption cohorts:
+
+$$
+Y_{it} = \alpha_i + \lambda_t + \sum_{s \ne -1} \gamma_s \Delta^s_{it} + \varepsilon_{it}.
+$$
+
+A saturated cohort-by-event-time regression estimates separate dynamic paths by cohort. The useful reparameterization from the `FTestEventStudy` note writes the saturated model as:
+
+$$
+Y_{it} = \alpha_i + \lambda_t
++ \sum_{s \ne -1} \gamma_s \Delta^s_{it}
++ \sum_{c \ne c_0} \sum_{s \ne -1} \delta_{cs} \Delta^{cs}_{it}
++ \varepsilon_{it}.
+$$
+
+The common event-study coefficients $\gamma_s$ describe the baseline dynamic path. The $\delta_{cs}$ coefficients are cohort-specific deviations from that path. The diagnostic null is:
+
+$$
+H_0: \delta_{cs} = 0 \quad \text{for all included cohorts and event times.}
+$$
+
+Failing to reject does not prove TWFE is unbiased, but it is evidence that the saturated cohort paths do not visibly disagree with the pooled path. Rejecting says the pooled event study is averaging across meaningful cohort-level heterogeneity, so a heterogeneity-robust event-study or cohort-specific reporting is safer.
+
+```{python}
+def make_panel(heterogeneous=False, seed=2025):
+    rng = np.random.default_rng(seed)
+    n_per_group = 90
+    years = np.arange(8)
+    cohorts = np.array([3, 4, 5, 999])
+    rows = []
+    unit = 0
+    for g in cohorts:
+        for _ in range(n_per_group):
+            alpha = rng.normal(scale=0.7)
+            x = rng.normal()
+            for t in years:
+                treated = int(t >= g) if g < 999 else 0
+                rel = t - g if g < 999 else -999
+                base_effect = 0.0 if rel < 0 else 0.4 + 0.25 * min(rel, 3)
+                if heterogeneous and g == 3 and rel >= 0:
+                    effect = base_effect + 0.55 * min(rel + 1, 3)
+                elif heterogeneous and g == 5 and rel >= 0:
+                    effect = base_effect - 0.35 * min(rel + 1, 3)
+                else:
+                    effect = base_effect
+                y0 = alpha + 0.15 * t + 0.25 * x + rng.normal(scale=0.8)
+                rows.append((unit, t, g, rel, treated, x, y0 + treated * effect))
+            unit += 1
+    return pd.DataFrame(rows, columns=["unit", "year", "cohort", "rel", "treated", "x", "y"])
+
+
+def event_study_design(df, rel_min=-2, rel_max=3, baseline=-1):
+    work = df.copy()
+    rel_values = [r for r in range(rel_min, rel_max + 1) if r != baseline]
+    treated_cohorts = sorted(c for c in work["cohort"].unique() if c < 999)
+    baseline_cohort = treated_cohorts[0]
+
+    parts = []
+    names = []
+
+    unit_dummies = pd.get_dummies(work["unit"], prefix="unit", drop_first=True, dtype=float)
+    year_dummies = pd.get_dummies(work["year"], prefix="year", drop_first=True, dtype=float)
+    parts.extend([unit_dummies.to_numpy(), year_dummies.to_numpy(), work[["x"]].to_numpy(float)])
+    names.extend(list(unit_dummies.columns) + list(year_dummies.columns) + ["x"])
+
+    common_cols = []
+    kept_rel_values = []
+    for rel in rel_values:
+        col = ((work["cohort"] < 999) & (work["rel"] == rel)).astype(float).to_numpy()
+        if col.sum() > 0:
+            common_cols.append(col)
+            kept_rel_values.append(rel)
+            names.append(f"event_{rel}")
+    parts.append(np.column_stack(common_cols))
+
+    deviation_cols = []
+    deviation_names = []
+    for cohort in treated_cohorts:
+        if cohort == baseline_cohort:
+            continue
+        for rel in kept_rel_values:
+            col = ((work["cohort"] == cohort) & (work["rel"] == rel)).astype(float).to_numpy()
+            if col.sum() == 0:
+                continue
+            deviation_cols.append(col)
+            deviation_names.append(f"cohort_{cohort}:event_{rel}")
+    parts.append(np.column_stack(deviation_cols))
+    names.extend(deviation_names)
+
+    xmat = np.column_stack(parts)
+    return xmat, names, deviation_names
+
+
+def fit_event_case(heterogeneous, seed):
+    df = make_panel(heterogeneous=heterogeneous, seed=seed)
+    xmat, names, deviation_names = event_study_design(df)
+    model = cm.OLS()
+    model.fit(xmat, df["y"].to_numpy())
+
+    # OLS coefficient order is [intercept, names...]. Restrict all cohort
+    # deviation coefficients to zero.
+    name_to_pos = {name: j + 1 for j, name in enumerate(names)}
+    r = np.zeros((len(deviation_names), len(names) + 1))
+    for row, name in enumerate(deviation_names):
+        r[row, name_to_pos[name]] = 1.0
+    return model.wald_test(r, vcov="hc1")
+
+event_hom = fit_event_case(heterogeneous=False, seed=30)
+event_het = fit_event_case(heterogeneous=True, seed=31)
+
+print("Homogeneous cohort paths:")
+print(event_hom)
+print("\nHeterogeneous cohort paths:")
+print(event_het)
+```
+
+The homogeneous DGP shares the same dynamic treatment-effect path across cohorts, so the deviation block is mostly noise. The heterogeneous DGP changes the dynamic path by cohort, so the deviation block is doing real work and the joint test rejects.
+
+The practical interpretation is deliberately modest:
+
+- If the test rejects, the pooled TWFE/event-study summary is likely hiding cohort-level treatment-effect heterogeneity.
+- If the test does not reject, the pooled specification may be a reasonable low-variance summary, though it is not a proof of no bias.
+- The test is a diagnostic for the bias-variance tradeoff: when the saturated model does not earn its extra cohort-by-time parameters, a simpler specification may be good enough for the empirical purpose.
