@@ -1,0 +1,433 @@
+---
+title: "Staggered Adoption Panel Event Study"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+This vignette uses the Hainmueller--Hangartner municipal naturalization panel from the local `FTestEventStudy` sandbox to exercise the matrix panel API on real staggered-adoption data.
+
+The public crabbymetrics panel estimators use a deliberately small contract:
+
+```text
+fit(Y, W)
+```
+
+where `Y` is an `(n_units, n_periods)` outcome matrix and `W` is a same-shaped absorbing binary treatment matrix. Here the outcome is the ordinary naturalization rate (`nat_rate_ord`) and the treatment is the indirect-democracy adoption indicator (`indirect`).
+
+We also compare two pyfixest event-study baselines:
+
+- a vanilla binned two-way fixed-effects event study with municipality and year effects;
+- the pyfixest saturated event-study interface, which is the Sun-Abraham-style cohort-by-event-time specification aggregated back to event time.
+
+The source data are not vendored into this repository. The page is rendered locally from Apoorva's research sandbox and the rendered HTML is pushed with the docs.
+
+## Load The Panel
+
+```{python}
+from pathlib import Path
+import re
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pyfixest as pf
+
+from crabbymetrics import HorizontalPanelRidge, MatrixCompletion, SyntheticDID
+
+DATA = Path(
+    "/Users/alal/Dropbox/1_Research/metrics_sandbox/"
+    "FTestEventStudy/example/hh2019/hh2019.csv"
+)
+
+if not DATA.exists():
+    raise FileNotFoundError(
+        "Expected the Hainmueller--Hangartner panel at "
+        f"{DATA}. Set DATA to the local hh2019.csv path before rendering."
+    )
+
+df = pd.read_csv(DATA).drop(columns=["Unnamed: 0"], errors="ignore")
+first_treated = df[df["indirect"].eq(1)].groupby("bfs")["year"].min()
+df["g"] = df["bfs"].map(first_treated).fillna(0).astype(int)
+
+print(df.head())
+print("rows:", len(df), "units:", df["bfs"].nunique(), "years:", df["year"].nunique())
+```
+
+## Build `Y` And `W`
+
+The panel is balanced. We pivot to matrices, infer each municipality's first treatment year, and keep a copy of the full treatment matrix for the adoption plot.
+
+```{python}
+Ydf = df.pivot(index="bfs", columns="year", values="nat_rate_ord").sort_index()
+Wdf = df.pivot(index="bfs", columns="year", values="indirect").sort_index()
+
+years = np.asarray(Ydf.columns)
+Y_all = Ydf.to_numpy(float)
+W_all = Wdf.to_numpy(int)
+
+ever_treated = W_all.sum(axis=1) > 0
+first_idx_all = np.where(ever_treated, W_all.argmax(axis=1), -1)
+first_year_all = np.where(
+    first_idx_all >= 0,
+    years[np.clip(first_idx_all, 0, len(years) - 1)],
+    np.nan,
+)
+
+print("Y shape:", Y_all.shape)
+print("W shape:", W_all.shape)
+print("ever treated:", int(ever_treated.sum()))
+print("never treated:", int((~ever_treated).sum()))
+print("already treated in first period:", int((first_idx_all == 0).sum()))
+```
+
+The crabbymetrics panel estimators require at least one pre-treatment period for each treated cohort. The HH panel has many municipalities already treated in 1991, so the estimator sample drops those baseline-treated units. They still appear in the adoption-pattern panel.
+
+```{python}
+estimator_sample = first_idx_all != 0
+Y = Y_all[estimator_sample]
+W = W_all[estimator_sample].astype(float)
+est_df = df[df["g"] != int(years[0])].copy()
+
+print("estimator Y shape:", Y.shape)
+print("treated units in estimator sample:", int((W.sum(axis=1) > 0).sum()))
+print("control units in estimator sample:", int((W.sum(axis=1) == 0).sum()))
+```
+
+## Panel 1: Adoption Pattern
+
+The first panel sorts municipalities by their first treatment period and then shows the absorbing treatment matrix.
+
+```{python}
+sort_key = np.where(first_idx_all >= 0, first_idx_all, 999)
+unit_order = np.lexsort((np.arange(len(sort_key)), sort_key))
+W_sorted = W_all[unit_order]
+never_start = np.searchsorted(np.sort(sort_key), 999)
+
+fig, ax = plt.subplots(figsize=(7.0, 4.5), constrained_layout=True)
+ax.imshow(W_sorted, aspect="auto", interpolation="nearest", cmap="Greys", vmin=0, vmax=1)
+ax.set_title("Adoption pattern: indirect democracy")
+ax.set_xlabel("Year")
+ax.set_ylabel("Municipalities sorted by first treatment")
+ax.set_xticks(np.arange(len(years)))
+ax.set_xticklabels(years, rotation=45, ha="right")
+ax.axhline(never_start - 0.5, color="tab:blue", lw=1.2, ls="--")
+ax.text(len(years) - 0.1, never_start + 15, "never treated", color="tab:blue", ha="right", va="top")
+plt.show()
+```
+
+## Panel 2: Cohort Counts
+
+The second panel counts municipalities by first treatment year.
+
+```{python}
+cohort_counts = (
+    pd.Series(first_year_all[~np.isnan(first_year_all)].astype(int))
+    .value_counts()
+    .sort_index()
+)
+
+fig, ax = plt.subplots(figsize=(7.0, 3.8), constrained_layout=True)
+ax.bar(np.arange(len(cohort_counts)), cohort_counts.values, color="0.25")
+ax.set_title("First treatment cohort counts")
+ax.set_ylabel("municipalities")
+ax.set_xlabel("first treated year")
+ax.set_xticks(np.arange(len(cohort_counts)))
+ax.set_xticklabels(cohort_counts.index.astype(str), rotation=45, ha="right")
+plt.show()
+```
+
+## Fit The crabbymetrics Panel Estimators
+
+`HorizontalPanelRidge`, `MatrixCompletion`, and `SyntheticDID` all consume the same `(Y, W)` matrices and expose fitted summaries with `att`, `counterfactual`, `treatment_effect`, `group_means`, and `event_study` entries. For `SyntheticDID`, the event-study path is the period-by-period unit-weighted synthetic-control gap path; the time weights enter the scalar SDID `att` through the before/after contrast.
+
+```{python}
+crabby_estimators = {
+    "HorizontalPanelRidge": HorizontalPanelRidge(1.0),
+    "MatrixCompletion": MatrixCompletion(max_iterations=200, tolerance=1e-5),
+    "SyntheticDID": SyntheticDID(),
+}
+
+crabby_results = {}
+for name, estimator in crabby_estimators.items():
+    estimator.fit(Y, W)
+    summary = estimator.summary()
+    event = summary["event_study"]["weighted"]
+    crabby_results[name] = {
+        "att": float(summary["att"]),
+        "event_time": np.asarray(event["event_time"], float),
+        "estimate": np.asarray(event["estimate"], float),
+        "n": np.asarray(event["n"], float),
+    }
+
+for name, result in crabby_results.items():
+    print(f"{name}: ATT = {result['att']:.3f}")
+```
+
+## Panel 3: crabbymetrics Event Studies
+
+The third panel overlays the weighted event-study summaries from the crabbymetrics panel estimators. These summaries are point estimates only; the core panel estimators do not report event-study standard-error bands.
+
+```{python}
+colors = {
+    "HorizontalPanelRidge": "tab:blue",
+    "MatrixCompletion": "tab:orange",
+    "SyntheticDID": "tab:green",
+}
+
+fig, ax = plt.subplots(figsize=(7.5, 4.8), constrained_layout=True)
+for name, result in crabby_results.items():
+    mask = (
+        (result["event_time"] >= -8)
+        & (result["event_time"] <= 8)
+        & (result["n"] >= 10)
+    )
+    ax.plot(
+        result["event_time"][mask],
+        result["estimate"][mask],
+        marker="o",
+        lw=2,
+        color=colors[name],
+        label=f"{name} (ATT={result['att']:.2f})",
+    )
+ax.axhline(0, color="black", lw=1)
+ax.axvline(-0.5, color="0.4", lw=1, ls="--")
+ax.set_title("crabbymetrics panel estimators: weighted event-study summaries")
+ax.set_xlabel("Event time relative to first treatment")
+ax.set_ylabel("Effect on ordinary naturalization rate")
+ax.grid(axis="y", alpha=0.25)
+ax.legend(frameon=False, fontsize=8, loc="upper left")
+plt.show()
+```
+
+## Fit pyfixest Event-Study Baselines
+
+For comparison, use pyfixest in two ways.
+
+First, estimate a vanilla binned two-way fixed-effects event study with municipality and year fixed effects. Event time `-1` is the reference period, never-treated municipalities are retained, and municipality-clustered standard errors give the interval bands.
+
+```{python}
+est_df["rel"] = np.where(est_df["g"] > 0, est_df["year"] - est_df["g"], -999)
+est_df["rel_bin"] = est_df["rel"].clip(-8, 8).astype(int).astype(str)
+est_df.loc[est_df["g"] == 0, "rel_bin"] = "never"
+
+twfe_fit = pf.feols(
+    'nat_rate_ord ~ i(rel_bin, ref="-1") | bfs + year',
+    data=est_df,
+    vcov={"CRV1": "bfs"},
+)
+
+twfe_tidy = twfe_fit.tidy().reset_index().rename(columns={"Coefficient": "term"})
+
+
+def parse_rel_time(term):
+    match = re.search(r"rel_bin::(-?\d+)", str(term))
+    return int(match.group(1)) if match else None
+
+
+twfe_rows = []
+for _, row in twfe_tidy.iterrows():
+    event_time = parse_rel_time(row["term"])
+    if event_time is not None:
+        twfe_rows.append(
+            {
+                "event_time": event_time,
+                "estimate": row["Estimate"],
+                "lower": row["2.5%"],
+                "upper": row["97.5%"],
+            }
+        )
+
+twfe_event = pd.DataFrame(twfe_rows)
+twfe_event = pd.concat(
+    [
+        twfe_event,
+        pd.DataFrame([{"event_time": -1, "estimate": 0.0, "lower": 0.0, "upper": 0.0}]),
+    ],
+    ignore_index=True,
+).sort_values("event_time")
+
+print(twfe_event.head())
+```
+
+Second, use `pyfixest.event_study(..., estimator="saturated")`. This estimates the saturated cohort-by-event-time specification and aggregates the coefficients back to event time.
+
+```{python}
+sa_fit = pf.event_study(
+    est_df,
+    yname="nat_rate_ord",
+    idname="bfs",
+    tname="year",
+    gname="g",
+    estimator="saturated",
+    att=False,
+    cluster="bfs",
+)
+
+sa_event = (
+    sa_fit.aggregate()
+    .reset_index()
+    .rename(
+        columns={
+            "period": "event_time",
+            "Estimate": "estimate",
+            "2.5%": "lower",
+            "97.5%": "upper",
+        }
+    )[["event_time", "estimate", "lower", "upper"]]
+)
+sa_event = pd.concat(
+    [
+        sa_event,
+        pd.DataFrame([{"event_time": -1.0, "estimate": 0.0, "lower": 0.0, "upper": 0.0}]),
+    ],
+    ignore_index=True,
+).sort_values("event_time")
+
+twfe_att = pf.event_study(
+    est_df,
+    yname="nat_rate_ord",
+    idname="bfs",
+    tname="year",
+    gname="g",
+    estimator="twfe",
+    att=True,
+    cluster="bfs",
+).tidy().loc["is_treated", "Estimate"]
+
+print("vanilla TWFE scalar ATT:", round(float(twfe_att), 3))
+```
+
+## Panel 4: pyfixest TWFE Flavors
+
+The fourth panel compares the vanilla binned TWFE event study and the saturated/Sun-Abraham-style event study.
+
+```{python}
+fig, ax = plt.subplots(figsize=(7.5, 4.8), constrained_layout=True)
+
+for label, data, color in [
+    (f"Vanilla TWFE binned ES (ATT={twfe_att:.2f})", twfe_event, "tab:red"),
+    ("Sun-Abraham / saturated", sa_event, "tab:purple"),
+]:
+    plot_data = data[(data["event_time"] >= -8) & (data["event_time"] <= 8)].copy()
+    x = plot_data["event_time"].to_numpy(float)
+    y = plot_data["estimate"].to_numpy(float)
+    lo = plot_data["lower"].to_numpy(float)
+    hi = plot_data["upper"].to_numpy(float)
+    ax.plot(x, y, marker="o", lw=2, color=color, label=label)
+    ax.fill_between(x, lo, hi, color=color, alpha=0.12, linewidth=0)
+
+ax.axhline(0, color="black", lw=1)
+ax.axvline(-0.5, color="0.4", lw=1, ls="--")
+ax.set_title("pyfixest 2WFE flavors, clustered by municipality")
+ax.set_xlabel("Event time relative to first treatment")
+ax.set_ylabel("Effect on ordinary naturalization rate")
+ax.grid(axis="y", alpha=0.25)
+ax.legend(frameon=False, fontsize=8, loc="upper left")
+plt.show()
+```
+
+## Combined Figure
+
+The four panels above are combined into the figure below. The source code is intentionally explicit so each panel can be copied into a separate script or notebook cell.
+
+```{python}
+plt.rcParams.update(
+    {
+        "font.size": 10,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+    }
+)
+
+fig = plt.figure(figsize=(14, 9.2), constrained_layout=True)
+grid = fig.add_gridspec(2, 2, width_ratios=[1.05, 1.15], height_ratios=[0.58, 0.42])
+
+ax0 = fig.add_subplot(grid[0, 0])
+ax0.imshow(W_sorted, aspect="auto", interpolation="nearest", cmap="Greys", vmin=0, vmax=1)
+ax0.set_title("Adoption pattern: indirect democracy")
+ax0.set_xlabel("Year")
+ax0.set_ylabel("Municipalities sorted by first treatment")
+ax0.set_xticks(np.arange(len(years)))
+ax0.set_xticklabels(years, rotation=45, ha="right")
+ax0.axhline(never_start - 0.5, color="tab:blue", lw=1.2, ls="--")
+ax0.text(len(years) - 0.1, never_start + 15, "never treated", color="tab:blue", ha="right", va="top")
+
+ax1 = fig.add_subplot(grid[1, 0])
+ax1.bar(np.arange(len(cohort_counts)), cohort_counts.values, color="0.25")
+ax1.set_title("First treatment cohort counts")
+ax1.set_ylabel("municipalities")
+ax1.set_xlabel("first treated year")
+ax1.set_xticks(np.arange(len(cohort_counts)))
+ax1.set_xticklabels(cohort_counts.index.astype(str), rotation=45, ha="right")
+
+ax2 = fig.add_subplot(grid[0, 1])
+for name, result in crabby_results.items():
+    mask = (
+        (result["event_time"] >= -8)
+        & (result["event_time"] <= 8)
+        & (result["n"] >= 10)
+    )
+    ax2.plot(
+        result["event_time"][mask],
+        result["estimate"][mask],
+        marker="o",
+        lw=2,
+        color=colors[name],
+        label=f"{name} (ATT={result['att']:.2f})",
+    )
+ax2.axhline(0, color="black", lw=1)
+ax2.axvline(-0.5, color="0.4", lw=1, ls="--")
+ax2.set_title("crabbymetrics panel estimators: weighted event-study summaries")
+ax2.set_xlabel("Event time")
+ax2.set_ylabel("Effect on nat_rate_ord")
+ax2.grid(axis="y", alpha=0.25)
+ax2.legend(frameon=False, fontsize=8, loc="upper left")
+
+ax3 = fig.add_subplot(grid[1, 1])
+for label, data, color in [
+    (f"Vanilla TWFE binned ES (ATT={twfe_att:.2f})", twfe_event, "tab:red"),
+    ("Sun-Abraham / saturated", sa_event, "tab:purple"),
+]:
+    plot_data = data[(data["event_time"] >= -8) & (data["event_time"] <= 8)].copy()
+    x = plot_data["event_time"].to_numpy(float)
+    y = plot_data["estimate"].to_numpy(float)
+    lo = plot_data["lower"].to_numpy(float)
+    hi = plot_data["upper"].to_numpy(float)
+    ax3.plot(x, y, marker="o", lw=2, color=color, label=label)
+    ax3.fill_between(x, lo, hi, color=color, alpha=0.12, linewidth=0)
+ax3.axhline(0, color="black", lw=1)
+ax3.axvline(-0.5, color="0.4", lw=1, ls="--")
+ax3.set_title("pyfixest 2WFE flavors, clustered by municipality")
+ax3.set_xlabel("Event time")
+ax3.set_ylabel("Effect on nat_rate_ord")
+ax3.grid(axis="y", alpha=0.25)
+ax3.legend(frameon=False, fontsize=8, loc="upper left")
+
+fig.suptitle(
+    "Hainmueller--Hangartner panel: staggered adoption, crabbymetrics, and pyfixest event studies",
+    fontsize=14,
+    fontweight="bold",
+)
+fig.text(
+    0.01,
+    0.005,
+    f"Full panel: {Y_all.shape[0]} municipalities x {Y_all.shape[1]} years. "
+    f"Estimator sample drops {int((first_idx_all == 0).sum())} baseline-treated 1991 units. "
+    "Vanilla TWFE bins relative time to [-8, 8]; reference event time is -1.",
+    fontsize=8,
+    color="0.35",
+)
+plt.show()
+```
+
+The matrix estimators and the TWFE variants are not estimating identical objects. The matrix estimators use a balanced-panel counterfactual surface and summarize treated-cell effects. For `SyntheticDID`, the plotted event-study gaps come from the unit-weighted synthetic-control path, while the reported scalar ATT also uses the fitted pre-period time weights. The vanilla TWFE event study imposes a pooled dynamic specification with unit and year fixed effects. The saturated pyfixest event study allows cohort-by-event-time heterogeneity before aggregating back to event time.

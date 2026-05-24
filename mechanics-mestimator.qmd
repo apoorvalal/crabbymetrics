@@ -1,0 +1,271 @@
+---
+title: "Binding Internals: MEstimator"
+format:
+  html:
+    toc: false
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+This page is the callback-heavy binding-internals follow-on to the OLS crash course. It walks through `MEstimator`, which is the most flexible estimator interface in the library. Unlike `Poisson`, the objective is not hard-coded in Rust. Instead, Rust owns the optimizer loop while Python supplies callbacks for the objective, gradient, and scores.
+
+## Module Export
+
+At the module level, `MEstimator` is exported the same way as every other class:
+
+```rust
+#[pymodule]
+fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<MEstimator>()?;
+    Ok(())
+}
+```
+
+So `from crabbymetrics import MEstimator` is just a normal PyO3 class export.
+
+## The Stored State
+
+The Rust struct looks very different from the fixed estimators because it stores Python callables:
+
+```rust
+#[pyclass]
+pub struct MEstimator {
+    max_iterations: usize,
+    tolerance: f64,
+    objective_fn: Option<Py<PyAny>>,
+    score_fn: Option<Py<PyAny>>,
+    theta: Option<Array1<f64>>,
+    data: Option<Py<PyAny>>,
+    vcov: Option<Array2<f64>>,
+}
+```
+
+The key fields are:
+
+- `objective_fn`: a Python callable returning `(objective_value, gradient_vector)`
+- `score_fn`: a Python callable returning the per-observation score matrix
+- `theta`: the fitted parameter vector
+- `data`: the Python object originally passed to `fit`
+- `vcov`: cached variance matrix computed later from the scores
+
+The constructor signature is defined explicitly for Python:
+
+```rust
+#[new]
+#[pyo3(signature = (objective_fn, score_fn, max_iterations=100, tolerance=1e-6))]
+fn new(
+    objective_fn: Py<PyAny>,
+    score_fn: Py<PyAny>,
+    max_iterations: usize,
+    tolerance: f64,
+) -> Self { ... }
+```
+
+So the Python contract is:
+
+```python
+MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)
+```
+
+## The Bridge Problem
+
+Rust still needs something that implements `argmin` traits, so the class builds a helper problem object:
+
+```rust
+struct MEstimatorProblem {
+    objective_fn: Py<PyAny>,
+    data: Py<PyAny>,
+}
+```
+
+This helper is the boundary object between Rust optimization and Python callbacks.
+
+## How The Objective Callback Is Used
+
+For the optimizer, `MEstimatorProblem` implements `CostFunction` and `Gradient`. Both implementations call back into Python under the GIL:
+
+```rust
+impl CostFunction for MEstimatorProblem {
+    type Param = Array1<f64>;
+    type Output = f64;
+
+    fn cost(&self, theta: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
+        Python::with_gil(|py| {
+            let theta_py = pyarray1_from_f64(py, theta);
+            let result = self.objective_fn.call1(py, (theta_py, self.data.clone_ref(py)))?;
+            let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)?;
+            let obj_value: f64 = tuple.get_item(0)?.extract()?;
+            Ok(obj_value)
+        })
+    }
+}
+```
+
+The gradient implementation repeats the same callback and extracts the second tuple element as a NumPy array:
+
+```rust
+let result = self.objective_fn.call1(py, (theta_py, self.data.clone_ref(py)))?;
+let tuple = result.downcast_bound::<pyo3::types::PyTuple>(py)?;
+let grad_item = tuple.get_item(1)?;
+let grad_py = grad_item.downcast::<PyArray1<f64>>()?;
+let grad = to_array1(&grad_py.readonly());
+```
+
+This is the key contract:
+
+- `objective_fn(theta, data)` must return a 2-tuple
+- first element: scalar objective value
+- second element: 1D NumPy gradient array
+
+Rust validates that shape every time. If the callback returns the wrong thing, the optimizer gets an `argmin` error with a Python-facing message.
+
+## What `fit()` Does
+
+The `fit()` method is structurally simple because the hard part is delegated to the callback contract:
+
+```rust
+fn fit(&mut self, py: Python, data: Py<PyAny>, theta0: PyReadonlyArray1<f64>) -> PyResult<()> {
+    let theta_init = to_array1(&theta0);
+    let objective_fn = self.objective_fn.as_ref()?.clone_ref(py);
+
+    let problem = MEstimatorProblem {
+        objective_fn,
+        data: data.clone_ref(py),
+    };
+
+    let linesearch = MoreThuenteLineSearch::new();
+    let solver = LBFGS::new(linesearch, 7);
+
+    let mut result = Executor::new(problem, solver)
+        .configure(|state| state.param(theta_init).max_iters(self.max_iterations as u64))
+        .run()?;
+```
+
+The important thing here is the division of labor:
+
+- Python owns model-specific math through `objective_fn`
+- Rust owns the optimization loop through `LBFGS`
+- `theta0` is copied from Python into `ndarray`
+- `data` is stored as a Python object and cloned by reference when needed
+
+After optimization, the fitted parameter vector is stored in `self.theta`, the original data object is cached in `self.data`, and any stale covariance is dropped:
+
+```rust
+self.theta = Some(theta);
+self.data = Some(data);
+self.vcov = None;
+```
+
+## How Variance Is Computed
+
+`MEstimator` separates fitting from inference. `fit()` only optimizes. `compute_vcov()` uses the stored `score_fn` later:
+
+```rust
+let scores_result = score_fn.call1(py, (theta_py, data.clone_ref(py)))?;
+let scores_py = scores_result.downcast_bound::<PyArray2<f64>>(py)?;
+let scores = to_array2(&scores_py.readonly());
+```
+
+This means the second callback contract is:
+
+- `score_fn(theta, data)` must return a 2D NumPy array
+- shape is `(n_observations, n_parameters)`
+
+The current covariance path is a sandwich with:
+
+```rust
+let b_matrix = scores.t().dot(&scores) / (n as f64);
+let a_matrix = b_matrix.clone();
+let a_inv = invert_matrix(&a_matrix)?;
+let vcov = a_inv.dot(&b_matrix).dot(&a_inv) / (n as f64);
+```
+
+So right now the “bread” is approximated using the same score cross-product as the “meat”. That is simple and generic, but it is not a fully custom Hessian-based GMM implementation yet.
+
+## Why The Bootstrap Needs A Dict
+
+The bootstrap path is the most idiosyncratic part of the API. It expects `data` to be a Python dict containing at least `n`, because Rust needs to resample row indices without knowing the structure of the rest of the data:
+
+```rust
+let data_dict = data.downcast_bound::<pyo3::types::PyDict>(py)?;
+let n: usize = data_dict.get_item("n")?.ok_or_else(...)?.extract()?;
+```
+
+For each bootstrap draw, Rust:
+
+1. samples indices
+2. clones the original Python dict
+3. injects `indices`
+4. reruns the same `LBFGS` optimization
+
+That is why the callback examples typically read `indices = data.get("indices", np.arange(len(y)))` on the Python side: the same callback can handle both the original fit and the bootstrap resample path.
+
+## Python-Side Mental Model
+
+Here is the intended usage pattern in plain Python:
+
+```python
+import numpy as np
+from crabbymetrics import MEstimator
+
+def objective_fn(theta, data):
+    X = data["X"]
+    y = data["y"]
+    idx = data.get("indices", np.arange(data["n"]))
+    Xb = X[idx]
+    yb = y[idx]
+    resid = yb - Xb @ theta
+    obj = 0.5 * np.sum(resid**2)
+    grad = -(Xb.T @ resid)
+    return obj, grad
+
+def score_fn(theta, data):
+    X = data["X"]
+    y = data["y"]
+    resid = y - X @ theta
+    return -X * resid[:, None]
+
+data = {"X": X, "y": y, "n": len(y)}
+model = MEstimator(objective_fn, score_fn)
+model.fit(data, np.zeros(X.shape[1]))
+summary = model.summary()
+boot = model.bootstrap(100, seed=1)
+```
+
+The callback boundary is the whole point:
+
+- Python defines the model-specific objective
+- Rust handles the optimization plumbing and result storage
+- Python defines score contributions for inference
+- Rust handles sandwich assembly and bootstrap looping
+
+## What Makes This “Gnarly”
+
+Compared with `Poisson`, `MEstimator` has three layers of boundary crossing:
+
+- NumPy arrays pass from Python into Rust
+- Rust calls Python repeatedly during optimization
+- Rust calls Python again later for scores and bootstrap resamples
+
+That makes it slower and more delicate than the fully native estimators, but it buys a lot of flexibility. It is the current escape hatch for “I want custom likelihood-style estimation without adding a new Rust estimator class first.”
+
+## When To Copy This Pattern
+
+`MEstimator` is the right template when:
+
+- the estimator is genuinely custom
+- you want to experiment from Python first
+- you can provide stable objective and score callbacks
+
+It is the wrong template when:
+
+- the model is a fixed built-in estimator candidate
+- speed matters a lot
+- the objective can be expressed cleanly in native Rust like `Poisson`
+
+In that case, the `Poisson` mechanics page is the better template: keep the whole problem native and only expose a thin PyO3 surface at the boundary.

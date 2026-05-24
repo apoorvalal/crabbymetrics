@@ -1,0 +1,581 @@
+---
+title: "Semiparametric Estimator Comparisons"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+This page adds two cached Monte Carlo comparisons for the new semiparametric estimators.
+
+- Continuous treatment: a partially linear design where both the treatment regression and the outcome nuisance are strongly nonlinear. `EPLM` only sees the raw controls, while `PartiallyLinearDML` gets a richer nonlinear basis and cross-fit ridge nuisances.
+- Binary treatment: a clean logit assignment model in the raw covariates, but a nonlinear response surface. We compare a plain linear regression on the raw controls, entropy balancing on a richer balance basis, and cross-fit `AIPW` on that same basis.
+
+As with the other ablation page, Quarto execution caching and document freezing are enabled so later site renders reuse the saved outputs until this file changes.
+
+## Imports And Helpers
+
+```{python}
+from html import escape
+
+import matplotlib.pyplot as plt
+import numpy as np
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def html_table(headers, rows):
+    parts = [
+        "<table>",
+        "<thead>",
+        "<tr>",
+        *[f"<th>{escape(str(header))}</th>" for header in headers],
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        parts.append("<tr>")
+        for cell in row:
+            parts.append(f"<td>{cell}</td>")
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+
+
+def expit(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+
+def summarize_interval(estimates, ses, truth):
+    estimates = np.asarray(estimates)
+    ses = np.asarray(ses)
+    covered = np.abs(estimates - truth) <= 1.96 * ses
+    return {
+        "mean_estimate": float(estimates.mean()),
+        "bias": float(estimates.mean() - truth),
+        "abs_bias": float(abs(estimates.mean() - truth)),
+        "empirical_sd": float(estimates.std(ddof=1)),
+        "mean_se": float(ses.mean()),
+        "rmse": float(np.sqrt(np.mean((estimates - truth) ** 2))),
+        "coverage": float(covered.mean()),
+    }
+
+
+def summarize_point(estimates, truth):
+    estimates = np.asarray(estimates)
+    return {
+        "mean_estimate": float(estimates.mean()),
+        "bias": float(estimates.mean() - truth),
+        "abs_bias": float(abs(estimates.mean() - truth)),
+        "empirical_sd": float(estimates.std(ddof=1)),
+        "rmse": float(np.sqrt(np.mean((estimates - truth) ** 2))),
+    }
+
+
+def plot_metric(ax, results, metric, title, ylabel):
+    sample_sizes = sorted({entry["n"] for entry in results})
+    methods = []
+    for entry in results:
+        if entry["method"] not in methods:
+            methods.append(entry["method"])
+
+    for method in methods:
+        values = [
+            next(entry[metric] for entry in results if entry["n"] == n and entry["method"] == method)
+            for n in sample_sizes
+        ]
+        ax.plot(sample_sizes, values, marker="o", linewidth=2.0, label=method)
+
+    ax.set_title(title)
+    ax.set_xlabel("Sample size")
+    ax.set_ylabel(ylabel)
+    ax.legend()
+
+
+def continuous_basis(x):
+    x1, x2, x3, x4, x5 = x.T
+    return np.column_stack(
+        [
+            x,
+            x**2 - 1.0,
+            x1 * x2,
+            x1 * x3,
+            x2 * x4,
+            x3 * x5,
+            np.sin(x1),
+            np.cos(x2),
+            np.sin(x1 * x2),
+            np.exp(0.3 * x3),
+            np.exp(0.3 * x4),
+            np.tanh(x5),
+        ]
+    )
+
+
+def balance_basis(x):
+    x1, x2, x3, x4, x5 = x.T
+    return np.column_stack(
+        [
+            x,
+            np.exp(0.35 * x1),
+            x2 * x3,
+            x4**2 - 1.0,
+            np.sin(x5),
+        ]
+    )
+```
+
+## Monte Carlo Design
+
+The continuous-treatment section reports bias, RMSE, and 95 percent coverage because both estimators return influence-function standard errors. `BalancingWeights` is currently a weighting estimator rather than a full inference object, so the binary-treatment section focuses on point-estimate bias and RMSE.
+
+```{python}
+sample_sizes = [300, 800, 1600]
+continuous_reps = 200
+binary_reps = 150
+
+display(
+    HTML(
+        html_table(
+            ["Experiment", "Replications Per n", "Target"],
+            [
+                ["Continuous treatment", continuous_reps, "Partially linear coefficient on D"],
+                ["Binary treatment", binary_reps, "Average treatment effect"],
+            ],
+        )
+    )
+)
+```
+
+## Continuous Treatment: EPLM Versus Partially Linear DML
+
+The data generating process is
+
+$$
+D_i = m(X_i) + V_i,
+$$
+
+with
+
+$$
+m(X_i)
+=
+0.45 X_{i1} - 0.35 X_{i2} + 0.25 X_{i3}
++ 0.7 \sin(X_{i1} X_{i2})
++ 0.45 \exp(0.35 X_{i4})
+- 0.45 (X_{i5}^2 - 1),
+$$
+
+and
+
+$$
+Y_i
+=
+1 + \tau D_i + g(X_i) + U_i,
+$$
+
+where
+
+$$
+g(X_i)
+=
+0.6 \sin(X_{i1})
++ 0.5 X_{i2} X_{i3}
++ 0.35 \exp(0.25 X_{i4})
+- 0.4 (X_{i5}^2 - 1)
++ 0.3 \cos(X_{i1} X_{i2}),
+\qquad
+\tau = 1.25.
+$$
+
+`EPLM` is intentionally given only the raw five covariates, so its linear nuisance model is misspecified on both the treatment and outcome side. `PartiallyLinearDML` instead gets the richer basis $B(X)$ defined above and uses three-fold cross-fitting with a log-spaced ridge grid. Within each fold, the outcome and treatment nuisances choose their own penalties from that common candidate set.
+
+### Representative Dataset
+
+```{python}
+def continuous_treatment_dgp(n, rng, tau=1.25):
+    x = rng.normal(size=(n, 5))
+    x1, x2, x3, x4, x5 = x.T
+    m = (
+        0.45 * x1
+        - 0.35 * x2
+        + 0.25 * x3
+        + 0.7 * np.sin(x1 * x2)
+        + 0.45 * np.exp(0.35 * x4)
+        - 0.45 * (x5**2 - 1.0)
+    )
+    d = m + rng.normal(scale=0.7, size=n)
+    g = (
+        0.6 * np.sin(x1)
+        + 0.5 * x2 * x3
+        + 0.35 * np.exp(0.25 * x4)
+        - 0.4 * (x5**2 - 1.0)
+        + 0.3 * np.cos(x1 * x2)
+    )
+    y = 1.0 + tau * d + g + rng.normal(scale=0.9, size=n)
+    return y, d, x, tau
+
+
+rng = np.random.default_rng(20260331)
+y, d, x, tau_true = continuous_treatment_dgp(1200, rng)
+continuous_penalty_grid = np.logspace(-4, 2, 15)
+
+eplm = cm.EPLM()
+eplm.fit(y, d, x)
+eplm_summary = eplm.summary(vcov="hc1")
+
+dml = cm.PartiallyLinearDML(penalty=continuous_penalty_grid, cv=3, n_folds=3, seed=11)
+dml.fit(y, d, continuous_basis(x))
+dml_summary = dml.summary(vcov="hc1")
+
+display(
+    HTML(
+        html_table(
+            ["Estimator", "Estimate", "SE"],
+            [
+                ["Truth", f"{tau_true:.4f}", "--"],
+                ["EPLM on raw X", f"{eplm_summary['coef']:.4f}", f"{eplm_summary['se']:.4f}"],
+                ["PartiallyLinearDML on B(X)", f"{dml_summary['coef']:.4f}", f"{dml_summary['se']:.4f}"],
+            ],
+        )
+    )
+)
+```
+
+### Simulation Code
+
+```{python}
+def simulate_continuous(sample_sizes, reps, seed):
+    rng = np.random.default_rng(seed)
+    out = []
+    penalty_grid = np.logspace(-4, 2, 15)
+
+    for n in sample_sizes:
+        eplm_estimates = []
+        eplm_ses = []
+        dml_estimates = []
+        dml_ses = []
+
+        for _ in range(reps):
+            y, d, x, tau = continuous_treatment_dgp(n, rng)
+
+            eplm = cm.EPLM()
+            eplm.fit(y, d, x)
+            eplm_summary = eplm.summary(vcov="hc1")
+            eplm_estimates.append(float(eplm_summary["coef"]))
+            eplm_ses.append(float(eplm_summary["se"]))
+
+            dml = cm.PartiallyLinearDML(penalty=penalty_grid, cv=3, n_folds=3, seed=11)
+            dml.fit(y, d, continuous_basis(x))
+            dml_summary = dml.summary(vcov="hc1")
+            dml_estimates.append(float(dml_summary["coef"]))
+            dml_ses.append(float(dml_summary["se"]))
+
+        out.append(
+            {
+                "n": n,
+                "method": "EPLM on raw X",
+                **summarize_interval(eplm_estimates, eplm_ses, tau),
+            }
+        )
+        out.append(
+            {
+                "n": n,
+                "method": "PartiallyLinearDML on B(X)",
+                **summarize_interval(dml_estimates, dml_ses, tau),
+            }
+        )
+
+    return out
+
+
+continuous_results = simulate_continuous(sample_sizes, continuous_reps, seed=20260401)
+
+display(
+    HTML(
+        html_table(
+            ["Method", "n", "Mean", "Bias", "Empirical SD", "Mean SE", "RMSE", "Coverage"],
+            [
+                [
+                    entry["method"],
+                    entry["n"],
+                    f"{entry['mean_estimate']:.4f}",
+                    f"{entry['bias']:.4f}",
+                    f"{entry['empirical_sd']:.4f}",
+                    f"{entry['mean_se']:.4f}",
+                    f"{entry['rmse']:.4f}",
+                    f"{entry['coverage']:.3f}",
+                ]
+                for entry in continuous_results
+            ],
+        )
+    )
+)
+```
+
+### Continuous-Treatment Results
+
+```{python}
+fig, axes = plt.subplots(1, 3, figsize=(16, 4.5), constrained_layout=True)
+plot_metric(axes[0], continuous_results, "abs_bias", "Absolute Bias", "|Mean estimate - truth|")
+plot_metric(axes[1], continuous_results, "rmse", "RMSE", "Root mean squared error")
+plot_metric(axes[2], continuous_results, "coverage", "95% Coverage", "Coverage")
+axes[2].axhline(0.95, color="black", linestyle="--", linewidth=1.0)
+plt.show()
+```
+
+The pattern is sharp. Once the nuisance functions move outside the span of the raw controls, `EPLM` inherits the misspecification and never recovers. Cross-fit DML, fed a richer design basis, is much closer to the truth and its HC1 intervals behave sensibly.
+
+## Binary Treatment: Regression Versus Balancing Weights Versus AIPW
+
+Now the treatment is binary:
+
+$$
+D_i \sim \mathrm{Bernoulli}(\pi_i),
+\qquad
+\pi_i
+=
+\Lambda\!\left(
+0.1
++ 0.75 X_{i1}
+- 0.6 X_{i2}
++ 0.45 X_{i3}
+- 0.3 X_{i4}
+\right).
+$$
+
+The untreated potential outcome is nonlinear:
+
+$$
+Y_i(0)
+=
+0.5
++ 1.2 \exp(0.35 X_{i1})
++ 0.8 X_{i2} X_{i3}
++ 0.6 (X_{i4}^2 - 1)
++ 0.35 \sin(X_{i5}),
+$$
+
+and the treatment effect is constant:
+
+$$
+Y_i(1) = Y_i(0) + \tau,
+\qquad
+\tau = 1.
+$$
+
+The comparison is intentionally asymmetric:
+
+- Vanilla regression fits `OLS` on `[D, X]` and therefore relies on a linear outcome regression in the raw covariates.
+- Entropy balancing reweights the treated and control groups separately to the pooled mean of a richer balance basis $B(X)$.
+- `AIPW` uses that same $B(X)$ inside its cross-fit ridge nuisances, with a log-spaced penalty grid, `n_folds=3`, and `propensity_clip=0.1` to stabilize the propensity fit. The treated-outcome, control-outcome, and propensity regressions each choose their own penalties within each fold.
+
+### Representative Dataset
+
+```{python}
+def binary_treatment_dgp(n, rng, tau=1.0):
+    x = rng.normal(size=(n, 5))
+    x1, x2, x3, x4, x5 = x.T
+    pi = expit(0.1 + 0.75 * x1 - 0.6 * x2 + 0.45 * x3 - 0.3 * x4)
+    d = rng.binomial(1, pi, size=n).astype(float)
+    mu0 = (
+        0.5
+        + 1.2 * np.exp(0.35 * x1)
+        + 0.8 * x2 * x3
+        + 0.6 * (x4**2 - 1.0)
+        + 0.35 * np.sin(x5)
+    )
+    y = mu0 + tau * d + rng.normal(scale=1.0, size=n)
+    return y, d, x, tau
+
+
+def fit_entropy_balancing_ate(y, d, x):
+    b = balance_basis(x)
+    treated = d == 1.0
+    control = ~treated
+
+    treated_model = cm.BalancingWeights(
+        objective="entropy",
+        solver="auto",
+        autoscale=True,
+        max_iterations=500,
+        tolerance=1e-9,
+    )
+    control_model = cm.BalancingWeights(
+        objective="entropy",
+        solver="auto",
+        autoscale=True,
+        max_iterations=500,
+        tolerance=1e-9,
+    )
+    treated_model.fit(b[treated], b)
+    control_model.fit(b[control], b)
+
+    treated_summary = treated_model.summary()
+    control_summary = control_model.summary()
+    treated_weights = np.asarray(treated_summary["weights"])
+    control_weights = np.asarray(control_summary["weights"])
+
+    ate_hat = treated_weights @ y[treated] - control_weights @ y[control]
+    diagnostics = {
+        "treated_max_abs_diff": float(treated_summary["max_abs_diff"]),
+        "control_max_abs_diff": float(control_summary["max_abs_diff"]),
+    }
+    return ate_hat, diagnostics
+
+
+rng = np.random.default_rng(20260402)
+y, d, x, tau_true = binary_treatment_dgp(1500, rng)
+binary_penalty_grid = np.logspace(-4, 2, 15)
+
+ols = cm.OLS()
+ols.fit(np.column_stack([d, x]), y)
+ols_summary = ols.summary(vcov="hc1")
+
+balancing_ate, balancing_diag = fit_entropy_balancing_ate(y, d, x)
+
+aipw = cm.AIPW(penalty=binary_penalty_grid, cv=3, n_folds=3, propensity_clip=0.1, seed=19)
+aipw.fit(y, d, balance_basis(x))
+aipw_summary = aipw.summary(vcov="hc1")
+
+display(
+    HTML(
+        html_table(
+            ["Estimator", "Estimate"],
+            [
+                ["Truth", f"{tau_true:.4f}"],
+                ["OLS on [D, X]", f"{ols_summary['coef'][0]:.4f}"],
+                ["Entropy balancing on B(X)", f"{balancing_ate:.4f}"],
+                ["AIPW on B(X)", f"{aipw_summary['ate']:.4f}"],
+            ],
+        )
+    )
+)
+```
+
+```{python}
+display(
+    HTML(
+        html_table(
+            ["Balance diagnostic", "Value"],
+            [
+                ["Treated weights max abs diff from pooled target", f"{balancing_diag['treated_max_abs_diff']:.3e}"],
+                ["Control weights max abs diff from pooled target", f"{balancing_diag['control_max_abs_diff']:.3e}"],
+            ],
+        )
+    )
+)
+```
+
+### Simulation Code
+
+```{python}
+def simulate_binary(sample_sizes, reps, seed):
+    rng = np.random.default_rng(seed)
+    out = []
+    penalty_grid = np.logspace(-4, 2, 15)
+
+    for n in sample_sizes:
+        ols_estimates = []
+        balancing_estimates = []
+        aipw_estimates = []
+
+        for _ in range(reps):
+            y, d, x, tau = binary_treatment_dgp(n, rng)
+
+            ols = cm.OLS()
+            ols.fit(np.column_stack([d, x]), y)
+            ols_summary = ols.summary(vcov="hc1")
+            ols_estimates.append(float(ols_summary["coef"][0]))
+
+            balancing_ate, _ = fit_entropy_balancing_ate(y, d, x)
+            balancing_estimates.append(float(balancing_ate))
+
+            aipw = cm.AIPW(
+                penalty=penalty_grid,
+                cv=3,
+                n_folds=3,
+                propensity_clip=0.1,
+                seed=19,
+            )
+            aipw.fit(y, d, balance_basis(x))
+            aipw_summary = aipw.summary(vcov="hc1")
+            aipw_estimates.append(float(aipw_summary["ate"]))
+
+        out.append(
+            {
+                "n": n,
+                "method": "OLS on [D, X]",
+                **summarize_point(ols_estimates, tau),
+            }
+        )
+        out.append(
+            {
+                "n": n,
+                "method": "Entropy balancing on B(X)",
+                **summarize_point(balancing_estimates, tau),
+            }
+        )
+        out.append(
+            {
+                "n": n,
+                "method": "AIPW on B(X)",
+                **summarize_point(aipw_estimates, tau),
+            }
+        )
+
+    return out
+
+
+binary_results = simulate_binary(sample_sizes, binary_reps, seed=20260403)
+
+display(
+    HTML(
+        html_table(
+            ["Method", "n", "Mean", "Bias", "Empirical SD", "RMSE"],
+            [
+                [
+                    entry["method"],
+                    entry["n"],
+                    f"{entry['mean_estimate']:.4f}",
+                    f"{entry['bias']:.4f}",
+                    f"{entry['empirical_sd']:.4f}",
+                    f"{entry['rmse']:.4f}",
+                ]
+                for entry in binary_results
+            ],
+        )
+    )
+)
+```
+
+### Binary-Treatment Results
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), constrained_layout=True)
+plot_metric(axes[0], binary_results, "abs_bias", "Absolute Bias", "|Mean estimate - truth|")
+plot_metric(axes[1], binary_results, "rmse", "RMSE", "Root mean squared error")
+plt.show()
+```
+
+This second design is deliberately less one-sided than the continuous-treatment case.
+
+- Vanilla regression is hurt by the nonlinear outcome surface and is uniformly less efficient than the calibrated weighting estimator.
+- Entropy balancing does especially well here because the assignment model is clean and the richer balance basis directly targets the part of the covariate distribution that matters for the response surface.
+- AIPW improves materially once the ridge propensity is clipped away from the extremes, but in this particular finite-sample design it is still somewhat noisier than direct balancing.
+
+That is a useful result rather than an inconvenience: when treatment assignment is low-dimensional and balance can be imposed directly, a dedicated balancing estimator can be hard to beat.

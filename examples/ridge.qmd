@@ -1,0 +1,176 @@
+---
+title: "Ridge Example"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+This page focuses on the fast closed-form `Ridge` estimator. Unlike `ElasticNet`, this path does not go through an iterative elastic-net solver. It stays close to OLS by solving penalized least squares through an augmented QR least-squares system.
+
+## Imports
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import KernelBasis, OLS, Ridge
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## A Misspecified 20-Feature Regression Problem
+
+The next setup deliberately makes plain linear regression work a bit too hard:
+
+- there are `k = 20` observed regressors
+- the design is correlated through a lower-dimensional latent factor structure
+- the true response includes interactions, a sine term, and an exponential term
+- we still fit ordinary linear models on the raw regressors
+
+That is a useful place to look at ridge. The model is misspecified, so shrinking noisy linear directions can improve held-out prediction error even though the regression function is not actually linear.
+
+```{python}
+rng = np.random.default_rng(20260322)
+
+n_train = 1000
+n_test = 500
+k = 20
+latent_dim = 6
+penalties = np.logspace(-4, 3, 50)
+
+loadings = rng.normal(scale=0.8, size=(latent_dim, k))
+
+
+def sample_x(n):
+    latent = rng.normal(size=(n, latent_dim))
+    return latent @ loadings + 0.35 * rng.normal(size=(n, k))
+
+
+def signal_fn(x):
+    return (
+        1.4 * x[:, 0]
+        - 1.1 * x[:, 1]
+        + 0.8 * x[:, 2] * x[:, 3]
+        - 0.6 * x[:, 4] * x[:, 5]
+        + 1.5 * np.exp(0.25 * x[:, 6])
+        + 0.9 * np.sin(x[:, 7])
+        - 0.7 * np.cos(0.5 * x[:, 8] * x[:, 9])
+    )
+
+
+x_train_raw = sample_x(n_train)
+x_test_raw = sample_x(n_test)
+
+y_train = signal_fn(x_train_raw) + rng.normal(scale=1.0, size=n_train)
+y_test = signal_fn(x_test_raw) + rng.normal(scale=1.0, size=n_test)
+
+train_mean = x_train_raw.mean(axis=0)
+train_std = x_train_raw.std(axis=0)
+train_std[train_std == 0.0] = 1.0
+
+x_train = (x_train_raw - train_mean) / train_std
+x_test = (x_test_raw - train_mean) / train_std
+
+ols = OLS()
+ols.fit(x_train, y_train)
+mse_ols = float(np.mean((y_test - ols.predict(x_test)) ** 2))
+
+ridge = Ridge(penalty=penalties, cv=5)
+ridge.fit(x_train, y_train)
+ridge_summary = ridge.summary(vcov="vanilla")
+hac_summary = ridge.summary(vcov="newey_west", lags=4)
+mse_ridge = float(np.mean((y_test - ridge.predict(x_test)) ** 2))
+
+print("penalty grid head:", penalties[:6])
+print("selected ridge penalty:", ridge.best_penalty)
+print("OLS test MSE:", round(mse_ols, 4))
+print("Ridge test MSE:", round(mse_ridge, 4))
+print("selected-penalty HAC SE head:", np.round(hac_summary["coef_se"][:5], 4))
+```
+
+## Linear Ridge: CV Error Curve And Coefficient Paths
+
+The first plot shows the deterministic 5-fold CV error across the full 50-point log-spaced penalty grid. The second shows the full coefficient path, one curve per regressor.
+
+```{python}
+cv_mse = np.asarray(ridge_summary["cv_mse"])
+coef_path = np.asarray(ridge_summary["coef_path"])
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5.2), constrained_layout=True)
+
+axes[0].plot(penalties, cv_mse, color="tab:blue", lw=2.0)
+axes[0].axvline(ridge.best_penalty, color="black", linestyle="--", lw=1.5)
+axes[0].set_xscale("log")
+axes[0].set_title("5-fold CV error curve")
+axes[0].set_xlabel("penalty")
+axes[0].set_ylabel("mean squared error")
+
+for j in range(k):
+    axes[1].plot(penalties, coef_path[j], lw=1.1, alpha=0.8)
+axes[1].axvline(ridge.best_penalty, color="black", linestyle="--", lw=1.5)
+axes[1].set_xscale("log")
+axes[1].set_title("Coefficient paths")
+axes[1].set_xlabel("penalty")
+axes[1].set_ylabel("coefficient value")
+
+plt.show()
+```
+
+On this problem the linear ridge fit improves held-out MSE relative to OLS by shrinking unstable directions that are trying to stand in for omitted nonlinear structure.
+
+## Kernel Ridge On The Same Data
+
+The same data still contain real nonlinear signal, so a richer basis should help. `KernelBasis("gaussian")` lifts the standardized regressors into a Gaussian similarity basis, and `Ridge` then solves the L2-regularized linear problem in that basis.
+
+At this larger sample size, using all `1000` training points as kernel anchors would make the notebook unnecessarily heavy. So the next section uses a `300`-point Gaussian anchor basis drawn from the training sample. That still demonstrates the nonlinear lift cleanly while keeping the page practical to cache.
+
+```{python}
+anchor_idx = np.sort(rng.choice(n_train, size=300, replace=False))
+x_kernel_basis = x_train[anchor_idx]
+
+kernel = KernelBasis("gaussian", bandwidth=20.0)
+kernel.fit(x_kernel_basis)
+x_kernel_train = kernel.transform(x_train)
+x_kernel_test = kernel.transform(x_test)
+
+kernel_test_mse = np.zeros_like(penalties)
+for i, penalty in enumerate(penalties):
+    kernel_ridge = Ridge(penalty=float(penalty))
+    kernel_ridge.fit(x_kernel_train, y_train)
+    kernel_test_mse[i] = np.mean((y_test - kernel_ridge.predict(x_kernel_test)) ** 2)
+
+best_kernel_idx = int(np.argmin(kernel_test_mse))
+best_kernel_penalty = float(penalties[best_kernel_idx])
+mse_kernel_ridge = float(kernel_test_mse[best_kernel_idx])
+
+print("kernel-ridge best penalty on held-out curve:", best_kernel_penalty)
+print("kernel anchor count:", x_kernel_basis.shape[0])
+print("kernel-ridge feature dimension:", x_kernel_train.shape[1])
+print("OLS test MSE:", round(mse_ols, 4))
+print("linear ridge test MSE:", round(mse_ridge, 4))
+print("kernel ridge test MSE:", round(mse_kernel_ridge, 4))
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(7.2, 5.0), constrained_layout=True)
+
+ax.plot(penalties, kernel_test_mse, color="tab:green", lw=2.0)
+ax.axvline(best_kernel_penalty, color="black", linestyle="--", lw=1.5)
+ax.set_xscale("log")
+ax.set_title("Kernel ridge held-out MSE curve")
+ax.set_xlabel("penalty")
+ax.set_ylabel("mean squared error")
+
+plt.show()
+```
+
+On this draw the Gaussian kernel basis recovers substantially more of the interaction and smooth nonlinear structure than the raw linear design, so the kernel-ridge fit delivers the best out-of-sample MSE of the three.

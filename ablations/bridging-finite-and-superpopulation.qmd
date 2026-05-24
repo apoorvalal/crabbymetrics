@@ -1,0 +1,465 @@
+---
+title: "Bridging Finite And Superpopulation Inference"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+This page ports the Chapter 9 "bridging finite and super-population" exercise from `ding_ci` into the `crabbymetrics` docs, then turns it into a fuller ablation.
+
+The common point estimator is the treatment coefficient in a fully interacted regression for a randomized experiment with centered covariate adjustment. We compare four interval constructions:
+
+- `HC2 finite-population`: the Eicker-Huber-White variance from the fully interacted regression, treating the realized covariates as fixed.
+- `Closed-form superpopulation`: Ding's correction that adds the interaction-slope term $\hat{\gamma}^\top \widehat{\Sigma}_W \hat{\gamma} / n$ to the HC2 variance.
+- `Bootstrap superpopulation`: a nonparametric row bootstrap that resamples $(Y_i, Z_i, X_i)$ and rebuilds the centered interacted regression inside each bootstrap draw.
+- `Stacked GMM superpopulation`: an exactly identified moment system that jointly estimates the treatment effect together with the centering nuisance parameter $\mu$, then reports the sandwich variance for $\tau$.
+
+The same reported interval can then be judged against two estimands:
+
+- `SATE`: the realized sample average treatment effect $n^{-1} \sum_i (Y_i(1) - Y_i(0))$
+- `PATE`: the population average treatment effect $\mathbb{E}[Y_i(1) - Y_i(0)]$
+
+The first three procedures use the actual `cm.OLS` fit for point estimation. The fourth uses the first-class `cm.GMM` estimator directly. As with the other ablation pages, Quarto caching and freezing are enabled so later site renders reuse the saved outputs.
+
+## Imports And Helpers
+
+```{python}
+from html import escape
+
+import matplotlib.pyplot as plt
+import numpy as np
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def html_table(headers, rows):
+    parts = [
+        "<table>",
+        "<thead>",
+        "<tr>",
+        *[f"<th>{escape(str(header))}</th>" for header in headers],
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        parts.append("<tr>")
+        for cell in row:
+            parts.append(f"<td>{cell}</td>")
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+
+
+def hc2_covariance(design, residuals):
+    xtx_inv = np.linalg.inv(design.T @ design)
+    leverage = np.sum(design * (design @ xtx_inv), axis=1)
+    scale = residuals**2 / np.clip(1.0 - leverage, 1e-12, None)
+    meat = design.T @ (design * scale[:, None])
+    return xtx_inv @ meat @ xtx_inv
+
+
+def bridging_gmm_moments(theta, data):
+    x = data["x"]
+    z = data["z"]
+    y = data["y"]
+    p = x.shape[1]
+
+    mu = theta[:p]
+    alpha = theta[p]
+    tau = theta[p + 1]
+    beta = theta[p + 2 : p + 2 + p]
+    gamma = theta[p + 2 + p :]
+
+    w = x - mu
+    resid = y - alpha - tau * z - w @ beta - (w * z[:, None]) @ gamma
+    l = np.column_stack([np.ones(x.shape[0]), z, w, w * z[:, None]])
+
+    return np.column_stack(
+        [
+            x - mu,
+            l * resid[:, None],
+        ]
+    )
+
+
+def fit_tau_from_raw_rows(z, y, x):
+    mu = x.mean(axis=0)
+    w = x - mu
+    interacted_design = np.column_stack([z, w, z[:, None] * w])
+    model = cm.OLS()
+    model.fit(interacted_design, y)
+    return float(np.asarray(model.summary(vcov="hc1")["coef"])[0])
+
+
+def raw_row_bootstrap_se(z, y, x, n_bootstrap, seed):
+    rng = np.random.default_rng(seed)
+    n = z.shape[0]
+    tau_draws = np.empty(n_bootstrap)
+    for draw in range(n_bootstrap):
+        idx = rng.integers(0, n, size=n)
+        tau_draws[draw] = fit_tau_from_raw_rows(z[idx], y[idx], x[idx])
+    return float(tau_draws.std(ddof=1))
+
+
+def fit_bridging_methods(z, y, x, n_bootstrap=300, bootstrap_seed=0):
+    p = x.shape[1]
+    mu = x.mean(axis=0)
+    w = x - mu
+
+    interacted_design = np.column_stack([z, w, z[:, None] * w])
+    ols = cm.OLS()
+    ols.fit(interacted_design, y)
+    ols_summary = ols.summary(vcov="hc1")
+
+    coef = np.asarray(ols_summary["coef"])
+    params = np.concatenate([[ols_summary["intercept"]], coef])
+    full_design = np.column_stack([np.ones(z.shape[0]), interacted_design])
+    residuals = y - full_design @ params
+
+    hc2_vcov = hc2_covariance(full_design, residuals)
+    tau_hat = float(coef[0])
+    se_hc2 = float(np.sqrt(hc2_vcov[1, 1]))
+
+    gamma_hat = coef[-p:]
+    superpop_correction = float(gamma_hat @ np.cov(w.T) @ gamma_hat / z.shape[0])
+    se_closed_form = float(np.sqrt(hc2_vcov[1, 1] + superpop_correction))
+    se_bootstrap = raw_row_bootstrap_se(z, y, x, n_bootstrap=n_bootstrap, seed=bootstrap_seed)
+
+    theta0 = np.concatenate([mu, [params[0], tau_hat], coef[1:]])
+    gmm = cm.GMM(
+        bridging_gmm_moments,
+        max_iterations=200,
+        tolerance=1e-8,
+        fd_eps=1e-5,
+    )
+    gmm.fit({"x": x, "z": z, "y": y}, theta0, weighting="identity")
+    gmm_summary = gmm.summary(vcov="sandwich", omega="iid")
+
+    tau_index = p + 1
+    tau_gmm = float(np.asarray(gmm_summary["coef"])[tau_index])
+    se_gmm = float(np.asarray(gmm_summary["se"])[tau_index])
+
+    return {
+        "tau_ols": tau_hat,
+        "se_hc2": se_hc2,
+        "se_closed_form": se_closed_form,
+        "se_bootstrap": se_bootstrap,
+        "tau_gmm": tau_gmm,
+        "se_gmm": se_gmm,
+    }
+
+
+def simulate_bridging(reps, n, seed, n_bootstrap):
+    tau_hc2 = []
+    tau_closed = []
+    tau_bootstrap = []
+    tau_gmm = []
+    se_hc2 = []
+    se_closed = []
+    se_bootstrap = []
+    se_gmm = []
+    sate_targets = []
+
+    for rep in range(reps):
+        rng = np.random.default_rng(seed + rep)
+        x = rng.normal(size=(n, 2))
+        y0 = x[:, 0] + x[:, 0] ** 2 + rng.uniform(-0.5, 0.5, n)
+        y1 = x[:, 1] + x[:, 1] ** 2 + rng.uniform(-1.0, 1.0, n)
+        z = rng.binomial(1, 0.6, n).astype(float)
+        y = y0 * (1.0 - z) + y1 * z
+
+        fit = fit_bridging_methods(z, y, x, n_bootstrap=n_bootstrap, bootstrap_seed=rep)
+        tau_hc2.append(fit["tau_ols"])
+        tau_closed.append(fit["tau_ols"])
+        tau_bootstrap.append(fit["tau_ols"])
+        tau_gmm.append(fit["tau_gmm"])
+        se_hc2.append(fit["se_hc2"])
+        se_closed.append(fit["se_closed_form"])
+        se_bootstrap.append(fit["se_bootstrap"])
+        se_gmm.append(fit["se_gmm"])
+        sate_targets.append(float(np.mean(y1 - y0)))
+
+    def summarize(estimates, ses):
+        estimates = np.asarray(estimates)
+        ses = np.asarray(ses)
+        sate_targets_arr = np.asarray(sate_targets)
+        sate_errors = estimates - sate_targets_arr
+        pate_errors = estimates
+        return {
+            "mean_estimate": float(estimates.mean()),
+            "sate_error_sd": float(sate_errors.std(ddof=1)),
+            "pate_error_sd": float(pate_errors.std(ddof=1)),
+            "mean_se": float(ses.mean()),
+            "coverage_sate": float((np.abs(sate_errors) <= 1.96 * ses).mean()),
+            "coverage_pate": float((np.abs(pate_errors) <= 1.96 * ses).mean()),
+        }
+
+    return [
+        {"method": "HC2 finite-population", **summarize(tau_hc2, se_hc2)},
+        {"method": "Closed-form superpopulation", **summarize(tau_closed, se_closed)},
+        {"method": "Bootstrap superpopulation", **summarize(tau_bootstrap, se_bootstrap)},
+        {"method": "Stacked GMM superpopulation", **summarize(tau_gmm, se_gmm)},
+    ]
+```
+
+## Design
+
+The data generating process follows the Chapter 9 notebook:
+
+$$
+X_i \sim \mathcal{N}(0, I_2),
+\qquad
+Z_i \sim \mathrm{Bernoulli}(0.6),
+$$
+
+with potential outcomes
+
+$$
+Y_i(0) = X_{i1} + X_{i1}^2 + U_{0i},
+\qquad
+U_{0i} \sim \mathrm{Uniform}(-0.5, 0.5),
+$$
+
+and
+
+$$
+Y_i(1) = X_{i2} + X_{i2}^2 + U_{1i},
+\qquad
+U_{1i} \sim \mathrm{Uniform}(-1, 1).
+$$
+
+The two targets are different:
+
+$$
+\tau_{\mathrm{SATE}} = \frac{1}{n} \sum_{i=1}^n \left( Y_i(1) - Y_i(0) \right),
+\qquad
+\tau_{\mathrm{PATE}} = \mathbb{E}\left[ Y_i(1) - Y_i(0) \right].
+$$
+
+In this design, $\tau_{\mathrm{PATE}} = 0$ because both potential outcomes have expectation one, but $\tau_{\mathrm{SATE}}$ varies from sample to sample.
+
+The adjusted regression is
+
+$$
+Y_i = \alpha + \tau Z_i + \beta^\top W_i + \gamma^\top (Z_i W_i) + \varepsilon_i,
+$$
+
+where $W_i$ is the centered covariate vector,
+
+$$
+W_i = X_i - \mu,
+$$
+
+with $\mu$ the vector of sample means. Ding's closed-form superpopulation correction is
+
+$$
+\widehat{\mathrm{Var}}_{\mathrm{super}}(\hat{\tau})
+=
+\widehat{\mathrm{Var}}_{\mathrm{HC2}}(\hat{\tau})
++
+\hat{\gamma}^\top \widehat{\Sigma}_W \hat{\gamma} / n.
+$$
+
+The stacked GMM system treats the centering as a generated regressor and estimates it jointly with the regression coefficients. The parameter vector is
+
+$$
+\theta = (\mu, \alpha, \tau, \beta, \gamma),
+$$
+
+and the exactly identified moments are
+
+$$
+g_i(\theta)
+=
+\begin{bmatrix}
+X_i - \mu \\
+\ell_i(\theta) r_i(\theta)
+\end{bmatrix},
+$$
+
+where
+
+$$
+\ell_i(\theta) =
+\begin{bmatrix}
+1 \\
+Z_i \\
+W_i \\
+Z_i W_i
+\end{bmatrix},
+$$
+
+with
+
+$$
+r_i(\theta)
+=
+Y_i - \alpha - \tau Z_i - \beta^\top W_i - \gamma^\top (Z_i W_i).
+$$
+
+So the first block estimates the sample means, and the second block is the vectorized least-squares orthogonality condition. This makes the superpopulation correction automatic at summary time: the sandwich covariance for $\tau$ already accounts for the nuisance estimation step.
+
+```{python}
+n = 500
+reps = 2000
+n_bootstrap = 300
+truth_pate = 0.0
+
+display(
+    HTML(
+        html_table(
+            ["Observations per replication", "Replications", "Bootstrap draws", "PATE"],
+            [[n, reps, n_bootstrap, truth_pate]],
+        )
+    )
+)
+```
+
+## Representative Dataset
+
+```{python}
+rng = np.random.default_rng(42)
+x = rng.normal(size=(n, 2))
+y0 = x[:, 0] + x[:, 0] ** 2 + rng.uniform(-0.5, 0.5, n)
+y1 = x[:, 1] + x[:, 1] ** 2 + rng.uniform(-1.0, 1.0, n)
+z = rng.binomial(1, 0.6, n).astype(float)
+y = y0 * (1.0 - z) + y1 * z
+truth_sate = float(np.mean(y1 - y0))
+
+fit = fit_bridging_methods(z, y, x, n_bootstrap=n_bootstrap, bootstrap_seed=42)
+
+display(
+    HTML(
+        html_table(
+            ["Method", "Point Estimate", "Reported SE", "Covers SATE", "Covers PATE"],
+            [
+                [
+                    "HC2 finite-population",
+                    f"{fit['tau_ols']:.4f}",
+                    f"{fit['se_hc2']:.4f}",
+                    abs(fit["tau_ols"] - truth_sate) <= 1.96 * fit["se_hc2"],
+                    abs(fit["tau_ols"] - truth_pate) <= 1.96 * fit["se_hc2"],
+                ],
+                [
+                    "Closed-form superpopulation",
+                    f"{fit['tau_ols']:.4f}",
+                    f"{fit['se_closed_form']:.4f}",
+                    abs(fit["tau_ols"] - truth_sate) <= 1.96 * fit["se_closed_form"],
+                    abs(fit["tau_ols"] - truth_pate) <= 1.96 * fit["se_closed_form"],
+                ],
+                [
+                    "Bootstrap superpopulation",
+                    f"{fit['tau_ols']:.4f}",
+                    f"{fit['se_bootstrap']:.4f}",
+                    abs(fit["tau_ols"] - truth_sate) <= 1.96 * fit["se_bootstrap"],
+                    abs(fit["tau_ols"] - truth_pate) <= 1.96 * fit["se_bootstrap"],
+                ],
+                [
+                    "Stacked GMM superpopulation",
+                    f"{fit['tau_gmm']:.4f}",
+                    f"{fit['se_gmm']:.4f}",
+                    abs(fit["tau_gmm"] - truth_sate) <= 1.96 * fit["se_gmm"],
+                    abs(fit["tau_gmm"] - truth_pate) <= 1.96 * fit["se_gmm"],
+                ],
+            ],
+        )
+    )
+)
+
+print("Representative-sample SATE:", round(truth_sate, 4))
+print("Population ATE:", truth_pate)
+print("Absolute gap between OLS and stacked-GMM tau:", abs(fit["tau_ols"] - fit["tau_gmm"]))
+```
+
+The point estimates line up because the GMM stack contains the same normal equations as the interacted regression together with the nuisance moments for the sample centering step. The interval columns differ because HC2 is calibrated to the realized sample, while the other three procedures try to absorb the extra uncertainty from moving to a population target.
+
+## Monte Carlo Results
+
+```{python}
+results = simulate_bridging(reps=reps, n=n, seed=20260331, n_bootstrap=n_bootstrap)
+
+display(
+    HTML(
+        html_table(
+            [
+                "Method",
+                "Mean estimate",
+                "SD(hat-tau - SATE)",
+                "SD(hat-tau - PATE)",
+                "Mean SE",
+                "95% coverage for SATE",
+                "95% coverage for PATE",
+            ],
+            [
+                [
+                    entry["method"],
+                    f"{entry['mean_estimate']:.4f}",
+                    f"{entry['sate_error_sd']:.4f}",
+                    f"{entry['pate_error_sd']:.4f}",
+                    f"{entry['mean_se']:.4f}",
+                    f"{entry['coverage_sate']:.3f}",
+                    f"{entry['coverage_pate']:.3f}",
+                ]
+                for entry in results
+            ],
+        )
+    )
+)
+```
+
+```{python}
+methods = [entry["method"] for entry in results]
+mean_ses = [entry["mean_se"] for entry in results]
+sate_error_sds = [entry["sate_error_sd"] for entry in results]
+pate_error_sds = [entry["pate_error_sd"] for entry in results]
+coverages_sate = [entry["coverage_sate"] for entry in results]
+coverages_pate = [entry["coverage_pate"] for entry in results]
+xpos = np.arange(len(methods))
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+
+axes[0].bar(xpos - 0.24, sate_error_sds, width=0.24, label="SD vs SATE")
+axes[0].bar(xpos, pate_error_sds, width=0.24, label="SD vs PATE")
+axes[0].bar(xpos + 0.24, mean_ses, width=0.24, label="Mean reported SE")
+axes[0].set_xticks(xpos)
+axes[0].set_xticklabels(methods, rotation=15, ha="right")
+axes[0].set_title("Target-specific error scale")
+axes[0].legend()
+
+axes[1].bar(xpos - 0.16, coverages_sate, width=0.32, label="SATE")
+axes[1].bar(xpos + 0.16, coverages_pate, width=0.32, label="PATE")
+axes[1].axhline(0.95, color="black", linestyle="--", linewidth=1.0)
+axes[1].set_ylim(0.85, 1.0)
+axes[1].set_xticks(xpos)
+axes[1].set_xticklabels(methods, rotation=15, ha="right")
+axes[1].set_title("95% CI coverage")
+axes[1].set_ylabel("Coverage")
+axes[1].legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+The ablation now makes the estimand split explicit:
+
+- HC2 is the right scale for SATE coverage but is too narrow for PATE because it conditions on the realized covariates.
+- The closed-form superpopulation correction, the raw-row bootstrap, and the stacked GMM sandwich all move the interval width toward the PATE error scale.
+- Those same superpopulation procedures tend to over-cover SATE because they deliberately add uncertainty from sampling the covariates and potential outcomes.
+- The stacked GMM route is attractive because it gets to the superpopulation target without a bespoke variance patch: the nuisance parameters for centering are estimated inside the moment system itself.
+
+The small remaining gap between the closed-form and GMM columns is expected in this finite sample: Ding's formula starts from an HC2 leverage adjustment, while `cm.GMM.summary(vcov="sandwich", omega="iid")` is the standard large-sample sandwich variance for the exactly identified stack. The bootstrap column also differs slightly because it is simulation-based rather than analytic.

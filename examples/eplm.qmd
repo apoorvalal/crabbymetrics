@@ -1,0 +1,126 @@
+---
+title: "EPLM"
+subtitle: "Robins-Newey E-estimation for a scalar continuous treatment"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+`EPLM` implements the partially linear E-estimator for a scalar treatment:
+
+$$
+Y_i = \beta D_i + g(W_i) + U_i,
+\qquad
+\mathbb{E}[U_i \mid D_i, W_i] = 0.
+$$
+
+The key nuisance is the treatment regression
+
+$$
+e(W_i) = \mathbb{E}[D_i \mid W_i].
+$$
+
+If we define the residualized treatment
+
+$$
+Z_i = D_i - e(W_i),
+$$
+
+then the identifying moment is
+
+$$
+\mathbb{E}\left[ Z_i \left(Y_i - \beta D_i\right) \right] = 0.
+$$
+
+The implementation in `crabbymetrics` writes this as an exactly identified stacked-moment system:
+
+$$
+\mathbb{E}
+\begin{bmatrix}
+\tilde W_i \left(D_i - \tilde W_i^\top \pi\right) \\
+\left(D_i - \tilde W_i^\top \pi\right)\left(Y_i - \beta D_i\right)
+\end{bmatrix}
+=
+0,
+$$
+
+where $\tilde W_i = (1, W_i^\top)^\top$. The first block estimates the linear working model for $e(W)$, and the second block is the E-estimating equation for $\beta$.
+
+In a just-identified system like this, the point estimate has the familiar ratio form
+
+$$
+\hat \beta
+=
+\frac{\sum_i \hat Z_i Y_i}{\sum_i \hat Z_i D_i},
+\qquad
+\hat Z_i = D_i - \hat e(W_i),
+$$
+
+but `summary()` reports a stacked-moment sandwich covariance so the nuisance estimation step is accounted for directly.
+
+```{python}
+from html import escape
+
+import numpy as np
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+
+def html_table(headers, rows):
+    parts = [
+        "<table>",
+        "<thead>",
+        "<tr>",
+        *[f"<th>{escape(str(header))}</th>" for header in headers],
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        parts.append("<tr>")
+        for cell in row:
+            parts.append(f"<td>{escape(str(cell))}</td>")
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+
+
+rng = np.random.default_rng(2026)
+n = 1200
+w = rng.normal(size=(n, 4))
+d = 0.5 + w @ np.array([0.8, -0.5, 0.3, 0.2]) + rng.normal(scale=0.8, size=n)
+g = 1.0 + w @ np.array([0.4, -0.2, 0.3, 0.1]) + 0.5 * w[:, 0] * w[:, 1]
+y = 1.75 * d + g + rng.normal(scale=0.7, size=n)
+
+naive_design = np.column_stack([np.ones(n), d, w])
+naive_beta = np.linalg.lstsq(naive_design, y, rcond=None)[0][1]
+
+model = cm.EPLM()
+model.fit(y, d, w)
+summary = model.summary()
+
+rows = [
+    ["True beta", f"{1.75: .4f}"],
+    ["Naive OLS on [D, W]", f"{naive_beta: .4f}"],
+    ["EPLM", f"{summary['coef']: .4f}"],
+    ["EPLM SE", f"{summary['se']: .4f}"],
+]
+display(HTML(html_table(["Quantity", "Value"], rows)))
+```
+
+## Interpretation
+
+- This is the partially linear coefficient on the scalar treatment $D$, not a generic nonparametric effect.
+- The current implementation is continuous-treatment only.
+- The nuisance model for $e(W)$ is linear in the supplied controls. If that is too rigid, the cross-fit `PartiallyLinearDML` estimator is the next page to look at.

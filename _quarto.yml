@@ -4,7 +4,6 @@ project:
   render:
     - index.qmd
     - api.qmd
-    - reference/*.qmd
     - first-course-ding.qmd
     - ding/*.qmd
     - mechanics-ols.qmd
@@ -24,62 +23,8 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - text: API
-        menu:
-          - href: api.qmd
-            text: API Overview
-          - text: Regression And GLMs
-          - href: reference/OLS.qmd
-            text: OLS
-          - href: reference/Ridge.qmd
-            text: Ridge
-          - href: reference/FixedEffectsOLS.qmd
-            text: FixedEffectsOLS
-          - href: reference/ElasticNet.qmd
-            text: ElasticNet
-          - href: reference/Logit.qmd
-            text: Logit
-          - href: reference/MultinomialLogit.qmd
-            text: MultinomialLogit
-          - href: reference/Poisson.qmd
-            text: Poisson
-          - href: reference/FTRL.qmd
-            text: FTRL
-          - text: Causal Inference And Panels
-          - href: reference/TwoSLS.qmd
-            text: TwoSLS
-          - href: reference/BalancingWeights.qmd
-            text: BalancingWeights
-          - href: reference/EPLM.qmd
-            text: EPLM
-          - href: reference/AverageDerivative.qmd
-            text: AverageDerivative
-          - href: reference/PartiallyLinearDML.qmd
-            text: PartiallyLinearDML
-          - href: reference/AIPW.qmd
-            text: AIPW
-          - href: reference/SyntheticControl.qmd
-            text: SyntheticControl
-          - href: reference/HorizontalPanelRidge.qmd
-            text: HorizontalPanelRidge
-          - href: reference/SyntheticDID.qmd
-            text: SyntheticDID
-          - href: reference/MatrixCompletion.qmd
-            text: MatrixCompletion
-          - href: reference/InteractiveFixedEffects.qmd
-            text: InteractiveFixedEffects
-          - text: Transforms
-          - href: reference/PCA.qmd
-            text: PCA
-          - href: reference/KernelBasis.qmd
-            text: KernelBasis
-          - text: Estimation Interfaces
-          - href: reference/GMM.qmd
-            text: GMM
-          - href: reference/MEstimator.qmd
-            text: MEstimator
-          - href: reference/Optimizers.qmd
-            text: Optimizers
+      - href: api.qmd
+        text: API
       - href: mechanics-ols.qmd
         text: Binding Crash Course
       - text: Regression And GLMs
@@ -130,6 +75,8 @@ website:
             text: Interactive Fixed Effects
           - href: examples/staggered-panel-event-study.qmd
             text: Staggered Panel Event Study
+          - href: examples/joint-hypothesis-tests-causal.qmd
+            text: Joint Hypothesis Tests
       - text: Transforms
         menu:
           - href: examples/pca-and-kernel-basis.qmd

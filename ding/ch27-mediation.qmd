@@ -1,0 +1,207 @@
+---
+title: "First Course Ding: Chapter 27"
+subtitle: "Mediation analysis"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+The R source for Chapter 27 implements the Baron-Kenny mediation decomposition. It fits one regression for the mediator and one regression for the outcome, then reports:
+
+- the natural direct effect estimate from the treatment coefficient in the outcome model
+- the natural indirect effect estimate as the product of the treatment-to-mediator coefficient and the mediator-to-outcome coefficient
+- Sobel-style delta-method uncertainty for the indirect effect
+
+This is not a full mediation module in `crabbymetrics`; it is a transparent translation of the chapter's regression calculation using `OLS` and HC1 covariance summaries.
+
+```{python}
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+data_dir = repo_root() / "ding_w_source" / "repl"
+
+
+def standardize_columns(x):
+    x = np.asarray(x, dtype=float)
+    scale = np.where(x.std(axis=0) > 1e-12, x.std(axis=0), 1.0)
+    return (x - x.mean(axis=0, keepdims=True)) / scale
+
+
+def bk_mediation(z, m, y, x):
+    z = np.asarray(z, dtype=float)
+    m = np.asarray(m, dtype=float)
+    y = np.asarray(y, dtype=float)
+    x = np.asarray(x, dtype=float)
+
+    mediator_model = cm.OLS()
+    mediator_model.fit(np.column_stack([z, x]), m)
+    mediator_summary = mediator_model.summary(vcov="hc1")
+
+    outcome_model = cm.OLS()
+    outcome_model.fit(np.column_stack([z, m, x]), y)
+    outcome_summary = outcome_model.summary(vcov="hc1")
+
+    z_to_m = float(mediator_summary["coef"][0])
+    z_to_m_se = float(mediator_summary["coef_se"][0])
+    direct = float(outcome_summary["coef"][0])
+    direct_se = float(outcome_summary["coef_se"][0])
+    m_to_y = float(outcome_summary["coef"][1])
+    m_to_y_se = float(outcome_summary["coef_se"][1])
+
+    indirect = m_to_y * z_to_m
+    indirect_se = np.sqrt((m_to_y_se**2) * (z_to_m**2) + (m_to_y**2) * (z_to_m_se**2))
+
+    return pd.DataFrame(
+        {
+            "estimate": [direct, indirect],
+            "se_hc1_delta": [direct_se, indirect_se],
+            "t": [direct / direct_se, indirect / indirect_se],
+        },
+        index=["NDE", "NIE"],
+    )
+```
+
+## Simulation
+
+The R script uses three data-generating processes to show that the direct-effect estimate is close to normal in simple linear systems, while the product-form indirect-effect estimate can be visibly non-normal.
+
+Each Monte Carlo draw uses $n=200$ independent units with
+
+$$
+Z_i \sim \operatorname{Bernoulli}(0.5), \qquad X_i \sim N(0, 1),
+$$
+
+and independent $N(0,1)$ disturbances in the mediator and outcome equations. The fitted mediation model is
+
+$$
+M_i = \alpha_M + a Z_i + \gamma_M X_i + e_{Mi},
+\qquad
+Y_i = \alpha_Y + c' Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
+$$
+
+The reported direct-effect estimate is $\hat c'$. The reported indirect-effect estimate is the product $\hat a \hat b$. The three regimes in the R script differ only in whether the treatment-to-mediator path $a$ and mediator-to-outcome path $b$ are present:
+
+| Regime | Mediator DGP | Outcome DGP | Population NDE | Population NIE |
+|---|---|---|---:|---:|
+| Indirect path present | $M = Z + X + e_M$ | $Y = Z + M + X + e_Y$ | 1 | 1 |
+| No mediator-to-outcome path | $M = Z + X + e_M$ | $Y = Z + X + e_Y$ | 1 | 0 |
+| No indirect path | $M = X + e_M$ | $Y = Z + X + e_Y$ | 1 | 0 |
+
+The last two regimes both have zero indirect effect, but for different reasons. In the second, treatment still shifts the mediator and the fitted product is zero because $b=0$. In the third, neither leg of the mediated path is active in the outcome system used by the R script.
+
+```{python}
+def simulate_once(rng, mediator_effect, outcome_mediator_effect, n=200):
+    z = rng.binomial(1, 0.5, size=n).astype(float)
+    x = rng.normal(size=n)
+    m = mediator_effect * z + x + rng.normal(size=n)
+    y = z + outcome_mediator_effect * m + x + rng.normal(size=n)
+    table = bk_mediation(z, m, y, x[:, None])
+    return table["estimate"].to_numpy()
+
+
+def simulate_regime(seed, mediator_effect, outcome_mediator_effect, n_rep=600):
+    rng = np.random.default_rng(seed)
+    return np.vstack(
+        [
+            simulate_once(rng, mediator_effect, outcome_mediator_effect)
+            for _ in range(n_rep)
+        ]
+    )
+
+
+regimes = {
+    "Indirect path present": simulate_regime(2701, 1.0, 1.0),
+    "No mediator-to-outcome path": simulate_regime(2702, 1.0, 0.0),
+    "No indirect path": simulate_regime(2703, 0.0, 0.0),
+}
+
+simulation_summary = []
+for label, draws in regimes.items():
+    simulation_summary.append(
+        {
+            "regime": label,
+            "mean_NDE": draws[:, 0].mean(),
+            "sd_NDE": draws[:, 0].std(ddof=1),
+            "mean_NIE": draws[:, 1].mean(),
+            "sd_NIE": draws[:, 1].std(ddof=1),
+        }
+    )
+
+pd.DataFrame(simulation_summary)
+```
+
+```{python}
+fig, axes = plt.subplots(3, 2, figsize=(9, 9))
+for row, (label, draws) in enumerate(regimes.items()):
+    axes[row, 0].hist(draws[:, 0], bins=30, density=True, alpha=0.75)
+    axes[row, 0].axvline(draws[:, 0].mean(), color="black", linestyle="--")
+    axes[row, 0].set_title(f"{label}: NDE")
+
+    axes[row, 1].hist(draws[:, 1], bins=30, density=True, alpha=0.75)
+    axes[row, 1].axvline(draws[:, 1].mean(), color="black", linestyle="--")
+    axes[row, 1].set_title(f"{label}: NIE")
+
+for ax in axes.ravel():
+    ax.set_ylabel("Density")
+
+fig.tight_layout()
+```
+
+## JOBS Data
+
+The source R script closes with the JOBS data from the `mediation` package. Here the treatment is job-search training, the mediator is job-search self-efficacy, and the outcome is follow-up depression.
+
+```{python}
+jobs = pd.read_csv(data_dir / "jobsdata.csv")
+
+z = jobs["treat"].to_numpy(dtype=float)
+m = jobs["job_seek"].to_numpy(dtype=float)
+y = jobs["depress2"].to_numpy(dtype=float)
+
+feature_columns = [
+    "econ_hard",
+    "depress1",
+    "sex",
+    "age",
+    "occp",
+    "marital",
+    "nonwhite",
+    "educ",
+    "income",
+]
+x = pd.get_dummies(jobs[feature_columns], drop_first=True, dtype=float).to_numpy(dtype=float)
+x = standardize_columns(x)
+
+bk_mediation(z, m, y, x)
+```
+
+## Implementation Note
+
+This chapter is now executable, but it is still a narrow translation. The R code itself uses the Baron-Kenny product estimator and a Sobel-style variance calculation; it does not implement a general mediation framework with sensitivity analysis, nonparametric bootstrap inference, or alternative identification strategies. Those would be separate library features rather than doc-only translations.

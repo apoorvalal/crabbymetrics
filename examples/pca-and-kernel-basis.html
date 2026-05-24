@@ -3862,117 +3862,10 @@ vertical-align: -.125em;
     <a class="nav-link" href="../index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
-  <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">API</span>
-    </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
-        <li>
-    <a class="dropdown-item" href="../api.html">
- <span class="dropdown-text">API Overview</span></a>
+  <li class="nav-item">
+    <a class="nav-link" href="../api.html"> 
+<span class="menu-text">API</span></a>
   </li>  
-        <li class="dropdown-header">Regression And GLMs</li>
-        <li>
-    <a class="dropdown-item" href="../reference/OLS.html">
- <span class="dropdown-text">OLS</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Ridge.html">
- <span class="dropdown-text">Ridge</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/FixedEffectsOLS.html">
- <span class="dropdown-text">FixedEffectsOLS</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/ElasticNet.html">
- <span class="dropdown-text">ElasticNet</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Logit.html">
- <span class="dropdown-text">Logit</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/MultinomialLogit.html">
- <span class="dropdown-text">MultinomialLogit</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Poisson.html">
- <span class="dropdown-text">Poisson</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/FTRL.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li class="dropdown-header">Causal Inference And Panels</li>
-        <li>
-    <a class="dropdown-item" href="../reference/TwoSLS.html">
- <span class="dropdown-text">TwoSLS</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/BalancingWeights.html">
- <span class="dropdown-text">BalancingWeights</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/EPLM.html">
- <span class="dropdown-text">EPLM</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/AverageDerivative.html">
- <span class="dropdown-text">AverageDerivative</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/PartiallyLinearDML.html">
- <span class="dropdown-text">PartiallyLinearDML</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/AIPW.html">
- <span class="dropdown-text">AIPW</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/SyntheticControl.html">
- <span class="dropdown-text">SyntheticControl</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/HorizontalPanelRidge.html">
- <span class="dropdown-text">HorizontalPanelRidge</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/SyntheticDID.html">
- <span class="dropdown-text">SyntheticDID</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/MatrixCompletion.html">
- <span class="dropdown-text">MatrixCompletion</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/InteractiveFixedEffects.html">
- <span class="dropdown-text">InteractiveFixedEffects</span></a>
-  </li>  
-        <li class="dropdown-header">Transforms</li>
-        <li>
-    <a class="dropdown-item" href="../reference/PCA.html">
- <span class="dropdown-text">PCA</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/KernelBasis.html">
- <span class="dropdown-text">KernelBasis</span></a>
-  </li>  
-        <li class="dropdown-header">Estimation Interfaces</li>
-        <li>
-    <a class="dropdown-item" href="../reference/GMM.html">
- <span class="dropdown-text">GMM</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/MEstimator.html">
- <span class="dropdown-text">MEstimator</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Optimizers.html">
- <span class="dropdown-text">Optimizers</span></a>
-  </li>  
-    </ul>
-  </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
@@ -4232,7 +4125,7 @@ vertical-align: -.125em;
 <p>This page shows the two transformer classes in their natural habitats: <code>PCA</code> for linear low-rank structure, and <code>KernelBasis</code> for nonlinear geometry. The second half uses a swiss-roll manifold, where a Gaussian kernel basis followed by a linear projection does a much better job of preserving the latent ordering than ordinary PCA on the raw coordinates.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="0a26e03b" class="cell" data-execution_count="1">
+<div id="6db58912" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4243,7 +4136,7 @@ vertical-align: -.125em;
 </section>
 <section id="pca-on-a-linear-factor-model" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="pca-on-a-linear-factor-model"><span class="header-section-number">2</span> PCA On A Linear Factor Model</h2>
-<div id="57140614" class="cell" data-execution_count="2">
+<div id="e09a63b8" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2029</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">350</span></span>
@@ -4268,7 +4161,7 @@ vertical-align: -.125em;
 reconstruction MSE: 0.001031</code></pre>
 </div>
 </div>
-<div id="fde2fc42" class="cell" data-execution_count="3">
+<div id="fd46842f" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].scatter(</span>
@@ -4308,7 +4201,7 @@ reconstruction MSE: 0.001031</code></pre>
 </section>
 <section id="kernel-features-on-a-swiss-roll" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="kernel-features-on-a-swiss-roll"><span class="header-section-number">3</span> Kernel Features On A Swiss Roll</h2>
-<div id="39dfa141" class="cell" data-execution_count="4">
+<div id="edbfec03" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2030</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>n_roll <span class="op">=</span> <span class="dv">220</span></span>
@@ -4333,7 +4226,7 @@ reconstruction MSE: 0.001031</code></pre>
 best kernel-feature projection correlation: 0.2845</code></pre>
 </div>
 </div>
-<div id="a7acf50c" class="cell" data-execution_count="5">
+<div id="b01abd5a" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ax0 <span class="op">=</span> fig.add_subplot(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">1</span>, projection<span class="op">=</span><span class="st">&quot;3d&quot;</span>)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ax1 <span class="op">=</span> fig.add_subplot(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">2</span>)</span>

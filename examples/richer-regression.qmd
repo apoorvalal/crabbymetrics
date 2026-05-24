@@ -1,0 +1,134 @@
+---
+title: "Richer Regression With Transformer Pipelines"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+The transformer classes are meant to sit in front of the regression estimators. This example uses a deliberately nonlinear data-generating process where raw `OLS` is badly misspecified, while a `KernelBasis` expansion followed by `PCA` compression and `OLS` fits the shape much better out of sample.
+
+## Generate A Nonlinear Regression Problem
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+from crabbymetrics import KernelBasis, OLS, PCA
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+```{python}
+rng = np.random.default_rng(2028)
+
+n_train = 160
+n_test = 500
+
+x_train = rng.uniform(-2.5, 2.5, size=(n_train, 3))
+x_test = rng.uniform(-2.5, 2.5, size=(n_test, 3))
+
+def nonlinear_signal(x):
+    return (
+        1.2 * np.sin(1.5 * x[:, 0])
+        + 0.7 * (x[:, 1] ** 2)
+        - 0.8 * x[:, 0] * x[:, 1]
+        + 0.5 * np.cos(1.2 * x[:, 2])
+    )
+
+y_train = nonlinear_signal(x_train) + rng.normal(scale=0.18, size=n_train)
+y_test = nonlinear_signal(x_test) + rng.normal(scale=0.18, size=n_test)
+```
+
+## Fit Three Models
+
+```{python}
+# 1. Raw linear regression on the original design.
+ols = OLS()
+ols.fit(x_train, y_train)
+pred_ols = ols.predict(x_test)
+
+# 2. Linear PCA compression, then OLS.
+linear_pca = PCA(2)
+z_train_linear = linear_pca.fit_transform(x_train)
+z_test_linear = linear_pca.transform(x_test)
+
+ols_pca = OLS()
+ols_pca.fit(z_train_linear, y_train)
+pred_pca = ols_pca.predict(z_test_linear)
+
+# 3. Nonlinear kernel basis, then PCA compression, then OLS.
+kernel_basis = KernelBasis("gaussian", bandwidth=2.0)
+z_train_kernel = kernel_basis.fit_transform(x_train)
+z_test_kernel = kernel_basis.transform(x_test)
+
+kernel_pca = PCA(24)
+zk_train = kernel_pca.fit_transform(z_train_kernel)
+zk_test = kernel_pca.transform(z_test_kernel)
+
+kernel_regression = OLS()
+kernel_regression.fit(zk_train, y_train)
+pred_kernel = kernel_regression.predict(zk_test)
+
+def mse(y_true, y_pred):
+    return float(np.mean((y_true - y_pred) ** 2))
+
+def r2(y_true, y_pred):
+    return float(1.0 - np.sum((y_true - y_pred) ** 2) / np.sum((y_true - y_true.mean()) ** 2))
+
+metrics = {
+    "OLS": (mse(y_test, pred_ols), r2(y_test, pred_ols)),
+    "PCA + OLS": (mse(y_test, pred_pca), r2(y_test, pred_pca)),
+    "KernelBasis + PCA + OLS": (mse(y_test, pred_kernel), r2(y_test, pred_kernel)),
+}
+
+for name, (mse_value, r2_value) in metrics.items():
+    print(f"{name:24s}  mse={mse_value:.4f}  r2={r2_value:.4f}")
+```
+
+Raw `OLS` and linear `PCA + OLS` only see linear combinations of the original regressors, so they cannot approximate the sinusoid, quadratic term, and interaction very well. The kernel pipeline first expands the design into a nonlinear similarity basis, then compresses it back down before fitting a regression.
+
+## Compare Held-Out Predictions
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), constrained_layout=True)
+
+axes[0].scatter(y_test, pred_ols, s=16, alpha=0.55, color="#d95f02", label="OLS")
+axes[0].scatter(y_test, pred_kernel, s=16, alpha=0.45, color="#1b9e77", label="Kernel pipeline")
+axes[0].plot(
+    [y_test.min(), y_test.max()],
+    [y_test.min(), y_test.max()],
+    color="0.25",
+    lw=1.2,
+)
+axes[0].set_title("Held-out predictions")
+axes[0].set_xlabel("True y")
+axes[0].set_ylabel("Predicted y")
+axes[0].legend(frameon=False)
+
+x1_grid = np.linspace(-2.5, 2.5, 250)
+slice_x = np.column_stack([x1_grid, np.zeros_like(x1_grid), np.zeros_like(x1_grid)])
+true_slice = nonlinear_signal(slice_x)
+ols_slice = ols.predict(slice_x)
+kernel_slice = kernel_regression.predict(
+    kernel_pca.transform(kernel_basis.transform(slice_x))
+)
+
+axes[1].plot(x1_grid, true_slice, color="black", lw=2.2, label="True signal")
+axes[1].plot(x1_grid, ols_slice, color="#d95f02", lw=1.8, label="OLS")
+axes[1].plot(x1_grid, kernel_slice, color="#1b9e77", lw=2.0, label="Kernel pipeline")
+axes[1].set_title("1D slice with x2 = x3 = 0")
+axes[1].set_xlabel("x1")
+axes[1].set_ylabel("Predicted outcome")
+axes[1].legend(frameon=False)
+
+plt.show()
+```
+
+In this draw, the kernel-feature regression cuts held-out mean-squared error by a large margin relative to raw OLS. The point is not that `KernelBasis` replaces regular regression, but that it gives you a much richer right-hand side when the underlying response is smooth and nonlinear.

@@ -1,0 +1,209 @@
+---
+title: "Double ML And AIPW"
+subtitle: "Cross-fit ridge nuisance estimation for partially linear DML and binary-treatment AIPW"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+This page covers the two cross-fit estimators in `crabbymetrics`:
+
+- `PartiallyLinearDML` for a scalar continuous treatment
+- `AIPW` for a binary-treatment average treatment effect
+
+Both use ridge regressions as nuisance learners. If a penalty grid is passed, each nuisance fit selects its own penalty within each training fold before predicting on the held-out fold.
+
+## Partially Linear DML
+
+The partially linear model is
+
+$$
+Y_i = \theta D_i + g(X_i) + U_i,
+\qquad
+D_i = m(X_i) + V_i,
+$$
+
+with the orthogonal score
+
+$$
+\psi_i(\theta)
+=
+\left(D_i - m(X_i)\right)
+\left(
+Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
+\right),
+$$
+
+where $\ell(X_i) = \mathbb{E}[Y_i \mid X_i]$.
+
+Cross-fitting matters because the residuals
+
+$$
+\tilde D_i = D_i - \hat m_{-k(i)}(X_i),
+\qquad
+\tilde Y_i = Y_i - \hat \ell_{-k(i)}(X_i),
+$$
+
+are predicted from models trained on folds that do not contain observation $i$. The final estimate is then
+
+$$
+\hat \theta
+=
+\frac{\sum_i \tilde D_i \tilde Y_i}{\sum_i \tilde D_i^2}.
+$$
+
+## Binary-Treatment AIPW
+
+For a binary treatment $D \in \{0, 1\}$, the cross-fit AIPW score for the ATE is
+
+$$
+\phi_i
+=
+\hat \mu_1(X_i) - \hat \mu_0(X_i)
++ \frac{D_i\left(Y_i - \hat \mu_1(X_i)\right)}{\hat \pi(X_i)}
+- \frac{(1-D_i)\left(Y_i - \hat \mu_0(X_i)\right)}{1-\hat \pi(X_i)},
+$$
+
+and the estimate is
+
+$$
+\hat \tau = \frac{1}{n}\sum_i \phi_i.
+$$
+
+Here
+
+$$
+\hat \mu_1(X),\qquad \hat \mu_0(X),\qquad \hat \pi(X)
+$$
+
+are all cross-fit ridge nuisance models. The implementation clips $\hat \pi(X)$ away from $0$ and $1$ to stabilize the finite-sample weights.
+
+```{python}
+from html import escape
+
+import numpy as np
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+
+def html_table(headers, rows):
+    parts = [
+        "<table>",
+        "<thead>",
+        "<tr>",
+        *[f"<th>{escape(str(header))}</th>" for header in headers],
+        "</tr>",
+        "</thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        parts.append("<tr>")
+        for cell in row:
+            parts.append(f"<td>{escape(str(cell))}</td>")
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+```
+
+## Continuous Treatment Example
+
+```{python}
+rng = np.random.default_rng(2028)
+n = 1000
+x = rng.normal(size=(n, 5))
+d = 0.4 + x @ np.array([0.6, -0.5, 0.3, 0.2, -0.2]) + rng.normal(scale=0.7, size=n)
+l = 1.0 + x @ np.array([0.4, -0.3, 0.2, 0.1, 0.3]) + 0.3 * x[:, 0] * x[:, 1]
+y = 1.5 * d + l + rng.normal(scale=0.7, size=n)
+
+penalty_grid = np.logspace(-4, 2, 25)
+
+plr = cm.PartiallyLinearDML(penalty=penalty_grid, cv=5, n_folds=5, seed=42)
+plr.fit(y, d, x)
+plr_summary = plr.summary()
+
+rows = [
+    ["Truth", f"{1.5: .4f}", "--"],
+    ["PartiallyLinearDML", f"{plr_summary['coef']: .4f}", f"{plr_summary['se']: .4f}"],
+]
+display(HTML(html_table(["Quantity", "Value", "SE"], rows)))
+```
+
+```{python}
+display(
+    HTML(
+        html_table(
+            ["Fold", "Outcome Penalty", "Treatment Penalty"],
+            [
+                [str(i + 1), f"{out_pen: .4f}", f"{treat_pen: .4f}"]
+                for i, (out_pen, treat_pen) in enumerate(
+                    zip(plr_summary["outcome_penalties"], plr_summary["treatment_penalties"])
+                )
+            ],
+        )
+    )
+)
+```
+
+## Binary Treatment Example
+
+```{python}
+rng = np.random.default_rng(2029)
+n = 1200
+x = rng.normal(size=(n, 4))
+pi_true = 1.0 / (1.0 + np.exp(-(0.2 + x @ np.array([0.7, -0.5, 0.3, 0.2]))))
+d = rng.binomial(1, pi_true, size=n).astype(float)
+mu0 = 0.6 + x @ np.array([0.3, -0.2, 0.2, 0.4])
+y = mu0 + 1.1 * d + rng.normal(scale=0.8, size=n)
+
+aipw = cm.AIPW(penalty=penalty_grid, cv=5, n_folds=5, seed=7)
+aipw.fit(y, d, x)
+aipw_summary = aipw.summary()
+
+rows = [
+    ["Truth", f"{1.1: .4f}", "--"],
+    ["AIPW", f"{aipw_summary['ate']: .4f}", f"{aipw_summary['se']: .4f}"],
+]
+display(HTML(html_table(["Quantity", "Value", "SE"], rows)))
+```
+
+```{python}
+display(
+    HTML(
+        html_table(
+            ["Fold", "Outcome 0 Penalty", "Outcome 1 Penalty", "Propensity Penalty"],
+            [
+                [
+                    str(i + 1),
+                    f"{p0: .4f}",
+                    f"{p1: .4f}",
+                    f"{pp: .4f}",
+                ]
+                for i, (p0, p1, pp) in enumerate(
+                    zip(
+                        aipw_summary["outcome0_penalties"],
+                        aipw_summary["outcome1_penalties"],
+                        aipw_summary["propensity_penalties"],
+                    )
+                )
+            ],
+        )
+    )
+)
+```
+
+## Interpretation
+
+- `PartiallyLinearDML` is the right estimator when the target is a scalar coefficient on a continuous treatment inside a partially linear model.
+- `AIPW` is the right estimator when the target is a binary-treatment ATE.
+- Both are intentionally narrow: the nuisance learner is ridge, the folds are explicit, and the reported standard errors come from the orthogonal influence function implied by the final score.

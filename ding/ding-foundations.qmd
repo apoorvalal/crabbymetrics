@@ -1,0 +1,31 @@
+---
+title: "First Course Ding: Foundations (Chapters 1 To 4)"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+---
+
+This section groups the first four randomized-experiment chapters:
+
+- [Chapter 1: Correlation, Association, and Simpson's Paradox](ch01-correlation-simpson.html)
+- [Chapter 2: Potential Outcomes](ch02-potential-outcomes.html)
+- [Chapter 3: The Completely Randomized Experiment and the Fisher Randomization Test](ch03-cre-frt.html)
+- [Chapter 4: Neymanian Repeated-Sampling Inference](ch04-cre-neyman.html)
+
+These are the most direct ports in the entire book. They mostly need `numpy`, plotting, and occasional `OLS` fits.
+
+## What Is Covered
+
+- marginal versus conditional comparisons
+- treatment-effect heterogeneity and potential-outcomes algebra
+- exact randomization distributions under sharp nulls
+- repeated-sampling logic for the difference in means and Neyman variance estimators
+
+## Notes
+
+- The pages in this section stay deliberately light on dependencies.
+- They are the template for the rest of the Ding translation track: one self-contained Quarto page per idea, using `crabbymetrics` when estimation is actually needed.

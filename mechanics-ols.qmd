@@ -1,0 +1,241 @@
+---
+title: "Binding Crash Course: OLS"
+format:
+  html:
+    toc: false
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+This page is the shortest binding walkthrough in the library. `OLS` is a straight wrapper around a `linfa` solver with a thin PyO3 boundary, so it is the cleanest starting point for understanding how the Rust extension exposes estimators to Python.
+
+## Module Export
+
+`OLS` is exported from the extension module in `src/lib.rs`:
+
+```rust
+use crate::estimators::{
+    ElasticNet, FixedEffectsOLS, Logit, MEstimator, MultinomialLogit, Poisson,
+    SyntheticControl, TwoSLS, FTRL, KernelBasis, OLS, PcaTransformer,
+};
+
+#[pymodule]
+fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<OLS>()?;
+    Ok(())
+}
+```
+
+That one `m.add_class::<OLS>()?` line is what makes `from crabbymetrics import OLS` valid in Python.
+
+## The Stored Rust State
+
+The Rust-side class is tiny:
+
+```rust
+#[pyclass]
+pub struct OLS {
+    fit_intercept: bool,
+    model: Option<linfa_linear::FittedLinearRegression<f64>>,
+    x: Option<Array2<f64>>,
+    y: Option<Array1<f64>>,
+}
+```
+
+This is the whole design in miniature:
+
+- `fit_intercept` configures the wrapped `linfa` estimator
+- `model` stores the fitted `linfa` regression object
+- `x` and `y` cache the training data for `summary()` and `bootstrap()`
+
+The constructor is minimal too:
+
+```rust
+#[pymethods]
+impl OLS {
+    #[new]
+    fn new() -> Self {
+        Self {
+            fit_intercept: true,
+            model: None,
+            x: None,
+            y: None,
+        }
+    }
+}
+```
+
+So from Python, the public constructor is just:
+
+```python
+OLS()
+```
+
+## The Key Imports
+
+The interesting imports for `OLS` are the ones that define the wrapper pattern:
+
+```rust
+use linfa::prelude::{Fit, Predict};
+use linfa::Dataset;
+use linfa_linear::LinearRegression as LinfaLinearRegression;
+use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2};
+use pyo3::prelude::*;
+```
+
+Their roles are:
+
+- `PyReadonlyArray*`: accept NumPy arrays from Python safely
+- `Dataset`: package features and outcomes for `linfa`
+- `Fit` / `Predict`: bring the `linfa` traits into scope
+- `LinfaLinearRegression`: the actual numerical solver being wrapped
+
+There is no custom optimization problem here and no callback bridge. `OLS` is just “convert inputs, call `linfa`, store the result”.
+
+## What `fit()` Actually Does
+
+The entire fitting path is the simplest possible Rust-to-`linfa` wrapper:
+
+```rust
+fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+    let x = to_array2(&x);
+    let y = to_array1(&y);
+    if x.nrows() != y.len() {
+        return Err(PyValueError::new_err("x rows must match y length"));
+    }
+    let dataset = Dataset::new(x.clone(), y.clone());
+    let model = LinfaLinearRegression::new()
+        .with_intercept(self.fit_intercept)
+        .fit(&dataset)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    self.model = Some(model);
+    self.x = Some(x);
+    self.y = Some(y);
+    Ok(())
+}
+```
+
+The sequence is:
+
+1. convert Python/NumPy arrays into owned `ndarray` arrays with `to_array1` and `to_array2`
+2. validate that `x` and `y` have matching row counts
+3. wrap them in a `linfa::Dataset`
+4. call the `linfa` linear regression solver
+5. store the fitted model and training data on `self`
+
+This is the most direct example of the wrapper pattern in the repo. There is almost no logic beyond shape checks and error conversion.
+
+## Prediction Is Just Another Thin Wrapper
+
+`predict()` follows the same pattern:
+
+```rust
+fn predict<'py>(
+    &self,
+    py: Python<'py>,
+    x: PyReadonlyArray2<f64>,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let model = self
+        .model
+        .as_ref()
+        .ok_or_else(|| PyValueError::new_err("OLS model is not fitted"))?;
+    let x = to_array2(&x);
+    let pred = model.predict(&x);
+    Ok(pyarray1_from_f64(py, &pred))
+}
+```
+
+So the boundary mechanics are:
+
+- pull the fitted Rust model out of `self.model`
+- convert the new NumPy feature matrix into `ndarray`
+- call `linfa`’s `predict`
+- convert the result back into a Python `numpy.ndarray`
+
+## Summary And Variance Estimators
+
+`summary()` is where the wrapper adds value beyond just exposing `linfa`. The underlying solver gives the fitted coefficients, while the crate computes the covariance itself and now lets Python choose between `vcov="hc1"` and `vcov="vanilla"`:
+
+```rust
+let y_hat = model.predict(x);
+let residuals = y - &y_hat;
+let design = if self.fit_intercept {
+    add_intercept(x)
+} else {
+    x.clone()
+};
+let cov = match vcov {
+    "hc1" => hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?,
+    "vanilla" => ols_vanilla_cov(&design, &residuals).map_err(PyValueError::new_err)?,
+    _ => return Err(PyValueError::new_err("vcov must be one of {'hc1', 'vanilla'}")),
+};
+let se_all = diag_sqrt(&cov);
+```
+
+Then it combines:
+
+- the `linfa` point estimates from `model.intercept()` and `model.params()`
+- the locally computed covariance from the chosen OLS variance formula
+
+and returns a plain Python dict:
+
+```rust
+let dict = pyo3::types::PyDict::new(py);
+dict.set_item("intercept", intercept)?;
+dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
+dict.set_item("intercept_se", intercept_se)?;
+dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+```
+
+This is a common pattern in the library:
+
+- point estimates may come from `linfa` or native Rust code
+- inference helpers often live in `utils.rs`
+- Python sees a simple dict/array interface either way
+
+## Bootstrap Reuses The Same Wrapped Solver
+
+The bootstrap path does not need any special OLS logic. It simply resamples the stored training data, re-creates a `linfa::Dataset`, and refits the same wrapped estimator repeatedly. That is possible because `fit()` cached `x` and `y` on the Rust side during the original fit.
+
+## Python-Side Mental Model
+
+From Python, all of that machinery collapses down to the usual API:
+
+```python
+import numpy as np
+from crabbymetrics import OLS
+
+x = np.random.randn(200, 3)
+y = 0.3 + x @ np.array([1.0, -2.0, 0.5]) + np.random.randn(200) * 0.1
+
+model = OLS()
+model.fit(x, y)
+
+summary = model.summary()
+summary_vanilla = model.summary(vcov="vanilla")
+summary_hac = model.summary(vcov="newey_west", lags=4)
+clusters = np.repeat(np.arange(20, dtype=np.int64), len(y) // 20)
+summary_cluster = model.summary(vcov="cluster", clusters=clusters)
+pred = model.predict(x[:5])
+boot = model.bootstrap(50, seed=1)
+```
+
+The implementation detail to keep in mind is that `OLS` is mostly a wrapper around `linfa_linear::LinearRegression`, with a little extra Rust code layered on top for summary statistics and bootstrap support. That summary layer is now also shared conceptually with `Ridge`, `FixedEffectsOLS`, and `TwoSLS`: the point estimators differ, but the exposed covariance choices are the same.
+
+## Why Start Here
+
+`OLS` is the first mechanics page because it shows the base pattern with almost no distractions:
+
+- export a Rust struct with `#[pyclass]`
+- accept NumPy arrays via `PyReadonlyArray*`
+- convert them to `ndarray`
+- call a `linfa` estimator directly
+- store the fitted result
+- convert predictions and summaries back to Python values
+
+From there, `Poisson` adds a native optimization problem in Rust, and `MEstimator` adds the full callback bridge where Rust owns the solver loop but Python supplies the objective and score functions.

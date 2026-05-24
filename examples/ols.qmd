@@ -1,0 +1,68 @@
+---
+title: "OLS Example"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page mirrors `examples/ols_example.py`.
+
+## Fit A Basic Linear Model
+
+```{python}
+import numpy as np
+from pprint import pprint
+
+from crabbymetrics import OLS
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+
+
+
+```{python}
+rng = np.random.default_rng(0)
+n = 500
+k = 3
+beta = np.array([1.5, -2.0, 0.5])
+intercept = 0.7
+
+x = rng.normal(size=(n, k))
+y = intercept + x @ beta + rng.normal(scale=0.5, size=n)
+
+model = OLS()
+model.fit(x, y)
+
+print("true intercept:", intercept)
+print("true coef:", beta)
+pprint(model.summary())
+```
+
+## Robust Covariance Options
+
+`OLS.summary()` now shares the same covariance interface used by the other linear estimators:
+
+- `vcov="vanilla"` for homoskedastic standard errors
+- `vcov="hc1"` for heteroskedasticity-robust Eicker-Huber-White standard errors
+- `vcov="newey_west"` with a lag choice for HAC inference
+- `vcov="cluster"` with one-way cluster labels
+
+```{python}
+clusters = np.repeat(np.arange(25, dtype=np.int64), n // 25)
+
+vanilla = model.summary(vcov="vanilla")
+hac = model.summary(vcov="newey_west", lags=4)
+cluster = model.summary(vcov="cluster", clusters=clusters)
+
+print("vanilla SE:", np.round(vanilla["coef_se"], 4))
+print("Newey-West SE:", np.round(hac["coef_se"], 4))
+print("cluster SE:", np.round(cluster["coef_se"], 4))
+```

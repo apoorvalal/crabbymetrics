@@ -1,0 +1,164 @@
+---
+title: "First Course Ding: Chapter 12"
+subtitle: "Doubly robust estimation of the average treatment effect"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+The original notebook compares regression adjustment, inverse-probability weighting, and doubly robust estimation across misspecification cases. This version keeps the same logic but builds the nuisance fits with `crabbymetrics`.
+
+```{python}
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+def expit(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+
+def linear_basis(x):
+    return x
+
+
+def rich_basis(x):
+    x1 = x[:, 0]
+    x2 = x[:, 1]
+    return np.column_stack([x1, x2, x1**2, x2**2, x1 * x2, np.sin(x1)])
+
+
+def fit_binary_logit(x, d):
+    model = cm.Logit(alpha=1.0, max_iterations=300)
+    model.fit(x, d.astype(np.int32))
+    summary = model.summary()
+    return expit(summary["intercept"] + x @ np.asarray(summary["coef"]))
+
+
+def fit_outcome_regression(x, y, d):
+    treated = d == 1
+    control = d == 0
+
+    mod1 = cm.OLS()
+    mod1.fit(x[treated], y[treated])
+    mod0 = cm.OLS()
+    mod0.fit(x[control], y[control])
+
+    return mod1.predict(x), mod0.predict(x)
+
+
+def manual_estimators(y, d, x_outcome, x_pscore):
+    pi_hat = np.clip(fit_binary_logit(x_pscore, d), 0.02, 0.98)
+    mu1_hat, mu0_hat = fit_outcome_regression(x_outcome, y, d)
+
+    reg = float(np.mean(mu1_hat - mu0_hat))
+    ht_ipw = float(np.mean(d * y / pi_hat - (1 - d) * y / (1 - pi_hat)))
+    hajek_ipw = float(
+        np.mean(d * y / pi_hat) / np.mean(d / pi_hat)
+        - np.mean((1 - d) * y / (1 - pi_hat)) / np.mean((1 - d) / (1 - pi_hat))
+    )
+    aipw = float(
+        np.mean(
+            mu1_hat
+            - mu0_hat
+            + d * (y - mu1_hat) / pi_hat
+            - (1 - d) * (y - mu0_hat) / (1 - pi_hat)
+        )
+    )
+    return reg, ht_ipw, hajek_ipw, aipw
+
+
+def simulate_one(seed, outcome_correct, pscore_correct):
+    rng = np.random.default_rng(seed)
+    n = 700
+    x = rng.normal(size=(n, 2))
+    x1 = x[:, 0]
+    x2 = x[:, 1]
+
+    pi_true = expit(-0.2 + 0.8 * x1 - 0.7 * x2 + 0.6 * x1 * x2 - 0.4 * x1**2)
+    d = rng.binomial(1, pi_true, size=n).astype(float)
+    y0 = 1.0 + 0.7 * x1 - 0.6 * x2 + 0.8 * x1 * x2 + 0.5 * x1**2 + rng.normal(scale=0.7, size=n)
+    tau = 1.0
+    y = y0 + tau * d
+
+    x_outcome = rich_basis(x) if outcome_correct else linear_basis(x)
+    x_pscore = rich_basis(x) if pscore_correct else linear_basis(x)
+    penalty_grid = np.logspace(-4, 2, 20)
+
+    reg, ht_ipw, hajek_ipw, aipw = manual_estimators(y, d, x_outcome, x_pscore)
+    native = cm.AIPW(penalty=penalty_grid, cv=2, n_folds=2, seed=seed)
+    native.fit(y, d, x_pscore)
+    native_ate = float(native.summary()["ate"])
+
+    return np.array([tau, reg, ht_ipw, hajek_ipw, aipw, native_ate])
+```
+
+## Four Misspecification Cases
+
+```{python}
+regimes = [
+    ("Both correct", True, True),
+    ("Bad propensity only", True, False),
+    ("Bad outcome only", False, True),
+    ("Both bad", False, False),
+]
+
+method_names = ["Outcome regression", "HT-IPW", "Hajek IPW", "Manual AIPW", "Cross-fit AIPW"]
+for i, (label, outcome_ok, pscore_ok) in enumerate(regimes):
+    draws = np.vstack([simulate_one(20260410 + 500 * i + rep, outcome_ok, pscore_ok) for rep in range(40)])
+    truth = draws[:, 0]
+    estimates = draws[:, 1:]
+
+    print(label)
+    for j, method in enumerate(method_names):
+        bias = float(np.mean(estimates[:, j] - truth))
+        rmse = float(np.sqrt(np.mean((estimates[:, j] - truth) ** 2)))
+        print(f"  {method:18s} bias = {bias: .4f}, rmse = {rmse: .4f}")
+```
+
+## A Native `AIPW` Check On One Sample
+
+```{python}
+data = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "nhanes_bmi.csv")
+y = data["BMI"].to_numpy(dtype=float)
+d = data["School_meal"].to_numpy(dtype=float)
+x = data[["age", "ChildSex", "black", "mexam", "pir200_plus", "WIC", "Food_Stamp", "AnyIns", "RefAge"]].to_numpy(dtype=float)
+x = (x - x.mean(axis=0)) / np.where(x.std(axis=0) > 1e-12, x.std(axis=0), 1.0)
+
+reg, ht_ipw, hajek_ipw, aipw = manual_estimators(y, d, x, x)
+penalty_grid = np.logspace(-4, 2, 20)
+native = cm.AIPW(penalty=penalty_grid, cv=2, n_folds=2, seed=12)
+native.fit(y, d, x)
+
+print("NHANES outcome-regression ATE:", round(reg, 4))
+print("NHANES HT-IPW ATE:", round(ht_ipw, 4))
+print("NHANES Hajek-IPW ATE:", round(hajek_ipw, 4))
+print("NHANES manual AIPW ATE:", round(aipw, 4))
+print("NHANES native cross-fit AIPW ATE:", round(float(native.summary()["ate"]), 4))
+```
+
+The chapter's basic lesson survives the translation: doubly robust scores are far harder to break than pure regression adjustment or pure weighting, and the current library's `AIPW` class is the high-level version of that same logic. The key implementation detail here is that the ridge nuisances are tuned over a penalty grid rather than forced to share a single hand-picked regularization level.

@@ -1,0 +1,114 @@
+---
+title: "First Course Ding: Chapter 4"
+subtitle: "Neyman repeated-sampling inference in randomized experiments"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+Chapter 4 shifts from Fisher's sharp-null logic to Neyman's repeated-sampling logic. The finite population is fixed and the treatment assignment is repeatedly redrawn.
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Three Fixed Finite Populations
+
+```{python}
+rng = np.random.default_rng(4)
+n = 100
+n1 = 60
+n0 = n - n1
+truth = 1.0
+
+base = rng.exponential(scale=1.0, size=n)
+y0_constant = np.sort(base)[::-1]
+y1_constant = y0_constant + truth
+
+y0_negative = np.sort(base)
+y1_negative = y1_constant.copy()
+
+y0_independent = rng.permutation(y0_constant)
+y1_independent = y1_constant.copy()
+
+scenarios = {
+    "Constant effect": (y0_constant, y1_constant),
+    "Negative correlation": (y0_negative, y1_negative),
+    "Independent": (y0_independent, y1_independent),
+}
+
+
+def one_assignment(y0, y1, rng):
+    z = np.zeros(n)
+    z[rng.choice(n, size=n1, replace=False)] = 1.0
+    y = z * y1 + (1.0 - z) * y0
+    tau_hat = y[z == 1.0].mean() - y[z == 0.0].mean()
+    v_hat = y[z == 1.0].var(ddof=1) / n1 + y[z == 0.0].var(ddof=1) / n0
+    covered = abs(tau_hat - truth) <= 1.96 * np.sqrt(v_hat)
+    return tau_hat, v_hat, covered
+
+
+rows = []
+mc = 2000
+draw_store = {}
+for label, (y0, y1) in scenarios.items():
+    draws = np.array([one_assignment(y0, y1, rng) for _ in range(mc)])
+    draw_store[label] = draws
+    rows.append(
+        {
+            "scenario": label,
+            "empirical_var_of_tau_hat": draws[:, 0].var(ddof=1),
+            "average_neyman_var": draws[:, 1].mean(),
+            "coverage": draws[:, 2].mean(),
+        }
+    )
+
+pd.DataFrame(rows).set_index("scenario")
+```
+
+## Geometry Of The Potential Outcomes
+
+The negative correlation case is where Neyman's variance is most conservative, because treatment effects vary and $Y(1)$ and $Y(0)$ are moving against each other.
+
+```{python}
+fig, axes = plt.subplots(3, 2, figsize=(10, 12))
+grid = np.linspace(-0.8, 0.8, 200)
+
+for row, (label, (y0, y1)) in enumerate(scenarios.items()):
+    draws = draw_store[label]
+    empirical_sd = np.sqrt(draws[:, 0].var(ddof=1))
+
+    axes[row, 0].scatter(y0, y1, alpha=0.7)
+    axes[row, 0].set_xlabel("$Y(0)$")
+    axes[row, 0].set_ylabel("$Y(1)$")
+    axes[row, 0].set_title(label)
+
+    centered = draws[:, 0] - truth
+    axes[row, 1].hist(centered, bins=40, density=True, alpha=0.75)
+    normal = np.exp(-0.5 * (grid / empirical_sd) ** 2) / (np.sqrt(2.0 * np.pi) * empirical_sd)
+    axes[row, 1].plot(grid, normal, color="black", linewidth=2.0)
+    axes[row, 1].set_xlabel("$\\hat\\tau - \\tau$")
+    axes[row, 1].set_title(f"{label}: repeated assignments")
+
+fig.tight_layout()
+```
+
+## Takeaway
+
+Chapter 4 is about repeated randomization with fixed potential outcomes. The Neyman variance estimator is conservative because the unit-level treatment-effect covariance term is unobserved, and the amount of conservatism depends on the finite-population geometry.

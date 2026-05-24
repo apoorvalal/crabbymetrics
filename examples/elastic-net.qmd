@@ -1,0 +1,46 @@
+---
+title: "ElasticNet Example"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page mirrors `examples/elastic_net_example.py`.
+
+## Fit A Regularized Linear Model
+
+```{python}
+import numpy as np
+from pprint import pprint
+
+from crabbymetrics import ElasticNet
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+
+
+```{python}
+rng = np.random.default_rng(1)
+n = 600
+k = 6
+beta = np.array([2.0, -1.5, 0.0, 0.0, 0.8, -0.3])
+intercept = -0.4
+
+x = rng.normal(size=(n, k))
+y = intercept + x @ beta + rng.normal(scale=0.7, size=n)
+
+model = ElasticNet(penalty=0.1, l1_ratio=0.5)
+model.fit(x, y)
+
+print("true intercept:", intercept)
+print("true coef:", beta)
+pprint(model.summary())
+```

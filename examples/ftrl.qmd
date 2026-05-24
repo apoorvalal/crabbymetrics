@@ -1,0 +1,44 @@
+---
+title: "FTRL Example"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page mirrors `examples/ftrl_example.py`.
+
+## Fit An FTRL Classifier
+
+```{python}
+import numpy as np
+from pprint import pprint
+
+from crabbymetrics import FTRL
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+```{python}
+rng = np.random.default_rng(6)
+n = 1000
+k = 5
+beta = np.array([0.8, -1.2, 0.4, 0.0, 0.6])
+
+x = rng.normal(size=(n, k))
+logits = x @ beta
+probs = 1.0 / (1.0 + np.exp(-logits))
+y = rng.binomial(1, probs).astype(np.int32)
+
+model = FTRL(alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0)
+model.fit(x, y)
+
+print("true coef:", beta)
+pprint(model.summary())
+```

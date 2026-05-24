@@ -1,0 +1,253 @@
+---
+title: "Binding Internals: Poisson"
+format:
+  html:
+    toc: false
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+This page is a deeper binding-internals follow-on to the OLS crash course. It walks through how the built-in `Poisson` estimator is exposed from Rust to Python: no Python callbacks, a local optimization problem in Rust, and a small PyO3 wrapper around it.
+
+## Module Export
+
+The Python module is assembled in `src/lib.rs`. `Poisson` becomes visible in Python because the module initializer explicitly registers it with PyO3:
+
+```rust
+use crate::estimators::{
+    ElasticNet, FixedEffectsOLS, Logit, MEstimator, MultinomialLogit, Poisson,
+    SyntheticControl, TwoSLS, FTRL, KernelBasis, OLS, PcaTransformer,
+};
+
+#[pymodule]
+fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<Poisson>()?;
+    Ok(())
+}
+```
+
+That is what makes `from crabbymetrics import Poisson` work on the Python side.
+
+## The Stored Rust State
+
+The exported Python class is a normal Rust struct tagged with `#[pyclass]`:
+
+```rust
+#[pyclass]
+pub struct Poisson {
+    alpha: f64,
+    fit_intercept: bool,
+    max_iterations: usize,
+    tolerance: f64,
+    coef: Option<Array1<f64>>,
+    intercept: f64,
+    x: Option<Array2<f64>>,
+    y: Option<Array1<f64>>,
+}
+```
+
+This tells you most of the lifecycle immediately:
+
+- the constructor stores solver controls like `alpha`, `max_iterations`, and `tolerance`
+- fitted parameters live in `coef` and `intercept`
+- the training data are cached in `x` and `y` so `summary()` and `bootstrap()` can work later
+
+The Python constructor signature is attached directly to `new`:
+
+```rust
+#[pymethods]
+impl Poisson {
+    #[new]
+    #[pyo3(signature = (alpha=0.0, max_iterations=100, tolerance=1e-4))]
+    fn new(alpha: f64, max_iterations: usize, tolerance: f64) -> Self {
+        Self {
+            alpha,
+            fit_intercept: true,
+            max_iterations,
+            tolerance,
+            coef: None,
+            intercept: 0.0,
+            x: None,
+            y: None,
+        }
+    }
+}
+```
+
+So Python sees exactly:
+
+```python
+Poisson(alpha=0.0, max_iterations=100, tolerance=1e-4)
+```
+
+## The Optimization Problem
+
+The actual likelihood work is not done in the `Poisson` class itself. It is pushed into a private helper type, `PoissonProblem`, which implements the `argmin` traits:
+
+```rust
+struct PoissonProblem<'a> {
+    x: ArrayView2<'a, f64>,
+    y: ArrayView1<'a, f64>,
+    fit_intercept: bool,
+    alpha: f64,
+}
+```
+
+This helper gets three pieces of solver plumbing:
+
+- `CostFunction`: the penalized Poisson objective
+- `Gradient`: the score / first derivative
+- `Hessian`: the curvature used by Newton-CG
+
+The cost is the standard Poisson negative log-likelihood plus an `L2` penalty:
+
+```rust
+impl CostFunction for PoissonProblem<'_> {
+    type Param = Array1<f64>;
+    type Output = f64;
+
+    fn cost(&self, p: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
+        let (intercept, beta) = if self.fit_intercept {
+            (p[0], p.slice(s![1..]))
+        } else {
+            (0.0, p.view())
+        };
+        let eta = self.x.dot(&beta).mapv(|v| v + intercept);
+        let exp_eta = eta.mapv(|v| v.exp());
+        let ll = exp_eta.sum() - self.y.dot(&eta);
+        let l2 = 0.5 * self.alpha * beta.dot(&beta);
+        Ok(ll + l2)
+    }
+}
+```
+
+Two design choices are worth noticing:
+
+- parameters are packed into one vector `p`; when `fit_intercept` is on, `p[0]` is the intercept and the remaining entries are slopes
+- the intercept is not penalized, only `beta`
+
+The gradient and Hessian follow the same packing convention, which keeps the solver side simple.
+
+## What `fit()` Actually Does
+
+The wrapper method receives NumPy arrays from Python, converts them into `ndarray` values, initializes parameters, and then hands control to `argmin`:
+
+```rust
+fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+    let x = to_array2(&x);
+    let y = to_array1(&y);
+    if x.nrows() != y.len() {
+        return Err(PyValueError::new_err("x rows must match y length"));
+    }
+
+    let mut coef = Array1::<f64>::zeros(x.ncols());
+    if self.fit_intercept {
+        let mean_y = y.mean().unwrap_or(0.0).max(1e-12);
+        coef = concatenate(Axis(0), &[array![mean_y.ln()].view(), coef.view()])?;
+    }
+
+    let problem = PoissonProblem {
+        x: x.view(),
+        y: y.view(),
+        fit_intercept: self.fit_intercept,
+        alpha: self.alpha,
+    };
+    let linesearch = MoreThuenteLineSearch::new();
+    let solver = NewtonCG::new(linesearch).with_tolerance(self.tolerance)?;
+    let mut result = Executor::new(problem, solver)
+        .configure(|state| state.param(coef).max_iters(self.max_iterations as u64))
+        .run()?;
+```
+
+The flow is:
+
+1. `PyReadonlyArray*` comes in from Python.
+2. `to_array1` / `to_array2` converts to Rust-owned `ndarray` values.
+3. the starting intercept is `log(mean(y))`, which is a sensible Poisson baseline.
+4. `NewtonCG` solves the problem using the local cost, gradient, and Hessian implementations.
+
+After the solver returns, the packed parameter vector is unpacked back into stored estimator state:
+
+```rust
+        let params = result.state.take_best_param().ok_or_else(|| {
+            PyValueError::new_err("solver failed to converge")
+        })?;
+
+        if self.fit_intercept {
+            self.intercept = params[0];
+            self.coef = Some(params.slice(s![1..]).to_owned());
+        } else {
+            self.intercept = 0.0;
+            self.coef = Some(params);
+        }
+        self.x = Some(x);
+        self.y = Some(y);
+        Ok(())
+}
+```
+
+The last two assignments are why later methods can compute inference and bootstrap draws without asking Python for the training data again.
+
+## Prediction, Summary, And Bootstrap
+
+`predict()` is straightforward: rebuild `eta = X beta + intercept`, exponentiate it, and return a `PyArray1<f64>`.
+
+`summary()` uses the fitted mean `mu` and the stored training design to build either the model-based Fisher covariance or the QMLE sandwich, depending on `vcov`:
+
+```rust
+let mu = (x.dot(coef) + self.intercept).mapv(|v| v.exp());
+let design = if self.fit_intercept { add_intercept(x) } else { x.clone() };
+let cov = match vcov {
+    "vanilla" => fisher_cov_poisson(&design, &mu)?,
+    "sandwich" | "qmle" => qmle_cov_poisson(&design, y, &mu)?,
+    _ => return Err(PyValueError::new_err("vcov must be one of {'vanilla', 'sandwich', 'qmle'}")),
+};
+```
+
+So the mechanics are:
+
+- coefficients live in Rust-native arrays
+- inference utilities from `utils.rs` build the covariance matrix
+- the result is returned as a Python dict, not a custom summary object
+
+`bootstrap()` simply repeats the same estimator on bootstrap resamples of the stored data. The important point is that it does not call back into Python at all; it stays entirely in Rust once the original fit has happened.
+
+## Python-Side Mental Model
+
+From Python, the whole Rust stack collapses down to the usual small API:
+
+```python
+import numpy as np
+from crabbymetrics import Poisson
+
+x = np.random.randn(500, 3)
+y = np.random.poisson(np.exp(0.2 + x @ np.array([0.3, -0.2, 0.1]))).astype(float)
+
+model = Poisson(alpha=0.0, max_iterations=100, tolerance=1e-4)
+model.fit(x, y)
+
+summary = model.summary()
+summary_qmle = model.summary(vcov="sandwich")
+pred = model.predict(x[:10])
+boot = model.bootstrap(20, seed=1)
+```
+
+The important implementation detail is that none of these methods are thin wrappers over Python code. Once the call crosses into the extension module, the optimization, parameter storage, prediction, covariance construction, and bootstrap loop all happen in Rust.
+
+## Why This Page Matters
+
+`Poisson` is the baseline pattern to copy when adding a new built-in estimator:
+
+- expose a Rust struct with `#[pyclass]`
+- describe the Python constructor with `#[pyo3(signature = ...)]`
+- convert NumPy inputs into `ndarray`
+- solve a private Rust optimization problem
+- cache enough fitted state for `summary()` and `bootstrap()`
+- return plain Python dicts and arrays at the boundary
+
+The `MEstimator` page is the more flexible and more complicated cousin of this design: it still optimizes in Rust, but the objective and score come from Python callbacks instead of a fixed native problem.

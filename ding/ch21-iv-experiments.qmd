@@ -1,0 +1,176 @@
+---
+title: "First Course Ding: Chapter 21"
+subtitle: "An experimental perspective on the instrumental variable"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+jupyter: python3
+---
+
+Chapter 21 treats IV as an experimental design problem: assignment $Z$ shifts treatment uptake $D$, and the Wald ratio turns those two reduced-form contrasts into a complier-effect estimate.
+
+```{python}
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def repo_root():
+    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+        if (candidate / "ding_w_source").exists():
+            return candidate
+    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
+
+
+def simulate_experiment(rng, shares, n=300):
+    complier, always, never = shares
+    n_c = int(round(n * complier))
+    n_a = int(round(n * always))
+    n_n = n - n_c - n_a
+
+    d0 = np.r_[np.zeros(n_c), np.ones(n_a), np.zeros(n_n)]
+    d1 = np.r_[np.ones(n_c), np.ones(n_a), np.zeros(n_n)]
+
+    y0 = np.r_[
+        rng.normal(1.0, 1.0, n_c),
+        rng.normal(0.0, 1.0, n_a),
+        rng.normal(2.0, 1.0, n_n),
+    ]
+    y1 = y0.copy()
+    y1[:n_c] = rng.normal(3.0, 1.0, n_c)
+
+    z = rng.binomial(1, 0.5, n).astype(float)
+    d = z * d1 + (1.0 - z) * d0
+    y = d * y1 + (1.0 - d) * y0
+    return z, d, y
+
+
+def wald(z, d, y):
+    rf_d = d[z == 1.0].mean() - d[z == 0.0].mean()
+    rf_y = y[z == 1.0].mean() - y[z == 0.0].mean()
+    return rf_y / rf_d
+
+
+def wald_delta_se(z, d, y):
+    beta = wald(z, d, y)
+    adj = y - beta * d
+    v_adj = adj[z == 1.0].var(ddof=1) / np.sum(z == 1.0) + adj[z == 0.0].var(ddof=1) / np.sum(z == 0.0)
+    rf_d = d[z == 1.0].mean() - d[z == 0.0].mean()
+    return np.sqrt(v_adj) / abs(rf_d)
+
+
+def wald_bootstrap_se(z, d, y, rng, n_boot=40):
+    n = len(z)
+    draws = np.zeros(n_boot)
+    for b in range(n_boot):
+        idx = rng.choice(n, size=n, replace=True)
+        draws[b] = wald(z[idx], d[idx], y[idx])
+    return draws.std(ddof=1)
+```
+
+## Compliance-Class Simulation
+
+```{python}
+rng = np.random.default_rng(21)
+scenarios = {
+    "Strong IV": [0.5, 0.25, 0.25],
+    "Weak IV": [0.2, 0.4, 0.4],
+    "Very weak IV": [0.1, 0.4, 0.5],
+}
+
+for label, shares in scenarios.items():
+    estimates = []
+    delta_ses = []
+    boot_ses = []
+    for _ in range(60):
+        z, d, y = simulate_experiment(rng, shares)
+        estimates.append(wald(z, d, y))
+        delta_ses.append(wald_delta_se(z, d, y))
+        boot_ses.append(wald_bootstrap_se(z, d, y, rng))
+    print(
+        f"{label:12s} mean Wald = {float(np.mean(estimates)): .4f}, "
+        f"empirical sd = {float(np.std(estimates, ddof=1)): .4f}, "
+        f"mean delta se = {float(np.mean(delta_ses)): .4f}, "
+        f"mean bootstrap se = {float(np.mean(boot_ses)): .4f}"
+    )
+```
+
+## Wald And TwoSLS With Covariates
+
+```{python}
+rng = np.random.default_rng(2101)
+n = 1000
+x = rng.normal(size=(n, 2))
+z = rng.binomial(1, 0.5, size=n).astype(float)
+d = (0.2 + 0.7 * z + 0.5 * x[:, 0] - 0.3 * x[:, 1] + rng.normal(scale=0.8, size=n) > 0.0).astype(float)
+y = 1.5 * d + 0.4 * x[:, 0] - 0.2 * x[:, 1] + rng.normal(scale=1.0, size=n)
+
+wald_raw = wald(z, d, y)
+
+iv = cm.TwoSLS()
+iv.fit(d[:, None], x, z[:, None], y)
+iv_hc1 = iv.summary(vcov="hc1")
+
+print("Wald ratio:", round(wald_raw, 4))
+print("Wald delta-method SE:", round(float(wald_delta_se(z, d, y)), 4))
+print("TwoSLS coefficient on endogenous treatment:", round(float(iv_hc1["coef"][0]), 4))
+print("TwoSLS HC1 SE:", round(float(iv_hc1["coef_se"][0]), 4))
+```
+
+## JOBS One-Sided Noncompliance Example
+
+The R script closes with the JOBS data from the `mediation` package. Assignment to the job-search intervention is the instrument, actual compliance is the treatment uptake, and job-search self-efficacy is the outcome. Because the design has one-sided noncompliance, the Wald estimand is the complier effect of uptake among those induced to comply by assignment.
+
+```{python}
+jobs = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "jobsdata.csv")
+z_jobs = jobs["treat"].to_numpy(dtype=float)
+d_jobs = jobs["comply"].to_numpy(dtype=float)
+y_jobs = jobs["job_seek"].to_numpy(dtype=float)
+
+job_controls = ["sex", "age", "marital", "nonwhite", "educ", "income"]
+x_jobs = pd.get_dummies(jobs[job_controls], drop_first=True, dtype=float).to_numpy(dtype=float)
+x_jobs = (x_jobs - x_jobs.mean(axis=0)) / np.where(x_jobs.std(axis=0) > 1e-12, x_jobs.std(axis=0), 1.0)
+
+jobs_iv = cm.TwoSLS()
+jobs_iv.fit(d_jobs[:, None], x_jobs, z_jobs[:, None], y_jobs)
+jobs_iv_hc1 = jobs_iv.summary(vcov="hc1")
+
+pd.DataFrame(
+    {
+        "estimate": [
+            wald(z_jobs, d_jobs, y_jobs),
+            float(jobs_iv_hc1["coef"][0]),
+        ],
+        "se": [
+            wald_delta_se(z_jobs, d_jobs, y_jobs),
+            float(jobs_iv_hc1["coef_se"][0]),
+        ],
+    },
+    index=["Wald", "Covariate-adjusted TwoSLS"],
+)
+```
+
+The IV chapter is easiest to read from the reduced forms outward:
+
+- assignment shifts treatment uptake
+- assignment shifts outcomes
+- the ratio of those two shifts is the causal effect for compliers
+
+`TwoSLS` is the multivariate generalization of that same logic.

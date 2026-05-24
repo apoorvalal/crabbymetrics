@@ -1,0 +1,49 @@
+---
+title: "Logit Example"
+format:
+  html:
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+This page mirrors `examples/logit_example.py`.
+
+## Fit A Binary Logit Model
+
+```{python}
+import numpy as np
+from pprint import pprint
+
+from crabbymetrics import Logit
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+
+
+
+```{python}
+rng = np.random.default_rng(2)
+n = 800
+k = 4
+beta = np.array([1.2, -0.8, 0.4, -1.1])
+intercept = 0.3
+
+x = rng.normal(size=(n, k))
+logits = intercept + x @ beta
+probs = 1.0 / (1.0 + np.exp(-logits))
+y = rng.binomial(1, probs).astype(np.int32)
+
+model = Logit(alpha=1.0, max_iterations=200)
+model.fit(x, y)
+
+print("true intercept:", intercept)
+print("true coef:", beta)
+pprint(model.summary())
+```

@@ -3862,117 +3862,10 @@ vertical-align: -.125em;
     <a class="nav-link" href="../index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
-  <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">API</span>
-    </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
-        <li>
-    <a class="dropdown-item" href="../api.html">
- <span class="dropdown-text">API Overview</span></a>
+  <li class="nav-item">
+    <a class="nav-link" href="../api.html"> 
+<span class="menu-text">API</span></a>
   </li>  
-        <li class="dropdown-header">Regression And GLMs</li>
-        <li>
-    <a class="dropdown-item" href="../reference/OLS.html">
- <span class="dropdown-text">OLS</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Ridge.html">
- <span class="dropdown-text">Ridge</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/FixedEffectsOLS.html">
- <span class="dropdown-text">FixedEffectsOLS</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/ElasticNet.html">
- <span class="dropdown-text">ElasticNet</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Logit.html">
- <span class="dropdown-text">Logit</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/MultinomialLogit.html">
- <span class="dropdown-text">MultinomialLogit</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Poisson.html">
- <span class="dropdown-text">Poisson</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/FTRL.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li class="dropdown-header">Causal Inference And Panels</li>
-        <li>
-    <a class="dropdown-item" href="../reference/TwoSLS.html">
- <span class="dropdown-text">TwoSLS</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/BalancingWeights.html">
- <span class="dropdown-text">BalancingWeights</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/EPLM.html">
- <span class="dropdown-text">EPLM</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/AverageDerivative.html">
- <span class="dropdown-text">AverageDerivative</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/PartiallyLinearDML.html">
- <span class="dropdown-text">PartiallyLinearDML</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/AIPW.html">
- <span class="dropdown-text">AIPW</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/SyntheticControl.html">
- <span class="dropdown-text">SyntheticControl</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/HorizontalPanelRidge.html">
- <span class="dropdown-text">HorizontalPanelRidge</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/SyntheticDID.html">
- <span class="dropdown-text">SyntheticDID</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/MatrixCompletion.html">
- <span class="dropdown-text">MatrixCompletion</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/InteractiveFixedEffects.html">
- <span class="dropdown-text">InteractiveFixedEffects</span></a>
-  </li>  
-        <li class="dropdown-header">Transforms</li>
-        <li>
-    <a class="dropdown-item" href="../reference/PCA.html">
- <span class="dropdown-text">PCA</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/KernelBasis.html">
- <span class="dropdown-text">KernelBasis</span></a>
-  </li>  
-        <li class="dropdown-header">Estimation Interfaces</li>
-        <li>
-    <a class="dropdown-item" href="../reference/GMM.html">
- <span class="dropdown-text">GMM</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/MEstimator.html">
- <span class="dropdown-text">MEstimator</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../reference/Optimizers.html">
- <span class="dropdown-text">Optimizers</span></a>
-  </li>  
-    </ul>
-  </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
@@ -4232,7 +4125,7 @@ vertical-align: -.125em;
 <p>This page mirrors <code>examples/elastic_net_example.py</code>.</p>
 <section id="fit-a-regularized-linear-model" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-a-regularized-linear-model"><span class="header-section-number">1</span> Fit A Regularized Linear Model</h2>
-<div id="a1fdd856" class="cell" data-execution_count="1">
+<div id="64aa4566" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4240,7 +4133,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="efbaef7a" class="cell" data-execution_count="2">
+<div id="d91494a4" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">1</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">600</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">6</span></span>
