@@ -99,6 +99,85 @@ fn regularized_gamma_q(a: f64, x: f64) -> f64 {
     ((-x + a * x.ln() - gln).exp() * h).clamp(0.0, 1.0)
 }
 
+fn beta_cf(a: f64, b: f64, x: f64) -> f64 {
+    let qab = a + b;
+    let qap = a + 1.0;
+    let qam = a - 1.0;
+    let mut c = 1.0;
+    let mut d = 1.0 - qab * x / qap;
+    if d.abs() < FPMIN {
+        d = FPMIN;
+    }
+    d = 1.0 / d;
+    let mut h = d;
+
+    for m in 1..=ITMAX {
+        let m_f = m as f64;
+        let m2 = 2.0 * m_f;
+
+        let mut aa = m_f * (b - m_f) * x / ((qam + m2) * (a + m2));
+        d = 1.0 + aa * d;
+        if d.abs() < FPMIN {
+            d = FPMIN;
+        }
+        c = 1.0 + aa / c;
+        if c.abs() < FPMIN {
+            c = FPMIN;
+        }
+        d = 1.0 / d;
+        h *= d * c;
+
+        aa = -(a + m_f) * (qab + m_f) * x / ((a + m2) * (qap + m2));
+        d = 1.0 + aa * d;
+        if d.abs() < FPMIN {
+            d = FPMIN;
+        }
+        c = 1.0 + aa / c;
+        if c.abs() < FPMIN {
+            c = FPMIN;
+        }
+        d = 1.0 / d;
+        let del = d * c;
+        h *= del;
+        if (del - 1.0).abs() < EPS {
+            break;
+        }
+    }
+    h
+}
+
+fn regularized_beta(a: f64, b: f64, x: f64) -> f64 {
+    if x <= 0.0 {
+        return 0.0;
+    }
+    if x >= 1.0 {
+        return 1.0;
+    }
+    let bt = (ln_gamma(a + b) - ln_gamma(a) - ln_gamma(b) + a * x.ln() + b * (1.0 - x).ln()).exp();
+    if x < (a + 1.0) / (a + b + 2.0) {
+        (bt * beta_cf(a, b, x) / a).clamp(0.0, 1.0)
+    } else {
+        (1.0 - bt * beta_cf(b, a, 1.0 - x) / b).clamp(0.0, 1.0)
+    }
+}
+
+pub(crate) fn f_sf(statistic: f64, df1: usize, df2: usize) -> PyResult<f64> {
+    if df1 == 0 || df2 == 0 {
+        return Err(PyValueError::new_err(
+            "F degrees of freedom must be positive",
+        ));
+    }
+    if !statistic.is_finite() || statistic < 0.0 {
+        return Err(PyValueError::new_err(
+            "F statistic must be finite and nonnegative",
+        ));
+    }
+    let d1 = df1 as f64;
+    let d2 = df2 as f64;
+    let x = (d1 * statistic) / (d1 * statistic + d2);
+    Ok((1.0 - regularized_beta(0.5 * d1, 0.5 * d2, x)).clamp(0.0, 1.0))
+}
+
 fn chi_square_sf(statistic: f64, df: usize) -> PyResult<f64> {
     if df == 0 {
         return Err(PyValueError::new_err("degrees of freedom must be positive"));

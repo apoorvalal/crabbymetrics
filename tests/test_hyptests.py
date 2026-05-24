@@ -180,3 +180,38 @@ def test_hypothesis_tests_validate_inputs():
         cm.likelihood_ratio_test(-10.0, -9.0, 1)
     with pytest.raises(ValueError, match="degrees of freedom"):
         cm.likelihood_ratio_test(-9.0, -10.0, 0)
+
+
+def test_twosls_anderson_rubin_test_matches_statsmodels_reduced_form_f_test():
+    rng = np.random.default_rng(2468)
+    n = 350
+    x_exog = rng.normal(size=(n, 2))
+    z = rng.normal(size=(n, 2))
+    u = rng.normal(size=n)
+    x_endog = (0.7 * z[:, [0]] - 0.5 * z[:, [1]] + 0.3 * x_exog[:, [0]] + 0.4 * u[:, None]
+               + rng.normal(scale=0.4, size=(n, 1)))
+    beta0 = 1.25
+    y = 0.4 + beta0 * x_endog[:, 0] + x_exog @ np.array([0.3, -0.2]) + u
+
+    model = cm.TwoSLS()
+    model.fit(x_endog, x_exog, z, y)
+
+    # Anderson-Rubin test of H0: beta = beta0 is the joint test that the
+    # excluded instruments have zero coefficients in the reduced-form
+    # regression of y - beta0 * d on exogenous controls and instruments.
+    y_null = y - beta0 * x_endog[:, 0]
+    reduced_form = sm.OLS(y_null, sm.add_constant(np.column_stack([x_exog, z]))).fit()
+    r = np.zeros((z.shape[1], 1 + x_exog.shape[1] + z.shape[1]))
+    r[:, 1 + x_exog.shape[1]:] = np.eye(z.shape[1])
+
+    for vcov, sm_res in [
+        ("vanilla", reduced_form),
+        ("hc1", reduced_form.get_robustcov_results(cov_type="HC1")),
+    ]:
+        out = model.anderson_rubin_test(beta0, vcov=vcov)
+        ref = sm_res.wald_test(r, use_f=True, scalar=True)
+        assert out["test"] == "anderson_rubin"
+        assert out["df_num"] == z.shape[1]
+        assert out["df_denom"] == n - (1 + x_exog.shape[1] + z.shape[1])
+        np.testing.assert_allclose(out["statistic"], scalar_stat(ref), atol=1e-8, rtol=1e-8)
+        np.testing.assert_allclose(out["p_value"], scalar_pvalue(ref), atol=1e-8, rtol=1e-8)

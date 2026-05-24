@@ -14,6 +14,7 @@ execute:
 `crabbymetrics` exposes hypothesis tests in two layers:
 
 - Fitted estimators with covariance support expose `wald_test(...)` methods for linear restrictions $R\beta = q$.
+- `TwoSLS` also exposes `anderson_rubin_test(...)` for weak-IV-robust scalar endogenous-regressor tests.
 - Module-level helpers remain available for lower-level workflows: `wald_test(coef, vcov, r, q=None)`, `likelihood_ratio_test(...)`, and the shorter `lr_test(...)` alias.
 
 The estimator method is the preferred path when the fitted object owns the covariance calculation.
@@ -45,6 +46,20 @@ The same test can be run manually from arrays when needed:
 summary = model.summary(vcov="hc1")
 coef = np.r_[summary["intercept"], summary["coef"]]
 cm.wald_test(coef, summary["vcov"], R)
+```
+
+For IV models with one endogenous regressor, the Anderson-Rubin method tests $H_0: \beta = \beta_0$ by checking whether the excluded instruments predict `y - beta0 * d` after accounting for included exogenous regressors. This remains valid under weak instruments.
+
+```{python}
+n = 300
+x_exog = rng.normal(size=(n, 2))
+z = rng.normal(size=(n, 2))
+x_endog = 0.8 * z[:, [0]] - 0.4 * z[:, [1]] + rng.normal(size=(n, 1))
+y_iv = 0.5 + 1.2 * x_endog[:, 0] + x_exog @ np.array([0.3, -0.2]) + rng.normal(size=n)
+
+iv = cm.TwoSLS()
+iv.fit(x_endog, x_exog, z, y_iv)
+iv.anderson_rubin_test(beta=1.2, vcov="hc1")
 ```
 
 Likelihood-ratio tests are intentionally kept as array/scalar utilities for now, because they compare two nested likelihood values rather than one fitted covariance summary.

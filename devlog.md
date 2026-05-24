@@ -419,3 +419,4 @@ That is the current state the next extension branch should assume.
 - Added `likelihood_ratio_test(unrestricted_loglik, restricted_loglik, df)` plus `lr_test(...)` alias for nested likelihood comparisons.
 - Summary dictionaries for `OLS`, `FixedEffectsOLS`, `TwoSLS`, `Logit`, and `Poisson` now include the full covariance matrix as `vcov`, making array-level Wald tests usable directly from fitted summaries.
 - Added focused tests in `tests/test_hyptests.py` and a short docs page at `docs/reference/HypothesisTests.qmd`.
+- Added `TwoSLS.anderson_rubin_test(beta=0.0, vcov="hc1", ...)` for weak-IV-robust scalar endogenous-regressor tests, with reduced-form F-test validation against `statsmodels`.

@@ -1,4 +1,4 @@
-use crate::hyptests::wald_test_arrays;
+use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
@@ -3533,6 +3533,96 @@ impl TwoSLS {
         let rmat = to_array2(&r);
         let qvec = q.as_ref().map(to_array1);
         wald_test_arrays(py, &params, &cov, &rmat, qvec.as_ref())
+    }
+
+    #[pyo3(signature = (beta=0.0, vcov="hc1", lags=None, clusters=None))]
+    fn anderson_rubin_test<'py>(
+        &self,
+        py: Python<'py>,
+        beta: f64,
+        vcov: &str,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let x_endog = self
+            .x_endog
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
+        let x_exog = self
+            .x_exog
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let z = self
+            .z
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+
+        if x_endog.ncols() != 1 {
+            return Err(PyValueError::new_err(
+                "anderson_rubin_test currently supports exactly one endogenous regressor",
+            ));
+        }
+        if !beta.is_finite() {
+            return Err(PyValueError::new_err("beta must be finite"));
+        }
+
+        let y_null = y - &(x_endog.column(0).to_owned() * beta);
+        let z_rhs = if x_exog.ncols() > 0 {
+            concatenate(Axis(1), &[x_exog.view(), z.view()])
+                .map_err(|_| PyValueError::new_err("failed to concat instruments"))?
+        } else {
+            z.clone()
+        };
+        let design = if self.fit_intercept {
+            add_intercept(&z_rhs)
+        } else {
+            z_rhs
+        };
+        if design.nrows() <= design.ncols() {
+            return Err(PyValueError::new_err(
+                "not enough residual degrees of freedom for Anderson-Rubin test",
+            ));
+        }
+
+        let (design_work, y_work) =
+            apply_sqrt_weights(&design, &y_null, self.sample_weight.as_ref())
+                .map_err(PyValueError::new_err)?;
+        let params =
+            solve_least_squares_vec(&design_work, &y_work).map_err(PyValueError::new_err)?;
+        let residuals = y_work - &design_work.dot(&params);
+        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let cov = linear_covariance(&design_work, &residuals, vcov, lags, cluster_ids.as_ref())
+            .map_err(PyValueError::new_err)?;
+
+        let df1 = z.ncols();
+        let df2 = design_work.nrows() - design_work.ncols();
+        let start = if self.fit_intercept { 1 } else { 0 } + x_exog.ncols();
+        let mut rmat = Array2::<f64>::zeros((df1, params.len()));
+        for j in 0..df1 {
+            rmat[[j, start + j]] = 1.0;
+        }
+        let diff = rmat.dot(&params);
+        let rcov = rmat.dot(&cov).dot(&rmat.t());
+        let rcov_inv = invert_matrix(&rcov).map_err(PyValueError::new_err)?;
+        let tmp = rcov_inv.dot(&diff.clone().insert_axis(Axis(1)));
+        let wald_statistic = diff.dot(&tmp.column(0)).max(0.0);
+        let statistic = wald_statistic / df1 as f64;
+        let p_value = f_sf(statistic, df1, df2)?;
+
+        let out = PyDict::new(py);
+        out.set_item("statistic", statistic)?;
+        out.set_item("wald_statistic", wald_statistic)?;
+        out.set_item("df_num", df1)?;
+        out.set_item("df_denom", df2)?;
+        out.set_item("p_value", p_value)?;
+        out.set_item("beta", beta)?;
+        out.set_item("vcov_type", vcov)?;
+        out.set_item("test", "anderson_rubin")?;
+        Ok(out)
     }
 
     #[pyo3(signature = (n_bootstrap, seed=None))]
