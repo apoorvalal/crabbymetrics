@@ -22,6 +22,7 @@ Joint tests are useful causal diagnostics when the scientific question is not wh
 Both are linear-restriction problems. Estimate a model with the potentially heterogeneous terms included, then test whether those terms are jointly zero. In `crabbymetrics`, this is a fitted-estimator `wald_test(...)` call.
 
 ```{python}
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import crabbymetrics as cm
@@ -83,7 +84,7 @@ This is the same logic as asking whether a richer regression has earned its extr
 
 ## Case 2: When Is A Pooled Event Study Good Enough?
 
-The same idea applies to staggered-adoption panels. A conventional two-way fixed-effect event study pools dynamic treatment effects across adoption cohorts:
+The same idea applies to staggered-adoption panels. The simulation below is a compact DGP cooked for this vignette, inspired by the `FTestEventStudy` note rather than copied from the paper's exact simulation code. A conventional two-way fixed-effect event study pools dynamic treatment effects across adoption cohorts:
 
 $$
 Y_{it} = \alpha_i + \lambda_t + \sum_{s \ne -1} \gamma_s \Delta^s_{it} + \varepsilon_{it}.
@@ -134,19 +135,44 @@ def make_panel(heterogeneous=False, seed=2025):
     return pd.DataFrame(rows, columns=["unit", "year", "cohort", "rel", "treated", "x", "y"])
 
 
+def true_effect(cohort, rel, heterogeneous):
+    if rel < 0:
+        return 0.0
+    base_effect = 0.4 + 0.25 * min(rel, 3)
+    if heterogeneous and cohort == 3:
+        return base_effect + 0.55 * min(rel + 1, 3)
+    if heterogeneous and cohort == 5:
+        return base_effect - 0.35 * min(rel + 1, 3)
+    return base_effect
+
+
+def plot_dgp(ax, heterogeneous):
+    rel_grid = np.arange(-2, 4)
+    for cohort in [3, 4, 5]:
+        effects = [true_effect(cohort, rel, heterogeneous) for rel in rel_grid]
+        ax.plot(rel_grid, effects, marker="o", label=f"cohort {cohort}")
+    ax.axhline(0, color="0.5", lw=1)
+    ax.axvline(-0.5, color="0.5", lw=1, ls="--")
+    ax.set_xlabel("event time")
+    ax.set_ylabel("true treatment effect")
+    ax.set_title("heterogeneous paths" if heterogeneous else "homogeneous paths")
+
+
+fig, axes = plt.subplots(1, 2, figsize=(9, 3.5), sharey=True, constrained_layout=True)
+plot_dgp(axes[0], heterogeneous=False)
+plot_dgp(axes[1], heterogeneous=True)
+axes[1].legend(loc="best")
+plt.show()
+
+
 def event_study_design(df, rel_min=-2, rel_max=3, baseline=-1):
     work = df.copy()
     rel_values = [r for r in range(rel_min, rel_max + 1) if r != baseline]
     treated_cohorts = sorted(c for c in work["cohort"].unique() if c < 999)
     baseline_cohort = treated_cohorts[0]
 
-    parts = []
-    names = []
-
-    unit_dummies = pd.get_dummies(work["unit"], prefix="unit", drop_first=True, dtype=float)
-    year_dummies = pd.get_dummies(work["year"], prefix="year", drop_first=True, dtype=float)
-    parts.extend([unit_dummies.to_numpy(), year_dummies.to_numpy(), work[["x"]].to_numpy(float)])
-    names.extend(list(unit_dummies.columns) + list(year_dummies.columns) + ["x"])
+    parts = [work[["x"]].to_numpy(float)]
+    names = ["x"]
 
     common_cols = []
     kept_rel_values = []
@@ -173,19 +199,20 @@ def event_study_design(df, rel_min=-2, rel_max=3, baseline=-1):
     names.extend(deviation_names)
 
     xmat = np.column_stack(parts)
-    return xmat, names, deviation_names
+    fe = work[["unit", "year"]].to_numpy(np.uint32)
+    return xmat, fe, names, deviation_names
 
 
 def fit_event_case(heterogeneous, seed):
     df = make_panel(heterogeneous=heterogeneous, seed=seed)
-    xmat, names, deviation_names = event_study_design(df)
-    model = cm.OLS()
-    model.fit(xmat, df["y"].to_numpy())
+    xmat, fe, names, deviation_names = event_study_design(df)
+    model = cm.FixedEffectsOLS()
+    model.fit(xmat, fe, df["y"].to_numpy())
 
-    # OLS coefficient order is [intercept, names...]. Restrict all cohort
-    # deviation coefficients to zero.
-    name_to_pos = {name: j + 1 for j, name in enumerate(names)}
-    r = np.zeros((len(deviation_names), len(names) + 1))
+    # FixedEffectsOLS coefficient order is exactly `names`; the unit and year
+    # fixed effects are absorbed rather than materialized as dummy columns.
+    name_to_pos = {name: j for j, name in enumerate(names)}
+    r = np.zeros((len(deviation_names), len(names)))
     for row, name in enumerate(deviation_names):
         r[row, name_to_pos[name]] = 1.0
     return model.wald_test(r, vcov="hc1")
