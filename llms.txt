@@ -7,7 +7,9 @@ This file is for coding agents and LLMs that need to use `crabbymetrics` correct
 Canonical project locations:
 
 - Documentation site: https://apoorvalal.github.io/crabbymetrics/
-- API reference: https://apoorvalal.github.io/crabbymetrics/api.html
+- API overview: https://apoorvalal.github.io/crabbymetrics/api.html
+- Class API reference pages: https://apoorvalal.github.io/crabbymetrics/reference/OLS.html and neighboring `reference/<Class>.html` pages
+- Hypothesis-test reference: https://apoorvalal.github.io/crabbymetrics/reference/HypothesisTests.html
 - GitHub repository: https://github.com/apoorvalal/crabbymetrics
 - PyPI package: https://pypi.org/project/crabbymetrics/
 
@@ -42,6 +44,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 - `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
 - Weighted fits exist for OLS, Ridge, FixedEffectsOLS, and TwoSLS.
 - Robust covariance conventions vary by estimator; the main linear estimators share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", lags=None, clusters=None)`.
+- Hypothesis-test helpers are first-class: fitted linear estimators expose `wald_test(...)`, `TwoSLS` also exposes `anderson_rubin_test(...)`, and array/function-level helpers include Wald, likelihood-ratio, survival-function, beta CDF, and regularized-beta utilities. Use `TwoSLS.anderson_rubin_test(beta=..., vcov="hc1", ...)` for weak-IV-robust tests of an endogenous coefficient.
 - The package does not require pandas, scikit-learn, scipy, statsmodels, or polars at runtime. If you start from a DataFrame, convert to NumPy explicitly before fitting.
 
 ## Quick estimator selection
@@ -51,7 +54,8 @@ Use these defaults unless the application has a reason to do otherwise:
 - Plain linear regression with robust standard errors: `cm.OLS()`.
 - Penalized linear regression / shrinkage / cross-validated ridge: `cm.Ridge(penalty=None_or_grid, cv=5)`.
 - Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.
-- Instrumental variables / 2SLS: `cm.TwoSLS()`.
+- Instrumental variables / 2SLS: `cm.TwoSLS()`; use `TwoSLS.anderson_rubin_test(...)` when weak-IV-robust inference is the target.
+- Joint linear restrictions after fitting OLS/Ridge/FixedEffectsOLS/TwoSLS: use `model.wald_test(...)`; for standalone arrays use `cm.wald_test(...)`.
 - Single treated time series with donor paths and simplex donor weights: `cm.SyntheticControl()`.
 - Balanced panel causal ATT with absorbing treatment matrix: start with `cm.SyntheticDID()` or `cm.HorizontalPanelRidge()`; use `cm.MatrixCompletion()` when a low-rank completion model is appropriate.
 - No-covariate interactive fixed-effects factor model on a balanced panel: `cm.InteractiveFixedEffects(rank=..., force=...)`.
@@ -151,10 +155,12 @@ fit(x_endog, x_exog, z, y)
 fit_weighted(x_endog, x_exog, z, y, sample_weight)
 predict(x)
 summary(vcov="hc1", lags=None, clusters=None)
+wald_test(r, q=None, vcov="hc1", lags=None, clusters=None)
+anderson_rubin_test(beta=0.0, vcov="hc1", lags=None, clusters=None)
 bootstrap(n_bootstrap, seed=None)
 ```
 
-`x_endog` is the endogenous regressor matrix, `x_exog` is the included exogenous regressor matrix, `z` is the excluded instrument matrix, and `y` is the outcome. Matrix-valued endogenous regressors and instruments are supported.
+`x_endog` is the endogenous regressor matrix, `x_exog` is the included exogenous regressor matrix, `z` is the excluded instrument matrix, and `y` is the outcome. Matrix-valued endogenous regressors and instruments are supported. `anderson_rubin_test(...)` currently targets the scalar endogenous coefficient case and returns a weak-IV-robust Anderson Rubin test dictionary.
 
 ### Regularized and likelihood estimators
 
@@ -427,6 +433,25 @@ weights = bw.get_weights()
 print(bw.summary()["effective_sample_size"])
 ```
 
+### Anderson Rubin IV test
+
+```python
+iv = cm.TwoSLS()
+iv.fit(x_endog, x_exog, z, y)
+print(iv.anderson_rubin_test(beta=0.0, vcov="hc1"))
+```
+
+### Wald test for joint restrictions
+
+```python
+ols = cm.OLS()
+ols.fit(x, y)
+r = np.zeros((2, x.shape[1] + 1))  # intercept is column 0
+r[0, 1] = 1.0
+r[1, 2] = 1.0
+print(ols.wald_test(r, vcov="hc1"))
+```
+
 ### Custom GMM
 
 ```python
@@ -450,6 +475,7 @@ If you need to inspect or modify source, start here:
 
 - `src/lib.rs`: PyO3 module registration; exported Python classes and functions.
 - `src/estimators/linear.rs`: OLS, FixedEffectsOLS, TwoSLS, panel estimators, synthetic control, synthetic DID, matrix completion, interactive fixed effects, panel helpers.
+- `src/hyptests.rs`: Wald tests, likelihood-ratio tests, Anderson Rubin helper logic, and distribution-tail utilities used by fitted estimator test methods.
 - `src/estimators/regularized.rs`: Ridge, ElasticNet, FTRL.
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
@@ -461,7 +487,8 @@ If you need to inspect or modify source, start here:
 - `tests/`: Python tests for public behavior; use these as executable API examples when docs are thin.
 - `docs/examples/*.qmd`: rendered example notebooks.
 - `docs/ablations/*.qmd`: cached numerical experiments and panel case-study workflows.
-- `docs/api.qmd`: generated/verified public-surface reference.
+- `docs/api.qmd`: generated/verified public-surface overview.
+- `docs/reference/*.qmd`: first-tier class API reference pages plus hypothesis-test reference.
 
 Development commands:
 
@@ -476,7 +503,9 @@ uv run quarto render docs
 ## Documentation links
 
 - [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
-- [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
+- [API overview](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
+- [Class API reference pages](https://apoorvalal.github.io/crabbymetrics/reference/OLS.html): one page per first-tier public class under `/reference/<Class>.html`.
+- [Hypothesis Tests](https://apoorvalal.github.io/crabbymetrics/reference/HypothesisTests.html): Wald, likelihood-ratio, and Anderson Rubin test reference.
 - [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
 - [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
 - [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.
@@ -504,6 +533,11 @@ uv run quarto render docs
 - [PCA And Kernel Basis](https://apoorvalal.github.io/crabbymetrics/examples/pca-and-kernel-basis.html): transformer examples.
 - [Optimizers](https://apoorvalal.github.io/crabbymetrics/examples/optimizers.html): direct optimizer usage.
 - [GMM With Optimizers](https://apoorvalal.github.io/crabbymetrics/examples/gmm-with-optimizers.html): lower-level optimizer view of GMM-style estimation.
+- [Horizontal Panel Ridge](https://apoorvalal.github.io/crabbymetrics/examples/horizontal-panel-ridge.html): donor-path horizontal forecasting panel ATT workflow.
+- [Matrix Completion](https://apoorvalal.github.io/crabbymetrics/examples/matrix-completion.html): low-rank panel counterfactual completion for treated cells.
+- [Interactive Fixed Effects](https://apoorvalal.github.io/crabbymetrics/examples/interactive-fixed-effects.html): no-covariate factor-model panel helper.
+- [Staggered Panel Event Study](https://apoorvalal.github.io/crabbymetrics/examples/staggered-panel-event-study.html): panel event-study summaries from absorbing treatment matrices.
+- [Joint Hypothesis Tests For Causal Models](https://apoorvalal.github.io/crabbymetrics/examples/joint-hypothesis-tests-causal.html): Lin-style heterogeneity tests and event-study joint tests.
 
 ## Ablation and case-study links
 
@@ -524,6 +558,7 @@ uv run quarto render docs
 - Do not use long panel data for `HorizontalPanelRidge`, `SyntheticDID`, or `MatrixCompletion`; use balanced `(n_units, n_periods)` matrices `Y` and `W`.
 - Do not treat `SyntheticControl` and `SyntheticDID` as the same API. `SyntheticControl.fit(donors, treated)` is a low-level one-treated-path donor-weight API; `SyntheticDID.fit(Y, W)` is a panel causal estimator.
 - Do not expect uniform `summary()` keys across estimators. Check the relevant estimator page or the API reference.
+- Do not use Wald tests as weak-IV-robust IV inference; prefer `TwoSLS.anderson_rubin_test(...)` for scalar endogenous-coefficient Anderson Rubin tests.
 - Do not expect scipy result objects or sklearn estimators. The API is scikit-adjacent but intentionally lightweight.
 - Do not assume every estimator has `predict()` or `bootstrap()`.
 - For fixed effects, `fe` must contain zero-based integer category codes, not strings.
