@@ -52,6 +52,10 @@ rm -rf "$TMPDIR"
 
 - If the `gh-pages` commit has no changes, there was nothing new to deploy. Otherwise, check the Pages deployment in GitHub Actions and spot-check the public URL after it finishes.
 
+## Release Packaging
+
+- **Never ship rendered docs in the PyPI sdist.** A `v0.6.6` release attempt tried to upload a 100+ MB source tarball because rendered Quarto docs were included in the sdist; PyPI rejected it. Keep `docs/**/*` excluded from sdists in `pyproject.toml` (`[tool.maturin].exclude`) and verify with `maturin sdist --out /tmp/...` before tagging releases when docs changed. A normal sdist should be small, not tens/hundreds of MB.
+
 ## Bookkeeping
 
 - Before any push, make sure `devspec.md` and `devlog.md` reflect the current branch state.
