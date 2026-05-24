@@ -1,3 +1,4 @@
+use crate::hyptests::wald_test_arrays;
 use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
@@ -1628,8 +1629,62 @@ impl OLS {
         dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (r, q=None, vcov=None, lags=None, clusters=None))]
+    fn wald_test<'py>(
+        &self,
+        py: Python<'py>,
+        r: PyReadonlyArray2<f64>,
+        q: Option<PyReadonlyArray1<f64>>,
+        vcov: Option<&str>,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("OLS model is not fitted"))?;
+        let x = self
+            .x
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No response stored"))?;
+        let vcov = vcov.unwrap_or("hc1");
+        let mut params = Array1::<f64>::zeros(coef.len() + if self.fit_intercept { 1 } else { 0 });
+        let design = if self.fit_intercept {
+            add_intercept(x)
+        } else {
+            x.clone()
+        };
+        if self.fit_intercept {
+            params[0] = self.intercept;
+            params.slice_mut(s![1..]).assign(coef);
+        } else {
+            params.assign(coef);
+        }
+        let residuals = y - &design.dot(&params);
+        let (design_work, residuals_work) =
+            apply_sqrt_weights(&design, &residuals, self.sample_weight.as_ref())
+                .map_err(PyValueError::new_err)?;
+        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let cov = linear_covariance(
+            &design_work,
+            &residuals_work,
+            vcov,
+            lags,
+            cluster_ids.as_ref(),
+        )
+        .map_err(PyValueError::new_err)?;
+        let rmat = to_array2(&r);
+        let qvec = q.as_ref().map(to_array1);
+        wald_test_arrays(py, &params, &cov, &rmat, qvec.as_ref())
     }
 
     #[pyo3(signature = (n_bootstrap, seed=None))]
@@ -1781,8 +1836,50 @@ impl FixedEffectsOLS {
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, coef))?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (r, q=None, vcov=None, lags=None, clusters=None))]
+    fn wald_test<'py>(
+        &self,
+        py: Python<'py>,
+        r: PyReadonlyArray2<f64>,
+        q: Option<PyReadonlyArray1<f64>>,
+        vcov: Option<&str>,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("FixedEffectsOLS model is not fitted"))?;
+        let x_resid = self
+            .x_resid
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No residualized design stored"))?;
+        let y_resid = self
+            .y_resid
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No residualized response stored"))?;
+        let vcov = vcov.unwrap_or("hc1");
+        let residuals = y_resid - &x_resid.dot(coef);
+        let (design_work, residuals_work) =
+            apply_sqrt_weights(x_resid, &residuals, self.sample_weight.as_ref())
+                .map_err(PyValueError::new_err)?;
+        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let cov = linear_covariance(
+            &design_work,
+            &residuals_work,
+            vcov,
+            lags,
+            cluster_ids.as_ref(),
+        )
+        .map_err(PyValueError::new_err)?;
+        let rmat = to_array2(&r);
+        let qvec = q.as_ref().map(to_array1);
+        wald_test_arrays(py, coef, &cov, &rmat, qvec.as_ref())
     }
 
     #[pyo3(signature = (n_bootstrap, seed=None))]
@@ -3357,8 +3454,85 @@ impl TwoSLS {
         dict.set_item("coef", pyarray1_from_f64(py, fitted_coef))?;
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
         Ok(dict.into())
+    }
+
+    #[pyo3(signature = (r, q=None, vcov=None, lags=None, clusters=None))]
+    fn wald_test<'py>(
+        &self,
+        py: Python<'py>,
+        r: PyReadonlyArray2<f64>,
+        q: Option<PyReadonlyArray1<f64>>,
+        vcov: Option<&str>,
+        lags: Option<usize>,
+        clusters: Option<PyReadonlyArray1<i64>>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let fitted_coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
+        let x_endog = self
+            .x_endog
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let x_exog = self
+            .x_exog
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let z = self
+            .z
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let y = self
+            .y
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+        let vcov = vcov.unwrap_or("hc1");
+        let mut params =
+            Array1::<f64>::zeros(fitted_coef.len() + if self.fit_intercept { 1 } else { 0 });
+        if self.fit_intercept {
+            params[0] = self.intercept;
+            params.slice_mut(s![1..]).assign(fitted_coef);
+        } else {
+            params.assign(fitted_coef);
+        }
+        let (x_design_work, z_design_work, y_work) = match self.sample_weight.as_ref() {
+            Some(weights) => {
+                let sqrt_weight = sqrt_sample_weight(Some(weights), y.len())
+                    .map_err(PyValueError::new_err)?
+                    .expect("weights were provided");
+                let x_endog_work =
+                    scale_rows(x_endog, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let x_exog_work =
+                    scale_rows(x_exog, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let z_work = scale_rows(z, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let y_work = scale_vec(y, &sqrt_weight).map_err(PyValueError::new_err)?;
+                let (x_design_work, z_design_work) =
+                    build_iv_designs(&x_endog_work, &x_exog_work, &z_work, self.fit_intercept)?;
+                (x_design_work, z_design_work, y_work)
+            }
+            None => {
+                let (x_design, z_design) =
+                    build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+                (x_design, z_design, y.clone())
+            }
+        };
+        let residuals = y_work - &x_design_work.dot(&params);
+        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let cov = twosls_covariance(
+            &x_design_work,
+            &z_design_work,
+            &residuals,
+            vcov,
+            lags,
+            cluster_ids.as_ref(),
+        )
+        .map_err(PyValueError::new_err)?;
+        let rmat = to_array2(&r);
+        let qvec = q.as_ref().map(to_array1);
+        wald_test_arrays(py, &params, &cov, &rmat, qvec.as_ref())
     }
 
     #[pyo3(signature = (n_bootstrap, seed=None))]

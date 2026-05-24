@@ -410,3 +410,12 @@ That is the current state the next extension branch should assume.
 - Added conservative `GMM.fit_sketch(...)` for many-moment systems using a fixed Rademacher projection over moments/Jacobians.
 - Fixed weighted `TwoSLS.summary(...)` so weighted summaries use the same transformed-design convention as weighted fitting.
 - Local gates: `cargo fmt`, `cargo check`, `uv run maturin develop`, targeted estimator tests, and full `uv run pytest -q` (`94 passed`).
+
+## 2026-05-23 Hypothesis-Test Helpers
+
+- Branch: `hyptests`.
+- Added estimator-level `wald_test(...)` methods for `OLS`, `FixedEffectsOLS`, `TwoSLS`, `Logit`, `Poisson`, and `GMM` so fitted objects own the covariance calculation for joint linear restrictions `R beta = q`.
+- Kept module-level `wald_test(coef, vcov, r, q=None)` as an array-level primitive for manual workflows.
+- Added `likelihood_ratio_test(unrestricted_loglik, restricted_loglik, df)` plus `lr_test(...)` alias for nested likelihood comparisons.
+- Summary dictionaries for `OLS`, `FixedEffectsOLS`, `TwoSLS`, `Logit`, and `Poisson` now include the full covariance matrix as `vcov`, making array-level Wald tests usable directly from fitted summaries.
+- Added focused tests in `tests/test_hyptests.py` and a short docs page at `docs/reference/HypothesisTests.qmd`.

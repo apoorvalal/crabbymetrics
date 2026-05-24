@@ -1,0 +1,54 @@
+---
+title: "Hypothesis tests"
+format:
+  html:
+    toc: true
+    embed-resources: true
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+`crabbymetrics` exposes hypothesis tests in two layers:
+
+- Fitted estimators with covariance support expose `wald_test(...)` methods for linear restrictions $R\beta = q$.
+- Module-level helpers remain available for lower-level workflows: `wald_test(coef, vcov, r, q=None)`, `likelihood_ratio_test(...)`, and the shorter `lr_test(...)` alias.
+
+The estimator method is the preferred path when the fitted object owns the covariance calculation.
+
+```{python}
+import numpy as np
+import crabbymetrics as cm
+
+rng = np.random.default_rng(123)
+x = rng.normal(size=(300, 3))
+y = 1.0 + x @ np.array([0.0, 0.0, 0.8]) + rng.normal(scale=0.7, size=300)
+
+model = cm.OLS()
+model.fit(x, y)
+
+# Joint test that the first two slope coefficients are zero.
+R = np.array([
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+])
+model.wald_test(R, vcov="hc1")
+```
+
+For intercept-bearing estimators, the restriction matrix uses coefficient order `[intercept, slopes...]`. For fixed-effects summaries without an intercept, use the reported slope order.
+
+The same test can be run manually from arrays when needed:
+
+```{python}
+summary = model.summary(vcov="hc1")
+coef = np.r_[summary["intercept"], summary["coef"]]
+cm.wald_test(coef, summary["vcov"], R)
+```
+
+Likelihood-ratio tests are intentionally kept as array/scalar utilities for now, because they compare two nested likelihood values rather than one fitted covariance summary.
+
+```{python}
+cm.lr_test(unrestricted_loglik=-100.0, restricted_loglik=-103.0, df=2)
+```
