@@ -3986,6 +3986,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
     <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
  <span class="dropdown-text">Staggered Panel Event Study</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4105,6 +4109,13 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
     </ul>
   </li>
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
@@ -4159,7 +4170,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li>compare Horvitz-Thompson and Hajek IPW with propensity-score truncation</li>
 <li>check whether stratification and weighting improve covariate balance</li>
 </ul>
-<div id="22910b98" class="cell" data-execution_count="2">
+<div id="dc7b05ed" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4186,7 +4197,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <section id="nhanes-school-meal-example" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="nhanes-school-meal-example"><span class="header-section-number">1</span> NHANES School-Meal Example</h2>
-<div id="894b6fbb" class="cell" data-execution_count="3">
+<div id="17765afa" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> pd.read_csv(repo_root() <span class="op">/</span> <span class="st">&quot;ding_w_source&quot;</span> <span class="op">/</span> <span class="st">&quot;repl&quot;</span> <span class="op">/</span> <span class="st">&quot;nhanes_bmi.csv&quot;</span>)</span>
@@ -4355,7 +4366,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="overlap" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="overlap"><span class="header-section-number">2</span> Overlap</h2>
-<div id="92d2ec58" class="cell" data-execution_count="4">
+<div id="e09b39f5" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -4376,7 +4387,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="67d62cf5" class="cell" data-execution_count="5">
+<div id="ecc7ade2" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> level <span class="kw">in</span> np.unique(quintile):</span>
@@ -4397,7 +4408,7 @@ Quintile 5: n =  466, treated share =  0.8584</code></pre>
 <section id="stratification-and-ipw" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="stratification-and-ipw"><span class="header-section-number">3</span> Stratification And IPW</h2>
 <p>The R script reports propensity-score subclassification for several numbers of strata, then compares Horvitz-Thompson and Hajek IPW under increasing propensity-score truncation. The estimates below use the same formulas.</p>
-<div id="a756e794" class="cell" data-execution_count="6">
+<div id="87c8c8ab" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(stratification_rows).set_index(<span class="st">&quot;strata&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4451,7 +4462,7 @@ Quintile 5: n =  466, treated share =  0.8584</code></pre>
 </div>
 </div>
 </div>
-<div id="3c2cbcc3" class="cell" data-execution_count="7">
+<div id="3d50f5a9" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(ipw_rows).set_index(<span class="st">&quot;truncation&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4504,7 +4515,7 @@ Quintile 5: n =  466, treated share =  0.8584</code></pre>
 <section id="balance-check" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="balance-check"><span class="header-section-number">4</span> Balance Check</h2>
 <p>The balance diagnostic asks the same question as the R plots: after reducing the covariates to a scalar propensity score, do the residual treated-control differences in the original covariates shrink?</p>
-<div id="fc32f8bd" class="cell" data-execution_count="8">
+<div id="1a63028f" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hajek_balance(column, d, pscore):</span>
@@ -4637,7 +4648,7 @@ Quintile 5: n =  466, treated share =  0.8584</code></pre>
 </div>
 </div>
 </div>
-<div id="c51d19a3" class="cell" data-execution_count="9">
+<div id="a3eb9390" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">4</span>))</span>

@@ -4125,6 +4125,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
  <span class="dropdown-text">Staggered Panel Event Study</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4244,6 +4248,13 @@ window.Quarto = {
     </ul>
   </li>
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
@@ -4345,7 +4356,7 @@ W_i - \mu_W \\
 \end{bmatrix}.
 \]</span></p>
 <p>The implementation treats all three estimators as exactly identified stacked-moment systems, so their reported standard errors come from a common sandwich calculation rather than ad hoc post-processing.</p>
-<div id="dc77678d" class="cell" data-execution_count="1">
+<div id="036f5894" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>

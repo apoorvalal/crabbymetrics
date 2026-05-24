@@ -4109,6 +4109,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
  <span class="dropdown-text">Staggered Panel Event Study</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4228,6 +4232,13 @@ window.Quarto = {
     </ul>
   </li>
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
@@ -4264,7 +4275,7 @@ window.Quarto = {
 <p>This page shows the linear IV / 2SLS path used by <code>crabbymetrics.TwoSLS</code>, first with one endogenous regressor and then with several.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="0bcfb600" class="cell" data-execution_count="1">
+<div id="5c45c1e4" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4328,7 +4339,7 @@ Z_{\mathrm{full}}^\top.
 </section>
 <section id="helpers" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="helpers"><span class="header-section-number">3</span> Helpers</h2>
-<div id="e994648a" class="cell" data-execution_count="2">
+<div id="efa068fa" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_intercept(x):</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack([np.ones(x.shape[<span class="dv">0</span>]), x])</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4363,7 +4374,7 @@ Z_{\mathrm{full}}^\top.
 <section id="single-endogenous-regressor" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="single-endogenous-regressor"><span class="header-section-number">4</span> Single Endogenous Regressor</h2>
 <p>This is the usual overidentified IV setup: one endogenous regressor, one exogenous regressor, and three excluded instruments.</p>
-<div id="db7f8e0e" class="cell" data-execution_count="3">
+<div id="b310ef7e" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4407,6 +4418,9 @@ projection formula: [ 0.486   1.3787 -0.7785]
  &#39;coef_se&#39;: array([0.0184, 0.0203]),
  &#39;intercept&#39;: 0.4859595099819009,
  &#39;intercept_se&#39;: 0.020869105726918507,
+ &#39;vcov&#39;: array([[ 0.0004, -0.    , -0.    ],
+       [-0.    ,  0.0003, -0.0001],
+       [-0.    , -0.0001,  0.0004]]),
  &#39;vcov_type&#39;: &#39;hc1&#39;}</code></pre>
 </div>
 </div>
@@ -4414,7 +4428,7 @@ projection formula: [ 0.486   1.3787 -0.7785]
 <section id="robust-covariance-options" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="robust-covariance-options"><span class="header-section-number">5</span> Robust Covariance Options</h2>
 <p>Point estimation stays closed form, but the inference surface is shared with <code>OLS</code>, <code>Ridge</code>, and <code>FixedEffectsOLS</code>.</p>
-<div id="dcd4124f" class="cell" data-execution_count="4">
+<div id="59bf5760" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>clusters <span class="op">=</span> np.repeat(np.arange(<span class="dv">40</span>, dtype<span class="op">=</span>np.int64), n <span class="op">//</span> <span class="dv">40</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>
@@ -4441,7 +4455,7 @@ cluster SE: [0.0173 0.0206]</code></pre>
 \mathbf{1} &amp; \hat{X}_{\mathrm{endog}} &amp; X_{\mathrm{exog}}
 \end{bmatrix}.
 \]</span></p>
-<div id="1aa19854" class="cell" data-execution_count="5">
+<div id="36b09922" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1400</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4492,6 +4506,10 @@ projection formula: [-0.1713  1.138  -0.9109  0.5623]
  &#39;coef_se&#39;: array([0.0208, 0.0227, 0.0214]),
  &#39;intercept&#39;: -0.17129481591976048,
  &#39;intercept_se&#39;: 0.02092673254202305,
+ &#39;vcov&#39;: array([[ 0.0004, -0.    ,  0.    , -0.    ],
+       [-0.    ,  0.0004,  0.0001, -0.0001],
+       [ 0.    ,  0.0001,  0.0005, -0.0001],
+       [-0.    , -0.0001, -0.0001,  0.0005]]),
  &#39;vcov_type&#39;: &#39;hc1&#39;}</code></pre>
 </div>
 </div>

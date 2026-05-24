@@ -4125,6 +4125,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
  <span class="dropdown-text">Staggered Panel Event Study</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4244,6 +4248,13 @@ window.Quarto = {
     </ul>
   </li>
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
@@ -4324,7 +4335,7 @@ Z_i = D_i - e(W_i),
 \hat Z_i = D_i - \hat e(W_i),
 \]</span></p>
 <p>but <code>summary()</code> reports a stacked-moment sandwich covariance so the nuisance estimation step is accounted for directly.</p>
-<div id="97cabe2b" class="cell" data-execution_count="1">
+<div id="e29b7021" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>

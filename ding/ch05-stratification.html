@@ -3986,6 +3986,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
     <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
  <span class="dropdown-text">Staggered Panel Event Study</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4105,6 +4109,13 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
     </ul>
   </li>
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
@@ -4151,7 +4162,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 
 <p>Chapter 5 moves from completely randomized experiments to blocked and post-stratified designs. The Penn unemployment experiment is the real-data blocked example, and the later post-stratification section in the R script is simple enough to keep as explicit arithmetic.</p>
-<div id="6a5634a5" class="cell" data-execution_count="2">
+<div id="bac4edb7" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4177,7 +4188,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <section id="penn-job-training-data" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="penn-job-training-data"><span class="header-section-number">1</span> Penn Job-Training Data</h2>
-<div id="e4c3b724" class="cell" data-execution_count="3">
+<div id="06fcc21a" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>penndata <span class="op">=</span> pd.read_table(data_dir <span class="op">/</span> <span class="st">&quot;Penn46_ascii.txt&quot;</span>, sep<span class="op">=</span><span class="vs">r&quot;</span><span class="dv">\s</span><span class="op">+</span><span class="vs">&quot;</span>)</span>
@@ -4286,7 +4297,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="fisher-test-within-blocks" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fisher-test-within-blocks"><span class="header-section-number">2</span> Fisher Test Within Blocks</h2>
-<div id="b3ec81cd" class="cell" data-execution_count="4">
+<div id="8e86165f" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
@@ -4336,7 +4347,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="dae5bdfe" class="cell" data-execution_count="5">
+<div id="445ef8fe" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -4359,7 +4370,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="post-stratification-arithmetic" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="post-stratification-arithmetic"><span class="header-section-number">3</span> Post-Stratification Arithmetic</h2>
 <p>The source script also has a small two-stratum binary-outcome example. It is useful because there is no modeling hidden inside it: each stratum contributes its own risk difference and binomial variance, then the overall post-stratified estimate weights by stratum size.</p>
-<div id="db5f9ef8" class="cell" data-execution_count="6">
+<div id="b28ab8f4" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>post_counts <span class="op">=</span> pd.DataFrame(</span>
