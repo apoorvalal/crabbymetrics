@@ -29,11 +29,11 @@
 
 - The public docs URL is `https://apoorvalal.github.io/crabbymetrics/`.
 - GitHub Pages serves from the root of the `gh-pages` branch, not directly from `master`.
-- Committing rendered Quarto outputs to `master` is necessary for review/history, but it does **not** deploy the public site by itself.
-- Before deploying, render the affected page(s), and if navigation/search changed render enough of the site to update `docs/search.json`:
+- **No rendered HTML on `master`:** do not commit rendered `.html`, Quarto cache/freeze artifacts, or `docs/search.json` changes to `master` / source PR branches. Source branches should carry `.qmd` and code/source changes only.
+- Before deploying or previewing, render the affected page(s) locally; if navigation/search changed, render enough of the site to update the generated site tree:
   - `QUARTO_PYTHON=.venv/bin/python quarto render docs/examples/<page>.qmd`
   - or `QUARTO_PYTHON=.venv/bin/python quarto render docs` for broad nav/search changes.
-- Commit the source `.qmd`, rendered `.html`, relevant `docs/_freeze/...` files, `docs/search.json`, and nav changes on `master`, then push `master`.
+- Use rendered outputs only for local checking, Hetzner review previews, or the `gh-pages` branch.
 - To deploy, copy the rendered `docs/` tree to a fresh `gh-pages` clone and push that branch. Use a clone, not a worktree: `rsync --delete` can delete a worktree's `.git` file.
 
 ```bash
