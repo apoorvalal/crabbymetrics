@@ -12,8 +12,9 @@ dependencies = ["numpy"]
 
 [project.optional-dependencies]
 docs = [
-    "jupyter-cache>=0.6.1",
-    "matplotlib",
+    "jupyter>=1.1.1",
+    "jupyter-cache>=1.0.1",
+    "matplotlib>=3.10.9",
     "pandas>=2.3.3",
 ]
 test = [
@@ -45,6 +46,12 @@ dev = [
     "maturin>=1.12.6",
     "pytest>=8.3.5",
     "statsmodels>=0.14.6",
+]
+docs = [
+    "jupyter>=1.1.1",
+    "jupyter-cache>=1.0.1",
+    "matplotlib>=3.10.9",
+    "pandas>=2.3.3",
 ]
 test = [
     "pyfixest>=0.50.1",
