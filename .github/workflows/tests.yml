@@ -30,7 +30,7 @@ jobs:
         run: maturin build --release --interpreter python
 
       - name: Install built wheel
-        run: python -m pip install --force-reinstall --no-deps target/wheels/*.whl
+        run: python -m pip install --force-reinstall --no-deps "$(ls target/wheels/*manylinux*.whl | head -n 1)"
 
       - name: Run tests
         run: python -m pytest
