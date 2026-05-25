@@ -47,3 +47,16 @@ print("true intercept:", intercept)
 print("true coef:", beta)
 pprint(model.summary())
 ```
+
+## Prediction surfaces
+
+For Poisson, `predict_lin()` returns the log-mean index and `predict()` exponentiates back to the conditional mean.
+
+```{python}
+check = x[:8]
+out = {
+    "log_mu": model.predict_lin(check),
+    "mu": model.predict(check),
+}
+pprint(out)
+```

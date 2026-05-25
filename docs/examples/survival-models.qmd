@@ -180,6 +180,63 @@ parametric
 
 The exponential fit is intentionally misspecified because the simulated baseline hazard is not constant. The log-hazard-ratio coefficients remain in the right neighborhood, while the Weibull fit also recovers an increasing baseline hazard.
 
+## Prediction surfaces for survival models
+
+The widened survival API now exposes the same layered contract as the MLE estimators:
+
+- `predict_lin(...)`: the linear predictor on the model's natural latent scale,
+- `predict(...)`: the default mean-scale prediction,
+- extra survival-specific surfaces such as `predict_hazard(...)`, `predict_cumulative_hazard(...)`, and `predict_survival(...)` when absolute survival objects are identified.
+
+For the parametric PH models, `predict(...)` defaults to survival probabilities at supplied horizons.
+
+```{python}
+check_x = x[:5]
+check_t = np.linspace(2.0, 12.0, 5)
+
+exp_preds = pd.DataFrame(
+    {
+        "time": check_t,
+        "lin": exp_ph.predict_lin(check_x),
+        "hazard": exp_ph.predict_hazard(check_x),
+        "cumhaz": exp_ph.predict_cumulative_hazard(check_x, check_t),
+        "survival": exp_ph.predict(check_x, check_t),
+    }
+)
+exp_preds
+```
+
+```{python}
+weibull_preds = pd.DataFrame(
+    {
+        "time": check_t,
+        "lin": weibull.predict_lin(check_x, check_t),
+        "hazard": weibull.predict_hazard(check_x, check_t),
+        "cumhaz": weibull.predict_cumulative_hazard(check_x, check_t),
+        "survival": weibull.predict_survival(check_x, check_t),
+    }
+)
+weibull_preds
+```
+
+The internal identities line up exactly:
+
+```{python}
+np.allclose(exp_preds["hazard"], np.exp(exp_preds["lin"]))
+```
+
+```{python}
+np.allclose(exp_preds["survival"], np.exp(-exp_preds["cumhaz"]))
+```
+
+```{python}
+np.allclose(weibull_preds["hazard"], np.exp(weibull_preds["lin"]))
+```
+
+```{python}
+np.allclose(weibull_preds["survival"], np.exp(-weibull_preds["cumhaz"]))
+```
+
 ## Cox proportional hazards
 
 The Cox model leaves the baseline hazard unspecified and estimates $\beta$ from the ordering of failures through the partial likelihood:
@@ -203,6 +260,18 @@ cox_table = pd.DataFrame(
     index=["x1", "x2"],
 )
 cox_table
+```
+
+For Cox, the default prediction is relative risk because the baseline hazard is left unspecified. The latent score is the log hazard ratio.
+
+```{python}
+cox_preds = pd.DataFrame(
+    {
+        "log_hazard_ratio": cox.predict_lin(check_x),
+        "relative_risk": cox.predict(check_x),
+    }
+)
+cox_preds
 ```
 
 ## Andersen--Gill counting-process form
@@ -233,6 +302,16 @@ pd.DataFrame(
 )
 ```
 
+```{python}
+ag_preds = pd.DataFrame(
+    {
+        "log_hazard_ratio": ag.predict_lin(check_x),
+        "relative_risk": ag.predict(check_x),
+    }
+)
+ag_preds
+```
+
 ## Survival curves from the parametric models
 
 Parametric models estimate an absolute survival curve because they estimate the baseline hazard. Cox-type partial-likelihood models estimate relative hazards unless a baseline-hazard estimator is added.
@@ -249,7 +328,7 @@ labels = ["x=(0,0)", "x=(1,0)", "x=(0,1)"]
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for profile, label in zip(profiles, labels):
     xx = np.tile(profile, (len(grid), 1))
-    ax.plot(grid, weibull.survival(xx, grid), label=label)
+    ax.plot(grid, weibull.predict_survival(xx, grid), label=label)
 
 ax.set_xlabel("time")
 ax.set_ylabel("estimated survival")

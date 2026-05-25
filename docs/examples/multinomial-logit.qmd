@@ -60,3 +60,17 @@ print("true intercept:", intercept)
 print("true coef:", coef)
 pprint(model.summary())
 ```
+
+## Prediction surfaces
+
+For multinomial logit, `predict_lin()` returns one latent score per class, `predict()` returns class probabilities, and `predict_label()` returns the argmax class.
+
+```{python}
+check = x[:5]
+print("linear scores")
+print(model.predict_lin(check))
+print("probabilities")
+print(model.predict(check))
+print("labels")
+print(model.predict_label(check))
+```

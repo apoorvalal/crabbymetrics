@@ -220,7 +220,7 @@ impl ExponentialPH {
         Ok(())
     }
 
-    fn predict_log_hazard<'py>(
+    fn predict_lin<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -239,7 +239,51 @@ impl ExponentialPH {
         Ok(pyarray1_from_f64(py, &out))
     }
 
-    fn survival<'py>(
+    fn predict_hazard<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let out = Array1::from_iter(
+            (0..x.nrows()).map(|i| (self.log_baseline_hazard + x.row(i).dot(coef)).exp()),
+        );
+        Ok(pyarray1_from_f64(py, &out))
+    }
+
+    fn predict_cumulative_hazard<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
+        let x = to_array2(&x);
+        let time = to_array1(&time);
+        if x.nrows() != time.len() || x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x/time dimensions do not match fitted model",
+            ));
+        }
+        let lambda = self.log_baseline_hazard.exp();
+        let out =
+            Array1::from_iter((0..time.len()).map(|i| lambda * time[i] * x.row(i).dot(coef).exp()));
+        Ok(pyarray1_from_f64(py, &out))
+    }
+
+    fn predict_survival<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -261,6 +305,32 @@ impl ExponentialPH {
             (0..time.len()).map(|i| (-(lambda * time[i] * x.row(i).dot(coef).exp())).exp()),
         );
         Ok(pyarray1_from_f64(py, &out))
+    }
+
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_survival(py, x, time)
+    }
+
+    fn predict_log_hazard<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_lin(py, x)
+    }
+
+    fn survival<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_survival(py, x, time)
     }
 
     fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
@@ -335,7 +405,7 @@ impl WeibullPH {
         Ok(())
     }
 
-    fn survival<'py>(
+    fn predict_survival<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -361,7 +431,16 @@ impl WeibullPH {
         Ok(pyarray1_from_f64(py, &out))
     }
 
-    fn predict_log_hazard<'py>(
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_survival(py, x, time)
+    }
+
+    fn predict_lin<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -383,6 +462,77 @@ impl WeibullPH {
             self.log_scale_hazard + self.log_shape + (rho - 1.0) * time[i].ln() + x.row(i).dot(coef)
         }));
         Ok(pyarray1_from_f64(py, &out))
+    }
+
+    fn predict_hazard<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
+        let x = to_array2(&x);
+        let time = to_array1(&time);
+        if x.nrows() != time.len() || x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x/time dimensions do not match fitted model",
+            ));
+        }
+        let rho = self.log_shape.exp();
+        let out = Array1::from_iter((0..time.len()).map(|i| {
+            (self.log_scale_hazard
+                + self.log_shape
+                + (rho - 1.0) * time[i].ln()
+                + x.row(i).dot(coef))
+            .exp()
+        }));
+        Ok(pyarray1_from_f64(py, &out))
+    }
+
+    fn predict_cumulative_hazard<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
+        let x = to_array2(&x);
+        let time = to_array1(&time);
+        if x.nrows() != time.len() || x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x/time dimensions do not match fitted model",
+            ));
+        }
+        let lambda = self.log_scale_hazard.exp();
+        let rho = self.log_shape.exp();
+        let out = Array1::from_iter(
+            (0..time.len()).map(|i| lambda * time[i].powf(rho) * x.row(i).dot(coef).exp()),
+        );
+        Ok(pyarray1_from_f64(py, &out))
+    }
+
+    fn survival<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_survival(py, x, time)
+    }
+
+    fn predict_log_hazard<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        time: PyReadonlyArray1<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_lin(py, x, time)
     }
 
     fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
@@ -550,7 +700,7 @@ impl CoxPH {
         Ok(())
     }
 
-    fn predict_log_hazard_ratio<'py>(
+    fn predict_lin<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -566,6 +716,40 @@ impl CoxPH {
             ));
         }
         Ok(pyarray1_from_f64(py, &x.dot(coef)))
+    }
+
+    fn predict_relative_risk<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        Ok(pyarray1_from_f64(py, &x.dot(coef).mapv(f64::exp)))
+    }
+
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_relative_risk(py, x)
+    }
+
+    fn predict_log_hazard_ratio<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_lin(py, x)
     }
 
     fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
@@ -640,7 +824,7 @@ impl AndersenGill {
         Ok(())
     }
 
-    fn predict_log_hazard_ratio<'py>(
+    fn predict_lin<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -656,6 +840,40 @@ impl AndersenGill {
             ));
         }
         Ok(pyarray1_from_f64(py, &x.dot(coef)))
+    }
+
+    fn predict_relative_risk<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        Ok(pyarray1_from_f64(py, &x.dot(coef).mapv(f64::exp)))
+    }
+
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_relative_risk(py, x)
+    }
+
+    fn predict_log_hazard_ratio<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        self.predict_lin(py, x)
     }
 
     fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {

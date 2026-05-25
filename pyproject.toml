@@ -18,6 +18,7 @@ docs = [
     "pandas>=2.3.3",
 ]
 test = [
+    "lifelines>=0.30.0",
     "pyfixest>=0.50.1",
     "scipy>=1.15.3",
     "statsmodels>=0.14.6",
@@ -44,6 +45,7 @@ exclude = [{ path = "docs/**/*", format = "sdist" }]
 [dependency-groups]
 dev = [
     "jupyter>=1.1.1",
+    "lifelines>=0.30.0",
     "maturin>=1.12.6",
     "pytest>=8.3.5",
     "statsmodels>=0.14.6",
@@ -55,6 +57,7 @@ docs = [
     "pandas>=2.3.3",
 ]
 test = [
+    "lifelines>=0.30.0",
     "pyfixest>=0.50.1",
     "pytest>=8.3.5",
     "scipy>=1.15.3",
