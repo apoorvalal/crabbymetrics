@@ -18,7 +18,7 @@ Survival models describe event timing through a hazard rate: the instantaneous e
 - `CoxPH`: Cox's semiparametric proportional-hazards partial likelihood,
 - `AndersenGill`: the counting-process Cox model for recurrent events or time-split risk intervals.
 
-The common coefficient interpretation is multiplicative on the hazard. If a coefficient is $eta_j$, then $exp(\beta_j)$ is a hazard ratio.
+The common coefficient interpretation is multiplicative on the hazard. If a coefficient is $\beta_j$, then $\exp(\beta_j)$ is a hazard ratio.
 
 ```{python}
 import numpy as np
@@ -28,6 +28,62 @@ import crabbymetrics as cm
 
 np.set_printoptions(precision=3, suppress=True)
 ```
+
+## What is one observation?
+
+The simplest survival observation is one unit followed from a well-defined origin until either an event happens or follow-up stops. For subject $i$, the latent event time is $T_i$ and the censoring time is $C_i$. With ordinary right censoring, the observed record is
+
+$$
+Y_i = \min(T_i, C_i),
+\qquad
+\Delta_i = \mathbf{1}\{T_i \le C_i\}.
+$$
+
+So a row contains at least:
+
+- a duration or stop time $Y_i$;
+- an event indicator $\Delta_i$, equal to one for an observed event and zero for a right-censored record;
+- covariates $x_i$.
+
+Right censoring means we know the event did not occur before $Y_i$, but we do not know when it would have occurred after $Y_i$. This is the common setup for attrition, end-of-study censoring, or administrative follow-up windows. The standard identifying condition is independent censoring: conditional on covariates, censoring should not reveal extra information about the event time beyond the fact that the unit survived to the censoring time.
+
+Sometimes units only become observable after an entry time $L_i$. This is left truncation, or delayed entry: a subject is included only if $T_i > L_i$. The observation is then a risk interval $(L_i, Y_i]$ plus the event flag $\Delta_i$. Left truncation changes the risk sets because the subject should not count as being at risk before $L_i$. This differs from left censoring, where the event is known to have occurred before some time but the exact time is unknown. This vignette focuses on right censoring and, later, interval-style risk sets that can also represent delayed entry or recurrent-event data.
+
+The basic survival objects are:
+
+$$
+S(t) = \Pr(T > t),
+\qquad
+h(t) = \lim_{\Delta t \downarrow 0}
+\frac{\Pr(t \le T < t + \Delta t \mid T \ge t)}{\Delta t},
+\qquad
+H(t) = \int_0^t h(u)\,du.
+$$
+
+Survival and cumulative hazard are linked by
+
+$$
+S(t) = \exp\{-H(t)\}.
+$$
+
+## Kaplan--Meier as the baseline nonparametric estimate
+
+Before fitting regressions, the Kaplan--Meier estimator is the workhorse nonparametric estimate of the survival curve under right censoring. At each distinct observed event time $t_j$, let $d_j$ be the number of events at that time and $n_j$ the number of units still at risk just before that time. The estimator multiplies the conditional survival probabilities across event times:
+
+$$
+\widehat S(t)
+= \prod_{t_j \le t} \left(1 - \frac{d_j}{n_j}\right).
+$$
+
+Censored observations do not create downward jumps in the curve. They simply leave the risk set after their censoring time. That is the key intuition: Kaplan--Meier estimates survival by using only units that are still genuinely under observation at each failure time.
+
+The Nelson--Aalen cumulative-hazard estimator is the companion object:
+
+$$
+\widehat H(t) = \sum_{t_j \le t} \frac{d_j}{n_j}.
+$$
+
+Regression models below can be read as structured ways to let covariates shift hazards and survival curves, while preserving the same risk-set logic.
 
 ## Simulate right-censored survival data
 
@@ -56,6 +112,34 @@ time = np.minimum(event_time, censor_time)
 event = (event_time <= censor_time).astype(float)
 
 print({"events": int(event.sum()), "censor_rate": float(1 - event.mean())})
+```
+
+A quick Kaplan--Meier curve from the simulated data shows the raw survival pattern before imposing a regression model. The step function drops only at observed event times; censored units affect later denominators by leaving the risk set.
+
+```{python}
+def kaplan_meier(times, events):
+    event_times = np.sort(np.unique(times[events == 1]))
+    surv = []
+    s = 1.0
+    for tj in event_times:
+        at_risk = np.sum(times >= tj)
+        failures = np.sum((times == tj) & (events == 1))
+        s *= 1 - failures / at_risk
+        surv.append((tj, s, at_risk, failures))
+    return pd.DataFrame(surv, columns=["time", "survival", "at_risk", "events"])
+
+km = kaplan_meier(time, event)
+km.head()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(7, 4.2))
+ax.step(np.r_[0, km["time"]], np.r_[1, km["survival"]], where="post")
+ax.set_xlabel("time")
+ax.set_ylabel("Kaplan--Meier survival estimate")
+ax.set_title("Nonparametric survival curve for the simulated sample")
+ax.set_ylim(0, 1.02)
+plt.show()
 ```
 
 ## Exponential and Weibull PH fits
