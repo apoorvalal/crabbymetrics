@@ -36,7 +36,7 @@ The `alpha` constructor argument is an L2 penalty, not the intercept. `summary(v
 
 Constructor: `cm.Poisson`
 
-Use `fit(x, y)` with nonnegative count-like outcomes. `predict(x)` returns fitted conditional means. The class also supports `bootstrap(B, seed=None)`.
+Use `fit(x, y)` with nonnegative count-like outcomes. `predict_lin(x)` returns the log-mean index and `predict(x)` returns fitted conditional means. The class also supports `bootstrap(B, seed=None)`.
 
 ```{python}
 print(inspect.signature(cm.Poisson))
@@ -56,6 +56,7 @@ x=rng.normal(size=(250,2)); mu=np.exp(.2+x@np.array([.4,-.25])); y=rng.poisson(m
 model=cm.Poisson(max_iterations=200, tolerance=1e-8); model.fit(x,y)
 print(model.summary(vcov="vanilla")["coef"])
 print(model.summary(vcov="sandwich")["coef_se"])
+print(model.predict_lin(x[:3]))
 print(model.predict(x[:3]))
 ```
 

@@ -507,6 +507,7 @@ uv run quarto render docs
 - [Logit](https://apoorvalal.github.io/crabbymetrics/examples/logit.html): binary logistic regression.
 - [Multinomial Logit](https://apoorvalal.github.io/crabbymetrics/examples/multinomial-logit.html): multiclass classification.
 - [Poisson](https://apoorvalal.github.io/crabbymetrics/examples/poisson.html): count regression and QMLE/sandwich inference.
+- [Survival Models](https://apoorvalal.github.io/crabbymetrics/examples/survival-models.html): exponential PH, Weibull PH, Cox PH, Andersen--Gill counting-process models, and discrete-time hazard/logit connections.
 - [TwoSLS](https://apoorvalal.github.io/crabbymetrics/examples/twosls.html): instrumental variables regression.
 - [GMM](https://apoorvalal.github.io/crabbymetrics/examples/gmm.html): custom moment estimators.
 - [FTRL](https://apoorvalal.github.io/crabbymetrics/examples/ftrl.html): online-style binary classification.

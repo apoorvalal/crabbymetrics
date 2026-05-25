@@ -1,0 +1,213 @@
+---
+title: "Survival, Time-to-Event, and Recurrent-Event Models"
+subtitle: "Prediction surfaces and modeling choices across ExponentialPH, WeibullPH, CoxPH, and Andersen--Gill"
+execute:
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+This vignette is the richer worked companion to the class reference pages for the survival submodule.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Four estimators, two prediction philosophies
+
+`crabbymetrics` currently exposes four event-time estimators:
+
+- `ExponentialPH`: parametric PH with constant baseline hazard,
+- `WeibullPH`: parametric PH with monotone baseline hazard,
+- `CoxPH`: semiparametric proportional hazards,
+- `AndersenGill`: counting-process Cox for recurrent events or split intervals.
+
+The prediction contract differs for a principled reason.
+
+- The parametric PH models identify the baseline hazard, so they can return hazard, cumulative hazard, and survival.
+- The Cox-style models leave the baseline hazard unspecified, so the paved prediction object is relative risk.
+
+## Simulate a Weibull PH design
+
+```{python}
+rng = np.random.default_rng(20260524)
+n = 900
+beta_true = np.array([0.55, -0.35])
+shape_true = 1.45
+scale_hazard_true = 0.035
+
+x = rng.normal(size=(n, 2))
+u = rng.uniform(size=n)
+event_time = ((-np.log(u)) / (scale_hazard_true * np.exp(x @ beta_true))) ** (1 / shape_true)
+censor_time = rng.exponential(35, size=n)
+time = np.minimum(event_time, censor_time)
+event = (event_time <= censor_time).astype(float)
+
+print({"events": int(event.sum()), "censor_rate": float(1 - event.mean())})
+```
+
+## Fit the parametric PH models
+
+```{python}
+exp_ph = cm.ExponentialPH()
+exp_ph.fit(x, time, event)
+
+weibull = cm.WeibullPH()
+weibull.fit(x, time, event)
+
+pd.DataFrame(
+    {
+        "truth": beta_true,
+        "ExponentialPH": exp_ph.summary()["coef"],
+        "WeibullPH": weibull.summary()["coef"],
+        "Weibull hazard ratio": weibull.summary()["hazard_ratio"],
+    },
+    index=["x1", "x2"],
+)
+```
+
+## Parametric prediction surfaces
+
+```{python}
+check_x = x[:5]
+check_t = np.linspace(2.0, 12.0, 5)
+
+exp_preds = pd.DataFrame(
+    {
+        "time": check_t,
+        "lin": exp_ph.predict_lin(check_x),
+        "hazard": exp_ph.predict_hazard(check_x),
+        "cumhaz": exp_ph.predict_cumulative_hazard(check_x, check_t),
+        "survival": exp_ph.predict(check_x, check_t),
+    }
+)
+exp_preds
+```
+
+```{python}
+weibull_preds = pd.DataFrame(
+    {
+        "time": check_t,
+        "lin": weibull.predict_lin(check_x, check_t),
+        "hazard": weibull.predict_hazard(check_x, check_t),
+        "cumhaz": weibull.predict_cumulative_hazard(check_x, check_t),
+        "survival": weibull.predict_survival(check_x, check_t),
+    }
+)
+weibull_preds
+```
+
+The internal identities line up exactly:
+
+```{python}
+{
+    "exp hazard = exp(lin)": np.allclose(exp_preds["hazard"], np.exp(exp_preds["lin"])),
+    "exp survival = exp(-cumhaz)": np.allclose(exp_preds["survival"], np.exp(-exp_preds["cumhaz"])),
+    "weibull hazard = exp(lin)": np.allclose(weibull_preds["hazard"], np.exp(weibull_preds["lin"])),
+    "weibull survival = exp(-cumhaz)": np.allclose(weibull_preds["survival"], np.exp(-weibull_preds["cumhaz"])),
+}
+```
+
+## Cox proportional hazards
+
+```{python}
+cox = cm.CoxPH()
+cox.fit(x, time, event)
+
+cox_table = pd.DataFrame(
+    {
+        "truth": beta_true,
+        "coef": cox.summary()["coef"],
+        "hazard ratio": cox.summary()["hazard_ratio"],
+        "se": cox.summary()["se"],
+    },
+    index=["x1", "x2"],
+)
+cox_table
+```
+
+Since the baseline hazard is left unspecified, the default prediction is relative risk rather than absolute survival:
+
+```{python}
+cox_preds = pd.DataFrame(
+    {
+        "log_hazard_ratio": cox.predict_lin(check_x),
+        "relative_risk": cox.predict(check_x),
+    }
+)
+cox_preds
+```
+
+## Andersen--Gill for recurrent events or split intervals
+
+A convenient smoke test is to split each subject into two rows with the event, if any, carried only by the final interval.
+
+```{python}
+start_long = np.concatenate([np.zeros_like(time), time / 2])
+stop_long = np.concatenate([time / 2, time])
+x_long = np.vstack([x, x])
+event_long = np.concatenate([np.zeros_like(event), event])
+
+ag = cm.AndersenGill()
+ag.fit(x_long, start_long, stop_long, event_long)
+
+pd.DataFrame(
+    {
+        "CoxPH": cox.summary()["coef"],
+        "Andersen-Gill split rows": ag.summary()["coef"],
+    },
+    index=["x1", "x2"],
+)
+```
+
+```{python}
+ag_preds = pd.DataFrame(
+    {
+        "log_hazard_ratio": ag.predict_lin(check_x),
+        "relative_risk": ag.predict(check_x),
+    }
+)
+ag_preds
+```
+
+## Visualizing survival curves from the parametric fit
+
+```{python}
+grid = np.linspace(0.1, np.quantile(time, 0.9), 100)
+profiles = np.array([
+    [0.0, 0.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+])
+labels = ["x=(0,0)", "x=(1,0)", "x=(0,1)"]
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+for profile, label in zip(profiles, labels):
+    xx = np.tile(profile, (len(grid), 1))
+    ax.plot(grid, weibull.predict_survival(xx, grid), label=label)
+
+ax.set_xlabel("time")
+ax.set_ylabel("estimated survival")
+ax.set_title("WeibullPH survival curves")
+ax.legend(frameon=False)
+plt.show()
+```
+
+## Interpretation
+
+The current survival module has a clean split:
+
+- **parametric PH models** for absolute event-time prediction,
+- **Cox-style models** for semiparametric relative-risk estimation,
+- **Andersen--Gill** when the data are naturally in risk-interval form.
+
+That division is what drives the prediction API. The model returns the richest object it can justify from the fitted likelihood or partial likelihood.

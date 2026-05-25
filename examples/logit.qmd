@@ -47,3 +47,18 @@ print("true intercept:", intercept)
 print("true coef:", beta)
 pprint(model.summary())
 ```
+
+## Prediction surfaces
+
+`predict_lin()` returns the latent index $x_i'\hat\beta + \hat\alpha$. `predict()` applies the inverse-logit link to return fitted probabilities. `predict_label()` thresholds those probabilities into class labels.
+
+```{python}
+check = x[:8]
+out = {
+    "eta": model.predict_lin(check),
+    "probability": model.predict(check),
+    "label@0.50": model.predict_label(check),
+    "label@0.35": model.predict_label(check, cutoff=0.35),
+}
+pprint(out)
+```

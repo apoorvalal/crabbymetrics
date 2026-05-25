@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Survival Models – crabbymetrics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-445ff30f473745a4b54dfab4fb13ee75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../logo.png" alt="" class="navbar-logo light-content">
+    <img src="../logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">crabbymetrics</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">API</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
+        <li>
+    <a class="dropdown-item" href="../api.html">
+ <span class="dropdown-text">API Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#regression-and-glms">
+ <span class="dropdown-text">Regression And GLMs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#survival-time-to-event-and-recurrent-event-models">
+ <span class="dropdown-text">Survival / Event-Time</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#causal-inference-and-panels">
+ <span class="dropdown-text">Causal Inference And Panels</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
+ <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#transforms">
+ <span class="dropdown-text">Transforms</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#estimation-interfaces-and-optimizers">
+ <span class="dropdown-text">Estimation Interfaces</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../mechanics-ols.html"> 
+<span class="menu-text">Binding Crash Course</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression And GLMs</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
+        <li>
+    <a class="dropdown-item" href="../examples/ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/abc-ols.html">
+ <span class="dropdown-text">ABC OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/elastic-net.html">
+ <span class="dropdown-text">ElasticNet</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/logit.html">
+ <span class="dropdown-text">Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multinomial-logit.html">
+ <span class="dropdown-text">Multinomial Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mle-prediction-interface.html">
+ <span class="dropdown-text">MLE Prediction Interface</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival-time-to-event-and-recurrent-events.html">
+ <span class="dropdown-text">Survival / Recurrent Events</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm.html">
+ <span class="dropdown-text">GMM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ftrl.html">
+ <span class="dropdown-text">FTRL</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mestimator-poisson.html">
+ <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal Inference</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ablations</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+        <li>
+    <a class="dropdown-item" href="../ablations/variance-estimators.html">
+ <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
+ <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
+ <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Optimization</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+        <li>
+    <a class="dropdown-item" href="../examples/optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
+ <span class="dropdown-text">GMM With Optimizers</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding: First Course</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+        <li>
+    <a class="dropdown-item" href="../first-course-ding.html">
+ <span class="dropdown-text">Overview And TOC</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
+ <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
+ <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
+ <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
+ <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
+ <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
+ <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
+ <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
+ <span class="dropdown-text">Ch 21 Experimental IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
+ <span class="dropdown-text">Ch 23 Econometric IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch27-mediation.html">
+ <span class="dropdown-text">Ch 27 Mediation</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Survival Models</h1>
+<p class="subtitle lead">Exponential, Weibull, Cox PH, Andersen–Gill, and discrete-time hazards</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Survival models describe event timing through a hazard rate: the instantaneous event risk among units still at risk. <code>crabbymetrics</code> includes four first-pass survival estimators:</p>
+<ul>
+<li><code>ExponentialPH</code>: a parametric proportional-hazards model with constant baseline hazard,</li>
+<li><code>WeibullPH</code>: a parametric proportional-hazards model with monotone baseline hazard,</li>
+<li><code>CoxPH</code>: Cox’s semiparametric proportional-hazards partial likelihood,</li>
+<li><code>AndersenGill</code>: the counting-process Cox model for recurrent events or time-split risk intervals.</li>
+</ul>
+<p>The common coefficient interpretation is multiplicative on the hazard. If a coefficient is <span class="math inline">\(\beta_j\)</span>, then <span class="math inline">\(\exp(\beta_j)\)</span> is a hazard ratio.</p>
+<div id="9a38683b" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">3</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="what-is-one-observation" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-one-observation">What is one observation?</h2>
+<p>The simplest survival observation is one unit followed from a well-defined origin until either an event happens or follow-up stops. For subject <span class="math inline">\(i\)</span>, the latent event time is <span class="math inline">\(T_i\)</span> and the censoring time is <span class="math inline">\(C_i\)</span>. With ordinary right censoring, the observed record is</p>
+<p><span class="math display">\[
+Y_i = \min(T_i, C_i),
+\qquad
+\Delta_i = \mathbf{1}\{T_i \le C_i\}.
+\]</span></p>
+<p>So a row contains at least:</p>
+<ul>
+<li>a duration or stop time <span class="math inline">\(Y_i\)</span>;</li>
+<li>an event indicator <span class="math inline">\(\Delta_i\)</span>, equal to one for an observed event and zero for a right-censored record;</li>
+<li>covariates <span class="math inline">\(x_i\)</span>.</li>
+</ul>
+<p>Right censoring means we know the event did not occur before <span class="math inline">\(Y_i\)</span>, but we do not know when it would have occurred after <span class="math inline">\(Y_i\)</span>. This is the common setup for attrition, end-of-study censoring, or administrative follow-up windows. The standard identifying condition is independent censoring: conditional on covariates, censoring should not reveal extra information about the event time beyond the fact that the unit survived to the censoring time.</p>
+<p>Sometimes units only become observable after an entry time <span class="math inline">\(L_i\)</span>. This is left truncation, or delayed entry: a subject is included only if <span class="math inline">\(T_i &gt; L_i\)</span>. The observation is then a risk interval <span class="math inline">\((L_i, Y_i]\)</span> plus the event flag <span class="math inline">\(\Delta_i\)</span>. Left truncation changes the risk sets because the subject should not count as being at risk before <span class="math inline">\(L_i\)</span>. This differs from left censoring, where the event is known to have occurred before some time but the exact time is unknown. This vignette focuses on right censoring and, later, interval-style risk sets that can also represent delayed entry or recurrent-event data.</p>
+<p>The basic survival objects are:</p>
+<p><span class="math display">\[
+S(t) = \Pr(T &gt; t),
+\qquad
+h(t) = \lim_{\Delta t \downarrow 0}
+\frac{\Pr(t \le T &lt; t + \Delta t \mid T \ge t)}{\Delta t},
+\qquad
+H(t) = \int_0^t h(u)\,du.
+\]</span></p>
+<p>Survival and cumulative hazard are linked by</p>
+<p><span class="math display">\[
+S(t) = \exp\{-H(t)\}.
+\]</span></p>
+</section>
+<section id="kaplanmeier-as-the-baseline-nonparametric-estimate" class="level2">
+<h2 class="anchored" data-anchor-id="kaplanmeier-as-the-baseline-nonparametric-estimate">Kaplan–Meier as the baseline nonparametric estimate</h2>
+<p>Before fitting regressions, the Kaplan–Meier estimator is the workhorse nonparametric estimate of the survival curve under right censoring. At each distinct observed event time <span class="math inline">\(t_j\)</span>, let <span class="math inline">\(d_j\)</span> be the number of events at that time and <span class="math inline">\(n_j\)</span> the number of units still at risk just before that time. The estimator multiplies the conditional survival probabilities across event times:</p>
+<p><span class="math display">\[
+\widehat S(t)
+= \prod_{t_j \le t} \left(1 - \frac{d_j}{n_j}\right).
+\]</span></p>
+<p>Censored observations do not create downward jumps in the curve. They simply leave the risk set after their censoring time. That is the key intuition: Kaplan–Meier estimates survival by using only units that are still genuinely under observation at each failure time.</p>
+<p>The Nelson–Aalen cumulative-hazard estimator is the companion object:</p>
+<p><span class="math display">\[
+\widehat H(t) = \sum_{t_j \le t} \frac{d_j}{n_j}.
+\]</span></p>
+<p>Regression models below can be read as structured ways to let covariates shift hazards and survival curves, while preserving the same risk-set logic.</p>
+</section>
+<section id="simulate-right-censored-survival-data" class="level2">
+<h2 class="anchored" data-anchor-id="simulate-right-censored-survival-data">Simulate right-censored survival data</h2>
+<p>Generate a Weibull proportional-hazards design with two covariates. The event time satisfies</p>
+<p><span class="math display">\[
+H_i(t) = \lambda t^\rho \exp(x_i'\beta),
+\qquad
+S_i(t) = \exp\{-H_i(t)\}.
+\]</span></p>
+<p>Here <span class="math inline">\(\rho &gt; 1\)</span> gives an increasing baseline hazard. Independent censoring creates the observed time and event indicator.</p>
+<div id="336fe91b" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260524</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">0.55</span>, <span class="op">-</span><span class="fl">0.35</span>])</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>shape_true <span class="op">=</span> <span class="fl">1.45</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>scale_hazard_true <span class="op">=</span> <span class="fl">0.035</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> rng.uniform(size<span class="op">=</span>n)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>event_time <span class="op">=</span> ((<span class="op">-</span>np.log(u)) <span class="op">/</span> (scale_hazard_true <span class="op">*</span> np.exp(x <span class="op">@</span> beta_true))) <span class="op">**</span> (<span class="dv">1</span> <span class="op">/</span> shape_true)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>censor_time <span class="op">=</span> rng.exponential(<span class="dv">35</span>, size<span class="op">=</span>n)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>time <span class="op">=</span> np.minimum(event_time, censor_time)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>event <span class="op">=</span> (event_time <span class="op">&lt;=</span> censor_time).astype(<span class="bu">float</span>)</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>({<span class="st">"events"</span>: <span class="bu">int</span>(event.<span class="bu">sum</span>()), <span class="st">"censor_rate"</span>: <span class="bu">float</span>(<span class="dv">1</span> <span class="op">-</span> event.mean())})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>{'events': 682, 'censor_rate': 0.24222222222222223}</code></pre>
+</div>
+</div>
+<p>A quick Kaplan–Meier curve from the simulated data shows the raw survival pattern before imposing a regression model. The step function drops only at observed event times; censored units affect later denominators by leaving the risk set.</p>
+<div id="8515eb26" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kaplan_meier(times, events):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    event_times <span class="op">=</span> np.sort(np.unique(times[events <span class="op">==</span> <span class="dv">1</span>]))</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    surv <span class="op">=</span> []</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    s <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> tj <span class="kw">in</span> event_times:</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        at_risk <span class="op">=</span> np.<span class="bu">sum</span>(times <span class="op">&gt;=</span> tj)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        failures <span class="op">=</span> np.<span class="bu">sum</span>((times <span class="op">==</span> tj) <span class="op">&amp;</span> (events <span class="op">==</span> <span class="dv">1</span>))</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        s <span class="op">*=</span> <span class="dv">1</span> <span class="op">-</span> failures <span class="op">/</span> at_risk</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        surv.append((tj, s, at_risk, failures))</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pd.DataFrame(surv, columns<span class="op">=</span>[<span class="st">"time"</span>, <span class="st">"survival"</span>, <span class="st">"at_risk"</span>, <span class="st">"events"</span>])</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>km <span class="op">=</span> kaplan_meier(time, event)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>km.head()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">time</th>
+<th data-quarto-table-cell-role="th">survival</th>
+<th data-quarto-table-cell-role="th">at_risk</th>
+<th data-quarto-table-cell-role="th">events</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>0.013369</td>
+<td>0.998885</td>
+<td>897</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>0.064539</td>
+<td>0.997768</td>
+<td>894</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>0.130955</td>
+<td>0.996648</td>
+<td>891</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>0.159742</td>
+<td>0.995528</td>
+<td>890</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>0.237237</td>
+<td>0.994405</td>
+<td>886</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="58461cdf" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.2</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ax.step(np.r_[<span class="dv">0</span>, km[<span class="st">"time"</span>]], np.r_[<span class="dv">1</span>, km[<span class="st">"survival"</span>]], where<span class="op">=</span><span class="st">"post"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"time"</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Kaplan--Meier survival estimate"</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Nonparametric survival curve for the simulated sample"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>ax.set_ylim(<span class="dv">0</span>, <span class="fl">1.02</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="survival-models_files/figure-html/cell-5-output-1.png" width="589" height="390" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="exponential-and-weibull-ph-fits" class="level2">
+<h2 class="anchored" data-anchor-id="exponential-and-weibull-ph-fits">Exponential and Weibull PH fits</h2>
+<p>The exponential model is the special case <span class="math inline">\(\rho = 1\)</span>:</p>
+<p><span class="math display">\[
+h_i(t) = \lambda \exp(x_i'\beta),
+\qquad
+H_i(t) = \lambda t \exp(x_i'\beta).
+\]</span></p>
+<p>The Weibull model estimates <span class="math inline">\(\rho\)</span> too:</p>
+<p><span class="math display">\[
+h_i(t) = \lambda \rho t^{\rho - 1}\exp(x_i'\beta),
+\qquad
+H_i(t) = \lambda t^\rho\exp(x_i'\beta).
+\]</span></p>
+<div id="09269773" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>exp_ph <span class="op">=</span> cm.ExponentialPH()</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>exp_ph.fit(x, time, event)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>weibull <span class="op">=</span> cm.WeibullPH()</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>weibull.fit(x, time, event)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>parametric <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"truth"</span>: [beta_true[<span class="dv">0</span>], beta_true[<span class="dv">1</span>], shape_true],</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"exponential"</span>: [<span class="op">*</span>exp_ph.summary()[<span class="st">"coef"</span>], np.nan],</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"weibull"</span>: [<span class="op">*</span>weibull.summary()[<span class="st">"coef"</span>], weibull.summary()[<span class="st">"shape"</span>]],</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"x1 log hazard ratio"</span>, <span class="st">"x2 log hazard ratio"</span>, <span class="st">"Weibull shape"</span>],</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>parametric</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">truth</th>
+<th data-quarto-table-cell-role="th">exponential</th>
+<th data-quarto-table-cell-role="th">weibull</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">x1 log hazard ratio</th>
+<td>0.55</td>
+<td>0.373986</td>
+<td>0.543250</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">x2 log hazard ratio</th>
+<td>-0.35</td>
+<td>-0.306631</td>
+<td>-0.443975</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Weibull shape</th>
+<td>1.45</td>
+<td>NaN</td>
+<td>1.496373</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The exponential fit is intentionally misspecified because the simulated baseline hazard is not constant. The log-hazard-ratio coefficients remain in the right neighborhood, while the Weibull fit also recovers an increasing baseline hazard.</p>
+</section>
+<section id="prediction-surfaces-for-survival-models" class="level2">
+<h2 class="anchored" data-anchor-id="prediction-surfaces-for-survival-models">Prediction surfaces for survival models</h2>
+<p>The widened survival API now exposes the same layered contract as the MLE estimators:</p>
+<ul>
+<li><code>predict_lin(...)</code>: the linear predictor on the model’s natural latent scale,</li>
+<li><code>predict(...)</code>: the default mean-scale prediction,</li>
+<li>extra survival-specific surfaces such as <code>predict_hazard(...)</code>, <code>predict_cumulative_hazard(...)</code>, and <code>predict_survival(...)</code> when absolute survival objects are identified.</li>
+</ul>
+<p>For the parametric PH models, <code>predict(...)</code> defaults to survival probabilities at supplied horizons.</p>
+<div id="57b9bfa4" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>check_x <span class="op">=</span> x[:<span class="dv">5</span>]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>check_t <span class="op">=</span> np.linspace(<span class="fl">2.0</span>, <span class="fl">12.0</span>, <span class="dv">5</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>exp_preds <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"time"</span>: check_t,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"lin"</span>: exp_ph.predict_lin(check_x),</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"hazard"</span>: exp_ph.predict_hazard(check_x),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"cumhaz"</span>: exp_ph.predict_cumulative_hazard(check_x, check_t),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"survival"</span>: exp_ph.predict(check_x, check_t),</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>exp_preds</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">time</th>
+<th data-quarto-table-cell-role="th">lin</th>
+<th data-quarto-table-cell-role="th">hazard</th>
+<th data-quarto-table-cell-role="th">cumhaz</th>
+<th data-quarto-table-cell-role="th">survival</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>2.0</td>
+<td>-2.523673</td>
+<td>0.080165</td>
+<td>0.160329</td>
+<td>0.851863</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>4.5</td>
+<td>-1.541413</td>
+<td>0.214078</td>
+<td>0.963352</td>
+<td>0.381611</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>7.0</td>
+<td>-2.573994</td>
+<td>0.076230</td>
+<td>0.533613</td>
+<td>0.586482</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>9.5</td>
+<td>-2.344797</td>
+<td>0.095867</td>
+<td>0.910733</td>
+<td>0.402229</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>12.0</td>
+<td>-2.754569</td>
+<td>0.063636</td>
+<td>0.763638</td>
+<td>0.465968</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="9595952c" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>weibull_preds <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"time"</span>: check_t,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"lin"</span>: weibull.predict_lin(check_x, check_t),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"hazard"</span>: weibull.predict_hazard(check_x, check_t),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"cumhaz"</span>: weibull.predict_cumulative_hazard(check_x, check_t),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"survival"</span>: weibull.predict_survival(check_x, check_t),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>weibull_preds</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">time</th>
+<th data-quarto-table-cell-role="th">lin</th>
+<th data-quarto-table-cell-role="th">hazard</th>
+<th data-quarto-table-cell-role="th">cumhaz</th>
+<th data-quarto-table-cell-role="th">survival</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>2.0</td>
+<td>-3.060031</td>
+<td>0.046886</td>
+<td>0.062667</td>
+<td>0.939257</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>4.5</td>
+<td>-1.234688</td>
+<td>0.290926</td>
+<td>0.874893</td>
+<td>0.416907</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>7.0</td>
+<td>-2.513302</td>
+<td>0.081000</td>
+<td>0.378918</td>
+<td>0.684602</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>9.5</td>
+<td>-2.027687</td>
+<td>0.131640</td>
+<td>0.835738</td>
+<td>0.433554</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>12.0</td>
+<td>-2.506275</td>
+<td>0.081572</td>
+<td>0.654154</td>
+<td>0.519882</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The internal identities line up exactly:</p>
+<div id="6e65ee6a" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"hazard"</span>], np.exp(exp_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<pre><code>True</code></pre>
+</div>
+</div>
+<div id="37b76b9c" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>exp_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="9">
+<pre><code>True</code></pre>
+</div>
+</div>
+<div id="a82b8542" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"hazard"</span>], np.exp(weibull_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<pre><code>True</code></pre>
+</div>
+</div>
+<div id="65ef76f4" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>weibull_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="11">
+<pre><code>True</code></pre>
+</div>
+</div>
+</section>
+<section id="cox-proportional-hazards" class="level2">
+<h2 class="anchored" data-anchor-id="cox-proportional-hazards">Cox proportional hazards</h2>
+<p>The Cox model leaves the baseline hazard unspecified and estimates <span class="math inline">\(\beta\)</span> from the ordering of failures through the partial likelihood:</p>
+<p><span class="math display">\[
+\ell(\beta) = \sum_{i: d_i = 1}
+\left[x_i'\beta - \log\left\{\sum_{j: t_j \ge t_i}\exp(x_j'\beta)\right\}\right].
+\]</span></p>
+<div id="5bb55b3b" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>cox <span class="op">=</span> cm.CoxPH()</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>cox.fit(x, time, event)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>cox_table <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"truth"</span>: beta_true,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"CoxPH coef"</span>: cox.summary()[<span class="st">"coef"</span>],</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"hazard ratio"</span>: cox.summary()[<span class="st">"hazard_ratio"</span>],</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"se"</span>: cox.summary()[<span class="st">"se"</span>],</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"x1"</span>, <span class="st">"x2"</span>],</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>cox_table</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="12">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">truth</th>
+<th data-quarto-table-cell-role="th">CoxPH coef</th>
+<th data-quarto-table-cell-role="th">hazard ratio</th>
+<th data-quarto-table-cell-role="th">se</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">x1</th>
+<td>0.55</td>
+<td>0.540299</td>
+<td>1.716519</td>
+<td>0.044353</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">x2</th>
+<td>-0.35</td>
+<td>-0.440718</td>
+<td>0.643574</td>
+<td>0.042970</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>For Cox, the default prediction is relative risk because the baseline hazard is left unspecified. The latent score is the log hazard ratio.</p>
+<div id="ab965b81" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>cox_preds <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"log_hazard_ratio"</span>: cox.predict_lin(check_x),</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"relative_risk"</span>: cox.predict(check_x),</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>cox_preds</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">log_hazard_ratio</th>
+<th data-quarto-table-cell-role="th">relative_risk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>-0.335467</td>
+<td>0.715004</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>1.077264</td>
+<td>2.936634</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>-0.411353</td>
+<td>0.662753</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>-0.078487</td>
+<td>0.924514</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>-0.669401</td>
+<td>0.512015</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="andersengill-counting-process-form" class="level2">
+<h2 class="anchored" data-anchor-id="andersengill-counting-process-form">Andersen–Gill counting-process form</h2>
+<p>Andersen–Gill is the Cox partial likelihood with risk intervals <span class="math inline">\((s_i, t_i]\)</span> instead of one row per subject. A row is in the risk set for an event at time <span class="math inline">\(t\)</span> when</p>
+<p><span class="math display">\[
+s_i &lt; t \le t_i.
+\]</span></p>
+<p>That makes the model useful for recurrent events and time-varying covariates. As a smoke test, split each original subject into two rows with unchanged covariates; only the second row can carry the original terminal event. The Andersen–Gill estimate then agrees with the ordinary Cox estimate.</p>
+<div id="5bdd6a7f" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>start_long <span class="op">=</span> np.concatenate([np.zeros_like(time), time <span class="op">/</span> <span class="dv">2</span>])</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>stop_long <span class="op">=</span> np.concatenate([time <span class="op">/</span> <span class="dv">2</span>, time])</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>x_long <span class="op">=</span> np.vstack([x, x])</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>event_long <span class="op">=</span> np.concatenate([np.zeros_like(event), event])</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>ag <span class="op">=</span> cm.AndersenGill()</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>ag.fit(x_long, start_long, stop_long, event_long)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"CoxPH"</span>: cox.summary()[<span class="st">"coef"</span>],</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Andersen-Gill split rows"</span>: ag.summary()[<span class="st">"coef"</span>],</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"x1"</span>, <span class="st">"x2"</span>],</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">CoxPH</th>
+<th data-quarto-table-cell-role="th">Andersen-Gill split rows</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">x1</th>
+<td>0.540299</td>
+<td>0.540299</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">x2</th>
+<td>-0.440718</td>
+<td>-0.440718</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="f1cc0376" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ag_preds <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"log_hazard_ratio"</span>: ag.predict_lin(check_x),</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"relative_risk"</span>: ag.predict(check_x),</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>ag_preds</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">log_hazard_ratio</th>
+<th data-quarto-table-cell-role="th">relative_risk</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>-0.335467</td>
+<td>0.715004</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>1.077264</td>
+<td>2.936634</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>-0.411353</td>
+<td>0.662753</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>-0.078487</td>
+<td>0.924514</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>-0.669401</td>
+<td>0.512015</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="survival-curves-from-the-parametric-models" class="level2">
+<h2 class="anchored" data-anchor-id="survival-curves-from-the-parametric-models">Survival curves from the parametric models</h2>
+<p>Parametric models estimate an absolute survival curve because they estimate the baseline hazard. Cox-type partial-likelihood models estimate relative hazards unless a baseline-hazard estimator is added.</p>
+<div id="25dbdebf" class="cell" data-execution_count="16">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(<span class="fl">0.1</span>, np.quantile(time, <span class="fl">0.9</span>), <span class="dv">100</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>profiles <span class="op">=</span> np.array([</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">0.0</span>, <span class="fl">0.0</span>],</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">1.0</span>, <span class="fl">0.0</span>],</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">0.0</span>, <span class="fl">1.0</span>],</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">"x=(0,0)"</span>, <span class="st">"x=(1,0)"</span>, <span class="st">"x=(0,1)"</span>]</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.5</span>))</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> profile, label <span class="kw">in</span> <span class="bu">zip</span>(profiles, labels):</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>    xx <span class="op">=</span> np.tile(profile, (<span class="bu">len</span>(grid), <span class="dv">1</span>))</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    ax.plot(grid, weibull.predict_survival(xx, grid), label<span class="op">=</span>label)</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"time"</span>)</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"estimated survival"</span>)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"WeibullPH survival curves"</span>)</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>ax.legend(frameon<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="survival-models_files/figure-html/cell-17-output-1.png" width="591" height="413" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="discrete-time-hazards-and-the-logistic-regression-equivalence" class="level2">
+<h2 class="anchored" data-anchor-id="discrete-time-hazards-and-the-logistic-regression-equivalence">Discrete-time hazards and the logistic-regression equivalence</h2>
+<p>A continuous-time survival record can be expanded into person-period rows. For subject <span class="math inline">\(i\)</span> and interval <span class="math inline">\(k\)</span>, define <span class="math inline">\(Y_{ik}=1\)</span> if the event occurs in that interval and <span class="math inline">\(0\)</span> if the subject survives the interval. Conditional on being at risk at the start of the interval,</p>
+<p><span class="math display">\[
+\Pr(Y_{ik}=1 \mid Y_{i1}=\cdots=Y_{i,k-1}=0, x_i)
+= h_{ik}.
+\]</span></p>
+<p>A pooled binary regression on person-period rows is therefore a discrete-time hazard model. With a logit link,</p>
+<p><span class="math display">\[
+\operatorname{logit}(h_{ik}) = \alpha_k + x_i'\beta,
+\]</span></p>
+<p>where the interval dummies <span class="math inline">\(\alpha_k\)</span> are the discrete baseline hazard. The survival function through interval <span class="math inline">\(K\)</span> is the product of conditional survival probabilities:</p>
+<p><span class="math display">\[
+S_i(K) = \prod_{k=1}^K (1 - h_{ik}).
+\]</span></p>
+<p>This is the same factorization that underlies grouped-duration likelihoods. If the interval event probabilities are small, the complementary-log-log link is especially close to a continuous-time proportional-hazards model because</p>
+<p><span class="math display">\[
+\log\{-\log(1-h_{ik})\} = \alpha_k + x_i'\beta
+\]</span></p>
+<p>corresponds to a piecewise-constant baseline cumulative hazard. The logit link is not identical to Cox PH, but it is a very useful discrete-time analog: the regression is on the sequence of conditional hazards rather than on a one-shot outcome.</p>
+<section id="where-beta-binomial-enters" class="level3">
+<h3 class="anchored" data-anchor-id="where-beta-binomial-enters">Where beta-binomial enters</h3>
+<p>If we aggregate person-period rows within cells, say by interval and covariate group, we observe <span class="math inline">\(y_g\)</span> events out of <span class="math inline">\(m_g\)</span> risk-set trials. A plain grouped discrete-time hazard model treats</p>
+<p><span class="math display">\[
+y_g \sim \operatorname{Binomial}(m_g, h_g),
+\qquad
+\operatorname{logit}(h_g)=z_g'\theta.
+\]</span></p>
+<p>A beta-binomial version adds extra-binomial heterogeneity by letting the cell hazard vary around its mean:</p>
+<p><span class="math display">\[
+p_g \sim \operatorname{Beta}(a_g, b_g),
+\qquad
+Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
+\]</span></p>
+<p>That is a grouped, overdispersed discrete-time survival model. It is useful when subjects in the same interval/cell have unmodeled frailty or shared shocks, so the event counts are more variable than a binomial hazard would imply. In that sense:</p>
+<ul>
+<li>person-period logistic regression = individual-level discrete-time hazard model;</li>
+<li>grouped binomial logistic regression = the same likelihood after aggregating identical risk-set rows;</li>
+<li>beta-binomial hazard model = grouped discrete-time hazard with extra heterogeneity/frailty.</li>
+</ul>
+<p>Here is the person-period construction with a few interval dummies. The coefficient should have the same sign as the Cox and Weibull estimates, though the scale is log-odds of interval failure rather than log instantaneous hazard.</p>
+<div id="69d55f90" class="cell" data-execution_count="17">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>breaks <span class="op">=</span> np.quantile(time, np.linspace(<span class="dv">0</span>, <span class="fl">0.85</span>, <span class="dv">9</span>))</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>breaks[<span class="dv">0</span>] <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> k <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(breaks) <span class="op">-</span> <span class="dv">1</span>):</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>        left, right <span class="op">=</span> breaks[k], breaks[k <span class="op">+</span> <span class="dv">1</span>]</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> time[i] <span class="op">&lt;=</span> left:</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>        at_risk_width <span class="op">=</span> <span class="bu">min</span>(time[i], right) <span class="op">-</span> left</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> at_risk_width <span class="op">&lt;=</span> <span class="dv">0</span>:</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>        yik <span class="op">=</span> <span class="bu">float</span>(event[i] <span class="op">==</span> <span class="dv">1</span> <span class="kw">and</span> time[i] <span class="op">&lt;=</span> right)</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>        rows.append((yik, k, x[i, <span class="dv">0</span>], x[i, <span class="dv">1</span>]))</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> yik <span class="op">==</span> <span class="dv">1</span> <span class="kw">or</span> time[i] <span class="op">&lt;=</span> right:</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>pp <span class="op">=</span> pd.DataFrame(rows, columns<span class="op">=</span>[<span class="st">"event"</span>, <span class="st">"interval"</span>, <span class="st">"x1"</span>, <span class="st">"x2"</span>])</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>interval <span class="op">=</span> pd.get_dummies(pp[<span class="st">"interval"</span>].astype(<span class="bu">int</span>), prefix<span class="op">=</span><span class="st">"t"</span>, drop_first<span class="op">=</span><span class="va">True</span>).astype(<span class="bu">float</span>)</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>X_logit <span class="op">=</span> np.column_stack([pp[[<span class="st">"x1"</span>, <span class="st">"x2"</span>]].to_numpy(), interval.to_numpy()])</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>y_logit <span class="op">=</span> pp[<span class="st">"event"</span>].to_numpy().astype(np.int32)</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a>logit <span class="op">=</span> cm.Logit(alpha<span class="op">=</span><span class="fl">0.0</span>, max_iterations<span class="op">=</span><span class="dv">500</span>, gradient_tolerance<span class="op">=</span><span class="fl">1e-7</span>)</span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>logit.fit(X_logit, y_logit)</span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Cox log hazard ratio"</span>: cox.summary()[<span class="st">"coef"</span>],</span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a>        <span class="st">"person-period logit coefficient"</span>: logit.summary()[<span class="st">"coef"</span>][:<span class="dv">2</span>],</span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"x1"</span>, <span class="st">"x2"</span>],</span>
+<span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">Cox log hazard ratio</th>
+<th data-quarto-table-cell-role="th">person-period logit coefficient</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">x1</th>
+<td>0.540299</td>
+<td>-0.584777</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">x2</th>
+<td>-0.440718</td>
+<td>0.467736</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The equality is conceptual rather than literal: logit coefficients live on the discrete interval-failure odds scale, while Cox and Weibull coefficients live on the instantaneous hazard scale. With short intervals and rare failures per interval, they often tell the same directional story.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
