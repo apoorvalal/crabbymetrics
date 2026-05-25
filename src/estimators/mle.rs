@@ -18,6 +18,17 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rand::{Rng, SeedableRng};
 
+fn softmax_rows(logits: &Array2<f64>) -> Array2<f64> {
+    let mut out = logits.clone();
+    for mut row in out.outer_iter_mut() {
+        let max = row.iter().fold(f64::NEG_INFINITY, |m, v| m.max(*v));
+        row.mapv_inplace(|v| (v - max).exp());
+        let denom = row.sum().max(1e-12);
+        row.mapv_inplace(|v| v / denom);
+    }
+    out
+}
+
 #[pyclass]
 pub struct Logit {
     alpha: f64,
@@ -66,17 +77,70 @@ impl Logit {
         Ok(())
     }
 
+    fn predict_lin<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Logit model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != model.params().len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let eta = x.dot(model.params()) + model.intercept();
+        Ok(pyarray1_from_f64(py, &eta))
+    }
+
     fn predict<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Logit model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != model.params().len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let eta = x.dot(model.params()) + model.intercept();
+        let probs = eta.mapv(|v| 1.0 / (1.0 + (-v).exp()));
+        Ok(pyarray1_from_f64(py, &probs))
+    }
+
+    #[pyo3(signature = (x, cutoff=0.5))]
+    fn predict_label<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        cutoff: f64,
     ) -> PyResult<Bound<'py, PyArray1<i32>>> {
         let model = self
             .model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Logit model is not fitted"))?;
         let x = to_array2(&x);
-        let pred = model.predict(&x);
+        if x.ncols() != model.params().len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let eta = x.dot(model.params()) + model.intercept();
+        let pred = eta.mapv(|v| {
+            if 1.0 / (1.0 + (-v).exp()) >= cutoff {
+                1
+            } else {
+                0
+            }
+        });
         Ok(pyarray1_from_i32(py, &pred))
     }
 
@@ -245,7 +309,56 @@ impl MultinomialLogit {
         Ok(())
     }
 
+    fn predict_lin<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MultinomialLogit model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != model.params().nrows() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let mut logits = x.dot(model.params());
+        for class in 0..logits.ncols() {
+            logits
+                .column_mut(class)
+                .mapv_inplace(|v| v + model.intercept()[class]);
+        }
+        Ok(pyarray2_from_f64(py, &logits))
+    }
+
     fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("MultinomialLogit model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != model.params().nrows() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let mut logits = x.dot(model.params());
+        for class in 0..logits.ncols() {
+            logits
+                .column_mut(class)
+                .mapv_inplace(|v| v + model.intercept()[class]);
+        }
+        let probs = softmax_rows(&logits);
+        Ok(pyarray2_from_f64(py, &probs))
+    }
+
+    fn predict_label<'py>(
         &self,
         py: Python<'py>,
         x: PyReadonlyArray2<f64>,
@@ -255,6 +368,11 @@ impl MultinomialLogit {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("MultinomialLogit model is not fitted"))?;
         let x = to_array2(&x);
+        if x.ncols() != model.params().nrows() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
         let pred = model.predict(&x);
         Ok(pyarray1_from_i32(py, &pred))
     }
@@ -529,6 +647,25 @@ impl Poisson {
         Ok(())
     }
 
+    fn predict_lin<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Poisson model is not fitted"))?;
+        let x = to_array2(&x);
+        if x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
+        let eta = x.dot(coef) + self.intercept;
+        Ok(pyarray1_from_f64(py, &eta))
+    }
+
     fn predict<'py>(
         &self,
         py: Python<'py>,
@@ -539,6 +676,11 @@ impl Poisson {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Poisson model is not fitted"))?;
         let x = to_array2(&x);
+        if x.ncols() != coef.len() {
+            return Err(PyValueError::new_err(
+                "x column count does not match fitted model",
+            ));
+        }
         let eta = x.dot(coef) + self.intercept;
         let mu = eta.mapv(|v| v.exp());
         Ok(pyarray1_from_f64(py, &mu))

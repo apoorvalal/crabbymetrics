@@ -1249,3 +1249,85 @@ def test_synthetic_did_vcov_rejects_bad_method_and_too_few_replications():
         model.vcov("sandwich")
     with pytest.raises(ValueError, match="replications must be at least 2"):
         model.vcov("bootstrap", replications=1)
+
+
+def test_logit_prediction_api_separates_index_probability_and_labels():
+    rng = np.random.default_rng(20260525)
+    n = 1200
+    intercept = -0.15
+    beta = np.array([0.7, -0.45, 0.25])
+
+    x = rng.normal(size=(n, beta.size))
+    eta_true = intercept + x @ beta
+    p_true = 1.0 / (1.0 + np.exp(-eta_true))
+    y = rng.binomial(1, p_true).astype(np.int32)
+
+    model = cm.Logit(max_iterations=300, gradient_tolerance=1e-8)
+    model.fit(x, y)
+
+    eta_hat = model.predict_lin(x)
+    p_hat = model.predict(x)
+    labels_default = model.predict_label(x)
+    labels_loose = model.predict_label(x, cutoff=0.35)
+
+    np.testing.assert_allclose(p_hat, 1.0 / (1.0 + np.exp(-eta_hat)), atol=1e-10, rtol=1e-10)
+    np.testing.assert_array_equal(labels_default, (p_hat >= 0.5).astype(np.int32))
+    np.testing.assert_array_equal(labels_loose, (p_hat >= 0.35).astype(np.int32))
+    assert np.all((p_hat > 0.0) & (p_hat < 1.0))
+
+
+
+def test_multinomial_logit_prediction_api_returns_probabilities_and_labels():
+    rng = np.random.default_rng(20260526)
+    n = 1500
+    coef = np.array(
+        [
+            [0.8, -0.2, 0.15],
+            [-0.1, 0.65, -0.35],
+            [0.25, -0.4, 0.45],
+        ]
+    )
+    intercept = np.array([0.25, -0.15, 0.05])
+
+    x = rng.normal(size=(n, coef.shape[1]))
+    logits = x @ coef.T + intercept
+    logits = logits - logits.max(axis=1, keepdims=True)
+    probs = np.exp(logits)
+    probs = probs / probs.sum(axis=1, keepdims=True)
+    y = np.array([rng.choice(coef.shape[0], p=probs[i]) for i in range(n)], dtype=np.int32)
+
+    model = cm.MultinomialLogit(max_iterations=300, gradient_tolerance=1e-8)
+    model.fit(x, y)
+
+    eta_hat = model.predict_lin(x[:73])
+    p_hat = model.predict(x[:73])
+    labels_hat = model.predict_label(x[:73])
+
+    eta_centered = eta_hat - eta_hat.max(axis=1, keepdims=True)
+    softmax = np.exp(eta_centered)
+    softmax = softmax / softmax.sum(axis=1, keepdims=True)
+
+    np.testing.assert_allclose(p_hat, softmax, atol=1e-10, rtol=1e-10)
+    np.testing.assert_allclose(p_hat.sum(axis=1), np.ones(p_hat.shape[0]), atol=1e-10, rtol=1e-10)
+    np.testing.assert_array_equal(labels_hat, p_hat.argmax(axis=1).astype(np.int32))
+
+
+
+def test_poisson_prediction_api_exposes_linear_index_and_mean_scale():
+    rng = np.random.default_rng(20260527)
+    n = 1000
+    intercept = 0.2
+    beta = np.array([0.35, -0.3])
+
+    x = rng.normal(size=(n, beta.size))
+    mu = np.exp(intercept + x @ beta)
+    y = rng.poisson(mu).astype(float)
+
+    model = cm.Poisson(max_iterations=250, tolerance=1e-8)
+    model.fit(x, y)
+
+    eta_hat = model.predict_lin(x[:91])
+    mu_hat = model.predict(x[:91])
+
+    np.testing.assert_allclose(mu_hat, np.exp(eta_hat), atol=1e-10, rtol=1e-10)
+    assert np.all(mu_hat > 0.0)

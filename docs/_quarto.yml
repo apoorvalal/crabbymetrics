@@ -43,6 +43,8 @@ website:
             text: MultinomialLogit
           - href: reference/Poisson.qmd
             text: Poisson
+          - href: examples/survival-models.qmd
+            text: Survival Models
           - href: reference/FTRL.qmd
             text: FTRL
           - text: Causal Inference And Panels
@@ -103,6 +105,8 @@ website:
             text: Multinomial Logit
           - href: examples/poisson.qmd
             text: Poisson
+          - href: examples/survival-models.qmd
+            text: Survival Models
           - href: examples/gmm.qmd
             text: GMM
           - href: examples/ftrl.qmd
