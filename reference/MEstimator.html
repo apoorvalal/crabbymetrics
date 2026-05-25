@@ -4343,7 +4343,7 @@ window.Quarto = {
 </header>
 
 
-<div id="fcc02ca1" class="cell" data-execution_count="1">
+<div id="091ba02e" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4359,13 +4359,13 @@ window.Quarto = {
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.MEstimator</code></p>
 <p>Construct with <code>MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)</code>. <code>objective_fn(theta, data)</code> must return <code>(objective, gradient)</code>. <code>score_fn(theta, data)</code> must return an <code>(n, p)</code> matrix. For bootstrap support, include <code>n</code> in <code>data</code> and have the objective respect optional <code>data[&#39;indices&#39;]</code>.</p>
-<div id="5216c358" class="cell" data-execution_count="2">
+<div id="6f73e2e2" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MEstimator))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(objective_fn, score_fn, max_iterations=100, tolerance=1e-06)</code></pre>
 </div>
 </div>
-<div id="b1a5ff86" class="cell" data-execution_count="3">
+<div id="d7e3531c" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.MEstimator</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4395,20 +4395,21 @@ window.Quarto = {
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="e2f1197c" class="cell" data-execution_count="4">
+<div id="01ab448c" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> obj(theta, data):</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    X, y <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>], data[<span class="st">&quot;y&quot;</span>]</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    X, y <span class="op">=</span> (data[<span class="st">&#39;X&#39;</span>], data[<span class="st">&#39;y&#39;</span>])</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> data.get(<span class="st">&#39;indices&#39;</span>, np.arange(<span class="bu">len</span>(y)))</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> y[idx] <span class="op">-</span> X[idx] <span class="op">@</span> theta</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fl">0.5</span><span class="op">*</span>np.<span class="bu">sum</span>(r<span class="op">*</span>r), <span class="op">-</span>(X[idx].T <span class="op">@</span> r)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> score(theta, data):</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> data[<span class="st">&quot;y&quot;</span>] <span class="op">-</span> data[<span class="st">&quot;X&quot;</span>] <span class="op">@</span> theta</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>data[<span class="st">&quot;X&quot;</span>] <span class="op">*</span> r[:, <span class="va">None</span>]</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">21</span>)<span class="op">;</span> X<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">180</span>,<span class="dv">2</span>))<span class="op">;</span> y<span class="op">=</span>X<span class="op">@</span>np.array([<span class="fl">1.0</span>,<span class="op">-</span><span class="fl">.5</span>])<span class="op">+</span>rng.normal(scale<span class="op">=</span><span class="fl">.2</span>,size<span class="op">=</span><span class="dv">180</span>)</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.MEstimator(obj, score, max_iterations<span class="op">=</span><span class="dv">200</span>)<span class="op">;</span> model.fit({<span class="st">&quot;X&quot;</span>:X,<span class="st">&quot;y&quot;</span>:y,<span class="st">&quot;n&quot;</span>:<span class="bu">len</span>(y)}, np.zeros(<span class="dv">2</span>))</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (<span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(r <span class="op">*</span> r), <span class="op">-</span>(X[idx].T <span class="op">@</span> r))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> score(theta, data):</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> data[<span class="st">&#39;y&#39;</span>] <span class="op">-</span> data[<span class="st">&#39;X&#39;</span>] <span class="op">@</span> theta</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>data[<span class="st">&#39;X&#39;</span>] <span class="op">*</span> r[:, <span class="va">None</span>]</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">21</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">180</span>, <span class="dv">2</span>))</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.5</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span><span class="dv">180</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(obj, score, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&#39;X&#39;</span>: X, <span class="st">&#39;y&#39;</span>: y, <span class="st">&#39;n&#39;</span>: <span class="bu">len</span>(y)}, np.zeros(<span class="dv">2</span>))</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>{&#39;coef&#39;: array([ 1.03140015, -0.50873558]), &#39;se&#39;: array([0.43752733, 0.46881892])}</code></pre>
 </div>
@@ -4417,15 +4418,22 @@ window.Quarto = {
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="b7d59f98" class="cell" data-execution_count="5">
+<div id="7b3671ba" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> obj(theta, data):</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    X,y<span class="op">=</span>data[<span class="st">&#39;X&#39;</span>],data[<span class="st">&#39;y&#39;</span>]<span class="op">;</span> idx<span class="op">=</span>data.get(<span class="st">&#39;indices&#39;</span>,np.arange(<span class="bu">len</span>(y)))<span class="op">;</span> r<span class="op">=</span>y[idx]<span class="op">-</span>X[idx]<span class="op">@</span>theta<span class="op">;</span> <span class="cf">return</span> <span class="fl">.5</span><span class="op">*</span>np.<span class="bu">sum</span>(r<span class="op">*</span>r), <span class="op">-</span>(X[idx].T<span class="op">@</span>r)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> score(theta,data):</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    r<span class="op">=</span>data[<span class="st">&#39;y&#39;</span>]<span class="op">-</span>data[<span class="st">&#39;X&#39;</span>]<span class="op">@</span>theta<span class="op">;</span> <span class="cf">return</span> <span class="op">-</span>data[<span class="st">&#39;X&#39;</span>]<span class="op">*</span>r[:,<span class="va">None</span>]</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">121</span>)<span class="op">;</span> X<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">100</span>,<span class="dv">2</span>))<span class="op">;</span> y<span class="op">=</span>X<span class="op">@</span>np.array([<span class="dv">1</span>,<span class="op">-</span><span class="fl">.5</span>])<span class="op">+</span>rng.normal(size<span class="op">=</span><span class="dv">100</span>)<span class="op">*</span><span class="fl">.2</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.MEstimator(obj,score,max_iterations<span class="op">=</span><span class="dv">200</span>)<span class="op">;</span> model.fit({<span class="st">&#39;X&#39;</span>:X,<span class="st">&#39;y&#39;</span>:y,<span class="st">&#39;n&#39;</span>:<span class="bu">len</span>(y)},np.zeros(<span class="dv">2</span>))</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    X, y <span class="op">=</span> (data[<span class="st">&#39;X&#39;</span>], data[<span class="st">&#39;y&#39;</span>])</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> data.get(<span class="st">&#39;indices&#39;</span>, np.arange(<span class="bu">len</span>(y)))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> y[idx] <span class="op">-</span> X[idx] <span class="op">@</span> theta</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (<span class="fl">0.5</span> <span class="op">*</span> np.<span class="bu">sum</span>(r <span class="op">*</span> r), <span class="op">-</span>(X[idx].T <span class="op">@</span> r))</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> score(theta, data):</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    r <span class="op">=</span> data[<span class="st">&#39;y&#39;</span>] <span class="op">-</span> data[<span class="st">&#39;X&#39;</span>] <span class="op">@</span> theta</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="op">-</span>data[<span class="st">&#39;X&#39;</span>] <span class="op">*</span> r[:, <span class="va">None</span>]</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">121</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">100</span>, <span class="dv">2</span>))</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">@</span> np.array([<span class="dv">1</span>, <span class="op">-</span><span class="fl">0.5</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">100</span>) <span class="op">*</span> <span class="fl">0.2</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MEstimator(obj, score, max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>model.fit({<span class="st">&#39;X&#39;</span>: X, <span class="st">&#39;y&#39;</span>: y, <span class="st">&#39;n&#39;</span>: <span class="bu">len</span>(y)}, np.zeros(<span class="dv">2</span>))</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>

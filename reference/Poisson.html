@@ -4343,7 +4343,7 @@ window.Quarto = {
 </header>
 
 
-<div id="59404641" class="cell" data-execution_count="1">
+<div id="6faf0d22" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4358,14 +4358,14 @@ window.Quarto = {
 <section id="python-api" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.Poisson</code></p>
-<p>Use <code>fit(x, y)</code> with nonnegative count-like outcomes. <code>predict_lin(x)</code> returns the log-mean index and <code>predict(x)</code> returns fitted conditional means. The class also supports <code>bootstrap(B, seed=None)</code>.</p>
-<div id="0d1a7c87" class="cell" data-execution_count="2">
+<p>Use <code>fit(x, y)</code> with nonnegative count-like outcomes. <code>predict(x)</code> returns fitted conditional means. The class also supports <code>bootstrap(B, seed=None)</code>.</p>
+<div id="3238720a" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Poisson))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(alpha=0.0, max_iterations=100, tolerance=0.0001)</code></pre>
 </div>
 </div>
-<div id="050de3da" class="cell" data-execution_count="3">
+<div id="1b6524c1" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Poisson</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4401,18 +4401,19 @@ window.Quarto = {
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="7abe026c" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">7</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">250</span>,<span class="dv">2</span>))<span class="op">;</span> mu<span class="op">=</span>np.exp(<span class="fl">.2</span><span class="op">+</span>x<span class="op">@</span>np.array([<span class="fl">.4</span>,<span class="op">-</span><span class="fl">.25</span>]))<span class="op">;</span> y<span class="op">=</span>rng.poisson(mu).astype(<span class="bu">float</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>, tolerance<span class="op">=</span><span class="fl">1e-8</span>)<span class="op">;</span> model.fit(x,y)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)[<span class="st">&quot;coef&quot;</span>])</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&quot;sandwich&quot;</span>)[<span class="st">&quot;coef_se&quot;</span>])</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">3</span>]))</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="f109ea71" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">250</span>, <span class="dv">2</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(<span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.25</span>]))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(mu).astype(<span class="bu">float</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>, tolerance<span class="op">=</span><span class="fl">1e-08</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&#39;vanilla&#39;</span>)[<span class="st">&#39;coef&#39;</span>])</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&#39;sandwich&#39;</span>)[<span class="st">&#39;coef_se&#39;</span>])</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[ 0.26320223 -0.29275249]
 [0.0578437  0.05367217]
-[0.01921851 0.29492251 0.27698986]
 [1.01940438 1.34302229 1.319153  ]</code></pre>
 </div>
 </div>
@@ -4420,11 +4421,14 @@ window.Quarto = {
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="510c573a" class="cell" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">107</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">100</span>,<span class="dv">2</span>))<span class="op">;</span> y<span class="op">=</span>rng.poisson(np.exp(<span class="fl">.2</span><span class="op">+</span>x<span class="op">@</span>np.array([<span class="fl">.4</span>,<span class="op">-</span><span class="fl">.25</span>]))).astype(<span class="bu">float</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>)<span class="op">;</span> model.fit(x,y)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="64fd0794" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">107</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">100</span>, <span class="dv">2</span>))</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(np.exp(<span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.25</span>]))).astype(<span class="bu">float</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>

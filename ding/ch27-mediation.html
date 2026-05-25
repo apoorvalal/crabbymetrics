@@ -4349,7 +4349,7 @@ window.Quarto = {
 <li>Sobel-style delta-method uncertainty for the indirect effect</li>
 </ul>
 <p>This is not a full mediation module in <code>crabbymetrics</code>; it is a transparent translation of the chapter’s regression calculation using <code>OLS</code> and HC1 covariance summaries.</p>
-<div id="6dec3e88" class="cell" data-execution_count="1">
+<div id="1414f918" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4469,7 +4469,7 @@ Y_i = \alpha_Y + c&#39; Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 </tbody>
 </table>
 <p>The last two regimes both have zero indirect effect, but for different reasons. In the second, treatment still shifts the mediator and the fitted product is zero because <span class="math inline">\(b=0\)</span>. In the third, neither leg of the mediated path is active in the outcome system used by the R script.</p>
-<div id="75750268" class="cell" data-execution_count="2">
+<div id="be9ab2c9" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_once(rng, mediator_effect, outcome_mediator_effect, n<span class="op">=</span><span class="dv">200</span>):</span>
@@ -4557,7 +4557,7 @@ Y_i = \alpha_Y + c&#39; Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 </div>
 </div>
 </div>
-<div id="619df09e" class="cell" data-execution_count="3">
+<div id="d609dbbf" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">3</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">9</span>))</span>
@@ -4587,7 +4587,7 @@ Y_i = \alpha_Y + c&#39; Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 <section id="jobs-data" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="jobs-data"><span class="header-section-number">2</span> JOBS Data</h2>
 <p>The source R script closes with the JOBS data from the <code>mediation</code> package. Here the treatment is job-search training, the mediator is job-search self-efficacy, and the outcome is follow-up depression.</p>
-<div id="76a69ad4" class="cell" data-execution_count="4">
+<div id="e4012953" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>jobs <span class="op">=</span> pd.read_csv(data_dir <span class="op">/</span> <span class="st">&quot;jobsdata.csv&quot;</span>)</span>

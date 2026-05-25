@@ -4343,7 +4343,7 @@ window.Quarto = {
 </header>
 
 
-<div id="0c10c18c" class="cell" data-execution_count="1">
+<div id="54602b43" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4359,13 +4359,13 @@ window.Quarto = {
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.KernelBasis</code></p>
 <p>Use <code>KernelBasis(kernel=&#39;gaussian&#39;, bandwidth=0.5, coef0=1.0, degree=2.0)</code>. <code>fit(x)</code> stores training rows. <code>transform(x)</code> returns kernel features. <code>summary()</code> reports the chosen kernel and basis dimensions.</p>
-<div id="774f5290" class="cell" data-execution_count="2">
+<div id="097dc407" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.KernelBasis))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(kernel=&#39;gaussian&#39;, bandwidth=0.5, coef0=1.0, degree=2.0)</code></pre>
 </div>
 </div>
-<div id="a96f0035" class="cell" data-execution_count="3">
+<div id="dbcdd3c5" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.KernelBasis</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4395,13 +4395,16 @@ window.Quarto = {
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="03ee1919" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">23</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">80</span>,<span class="dv">2</span>))<span class="op">;</span> y<span class="op">=</span>np.sin(x[:,<span class="dv">0</span>])<span class="op">+</span>rng.normal(scale<span class="op">=</span><span class="fl">.1</span>,size<span class="op">=</span><span class="dv">80</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>basis<span class="op">=</span>cm.KernelBasis(kernel<span class="op">=</span><span class="st">&quot;gaussian&quot;</span>, bandwidth<span class="op">=</span><span class="fl">0.8</span>)<span class="op">;</span> z<span class="op">=</span>basis.fit_transform(x)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>reg<span class="op">=</span>cm.Ridge(penalty<span class="op">=</span><span class="fl">0.1</span>)<span class="op">;</span> reg.fit(z,y)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(basis.summary())</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(reg.predict(basis.transform(x[:<span class="dv">3</span>])))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="f079afae" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">23</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">2</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.sin(x[:, <span class="dv">0</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">80</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>basis <span class="op">=</span> cm.KernelBasis(kernel<span class="op">=</span><span class="st">&#39;gaussian&#39;</span>, bandwidth<span class="op">=</span><span class="fl">0.8</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> basis.fit_transform(x)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>reg <span class="op">=</span> cm.Ridge(penalty<span class="op">=</span><span class="fl">0.1</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>reg.fit(z, y)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(basis.summary())</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(reg.predict(basis.transform(x[:<span class="dv">3</span>])))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>{&#39;kernel&#39;: &#39;gaussian&#39;, &#39;n_train&#39;: 80, &#39;n_features&#39;: 2, &#39;bandwidth&#39;: 0.8, &#39;coef0&#39;: 1.0, &#39;degree&#39;: 2.0, &#39;diagonal&#39;: array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
        1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
@@ -4415,10 +4418,13 @@ window.Quarto = {
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="ace9b86e" class="cell" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">123</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">50</span>,<span class="dv">2</span>))<span class="op">;</span> model<span class="op">=</span>cm.KernelBasis(kernel<span class="op">=</span><span class="st">&#39;gaussian&#39;</span>,bandwidth<span class="op">=</span><span class="fl">.8</span>)<span class="op">;</span> model.fit(x)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="4874357a" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">50</span>, <span class="dv">2</span>))</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.KernelBasis(kernel<span class="op">=</span><span class="st">&#39;gaussian&#39;</span>, bandwidth<span class="op">=</span><span class="fl">0.8</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>model.fit(x)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>

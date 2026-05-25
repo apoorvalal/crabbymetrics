@@ -4343,7 +4343,7 @@ window.Quarto = {
 </header>
 
 
-<div id="4eeaab77" class="cell" data-execution_count="1">
+<div id="e4147309" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4359,13 +4359,13 @@ M_F y = M_F X\beta + M_F u.
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.FixedEffectsOLS</code></p>
 <p>Call <code>fit(x, fe, y)</code> or <code>fit_weighted(x, fe, y, sample_weight)</code>. There is no <code>predict()</code> because the class is estimation-first and does not materialize fixed-effect coefficients. <code>summary()</code> supports the same covariance options as the other linear estimators.</p>
-<div id="c9a9150d" class="cell" data-execution_count="2">
+<div id="7d84f03c" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.FixedEffectsOLS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="6e966581" class="cell" data-execution_count="3">
+<div id="9326c77a" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.FixedEffectsOLS</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4398,7 +4398,7 @@ M_F y = M_F X\beta + M_F u.
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="ad3ca923" class="cell" data-execution_count="4">
+<div id="9052bc8a" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">3</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">300</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -4406,8 +4406,9 @@ M_F y = M_F X\beta + M_F u.
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>firm <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">12</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([worker, firm]).astype(np.uint32)</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> x <span class="op">@</span> np.array([<span class="fl">0.8</span>, <span class="op">-</span><span class="fl">0.5</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">30</span>)[worker] <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">12</span>)[firm] <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.2</span>, size<span class="op">=</span>n)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()<span class="op">;</span> model.fit(x, fe, y)</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&quot;cluster&quot;</span>, clusters<span class="op">=</span>worker.astype(np.int64)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&#39;cluster&#39;</span>, clusters<span class="op">=</span>worker.astype(np.int64)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>{&#39;coef&#39;: array([ 0.78646351, -0.52522162]), &#39;coef_se&#39;: array([0.01258233, 0.01212151]), &#39;vcov&#39;: array([[1.58315059e-04, 4.00920231e-05],
        [4.00920231e-05, 1.46930986e-04]]), &#39;vcov_type&#39;: &#39;cluster&#39;}</code></pre>
@@ -4417,13 +4418,18 @@ M_F y = M_F X\beta + M_F u.
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="eaab81c8" class="cell" data-execution_count="5">
+<div id="104f70f4" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">103</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n<span class="op">=</span><span class="dv">100</span><span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(n,<span class="dv">2</span>))<span class="op">;</span> g<span class="op">=</span>rng.integers(<span class="dv">0</span>,<span class="dv">10</span>,size<span class="op">=</span>n,dtype<span class="op">=</span>np.uint32)<span class="op">;</span> h<span class="op">=</span>rng.integers(<span class="dv">0</span>,<span class="dv">5</span>,size<span class="op">=</span>n,dtype<span class="op">=</span>np.uint32)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>fe<span class="op">=</span>np.column_stack([g,h]).astype(np.uint32)<span class="op">;</span> y<span class="op">=</span>x<span class="op">@</span>np.array([<span class="fl">.8</span>,<span class="op">-</span><span class="fl">.5</span>])<span class="op">+</span>rng.normal(size<span class="op">=</span><span class="dv">10</span>)[g]<span class="op">+</span>rng.normal(size<span class="op">=</span>n)<span class="op">*</span><span class="fl">.2</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.FixedEffectsOLS()<span class="op">;</span> model.fit(x, fe, y)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">100</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>g <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">10</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>h <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">5</span>, size<span class="op">=</span>n, dtype<span class="op">=</span>np.uint32)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>fe <span class="op">=</span> np.column_stack([g, h]).astype(np.uint32)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> x <span class="op">@</span> np.array([<span class="fl">0.8</span>, <span class="op">-</span><span class="fl">0.5</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">10</span>)[g] <span class="op">+</span> rng.normal(size<span class="op">=</span>n) <span class="op">*</span> <span class="fl">0.2</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.FixedEffectsOLS()</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>model.fit(x, fe, y)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
