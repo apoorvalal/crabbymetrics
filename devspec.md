@@ -20,18 +20,14 @@ Any new work here should usually satisfy most of the following:
 
 ## Current Extension Status
 
-### Active PR: randomized linear algebra sketches
+### Recently landed: randomized linear algebra, hypothesis tests, and ABC OLS
 
-Branch `feature/randomized-linear-algebra` / PR #8 adds native randomized linear algebra primitives and a sketching OLS path:
+The 2026-05 extension sequence landed several items that used to be active or pending in this file:
 
-- `src/rla.rs` implements randomized range finding, randomized SVD, randomized QR, QR-based approximate least squares, and CountSketch OLS using the existing `ndarray` + `nalgebra` stack.
-- Python exports include `randomized_range`, `randomized_qr`, `randomized_svd`, `qr_solve`, and `sketch_ols`.
-- `OLS.fit_sketch(...)` fits an approximate least-squares model by sketching rows before solving the smaller problem.
-- `TwoSLS.fit_sketch(...)` applies one CountSketch embedding jointly to the IV regressor design, instrument design, and outcome before solving compressed 2SLS.
-- The ablation lives as a proper cached Quarto docs page at `docs/ablations/randomized-sketching-ols.qmd`, with rendered/freeze outputs and a full-site draft preview copied to `https://lalten.org/drafts/crabbymetrics-pr8-docs/`.
-- Local gates passed on the branch: `cargo check`, `uv run maturin develop`, `uv run pytest`, and targeted Quarto renders for the new ablation page and index.
+- Randomized linear algebra / PR #8 is no longer an active PR. It added native randomized range finding, SVD, QR, QR solve, CountSketch OLS, `OLS.fit_sketch(...)`, `TwoSLS.fit_sketch(...)`, `GMM.fit_sketch(...)`, randomized SVD paths in `MatrixCompletion` / `InteractiveFixedEffects`, and the reusable `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` transformers.
+- Hypothesis-test helpers are landed. Estimator-level `wald_test(...)` methods exist for the main covariance-bearing estimators, module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` exist, and `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests.
+- `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed docs example at `docs/examples/abc-ols.qmd`.
 
-- Commit check, 2026-05-09: the current branch has already done the first and fifth sketching items from the informal queue: reusable randomized SVD/range finding and sketch-and-solve OLS/IV helpers. The remaining sketching work should therefore focus on estimator integrations rather than another primitive-only pass.
 
 ### Sketching / randomized linear algebra follow-on plan
 
@@ -77,6 +73,13 @@ Implementation guardrails for sketching work:
 
 ### Landed on `master`
 
+- abundance-based constraints / weighted effect coding for OLS
+  - `ABCOLS` supports categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions
+  - the docs page `docs/examples/abc-ols.qmd` explains the one-hot baseline vs ABC full-sample weighted-mean baseline distinction and includes coefficient-table comparisons to vanilla reference-coded OLS
+- linear hypothesis testing helpers
+  - fitted `wald_test(...)` methods are available on the main covariance-bearing estimators
+  - module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` support array-level/manual workflows
+  - `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests
 - unified robust covariance support for the main linear estimators
   - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` now share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", ...)`
 - weighted linear estimation
@@ -171,25 +174,24 @@ Success condition:
 - stable fit on moderate count data
 - direct tests against known formulas or a trusted reference implementation
 
-### 3. Linear hypothesis and Wald testing utilities
+### 3. Abundance-based constraints beyond OLS
 
-Status: not started
+Status: OLS landed; broader families not started
 
 Why it matters:
 
-- several estimators now expose enough covariance information to support restriction tests
-- users will want `R beta = q` style tests without unpacking arrays by hand
+- `ABCOLS` covers the core weighted-effect-coding reparameterization for OLS
+- the same interpretation problem can arise in GLMs or other fitted models with categorical modifiers
+- any extension should preserve the current explicit NumPy-first categorical-code API rather than adding a formula/patsy dependency
 
 Scope:
 
-- helper utility rather than a full estimator
-- start with Wald tests for linear restrictions
-- work with any estimator summary exposing `coef` and `vcov`
+- first decide whether the next step should be GLM support, richer covariance options, or convenience transforms for design construction
+- avoid broadening ABC until there is a concrete modeling use case beyond the current OLS page
 
 Success condition:
 
-- one simple public entry point
-- examples for `OLS`, `TwoSLS`, and `GMM`
+- one vertically complete extension with tests and a focused docs page, not a partial general formula system
 
 ### 4. Weighted nonlinear estimators and weighted GMM
 
@@ -295,9 +297,9 @@ Operational note:
 
 1. add DiD / event-study support on top of the fixed-effects foundation
 2. add negative binomial regression
-3. add linear restriction / Wald testing helpers
-4. add weighted nonlinear estimators and weighted GMM
-5. add richer IV / GMM diagnostics
+3. add weighted nonlinear estimators and weighted GMM
+4. add richer IV / GMM diagnostics
+5. consider ABC extensions beyond OLS only if a concrete use case appears
 
 ## Notes for Future Branches
 

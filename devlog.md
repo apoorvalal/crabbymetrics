@@ -420,3 +420,12 @@ That is the current state the next extension branch should assume.
 - Summary dictionaries for `OLS`, `FixedEffectsOLS`, `TwoSLS`, `Logit`, and `Poisson` now include the full covariance matrix as `vcov`, making array-level Wald tests usable directly from fitted summaries.
 - Added focused tests in `tests/test_hyptests.py` and a short docs page at `docs/reference/HypothesisTests.qmd`.
 - Added `TwoSLS.anderson_rubin_test(beta=0.0, vcov="hc1", ...)` for weak-IV-robust scalar endogenous-regressor tests, with reduced-form F-test validation against `statsmodels`.
+
+## 2026-05-24 ABC OLS, Release, And Packaging Guard
+
+- Merged PR #11, `Add ABC OLS estimator and memo`, into `master`.
+- Added `cm.ABCOLS()` for abundance-based constraints / weighted effect coding in OLS, covering categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions.
+- Added `docs/examples/abc-ols.qmd` with the overcomplete design, constraints, hand-written null-space comparison, `ABCOLS` fit, true DGP targets, coefficient tables comparing vanilla one-hot/reference-coded OLS to ABC, and the Lin (2013) / Kowal interpretation upshot.
+- Released `v0.6.7` after `v0.6.6` exposed a PyPI sdist-size failure. The underlying issue was rendered Quarto docs being included in source distributions: `0.5.1` was already 84.2 MB / 80.3 MiB, `0.6.5` reached 102.2 MB / 97.5 MiB, and `0.6.6` crossed the effective PyPI upload limit. `pyproject.toml` now excludes `docs/**/*` from sdists, and `0.6.7` published with a small ~0.4 MB sdist.
+- Rendered and deployed the public docs site to `gh-pages`; spot-check confirmed the live ABC OLS page includes `ABCOLS`, Lin (2013), and the vanilla one-hot comparison.
+- Added `AGENTS.md` release-packaging guidance requiring sdist size checks before tagging when docs changed.
