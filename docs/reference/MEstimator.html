@@ -3940,8 +3940,7 @@ return 0===self.Set.length&&2===e.size&&"Symbol"in self&&"iterator"in self.Symbo
 return"test"===t.get(e)&&!1===t["delete"](0)}return!1}catch(a){return!1}})()
 )) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakMap requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_keys:[],_values:[],_es6WeakMap:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"set");if(!IsCallable(r))throw new TypeError("WeakMap.prototype.set is not a function");try{for(var o=GetIterator(t);;){var p=IteratorStep(o);if(!1===p)return e;var n=IteratorValue(p);if("object"!==Type(n))try{throw new TypeError("Iterator value "+n+" is not an entry object")}catch(s){return IteratorClose(o,s)}try{var i=Get(n,"0"),l=Get(n,"1");Call(r,e,[i,l])}catch(u){return IteratorClose(o,u)}}}catch(u){if(Array.isArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var y,c=t.length;for(y=0;y<c;y++)i=t[y][0],l=t[y][1],Call(r,e,[i,l])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakMap.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return this._keys[a]=t,this._values[a]=t,this._size=--this._size,!0;return!1}),CreateMethodProperty(r.prototype,"get",function p(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakMap.prototype.get called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.get called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return undefined;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return r._values[a];return undefined}),CreateMethodProperty(r.prototype,"has",function n(e){var r=this;if("object"!=typeof r)throw new TypeError("Method WeakMap.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return!0;return!1}),CreateMethodProperty(r.prototype,"set",function i(e,r){var o=this;if("object"!==Type(o))throw new TypeError("Method WeakMap.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));if(!0!==o._es6WeakMap)throw new TypeError("Method WeakMap.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));var a=o._keys;if("object"!==Type(e))throw new TypeError("Invalid value used as weak map key");for(var p=0;p<a.length;p++)if(o._keys[p]!==t&&SameValue(o._keys[p],e))return o._values[p]=r,o;var n={"[[Key]]":e,"[[Value]]":r};return o._keys.push(n["[[Key]]"]),o._values.push(n["[[Value]]"]),o}),Object.defineProperty(r.prototype,Symbol.toStringTag,{configurable:!0,enumerable:!1,writable:!1,value:"WeakMap"}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakMap"});try{CreateMethodProperty(e,"WeakMap",r)}catch(o){e.WeakMap=r}}(self);}if (!((function(e){try{if(Object.prototype.hasOwnProperty.call(e,"WeakSet")&&0===e.WeakSet.length){var t={},r=new e.WeakSet([t])
 return r.has(t)&&!1===r["delete"](0)}return!1}catch(a){return!1}})(self)
-)) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakSet requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_values:[],_size:0,_es6WeakSet:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"add");if(!IsCallable(r))throw new TypeError("WeakSet.prototype.add is not a function");try{for(var o=GetIterator(t);;){var n=IteratorStep(o);if(!1===n)return e;var l=IteratorValue(n);try{Call(r,e,[l])}catch(c){return IteratorClose(o,c)}}}catch(c){if(IsArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var p,i=t.length;for(p=0;p<i;p++)Call(r,e,[t[p]])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"add",function n(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))throw new TypeError("Invalid value used in weak set");for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return r}return r._values.push(e),r}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))return!1;for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return o[a]=t,!0}return!1}),CreateMethodProperty(r.prototype,"has",function l(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._values;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return!0}return!1}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakSet"});try{CreateMethodProperty(e,"WeakSet",r)}catch(o){e.WeakSet=r}}(self);}function TrimString(e,u){var r=RequireObjectCoercible(e),t=ToString(r),n=/[\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF]+/.source;if("start"===u)var p=String.prototype.replace.call(t,new RegExp("^"+n,"g"),"");else p="end"===u?String.prototype.replace.call(t,new RegExp(n+"$","g"),""):String.prototype.replace.call(t,new RegExp("^"+n+"|"+n+"$","g"),"");return p}if (!("trim"in String.prototype&&function(){var r="​
-᠎"
+)) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakSet requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_values:[],_size:0,_es6WeakSet:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"add");if(!IsCallable(r))throw new TypeError("WeakSet.prototype.add is not a function");try{for(var o=GetIterator(t);;){var n=IteratorStep(o);if(!1===n)return e;var l=IteratorValue(n);try{Call(r,e,[l])}catch(c){return IteratorClose(o,c)}}}catch(c){if(IsArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var p,i=t.length;for(p=0;p<i;p++)Call(r,e,[t[p]])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"add",function n(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))throw new TypeError("Invalid value used in weak set");for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return r}return r._values.push(e),r}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))return!1;for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return o[a]=t,!0}return!1}),CreateMethodProperty(r.prototype,"has",function l(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._values;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return!0}return!1}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakSet"});try{CreateMethodProperty(e,"WeakSet",r)}catch(o){e.WeakSet=r}}(self);}function TrimString(e,u){var r=RequireObjectCoercible(e),t=ToString(r),n=/[\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF]+/.source;if("start"===u)var p=String.prototype.replace.call(t,new RegExp("^"+n,"g"),"");else p="end"===u?String.prototype.replace.call(t,new RegExp(n+"$","g"),""):String.prototype.replace.call(t,new RegExp("^"+n+"|"+n+"$","g"),"");return p}if (!("trim"in String.prototype&&function(){var r="​᠎"
 return!"\t\n\x0B\f\r                　\u2028\u2029\ufeff".trim()&&r.trim()===r}()
 )) {CreateMethodProperty(String.prototype,"trim",function t(){"use strict";var t=this;return TrimString(t,"start+end")});}if (!("parseFloat"in Number&&1/parseFloat("\t\n\x0B\f\r                　\u2028\u2029\ufeff-0")==-Infinity
 )) {!function(r,t){var a=function o(t){var a=String(t).trim(),e=r(a);return 0===e&&"-"==a.charAt(0)?-0:e};try{CreateMethodProperty(t,"parseFloat",a)}catch(e){t.parseFloat=a}CreateMethodProperty(Number,"parseFloat",t.parseFloat)}(parseFloat,this);}if (!("parseInt"in Number&&8===Number.parseInt("08")
@@ -3953,7 +3952,7 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 )) {"Symbol"in self&&"iterator"in Symbol&&"function"==typeof Array.prototype[Symbol.iterator]?CreateMethodProperty(Array.prototype,"values",Array.prototype[Symbol.iterator]):CreateMethodProperty(Array.prototype,"values",function r(){var r=ToObject(this);return new ArrayIterator(r,"value")});}if (!("Symbol"in self&&"iterator"in self.Symbol&&!!Array.prototype[self.Symbol.iterator]
 )) {CreateMethodProperty(Array.prototype,Symbol.iterator,Array.prototype.values);}var StringIterator=function(){var t=function(e){if(!(this instanceof t))return new t(e);e=String(e),Iterator.call(this,e),Object.defineProperty(this,"__length__",{value:e.length,configurable:!1,enumerable:!1,writable:!1})};return Object.setPrototypeOf&&Object.setPrototypeOf(t,Iterator),t.prototype=Object.create(Iterator.prototype,{constructor:{value:t,configurable:!0,enumerable:!1,writable:!0},_next:{value:function(){if(this.__list__)return this.__nextIndex__<this.__length__?this.__nextIndex__++:void this._unBind()},configurable:!0,enumerable:!1,writable:!0},_resolve:{value:function(t){var e,r=this.__list__[t];return this.__nextIndex__===this.__length__?r:(e=r.charCodeAt(0),e>=55296&&e<=56319?r+this.__list__[this.__nextIndex__++]:r)},configurable:!0,enumerable:!1,writable:!0},toString:{value:function(){return"[object String Iterator]"},configurable:!0,enumerable:!1,writable:!0}}),t}();if (!("Symbol"in self&&"iterator"in self.Symbol&&!!String.prototype[self.Symbol.iterator]
 )) {CreateMethodProperty(String.prototype,Symbol.iterator,function(){var r=RequireObjectCoercible(this),t=ToString(r);return new StringIterator(t)});}})('object' === typeof window && window || 'object' === typeof self && self || 'object' === typeof global && global || {});</script>
-
+  
   <script>
     (function () {
       var script = document.createElement("script");
@@ -4015,358 +4014,289 @@ window.Quarto = {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../index.html">
+    <a class="nav-link" href="../index.html"> 
 <span class="menu-text">Home</span></a>
-  </li>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">API</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
         <li>
     <a class="dropdown-item" href="../api.html">
  <span class="dropdown-text">API Overview</span></a>
-  </li>
-        <li class="dropdown-header">Regression And GLMs</li>
+  </li>  
         <li>
-    <a class="dropdown-item" href="../reference/OLS.html">
- <span class="dropdown-text">OLS</span></a>
-  </li>
+    <a class="dropdown-item" href="../api.html#regression-and-glms">
+ <span class="dropdown-text">Regression And GLMs</span></a>
+  </li>  
         <li>
-    <a class="dropdown-item" href="../reference/Ridge.html">
- <span class="dropdown-text">Ridge</span></a>
-  </li>
+    <a class="dropdown-item" href="../api.html#survival-time-to-event-and-recurrent-event-models">
+ <span class="dropdown-text">Survival / Event-Time</span></a>
+  </li>  
         <li>
-    <a class="dropdown-item" href="../reference/FixedEffectsOLS.html">
- <span class="dropdown-text">FixedEffectsOLS</span></a>
-  </li>
+    <a class="dropdown-item" href="../api.html#causal-inference-and-panels">
+ <span class="dropdown-text">Causal Inference And Panels</span></a>
+  </li>  
         <li>
-    <a class="dropdown-item" href="../reference/ElasticNet.html">
- <span class="dropdown-text">ElasticNet</span></a>
-  </li>
+    <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
+ <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
+  </li>  
         <li>
-    <a class="dropdown-item" href="../reference/Logit.html">
- <span class="dropdown-text">Logit</span></a>
-  </li>
+    <a class="dropdown-item" href="../api.html#transforms">
+ <span class="dropdown-text">Transforms</span></a>
+  </li>  
         <li>
-    <a class="dropdown-item" href="../reference/MultinomialLogit.html">
- <span class="dropdown-text">MultinomialLogit</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/Poisson.html">
- <span class="dropdown-text">Poisson</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/FTRL.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>
-        <li class="dropdown-header">Causal Inference And Panels</li>
-        <li>
-    <a class="dropdown-item" href="../reference/TwoSLS.html">
- <span class="dropdown-text">TwoSLS</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/BalancingWeights.html">
- <span class="dropdown-text">BalancingWeights</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/EPLM.html">
- <span class="dropdown-text">EPLM</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/AverageDerivative.html">
- <span class="dropdown-text">AverageDerivative</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/PartiallyLinearDML.html">
- <span class="dropdown-text">PartiallyLinearDML</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/AIPW.html">
- <span class="dropdown-text">AIPW</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/SyntheticControl.html">
- <span class="dropdown-text">SyntheticControl</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/HorizontalPanelRidge.html">
- <span class="dropdown-text">HorizontalPanelRidge</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/SyntheticDID.html">
- <span class="dropdown-text">SyntheticDID</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/MatrixCompletion.html">
- <span class="dropdown-text">MatrixCompletion</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/InteractiveFixedEffects.html">
- <span class="dropdown-text">InteractiveFixedEffects</span></a>
-  </li>
-        <li class="dropdown-header">Hypothesis Testing</li>
-        <li>
-    <a class="dropdown-item" href="../reference/HypothesisTests.html">
- <span class="dropdown-text">Hypothesis Tests</span></a>
-  </li>
-        <li class="dropdown-header">Transforms</li>
-        <li>
-    <a class="dropdown-item" href="../reference/PCA.html">
- <span class="dropdown-text">PCA</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/KernelBasis.html">
- <span class="dropdown-text">KernelBasis</span></a>
-  </li>
-        <li class="dropdown-header">Estimation Interfaces</li>
-        <li>
-    <a class="dropdown-item" href="../reference/GMM.html">
- <span class="dropdown-text">GMM</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/MEstimator.html">
- <span class="dropdown-text">MEstimator</span></a>
-  </li>
-        <li>
-    <a class="dropdown-item" href="../reference/Optimizers.html">
- <span class="dropdown-text">Optimizers</span></a>
-  </li>
+    <a class="dropdown-item" href="../api.html#estimation-interfaces-and-optimizers">
+ <span class="dropdown-text">Estimation Interfaces</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="../mechanics-ols.html">
+    <a class="nav-link" href="../mechanics-ols.html"> 
 <span class="menu-text">Binding Crash Course</span></a>
-  </li>
+  </li>  
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Regression And GLMs</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
-  </li>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/abc-ols.html">
+ <span class="dropdown-text">ABC OLS</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
  <span class="dropdown-text">Fixed Effects OLS</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/elastic-net.html">
  <span class="dropdown-text">ElasticNet</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/logit.html">
  <span class="dropdown-text">Logit</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/multinomial-logit.html">
  <span class="dropdown-text">Multinomial Logit</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/poisson.html">
  <span class="dropdown-text">Poisson</span></a>
-  </li>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mle-prediction-interface.html">
+ <span class="dropdown-text">MLE Prediction Interface</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival-time-to-event-and-recurrent-events.html">
+ <span class="dropdown-text">Survival / Recurrent Events</span></a>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/gmm.html">
  <span class="dropdown-text">GMM</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/ftrl.html">
  <span class="dropdown-text">FTRL</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
-  </li>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Causal Inference</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/eplm.html">
  <span class="dropdown-text">EPLM</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/average-derivative.html">
  <span class="dropdown-text">Average Derivative</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/double-ml.html">
  <span class="dropdown-text">Double ML And AIPW</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/richer-regression.html">
  <span class="dropdown-text">Richer Regression</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/twosls.html">
  <span class="dropdown-text">TwoSLS</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/synthetic-did.html">
  <span class="dropdown-text">Synthetic DID</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/matrix-completion.html">
  <span class="dropdown-text">Matrix Completion</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
  <span class="dropdown-text">Interactive Fixed Effects</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
  <span class="dropdown-text">Staggered Panel Event Study</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
  <span class="dropdown-text">Joint Hypothesis Tests</span></a>
-  </li>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Transforms</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
         <li>
     <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
  <span class="dropdown-text">PCA And Kernel Basis</span></a>
-  </li>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Ablations</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
         <li>
     <a class="dropdown-item" href="../ablations/variance-estimators.html">
  <span class="dropdown-text">Variance Estimators</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
  <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
  <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
  <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
  <span class="dropdown-text">Same Root Panel Case Studies</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
  <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
-  </li>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Optimization</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
         <li>
     <a class="dropdown-item" href="../examples/optimizers.html">
  <span class="dropdown-text">Optimizers</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
  <span class="dropdown-text">GMM With Optimizers</span></a>
-  </li>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Ding: First Course</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
  <span class="dropdown-text">Overview And TOC</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
  <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
  <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
  <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
  <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
  <span class="dropdown-text">Ch 11 Propensity Score</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
  <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
  <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
  <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
  <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>
+  </li>  
         <li>
     <a class="dropdown-item" href="../ding/ch27-mediation.html">
  <span class="dropdown-text">Ch 27 Mediation</span></a>
-  </li>
+  </li>  
     </ul>
   </li>
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
     <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
-</i>
+</i> 
 <span class="menu-text"></span></a>
-  </li>
+  </li>  
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
@@ -4381,7 +4311,7 @@ window.Quarto = {
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         <nav id="TOC" role="doc-toc" class="toc-active">
     <h2 id="toc-title">On this page</h2>
-
+   
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">2</span> Python API</a></li>
@@ -4403,17 +4333,17 @@ window.Quarto = {
 
 <div class="quarto-title-meta column-page-left">
 
-
-
-
+    
+  
+    
   </div>
-
+  
 
 
 </header>
 
 
-<div id="776e63c5" class="cell" data-execution_count="1">
+<div id="fcc02ca1" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4429,13 +4359,13 @@ window.Quarto = {
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.MEstimator</code></p>
 <p>Construct with <code>MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)</code>. <code>objective_fn(theta, data)</code> must return <code>(objective, gradient)</code>. <code>score_fn(theta, data)</code> must return an <code>(n, p)</code> matrix. For bootstrap support, include <code>n</code> in <code>data</code> and have the objective respect optional <code>data[&#39;indices&#39;]</code>.</p>
-<div id="aa25ec53" class="cell" data-execution_count="2">
+<div id="5216c358" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MEstimator))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(objective_fn, score_fn, max_iterations=100, tolerance=1e-06)</code></pre>
 </div>
 </div>
-<div id="c4c37b05" class="cell" data-execution_count="3">
+<div id="b1a5ff86" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.MEstimator</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4465,7 +4395,7 @@ window.Quarto = {
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="098f4f57" class="cell" data-execution_count="4">
+<div id="e2f1197c" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> obj(theta, data):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    X, y <span class="op">=</span> data[<span class="st">&quot;X&quot;</span>], data[<span class="st">&quot;y&quot;</span>]</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> data.get(<span class="st">&quot;indices&quot;</span>, np.arange(<span class="bu">len</span>(y)))</span>
@@ -4487,7 +4417,7 @@ window.Quarto = {
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="229897f0" class="cell" data-execution_count="5">
+<div id="b7d59f98" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> obj(theta, data):</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    X,y<span class="op">=</span>data[<span class="st">&#39;X&#39;</span>],data[<span class="st">&#39;y&#39;</span>]<span class="op">;</span> idx<span class="op">=</span>data.get(<span class="st">&#39;indices&#39;</span>,np.arange(<span class="bu">len</span>(y)))<span class="op">;</span> r<span class="op">=</span>y[idx]<span class="op">-</span>X[idx]<span class="op">@</span>theta<span class="op">;</span> <span class="cf">return</span> <span class="fl">.5</span><span class="op">*</span>np.<span class="bu">sum</span>(r<span class="op">*</span>r), <span class="op">-</span>(X[idx].T<span class="op">@</span>r)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> score(theta,data):</span>
@@ -4533,7 +4463,7 @@ window.Quarto = {
     anchorJS.add('.anchored');
     const isCodeAnnotation = (el) => {
       for (const clz of el.classList) {
-        if (clz.startsWith('code-annotation-')) {
+        if (clz.startsWith('code-annotation-')) {                     
           return true;
         }
       }
@@ -4553,11 +4483,11 @@ window.Quarto = {
         button.setAttribute("data-bs-toggle", "tooltip");
         button.setAttribute("data-bs-placement", "left");
         button.setAttribute("data-bs-title", "Copied!");
-        tooltip = new bootstrap.Tooltip(button,
-          { trigger: "manual",
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
             customClass: "code-copy-button-tooltip",
             offset: [0, -8]});
-        tooltip.show();
+        tooltip.show();    
       }
       setTimeout(function() {
         if (tooltip) {
@@ -4634,7 +4564,7 @@ window.Quarto = {
       if (onUntriggerFn) {
         config.onUntrigger = onUntriggerFn;
       }
-      window.tippy(el, config);
+      window.tippy(el, config); 
     }
     const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
     for (var i=0; i<noterefs.length; i++) {
@@ -4709,7 +4639,7 @@ window.Quarto = {
       tippyHover(xref, undefined, function(instance) {
         instance.disable();
         let url = xref.getAttribute('href');
-        let hash = undefined;
+        let hash = undefined; 
         if (url.startsWith('#')) {
           hash = url;
         } else {
@@ -4737,7 +4667,7 @@ window.Quarto = {
               if (note !== null) {
                 const html = processXRef(id, note);
                 instance.setContent(html);
-              }
+              } 
             }).finally(() => {
               instance.enable();
               instance.show();
@@ -4761,7 +4691,7 @@ window.Quarto = {
               }
               const html = processXRef(null, note);
               instance.setContent(html);
-            }
+            } 
           }).finally(() => {
             instance.enable();
             instance.show();
@@ -4801,7 +4731,7 @@ window.Quarto = {
               height = bottom - top;
             }
             if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it
+              // cook up a div (if necessary) and position it 
               let div = window.document.getElementById("code-annotation-line-highlight");
               if (div === null) {
                 div = window.document.createElement("div");

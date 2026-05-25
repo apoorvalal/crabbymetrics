@@ -1,0 +1,143 @@
+---
+title: "MLE Prediction Interface"
+subtitle: "Latent indices, mean-scale predictions, and labels after the MLE overhaul"
+execute:
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+This vignette documents the prediction contract used by the nonlinear MLE-style estimators after the `0.7` overhaul.
+
+## The contract
+
+For the estimators where prediction makes sense, the public surface is now intentionally layered:
+
+- `predict_lin(...)`: the latent linear index;
+- `predict(...)`: the mean-scale or model-implied prediction object;
+- `predict_label(...)`: only for classifiers, where hard labels are genuinely distinct from probabilities.
+
+That contract avoids overloading `predict()` to sometimes mean probabilities and sometimes mean labels.
+
+```{python}
+import numpy as np
+import pandas as pd
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+```
+
+## Binary logit
+
+```{python}
+rng = np.random.default_rng(20260525)
+n = 1200
+x = rng.normal(size=(n, 3))
+eta_true = -0.15 + x @ np.array([0.7, -0.45, 0.25])
+p_true = 1.0 / (1.0 + np.exp(-eta_true))
+y = rng.binomial(1, p_true).astype(np.int32)
+
+logit = cm.Logit(max_iterations=300, gradient_tolerance=1e-8)
+logit.fit(x, y)
+
+check = x[:8]
+logit_table = pd.DataFrame(
+    {
+        "eta": logit.predict_lin(check),
+        "prob": logit.predict(check),
+        "label@0.50": logit.predict_label(check),
+        "label@0.35": logit.predict_label(check, cutoff=0.35),
+    }
+)
+logit_table
+```
+
+The identity is exact by construction:
+
+```{python}
+np.allclose(logit_table["prob"], 1.0 / (1.0 + np.exp(-logit_table["eta"])))
+```
+
+## Multinomial logit
+
+For multinomial logit, `predict_lin()` returns one classwise score per row, `predict()` returns class probabilities, and `predict_label()` returns the argmax class.
+
+```{python}
+rng = np.random.default_rng(20260526)
+n = 1500
+coef = np.array(
+    [
+        [0.8, -0.2, 0.15],
+        [-0.1, 0.65, -0.35],
+        [0.25, -0.4, 0.45],
+    ]
+)
+intercept = np.array([0.25, -0.15, 0.05])
+
+x = rng.normal(size=(n, coef.shape[1]))
+logits = x @ coef.T + intercept
+logits = logits - logits.max(axis=1, keepdims=True)
+probs = np.exp(logits)
+probs = probs / probs.sum(axis=1, keepdims=True)
+y = np.array([rng.choice(coef.shape[0], p=probs[i]) for i in range(n)], dtype=np.int32)
+
+mlogit = cm.MultinomialLogit(max_iterations=300, gradient_tolerance=1e-8)
+mlogit.fit(x, y)
+
+check = x[:6]
+eta_hat = mlogit.predict_lin(check)
+prob_hat = mlogit.predict(check)
+label_hat = mlogit.predict_label(check)
+
+prob_table = pd.DataFrame(prob_hat, columns=["class0", "class1", "class2"])
+prob_table["label"] = label_hat
+prob_table
+```
+
+```{python}
+softmax = np.exp(eta_hat - eta_hat.max(axis=1, keepdims=True))
+softmax = softmax / softmax.sum(axis=1, keepdims=True)
+np.allclose(prob_hat, softmax)
+```
+
+## Poisson
+
+For Poisson, the latent index is the log conditional mean, and `predict()` exponentiates it back to the count scale.
+
+```{python}
+rng = np.random.default_rng(20260527)
+n = 900
+x = rng.normal(size=(n, 2))
+mu_true = np.exp(0.2 + x @ np.array([0.35, -0.3]))
+y = rng.poisson(mu_true).astype(float)
+
+poisson = cm.Poisson(max_iterations=250, tolerance=1e-8)
+poisson.fit(x, y)
+
+check = x[:8]
+poisson_table = pd.DataFrame(
+    {
+        "log_mu": poisson.predict_lin(check),
+        "mu": poisson.predict(check),
+    }
+)
+poisson_table
+```
+
+```{python}
+np.allclose(poisson_table["mu"], np.exp(poisson_table["log_mu"]))
+```
+
+## Why this contract helps
+
+The new split keeps three conceptually different objects separate:
+
+1. the estimator's linear score or index,
+2. the model-implied prediction on the natural mean scale,
+3. any final decision rule that thresholds or discretizes the mean-scale object.
+
+That makes calibration work, diagnostics, and downstream scoring much cleaner than a classifier API where `predict()` skips straight to labels.

@@ -36,7 +36,7 @@ The summary packs coefficients and standard errors by class.
 
 Constructor: `cm.MultinomialLogit`
 
-Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns class labels. `summary()` returns `coef` and `se` matrices rather than the scalar-intercept/vector-coefficient schema used by binary GLMs.
+Use integer class labels in `fit(x, y_int32)`. `predict_lin(x)` returns classwise logits, `predict(x)` returns class probabilities, and `predict_label(x)` returns the argmax class. `summary()` returns `coef` and `se` matrices rather than the scalar-intercept/vector-coefficient schema used by binary GLMs.
 
 ```{python}
 print(inspect.signature(cm.MultinomialLogit))
@@ -57,7 +57,9 @@ p=np.exp(logits-logits.max(axis=1,keepdims=True)); p=p/p.sum(axis=1,keepdims=Tru
 y=np.array([rng.choice(3,p=row) for row in p], dtype=np.int32)
 model=cm.MultinomialLogit(max_iterations=200); model.fit(x,y)
 print(model.summary()["coef"])
+print(model.predict_lin(x[:5]))
 print(model.predict(x[:5]))
+print(model.predict_label(x[:5]))
 ```
 
 ## `summary()` contract
