@@ -1,0 +1,266 @@
+---
+title: "Survival Models"
+subtitle: "Exponential, Weibull, Cox PH, Andersen--Gill, and discrete-time hazards"
+execute:
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+Survival models describe event timing through a hazard rate: the instantaneous event risk among units still at risk. `crabbymetrics` includes four first-pass survival estimators:
+
+- `ExponentialPH`: a parametric proportional-hazards model with constant baseline hazard,
+- `WeibullPH`: a parametric proportional-hazards model with monotone baseline hazard,
+- `CoxPH`: Cox's semiparametric proportional-hazards partial likelihood,
+- `AndersenGill`: the counting-process Cox model for recurrent events or time-split risk intervals.
+
+The common coefficient interpretation is multiplicative on the hazard. If a coefficient is $eta_j$, then $exp(\beta_j)$ is a hazard ratio.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import crabbymetrics as cm
+
+np.set_printoptions(precision=3, suppress=True)
+```
+
+## Simulate right-censored survival data
+
+Generate a Weibull proportional-hazards design with two covariates. The event time satisfies
+
+$$
+H_i(t) = \lambda t^\rho \exp(x_i'\beta),
+\qquad
+S_i(t) = \exp\{-H_i(t)\}.
+$$
+
+Here $\rho > 1$ gives an increasing baseline hazard. Independent censoring creates the observed time and event indicator.
+
+```{python}
+rng = np.random.default_rng(20260524)
+n = 900
+beta_true = np.array([0.55, -0.35])
+shape_true = 1.45
+scale_hazard_true = 0.035
+
+x = rng.normal(size=(n, 2))
+u = rng.uniform(size=n)
+event_time = ((-np.log(u)) / (scale_hazard_true * np.exp(x @ beta_true))) ** (1 / shape_true)
+censor_time = rng.exponential(35, size=n)
+time = np.minimum(event_time, censor_time)
+event = (event_time <= censor_time).astype(float)
+
+print({"events": int(event.sum()), "censor_rate": float(1 - event.mean())})
+```
+
+## Exponential and Weibull PH fits
+
+The exponential model is the special case $\rho = 1$:
+
+$$
+h_i(t) = \lambda \exp(x_i'\beta),
+\qquad
+H_i(t) = \lambda t \exp(x_i'\beta).
+$$
+
+The Weibull model estimates $\rho$ too:
+
+$$
+h_i(t) = \lambda \rho t^{\rho - 1}\exp(x_i'\beta),
+\qquad
+H_i(t) = \lambda t^\rho\exp(x_i'\beta).
+$$
+
+```{python}
+exp_ph = cm.ExponentialPH()
+exp_ph.fit(x, time, event)
+
+weibull = cm.WeibullPH()
+weibull.fit(x, time, event)
+
+parametric = pd.DataFrame(
+    {
+        "truth": [beta_true[0], beta_true[1], shape_true],
+        "exponential": [*exp_ph.summary()["coef"], np.nan],
+        "weibull": [*weibull.summary()["coef"], weibull.summary()["shape"]],
+    },
+    index=["x1 log hazard ratio", "x2 log hazard ratio", "Weibull shape"],
+)
+parametric
+```
+
+The exponential fit is intentionally misspecified because the simulated baseline hazard is not constant. The log-hazard-ratio coefficients remain in the right neighborhood, while the Weibull fit also recovers an increasing baseline hazard.
+
+## Cox proportional hazards
+
+The Cox model leaves the baseline hazard unspecified and estimates $\beta$ from the ordering of failures through the partial likelihood:
+
+$$
+\ell(\beta) = \sum_{i: d_i = 1}
+\left[x_i'\beta - \log\left\{\sum_{j: t_j \ge t_i}\exp(x_j'\beta)\right\}\right].
+$$
+
+```{python}
+cox = cm.CoxPH()
+cox.fit(x, time, event)
+
+cox_table = pd.DataFrame(
+    {
+        "truth": beta_true,
+        "CoxPH coef": cox.summary()["coef"],
+        "hazard ratio": cox.summary()["hazard_ratio"],
+        "se": cox.summary()["se"],
+    },
+    index=["x1", "x2"],
+)
+cox_table
+```
+
+## Andersen--Gill counting-process form
+
+Andersen--Gill is the Cox partial likelihood with risk intervals $(s_i, t_i]$ instead of one row per subject. A row is in the risk set for an event at time $t$ when
+
+$$
+s_i < t \le t_i.
+$$
+
+That makes the model useful for recurrent events and time-varying covariates. As a smoke test, split each original subject into two rows with unchanged covariates; only the second row can carry the original terminal event. The Andersen--Gill estimate then agrees with the ordinary Cox estimate.
+
+```{python}
+start_long = np.concatenate([np.zeros_like(time), time / 2])
+stop_long = np.concatenate([time / 2, time])
+x_long = np.vstack([x, x])
+event_long = np.concatenate([np.zeros_like(event), event])
+
+ag = cm.AndersenGill()
+ag.fit(x_long, start_long, stop_long, event_long)
+
+pd.DataFrame(
+    {
+        "CoxPH": cox.summary()["coef"],
+        "Andersen-Gill split rows": ag.summary()["coef"],
+    },
+    index=["x1", "x2"],
+)
+```
+
+## Survival curves from the parametric models
+
+Parametric models estimate an absolute survival curve because they estimate the baseline hazard. Cox-type partial-likelihood models estimate relative hazards unless a baseline-hazard estimator is added.
+
+```{python}
+grid = np.linspace(0.1, np.quantile(time, 0.9), 100)
+profiles = np.array([
+    [0.0, 0.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+])
+labels = ["x=(0,0)", "x=(1,0)", "x=(0,1)"]
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+for profile, label in zip(profiles, labels):
+    xx = np.tile(profile, (len(grid), 1))
+    ax.plot(grid, weibull.survival(xx, grid), label=label)
+
+ax.set_xlabel("time")
+ax.set_ylabel("estimated survival")
+ax.set_title("WeibullPH survival curves")
+ax.legend(frameon=False)
+plt.show()
+```
+
+## Discrete-time hazards and the logistic-regression equivalence
+
+A continuous-time survival record can be expanded into person-period rows. For subject $i$ and interval $k$, define $Y_{ik}=1$ if the event occurs in that interval and $0$ if the subject survives the interval. Conditional on being at risk at the start of the interval,
+
+$$
+\Pr(Y_{ik}=1 \mid Y_{i1}=\cdots=Y_{i,k-1}=0, x_i)
+= h_{ik}.
+$$
+
+A pooled binary regression on person-period rows is therefore a discrete-time hazard model. With a logit link,
+
+$$
+\operatorname{logit}(h_{ik}) = \alpha_k + x_i'\beta,
+$$
+
+where the interval dummies $\alpha_k$ are the discrete baseline hazard. The survival function through interval $K$ is the product of conditional survival probabilities:
+
+$$
+S_i(K) = \prod_{k=1}^K (1 - h_{ik}).
+$$
+
+This is the same factorization that underlies grouped-duration likelihoods. If the interval event probabilities are small, the complementary-log-log link is especially close to a continuous-time proportional-hazards model because
+
+$$
+\log\{-\log(1-h_{ik})\} = \alpha_k + x_i'\beta
+$$
+
+corresponds to a piecewise-constant baseline cumulative hazard. The logit link is not identical to Cox PH, but it is a very useful discrete-time analog: the regression is on the sequence of conditional hazards rather than on a one-shot outcome.
+
+### Where beta-binomial enters
+
+If we aggregate person-period rows within cells, say by interval and covariate group, we observe $y_g$ events out of $m_g$ risk-set trials. A plain grouped discrete-time hazard model treats
+
+$$
+y_g \sim \operatorname{Binomial}(m_g, h_g),
+\qquad
+\operatorname{logit}(h_g)=z_g'\theta.
+$$
+
+A beta-binomial version adds extra-binomial heterogeneity by letting the cell hazard vary around its mean:
+
+$$
+p_g \sim \operatorname{Beta}(a_g, b_g),
+\qquad
+Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
+$$
+
+That is a grouped, overdispersed discrete-time survival model. It is useful when subjects in the same interval/cell have unmodeled frailty or shared shocks, so the event counts are more variable than a binomial hazard would imply. In that sense:
+
+- person-period logistic regression = individual-level discrete-time hazard model;
+- grouped binomial logistic regression = the same likelihood after aggregating identical risk-set rows;
+- beta-binomial hazard model = grouped discrete-time hazard with extra heterogeneity/frailty.
+
+Here is the person-period construction with a few interval dummies. The coefficient should have the same sign as the Cox and Weibull estimates, though the scale is log-odds of interval failure rather than log instantaneous hazard.
+
+```{python}
+breaks = np.quantile(time, np.linspace(0, 0.85, 9))
+breaks[0] = 0.0
+rows = []
+for i in range(n):
+    for k in range(len(breaks) - 1):
+        left, right = breaks[k], breaks[k + 1]
+        if time[i] <= left:
+            break
+        at_risk_width = min(time[i], right) - left
+        if at_risk_width <= 0:
+            continue
+        yik = float(event[i] == 1 and time[i] <= right)
+        rows.append((yik, k, x[i, 0], x[i, 1]))
+        if yik == 1 or time[i] <= right:
+            break
+
+pp = pd.DataFrame(rows, columns=["event", "interval", "x1", "x2"])
+interval = pd.get_dummies(pp["interval"].astype(int), prefix="t", drop_first=True).astype(float)
+X_logit = np.column_stack([pp[["x1", "x2"]].to_numpy(), interval.to_numpy()])
+y_logit = pp["event"].to_numpy().astype(np.int32)
+
+logit = cm.Logit(alpha=0.0, max_iterations=500, gradient_tolerance=1e-7)
+logit.fit(X_logit, y_logit)
+
+pd.DataFrame(
+    {
+        "Cox log hazard ratio": cox.summary()["coef"],
+        "person-period logit coefficient": logit.summary()["coef"][:2],
+    },
+    index=["x1", "x2"],
+)
+```
+
+The equality is conceptual rather than literal: logit coefficients live on the discrete interval-failure odds scale, while Cox and Weibull coefficients live on the instantaneous hazard scale. With short intervals and rare failures per interval, they often tell the same directional story.

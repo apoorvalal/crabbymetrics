@@ -7,11 +7,11 @@ mod utils;
 
 use crate::abc::ABCOLS;
 use crate::estimators::{
-    AverageDerivative, BalancingWeights, ElasticNet, FixedEffectsOLS, HorizontalPanelRidge,
-    InteractiveFixedEffects, KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit,
-    NystromBasis, PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures,
-    RandomizedPcaTransformer, Ridge, SyntheticControl, SyntheticDID, TwoSLS, AIPW, EPLM, FTRL, GMM,
-    OLS,
+    AndersenGill, AverageDerivative, BalancingWeights, CoxPH, ElasticNet, ExponentialPH,
+    FixedEffectsOLS, HorizontalPanelRidge, InteractiveFixedEffects, KernelBasis, Logit, MEstimator,
+    MatrixCompletion, MultinomialLogit, NystromBasis, PartiallyLinearDML, PcaTransformer, Poisson,
+    RandomFourierFeatures, RandomizedPcaTransformer, Ridge, SyntheticControl, SyntheticDID, TwoSLS,
+    WeibullPH, AIPW, EPLM, FTRL, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -26,6 +26,10 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Logit>()?;
     m.add_class::<MultinomialLogit>()?;
     m.add_class::<Poisson>()?;
+    m.add_class::<ExponentialPH>()?;
+    m.add_class::<WeibullPH>()?;
+    m.add_class::<CoxPH>()?;
+    m.add_class::<AndersenGill>()?;
     m.add_class::<TwoSLS>()?;
     m.add_class::<HorizontalPanelRidge>()?;
     m.add_class::<SyntheticControl>()?;
