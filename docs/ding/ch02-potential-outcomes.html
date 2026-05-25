@@ -4205,7 +4205,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 
 <p>Chapter 2 is the basic potential-outcomes setup: treatment effects are individual-level objects, while observed outcomes depend on both the potential outcomes and the treatment rule.</p>
-<div id="879d9560" class="cell" data-execution_count="1">
+<div id="04bd3e93" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -4217,7 +4217,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <section id="build-a-population-with-heterogeneous-effects" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="build-a-population-with-heterogeneous-effects"><span class="header-section-number">1</span> Build A Population With Heterogeneous Effects</h2>
-<div id="41339664" class="cell" data-execution_count="2">
+<div id="b15ec583" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
@@ -4270,7 +4270,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 </div>
 </div>
-<div id="f3d341fe" class="cell" data-execution_count="3">
+<div id="ec0af0d9" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -4293,7 +4293,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="a-perfect-doctor-and-a-coin-flip-doctor" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="a-perfect-doctor-and-a-coin-flip-doctor"><span class="header-section-number">2</span> A Perfect Doctor And A Coin-Flip Doctor</h2>
 <p>The perfect doctor treats exactly when the individual treatment effect is nonnegative. The coin-flip doctor ignores the potential outcomes entirely.</p>
-<div id="0cfd07f2" class="cell" data-execution_count="4">
+<div id="e3d5ec9d" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>z_perfect <span class="op">=</span> (tau <span class="op">&gt;=</span> <span class="fl">0.0</span>).astype(<span class="bu">float</span>)</span>
@@ -4362,7 +4362,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="selection-bias-is-not-the-same-as-the-effect" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="selection-bias-is-not-the-same-as-the-effect"><span class="header-section-number">3</span> Selection Bias Is Not The Same As The Effect</h2>
 <p>Under coin-flip treatment, the observed difference is estimating the ATE. Under targeted treatment, the observed difference mixes causal effects with positive selection on untreated potential outcomes.</p>
-<div id="2bb28ef9" class="cell" data-execution_count="5">
+<div id="6a0cd2ad" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>selection_bias <span class="op">=</span> y0[z_perfect <span class="op">==</span> <span class="fl">1.0</span>].mean() <span class="op">-</span> y0[z_perfect <span class="op">==</span> <span class="fl">0.0</span>].mean()</span>
