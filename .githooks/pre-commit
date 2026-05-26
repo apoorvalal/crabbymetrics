@@ -4,6 +4,19 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+current_branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$current_branch" == "master" ]]; then
+    blocked_files="$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(docs/.*\.html|docs/search\.json|docs/site_libs/|docs/.*_files/|docs/.*\.quarto_ipynb|docs/.*/\.jupyter_cache/|docs/\.jupyter_cache/)' || true)"
+    if [[ -n "$blocked_files" ]]; then
+        echo "Refusing commit on master: rendered docs artifacts are staged." >&2
+        echo >&2
+        echo "$blocked_files" >&2
+        echo >&2
+        echo "Keep rendered output off master. Commit Quarto source only and publish rendered docs to gh-pages." >&2
+        exit 1
+    fi
+fi
+
 if ! command -v cargo >/dev/null 2>&1; then
     echo "cargo is required to run the Rust formatting check." >&2
     exit 1

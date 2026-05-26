@@ -51,6 +51,7 @@ Key points:
 - Python environment management uses `uv`.
 - Native extension builds use `maturin develop`.
 - Rust formatting uses `cargo fmt`; the repo-local pre-commit hook checks that formatting.
+- On `master`, the repo-local pre-commit hook also blocks staged rendered docs artifacts (`docs/**/*.html`, `docs/search.json`, `docs/site_libs/`, `*_files/`, `.quarto_ipynb`, and `.jupyter_cache`) so rendered output has to go through `gh-pages` instead.
 - `pyproject.toml` includes `tool.uv.cache-keys` for Rust sources so `uv run pytest ...` sees fresh extension builds after Rust changes.
 - docs extras are tracked in `pyproject.toml` under `project.optional-dependencies.docs`
   - currently `matplotlib`
