@@ -81,6 +81,48 @@ print(model.predict(x[:3]))""",
 x = rng.normal(size=(80, 3))
 y = 0.5 + x @ np.array([1.0, -0.7, 0.25]) + rng.normal(scale=0.3, size=80)
 model = cm.OLS(); model.fit(x, y)"""),
+"ABCOLS": dict(group="Regression", subtitle="Abundance-based constrained OLS for categorical modifiers",
+ math="""`ABCOLS` is an OLS reparameterization for categorical main effects and categorical modifiers using abundance-based constraints / weighted effect coding.
+
+Instead of treating one level as the omitted baseline, it estimates an overcomplete dummy/interactions design under linear constraints that force categorical effects to average to zero under empirical level frequencies. This makes the intercept and continuous main slopes sample-abundance-weighted averages rather than reference-category coefficients.""",
+ api="""Call `fit(y, x, categories, cont_cat_interactions=None, cat_cat_interactions=None, center_continuous=True)`. Categorical inputs are zero-based dense `uint32` codes. `predict(x, categories)` returns fitted means for new rows under the same coding scheme. `summary()` reports constrained coefficients, standard errors, column names, constraint names, residual variance, residual degrees of freedom, rank, and a maximum-constraint-violation diagnostic.""",
+ example="""rng = np.random.default_rng(2026)
+group = np.repeat(np.array([0, 1, 2], dtype=np.uint32), [36, 54, 30])
+sex = np.tile(np.array([0, 1], dtype=np.uint32), len(group) // 2)
+categories = np.column_stack([group, sex]).astype(np.uint32)
+x_raw = rng.normal(size=len(group))
+x = x_raw[:, None]
+x_centered = x_raw - x_raw.mean()
+y = (
+    1.25
+    + 1.10 * x_centered
+    + np.array([-0.75, 0.15, 0.95])[group]
+    + np.array([0.45, -0.20, 0.10])[group] * x_centered
+    + 0.35 * sex
+    + rng.normal(scale=0.08, size=len(group))
+)
+model = cm.ABCOLS()
+model.fit(y, x, categories, cont_cat_interactions=[(0, 0)], cat_cat_interactions=[(0, 1)])
+print(model.summary()["column_names"])
+print(model.summary()["coef"][:6])
+print(model.predict(x[:3], categories[:3]))""",
+ setup="""rng = np.random.default_rng(2126)
+group = np.repeat(np.array([0, 1, 2], dtype=np.uint32), [24, 30, 18])
+sex = np.tile(np.array([0, 1], dtype=np.uint32), len(group) // 2)
+categories = np.column_stack([group, sex]).astype(np.uint32)
+x_raw = rng.normal(size=len(group))
+x = x_raw[:, None]
+x_centered = x_raw - x_raw.mean()
+y = (
+    0.8
+    + 0.9 * x_centered
+    + np.array([-0.4, 0.1, 0.6])[group]
+    + np.array([0.2, -0.1, 0.05])[group] * x_centered
+    + 0.25 * sex
+    + rng.normal(scale=0.1, size=len(group))
+)
+model = cm.ABCOLS()
+model.fit(y, x, categories, cont_cat_interactions=[(0, 0)], cat_cat_interactions=[(0, 1)])"""),
 "Ridge": dict(group="Regression", subtitle="L2-regularized least squares with optional CV",
  math="""`Ridge` solves
 
