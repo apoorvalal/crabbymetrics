@@ -91,6 +91,7 @@ def class_rows(classes):
 Reference pages:
 
 - [OLS](reference/OLS.qmd)
+- [ABCOLS](reference/ABCOLS.qmd)
 - [Ridge](reference/Ridge.qmd)
 - [FixedEffectsOLS](reference/FixedEffectsOLS.qmd)
 - [ElasticNet](reference/ElasticNet.qmd)
@@ -101,6 +102,7 @@ Reference pages:
 
 Worked docs:
 
+- [ABC OLS](examples/abc-ols.qmd)
 - [MLE Prediction Interface](examples/mle-prediction-interface.qmd)
 - [Logit](examples/logit.qmd)
 - [Multinomial Logit](examples/multinomial-logit.qmd)
@@ -111,6 +113,7 @@ display(HTML(html_table(
     ["Constructor", "Methods"],
     class_rows([
         cm.OLS,
+        cm.ABCOLS,
         cm.Ridge,
         cm.FixedEffectsOLS,
         cm.ElasticNet,

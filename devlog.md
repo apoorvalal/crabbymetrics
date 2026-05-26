@@ -82,6 +82,7 @@ The current Python module exports:
 
 - linear and IV:
   - `OLS`
+  - `ABCOLS`
   - `FixedEffectsOLS`
   - `TwoSLS`
   - `HorizontalPanelRidge`
@@ -125,6 +126,11 @@ Panel causal API update on the matrix-completion branch:
 
 The docs site now includes a dedicated `First Course Ding` section alongside the estimator examples and ablations.
 
+Docs-source policy:
+
+- `master` should track Quarto source (`.qmd`), code, and supporting assets only.
+- Rendered `.html`, `docs/search.json`, `.quarto_ipynb`, and Jupyter cache artifacts belong in local review builds or the published `gh-pages` branch, not on source branches.
+
 Current Ding coverage:
 
 - Chapters 1 through 8
@@ -141,6 +147,8 @@ The latest Ding pass filled in several places where the first Python pages were 
 - Chapter 21 now includes the JOBS one-sided noncompliance example.
 - Chapter 23 now includes an Anderson Rubin grid in addition to `TwoSLS`, `GMM`, and the control-function view.
 - Chapter 27 now spells out the simulation DGPs before the NDE/NIE histograms.
+
+For estimator docs, `ABCOLS` now has both a worked example page (`docs/examples/abc-ols.qmd`) and a class reference page (`docs/reference/ABCOLS.qmd`), matching the project rule that public classes should not rely on nav tables alone.
 
 The translation rule for that section is:
 

@@ -26,7 +26,7 @@ The 2026-05 extension sequence landed several items that used to be active or pe
 
 - Randomized linear algebra / PR #8 is no longer an active PR. It added native randomized range finding, SVD, QR, QR solve, CountSketch OLS, `OLS.fit_sketch(...)`, `TwoSLS.fit_sketch(...)`, `GMM.fit_sketch(...)`, randomized SVD paths in `MatrixCompletion` / `InteractiveFixedEffects`, and the reusable `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` transformers.
 - Hypothesis-test helpers are landed. Estimator-level `wald_test(...)` methods exist for the main covariance-bearing estimators, module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` exist, and `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests.
-- `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed docs example at `docs/examples/abc-ols.qmd`.
+- `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed worked example at `docs/examples/abc-ols.qmd` and a class reference page at `docs/reference/ABCOLS.qmd`.
 
 
 ### Sketching / randomized linear algebra follow-on plan
