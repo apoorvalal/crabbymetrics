@@ -38,6 +38,8 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<InteractiveFixedEffects>()?;
     m.add_function(wrap_pyfunction!(crate::estimators::panel_factor, m)?)?;
     m.add_function(wrap_pyfunction!(crate::estimators::panel_fe, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::estimators::av, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::estimators::optimal_g, m)?)?;
     m.add_class::<BalancingWeights>()?;
     m.add_class::<FTRL>()?;
     m.add_class::<MEstimator>()?;
