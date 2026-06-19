@@ -1743,9 +1743,15 @@ impl OLS {
             if d > 0 {
                 let start = if self.fit_intercept { 1 } else { 0 };
                 let beta = params.slice(s![start..]).to_owned();
-                let cov_sub = cov.slice(s![start.., start..]).to_owned();
-                let precision = invert_matrix(&cov_sub).map_err(PyValueError::new_err)?;
-                let f_value = beta.dot(&precision.dot(&beta)) / d as f64;
+                let f_value = if vcov_normalized == "vanilla" {
+                    let cov_sub = cov.slice(s![start.., start..]).to_owned();
+                    let precision = invert_matrix(&cov_sub).map_err(PyValueError::new_err)?;
+                    beta.dot(&precision.dot(&beta)) / d as f64
+                } else {
+                    let precision = invert_matrix(&cov).map_err(PyValueError::new_err)?;
+                    let precision_sub = precision.slice(s![start.., start..]).to_owned();
+                    beta.dot(&precision_sub.dot(&beta))
+                };
                 let f_p_value = av_p_from_log_g(av_log_g_f(f_value, d as f64, nu, n, g));
                 dict.set_item("f_statistic", f_value)?;
                 dict.set_item("f_p_value", f_p_value)?;
