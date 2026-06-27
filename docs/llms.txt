@@ -49,6 +49,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 Use these defaults unless the application has a reason to do otherwise:
 
 - Plain linear regression with robust standard errors: `cm.OLS()`.
+- Anytime-valid inference for a fitted OLS model: `model.summary(vcov="vanilla", anytime_valid=True, g=cm.optimal_g(n, k, alpha))`.
 - Linear regression with abundance-based constraints / weighted effect coding for categorical main effects and categorical modifiers: `cm.ABCOLS()`.
 - Penalized linear regression / shrinkage / cross-validated ridge: `cm.Ridge(penalty=None_or_grid, cv=5)`.
 - Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.

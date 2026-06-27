@@ -10,8 +10,8 @@ mod transforms;
 pub use balancing::BalancingWeights;
 pub use gmm::GMM;
 pub use linear::{
-    panel_factor, panel_fe, FixedEffectsOLS, HorizontalPanelRidge, InteractiveFixedEffects,
-    MatrixCompletion, SyntheticControl, SyntheticDID, TwoSLS, OLS,
+    av, optimal_g, panel_factor, panel_fe, FixedEffectsOLS, HorizontalPanelRidge,
+    InteractiveFixedEffects, MatrixCompletion, SyntheticControl, SyntheticDID, TwoSLS, OLS,
 };
 pub use mle::{Logit, MEstimator, MultinomialLogit, Poisson};
 pub use regularized::{ElasticNet, Ridge, FTRL};

@@ -149,6 +149,42 @@ fn linear_parameter_scores(
     Ok(raw_scores.dot(bread))
 }
 
+fn ols_hc_covariance(
+    design: &Array2<f64>,
+    residuals: &Array1<f64>,
+    kind: &str,
+) -> Result<Array2<f64>, String> {
+    let n = design.nrows();
+    let p = design.ncols();
+    if residuals.len() != n {
+        return Err("residual length mismatch".to_string());
+    }
+    if n <= p {
+        return Err("need more observations than regressors".to_string());
+    }
+
+    let xtx = design.t().dot(design);
+    let xtx_inv = invert_matrix(&xtx)?;
+    let mut weighted_design = design.clone();
+    for i in 0..n {
+        let leverage = design.row(i).dot(&xtx_inv.dot(&design.row(i).to_owned()));
+        let denom = (1.0 - leverage).max(1e-12);
+        let mut weight = residuals[i] * residuals[i];
+        match kind {
+            "hc0" => {}
+            "hc1" => weight *= n as f64 / (n - p) as f64,
+            "hc2" => weight /= denom,
+            "hc3" => weight /= denom * denom,
+            _ => return Err("vcov must be one of {'hc0', 'hc1', 'hc2', 'hc3'}".to_string()),
+        }
+        weighted_design
+            .row_mut(i)
+            .mapv_inplace(|value| value * weight);
+    }
+    let meat = design.t().dot(&weighted_design);
+    Ok(xtx_inv.dot(&meat).dot(&xtx_inv))
+}
+
 fn linear_covariance(
     design: &Array2<f64>,
     residuals: &Array1<f64>,
@@ -164,7 +200,8 @@ fn linear_covariance(
 
     match vcov {
         "vanilla" => ols_vanilla_cov(design, residuals),
-        "hc1" | "newey_west" | "cluster" => {
+        "hc0" | "hc1" | "hc2" | "hc3" => ols_hc_covariance(design, residuals, vcov),
+        "newey_west" | "cluster" => {
             let xtx = design.t().dot(design);
             let bread = invert_matrix(&xtx)?;
             let param_scores = linear_parameter_scores(design, residuals, &bread)?;
@@ -176,8 +213,49 @@ fn linear_covariance(
                 clusters,
             )
         }
-        _ => Err("vcov must be one of {'hc1', 'vanilla', 'newey_west', 'cluster'}".to_string()),
+        _ => Err(
+            "vcov must be one of {'vanilla', 'hc0', 'hc1', 'hc2', 'hc3', 'newey_west', 'cluster'}"
+                .to_string(),
+        ),
     }
+}
+
+fn av_t_radius(g: f64, n: usize, number_of_coefficients: usize, alpha: f64) -> PyResult<f64> {
+    if g <= 0.0 || !g.is_finite() {
+        return Err(PyValueError::new_err("g must be positive and finite"));
+    }
+    if !(0.0..1.0).contains(&alpha) {
+        return Err(PyValueError::new_err("alpha must be in (0, 1)"));
+    }
+    if n <= number_of_coefficients {
+        return Err(PyValueError::new_err(
+            "n must be greater than number_of_coefficients",
+        ));
+    }
+
+    let nu = (n - number_of_coefficients) as f64;
+    let d = 1.0;
+    let t = g / (g + n as f64);
+    let powered = (t * alpha.powi(2)).powf(1.0 / (nu + d));
+    let denominator = powered - t;
+    if denominator <= 0.0 {
+        return Ok(f64::INFINITY);
+    }
+    Ok((nu * (1.0 - powered) / denominator).sqrt())
+}
+
+fn av_log_g_t(t2: f64, nu: f64, n: usize, g: f64) -> f64 {
+    let r = g / (g + n as f64);
+    0.5 * r.ln() + 0.5 * (nu + 1.0) * ((1.0 + t2 / nu).ln() - (1.0 + r * t2 / nu).ln())
+}
+
+fn av_p_from_log_g(log_g: f64) -> f64 {
+    (-log_g).exp().min(1.0)
+}
+
+fn av_log_g_f(f: f64, d: f64, nu: f64, n: usize, g: f64) -> f64 {
+    let r = g / (g + n as f64);
+    0.5 * d * r.ln() + 0.5 * (nu + d) * ((1.0 + (d / nu) * f).ln() - (1.0 + r * (d / nu) * f).ln())
 }
 
 fn twosls_covariance(
@@ -1564,13 +1642,16 @@ impl OLS {
         Ok(pyarray1_from_f64(py, &pred))
     }
 
-    #[pyo3(signature = (vcov="hc1", lags=None, clusters=None))]
+    #[pyo3(signature = (vcov="hc1", lags=None, clusters=None, anytime_valid=false, g=1.0, level=0.95))]
     fn summary<'py>(
         &self,
         py: Python<'py>,
         vcov: &str,
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
+        anytime_valid: bool,
+        g: f64,
+        level: f64,
     ) -> PyResult<Py<PyAny>> {
         let coef = self
             .coef
@@ -1603,10 +1684,11 @@ impl OLS {
         let (design_work, residuals_work) = apply_sqrt_weights(&design, &residuals, sample_weight)
             .map_err(PyValueError::new_err)?;
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let vcov_normalized = vcov.to_ascii_lowercase();
         let cov = linear_covariance(
             &design_work,
             &residuals_work,
-            vcov,
+            &vcov_normalized,
             lags,
             cluster_ids.as_ref(),
         )
@@ -1621,7 +1703,7 @@ impl OLS {
                 se_all.slice(s![1..]).to_owned(),
             )
         } else {
-            (0.0, coef.to_owned(), None, se_all)
+            (0.0, coef.to_owned(), None, se_all.clone())
         };
 
         let dict = pyo3::types::PyDict::new(py);
@@ -1630,7 +1712,54 @@ impl OLS {
         dict.set_item("intercept_se", intercept_se)?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
-        dict.set_item("vcov_type", vcov)?;
+        dict.set_item("vcov_type", vcov_normalized.as_str())?;
+        dict.set_item("anytime_valid", anytime_valid)?;
+
+        if anytime_valid {
+            if !(0.0..1.0).contains(&level) {
+                return Err(PyValueError::new_err("level must be in (0, 1)"));
+            }
+            let n = design.nrows();
+            let p = design.ncols();
+            let nu = (n - p) as f64;
+            let t_values = &params / &se_all;
+            let p_values = t_values.mapv(|t| av_p_from_log_g(av_log_g_t(t * t, nu, n, g)));
+            let radius = av_t_radius(g, n, params.len(), 1.0 - level)?;
+            let mut confint = Array2::<f64>::zeros((params.len(), 2));
+            for i in 0..params.len() {
+                confint[[i, 0]] = params[i] - radius * se_all[i];
+                confint[[i, 1]] = params[i] + radius * se_all[i];
+            }
+
+            dict.set_item("estimate", pyarray1_from_f64(py, &params))?;
+            dict.set_item("std_error", pyarray1_from_f64(py, &se_all))?;
+            dict.set_item("t_value", pyarray1_from_f64(py, &t_values))?;
+            dict.set_item("p_value", pyarray1_from_f64(py, &p_values))?;
+            dict.set_item("confint", pyarray2_from_f64(py, &confint))?;
+            dict.set_item("confint_level", level)?;
+            dict.set_item("g", g)?;
+
+            let d = if self.fit_intercept { p - 1 } else { p };
+            if d > 0 {
+                let start = if self.fit_intercept { 1 } else { 0 };
+                let beta = params.slice(s![start..]).to_owned();
+                let f_value = if vcov_normalized == "vanilla" {
+                    let cov_sub = cov.slice(s![start.., start..]).to_owned();
+                    let precision = invert_matrix(&cov_sub).map_err(PyValueError::new_err)?;
+                    beta.dot(&precision.dot(&beta)) / d as f64
+                } else {
+                    let precision = invert_matrix(&cov).map_err(PyValueError::new_err)?;
+                    let precision_sub = precision.slice(s![start.., start..]).to_owned();
+                    beta.dot(&precision_sub.dot(&beta))
+                };
+                let f_p_value = av_p_from_log_g(av_log_g_f(f_value, d as f64, nu, n, g));
+                dict.set_item("f_statistic", f_value)?;
+                dict.set_item("f_p_value", f_p_value)?;
+                dict.set_item("df_model", d)?;
+                dict.set_item("df_resid", n - p)?;
+            }
+        }
+
         Ok(dict.into())
     }
 
@@ -1725,6 +1854,67 @@ impl OLS {
         }
         Ok(pyarray2_from_f64(py, &out))
     }
+}
+
+#[pyfunction]
+#[pyo3(signature = (model, g=1.0, vcov="vanilla", level=0.95))]
+pub fn av<'py>(
+    py: Python<'py>,
+    model: PyRef<'_, OLS>,
+    g: f64,
+    vcov: &str,
+    level: f64,
+) -> PyResult<Py<PyAny>> {
+    model.summary(py, vcov, None, None, true, g, level)
+}
+
+#[pyfunction]
+pub fn optimal_g(n: usize, number_of_coefficients: usize, alpha: f64) -> PyResult<f64> {
+    if n <= number_of_coefficients {
+        return Err(PyValueError::new_err(
+            "n must be greater than number_of_coefficients",
+        ));
+    }
+    if !(0.0..1.0).contains(&alpha) {
+        return Err(PyValueError::new_err("alpha must be in (0, 1)"));
+    }
+
+    let nu = (n - number_of_coefficients) as f64;
+    let upper = n as f64 * alpha.powf(2.0 / nu) / (1.0 - alpha.powf(2.0 / nu));
+    let lower = 1.0_f64;
+    if upper <= lower || !upper.is_finite() {
+        return Ok(lower);
+    }
+
+    let phi = (1.0 + 5.0_f64.sqrt()) / 2.0;
+    let resphi = 2.0 - phi;
+    let mut a = lower;
+    let mut b = upper;
+    let mut c = a + resphi * (b - a);
+    let mut d = b - resphi * (b - a);
+    let mut fc = av_t_radius(c, n, number_of_coefficients, alpha)?;
+    let mut fd = av_t_radius(d, n, number_of_coefficients, alpha)?;
+
+    for _ in 0..160 {
+        if (b - a).abs() <= 1e-10 * (1.0 + c.abs() + d.abs()) {
+            break;
+        }
+        if fc < fd {
+            b = d;
+            d = c;
+            fd = fc;
+            c = a + resphi * (b - a);
+            fc = av_t_radius(c, n, number_of_coefficients, alpha)?;
+        } else {
+            a = c;
+            c = d;
+            fc = fd;
+            d = b - resphi * (b - a);
+            fd = av_t_radius(d, n, number_of_coefficients, alpha)?;
+        }
+    }
+
+    Ok(0.5 * (a + b))
 }
 
 #[pyclass]
