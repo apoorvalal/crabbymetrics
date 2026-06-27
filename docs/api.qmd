@@ -88,11 +88,13 @@ def class_rows(classes):
 
 ## Regression and GLMs
 
+This is the general supervised-learning part of the library: regression, classification, count models, and related coefficient-inference utilities. Anytime-valid confidence sequences currently enter through the fitted OLS summary interface.
+
 Reference pages:
 
 - [OLS](reference/OLS.qmd)
 - [ABCOLS](reference/ABCOLS.qmd)
-- [Anytime-Valid OLS](examples/anytime-valid-ols.qmd)
+- [Anytime-Valid Confidence Sequences](examples/anytime-valid-ols.qmd)
 - [Ridge](reference/Ridge.qmd)
 - [FixedEffectsOLS](reference/FixedEffectsOLS.qmd)
 - [ElasticNet](reference/ElasticNet.qmd)
@@ -104,7 +106,7 @@ Reference pages:
 Worked docs:
 
 - [ABC OLS](examples/abc-ols.qmd)
-- [Anytime-Valid OLS](examples/anytime-valid-ols.qmd)
+- [Anytime-Valid Confidence Sequences](examples/anytime-valid-ols.qmd)
 - [MLE Prediction Interface](examples/mle-prediction-interface.qmd)
 - [Logit](examples/logit.qmd)
 - [Multinomial Logit](examples/multinomial-logit.qmd)

@@ -1,6 +1,6 @@
 ---
-title: "Anytime-Valid OLS"
-subtitle: "Sequentially valid coefficient inference from the OLS summary interface"
+title: "Anytime-Valid Confidence Sequences"
+subtitle: "Sequentially valid supervised-learning inference from the OLS summary interface"
 format:
   html:
     toc: true
@@ -28,6 +28,14 @@ out = model.summary(vcov="vanilla", anytime_valid=True, g=g_star)
 ```
 
 The coefficient estimates are still the ordinary least-squares estimates. The extra fields in the summary are the anytime-valid p-values, confidence intervals, and omnibus F-test p-value.
+
+## Confidence Sequences In The Supervised-Learning Workflow
+
+The supervised-learning use case is monitoring a fitted regression task as more labeled observations arrive. A usual confidence interval answers a fixed-time question: if the analyst commits to one sample size in advance, how wide should the interval be? A confidence sequence answers the sequential version: if the analyst inspects the same coefficient path repeatedly over time, how should the inferential boundary be widened so coverage remains valid across those looks?
+
+In this release the supported supervised-learning entry point is OLS. You fit the regression once on the current labeled design matrix, then request anytime-valid inference from the summary. The same idea can be used in a running evaluation loop by refitting as the sample grows and using the same summary fields for monitored coefficients.
+
+This page uses the term confidence sequence for the sequentially valid coefficient intervals returned in `confint`. The output is still a finite-sample summary dictionary for the fitted model at the current sample size; `crabbymetrics` does not yet expose a streaming estimator object.
 
 ## Data-Generating Example
 
