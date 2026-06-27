@@ -217,6 +217,10 @@ window.Quarto = {
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -487,7 +491,7 @@ window.Quarto = {
 <li><code>AndersenGill</code>: the counting-process Cox model for recurrent events or time-split risk intervals.</li>
 </ul>
 <p>The common coefficient interpretation is multiplicative on the hazard. If a coefficient is <span class="math inline">\(\beta_j\)</span>, then <span class="math inline">\(\exp(\beta_j)\)</span> is a hazard ratio.</p>
-<div id="1425d3b7" class="cell" data-execution_count="1">
+<div id="6ccf0da6" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -551,7 +555,7 @@ H_i(t) = \lambda t^\rho \exp(x_i'\beta),
 S_i(t) = \exp\{-H_i(t)\}.
 \]</span></p>
 <p>Here <span class="math inline">\(\rho &gt; 1\)</span> gives an increasing baseline hazard. Independent censoring creates the observed time and event indicator.</p>
-<div id="aec6626d" class="cell" data-execution_count="2">
+<div id="ab9da0e1" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260524</span>)</span>
@@ -574,7 +578,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 </div>
 </div>
 <p>A quick Kaplan–Meier curve from the simulated data shows the raw survival pattern before imposing a regression model. The step function drops only at observed event times; censored units affect later denominators by leaving the risk set.</p>
-<div id="0db55dcc" class="cell" data-execution_count="3">
+<div id="f6a50696" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kaplan_meier(times, events):</span>
@@ -647,7 +651,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 </div>
 </div>
 </div>
-<div id="323c6054" class="cell" data-execution_count="4">
+<div id="f4c4fd02" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.2</span>))</span>
@@ -681,7 +685,7 @@ h_i(t) = \lambda \rho t^{\rho - 1}\exp(x_i'\beta),
 \qquad
 H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 \]</span></p>
-<div id="b9d86032" class="cell" data-execution_count="5">
+<div id="32cefe3f" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>exp_ph <span class="op">=</span> cm.ExponentialPH()</span>
@@ -749,7 +753,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <li>extra survival-specific surfaces such as <code>predict_hazard(...)</code>, <code>predict_cumulative_hazard(...)</code>, and <code>predict_survival(...)</code> when absolute survival objects are identified.</li>
 </ul>
 <p>For the parametric PH models, <code>predict(...)</code> defaults to survival probabilities at supplied horizons.</p>
-<div id="418d303e" class="cell" data-execution_count="6">
+<div id="9a90cf3b" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>check_x <span class="op">=</span> x[:<span class="dv">5</span>]</span>
@@ -828,7 +832,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 </div>
-<div id="c575be35" class="cell" data-execution_count="7">
+<div id="542fd6bf" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>weibull_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -905,7 +909,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 <p>The internal identities line up exactly:</p>
-<div id="a7601671" class="cell" data-execution_count="8">
+<div id="5f59e23c" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"hazard"</span>], np.exp(exp_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -914,7 +918,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="93e1524e" class="cell" data-execution_count="9">
+<div id="ec290ec2" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>exp_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -923,7 +927,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="9b8a347f" class="cell" data-execution_count="10">
+<div id="8351e6a4" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"hazard"</span>], np.exp(weibull_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -932,7 +936,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="771978f7" class="cell" data-execution_count="11">
+<div id="27cdda8a" class="cell" data-execution_count="11">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>weibull_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -949,7 +953,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 \ell(\beta) = \sum_{i: d_i = 1}
 \left[x_i'\beta - \log\left\{\sum_{j: t_j \ge t_i}\exp(x_j'\beta)\right\}\right].
 \]</span></p>
-<div id="f55b583c" class="cell" data-execution_count="12">
+<div id="fe388360" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>cox <span class="op">=</span> cm.CoxPH()</span>
@@ -1002,7 +1006,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 <p>For Cox, the default prediction is relative risk because the baseline hazard is left unspecified. The latent score is the log hazard ratio.</p>
-<div id="05d9b572" class="cell" data-execution_count="13">
+<div id="d3eccc5c" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>cox_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -1065,7 +1069,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 s_i &lt; t \le t_i.
 \]</span></p>
 <p>That makes the model useful for recurrent events and time-varying covariates. As a smoke test, split each original subject into two rows with unchanged covariates; only the second row can carry the original terminal event. The Andersen–Gill estimate then agrees with the ordinary Cox estimate.</p>
-<div id="7d5cd514" class="cell" data-execution_count="14">
+<div id="c695dd68" class="cell" data-execution_count="14">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>start_long <span class="op">=</span> np.concatenate([np.zeros_like(time), time <span class="op">/</span> <span class="dv">2</span>])</span>
@@ -1113,7 +1117,7 @@ s_i &lt; t \le t_i.
 </div>
 </div>
 </div>
-<div id="0252ae33" class="cell" data-execution_count="15">
+<div id="47851e3c" class="cell" data-execution_count="15">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ag_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -1172,7 +1176,7 @@ s_i &lt; t \le t_i.
 <section id="survival-curves-from-the-parametric-models" class="level2">
 <h2 class="anchored" data-anchor-id="survival-curves-from-the-parametric-models">Survival curves from the parametric models</h2>
 <p>Parametric models estimate an absolute survival curve because they estimate the baseline hazard. Cox-type partial-likelihood models estimate relative hazards unless a baseline-hazard estimator is added.</p>
-<div id="d59f6928" class="cell" data-execution_count="16">
+<div id="17c6d446" class="cell" data-execution_count="16">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(<span class="fl">0.1</span>, np.quantile(time, <span class="fl">0.9</span>), <span class="dv">100</span>)</span>
@@ -1244,7 +1248,7 @@ Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
 <li>beta-binomial hazard model = grouped discrete-time hazard with extra heterogeneity/frailty.</li>
 </ul>
 <p>Here is the person-period construction with a few interval dummies. The coefficient should have the same sign as the Cox and Weibull estimates, though the scale is log-odds of interval failure rather than log instantaneous hazard.</p>
-<div id="e7fc43e4" class="cell" data-execution_count="17">
+<div id="c61ce1e7" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>breaks <span class="op">=</span> np.quantile(time, np.linspace(<span class="dv">0</span>, <span class="fl">0.85</span>, <span class="dv">9</span>))</span>

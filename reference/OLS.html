@@ -4098,6 +4098,10 @@ window.Quarto = {
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4371,7 +4375,7 @@ window.Quarto = {
 </header>
 
 
-<div id="d51f4aa6" class="cell" data-execution_count="1">
+<div id="c94af88a" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4387,13 +4391,13 @@ y_i = \alpha + x_i&#39;\beta + u_i
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.OLS</code></p>
 <p>Use <code>fit(x, y)</code> for the standard estimator, <code>fit_weighted(x, y, sample_weight)</code> for weighted least squares, and <code>fit_sketch(x, y, sketch_size, seed=None)</code> when a randomized row sketch is acceptable for a large tall design. <code>predict(x)</code> returns fitted values. <code>bootstrap(B, seed=None)</code> returns bootstrap draws with the intercept in the first column.</p>
-<div id="306d3695" class="cell" data-execution_count="2">
+<div id="194b9168" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.OLS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="36d8352f" class="cell" data-execution_count="3">
+<div id="cb43bc44" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.OLS</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4420,7 +4424,7 @@ y_i = \alpha + x_i&#39;\beta + u_i
 <td><code>predict(self, /, x)</code></td>
 </tr>
 <tr class="even">
-<td><code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code></td>
+<td><code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None, anytime_valid=False, g=1.0, level=0.95)</code></td>
 </tr>
 <tr class="odd">
 <td><code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None)</code></td>
@@ -4432,7 +4436,7 @@ y_i = \alpha + x_i&#39;\beta + u_i
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="1f402bdb" class="cell" data-execution_count="4">
+<div id="56324fe2" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">1</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">200</span>, <span class="dv">3</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.25</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.3</span>, size<span class="op">=</span><span class="dv">200</span>)</span>
@@ -4452,7 +4456,7 @@ y_i = \alpha + x_i&#39;\beta + u_i
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="092ccce7" class="cell" data-execution_count="5">
+<div id="ad2056dc" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">101</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">3</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.25</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.3</span>, size<span class="op">=</span><span class="dv">80</span>)</span>
@@ -4491,6 +4495,10 @@ y_i = \alpha + x_i&#39;\beta + u_i
 </tr>
 <tr class="even">
 <td><code>vcov_type</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>anytime_valid</code></td>
 <td><code>()</code></td>
 </tr>
 </tbody>

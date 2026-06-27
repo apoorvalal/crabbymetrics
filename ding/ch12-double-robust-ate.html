@@ -3943,6 +3943,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4215,7 +4219,7 @@ vertical-align: -.125em;
 
 
 <p>The original notebook compares regression adjustment, inverse-probability weighting, and doubly robust estimation across misspecification cases. This version keeps the same logic but builds the nuisance fits with <code>crabbymetrics</code>.</p>
-<div id="770edc8e" class="cell" data-execution_count="1">
+<div id="0061fab2" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4316,7 +4320,7 @@ vertical-align: -.125em;
 </div>
 <section id="four-misspecification-cases" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="four-misspecification-cases"><span class="header-section-number">1</span> Four Misspecification Cases</h2>
-<div id="11e5297c" class="cell" data-execution_count="2">
+<div id="75b24ad9" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>regimes <span class="op">=</span> [</span>
@@ -4368,7 +4372,7 @@ Both bad
 </section>
 <section id="a-native-aipw-check-on-one-sample" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="a-native-aipw-check-on-one-sample"><span class="header-section-number">2</span> A Native <code>AIPW</code> Check On One Sample</h2>
-<div id="f83fb998" class="cell" data-execution_count="3">
+<div id="546d3b89" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> pd.read_csv(repo_root() <span class="op">/</span> <span class="st">&quot;ding_w_source&quot;</span> <span class="op">/</span> <span class="st">&quot;repl&quot;</span> <span class="op">/</span> <span class="st">&quot;nhanes_bmi.csv&quot;</span>)</span>

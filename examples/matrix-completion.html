@@ -3943,6 +3943,10 @@ vertical-align: -.125em;
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4209,7 +4213,7 @@ vertical-align: -.125em;
 <p>This example uses a genuinely low-rank untreated panel, adds unit and time effects, masks treated cells through <code>W</code>, and asks <code>MatrixCompletion</code> to fill the counterfactual surface.</p>
 <section id="simulate-a-low-rank-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-low-rank-panel"><span class="header-section-number">1</span> Simulate A Low-Rank Panel</h2>
-<div id="308d2935" class="cell" data-execution_count="1">
+<div id="b3a0750b" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4217,7 +4221,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="e684057a" class="cell" data-execution_count="2">
+<div id="0de8c17b" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4402</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_units <span class="op">=</span> <span class="dv">52</span></span>
@@ -4258,7 +4262,7 @@ true ATT: 1.085</code></pre>
 </section>
 <section id="fit-matrix-completion" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-matrix-completion"><span class="header-section-number">2</span> Fit Matrix Completion</h2>
-<div id="e567fbcb" class="cell" data-execution_count="3">
+<div id="4eee3849" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> MatrixCompletion(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    lambda_fraction<span class="op">=</span><span class="fl">0.20</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    fit_unit_effects<span class="op">=</span><span class="va">True</span>,</span>
@@ -4280,7 +4284,7 @@ iterations: 7
 final observed-cell RMSE: 0.2593</code></pre>
 </div>
 </div>
-<div id="44c72931" class="cell" data-execution_count="4">
+<div id="f7fd712d" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>completed <span class="op">=</span> np.asarray(summary[<span class="st">&quot;completed&quot;</span>])</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>counterfactual <span class="op">=</span> np.asarray(summary[<span class="st">&quot;counterfactual&quot;</span>])</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>treatment_effect <span class="op">=</span> np.asarray(summary[<span class="st">&quot;treatment_effect&quot;</span>])</span>

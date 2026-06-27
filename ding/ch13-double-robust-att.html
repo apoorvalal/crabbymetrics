@@ -3959,6 +3959,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4231,7 +4235,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 
 <p>Chapter 13 shifts attention from the ATE to the ATT. The R script computes outcome-regression, odds-weighted, and doubly robust ATT estimators. This page keeps those formulas and also shows the library-native balancing-weight version, because <code>BalancingWeights</code> directly targets the treated covariate distribution.</p>
-<div id="3fb78666" class="cell" data-execution_count="1">
+<div id="6b8679ac" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4258,7 +4262,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <section id="nhanes-att-example" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="nhanes-att-example"><span class="header-section-number">1</span> NHANES ATT Example</h2>
-<div id="6ded5c0e" class="cell" data-execution_count="2">
+<div id="1bcdce95" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> pd.read_csv(repo_root() <span class="op">/</span> <span class="st">&quot;ding_w_source&quot;</span> <span class="op">/</span> <span class="st">&quot;repl&quot;</span> <span class="op">/</span> <span class="st">&quot;nhanes_bmi.csv&quot;</span>)</span>
@@ -4406,7 +4410,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="balance-before-and-after-weighting" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="balance-before-and-after-weighting"><span class="header-section-number">2</span> Balance Before And After Weighting</h2>
-<div id="0eb7643c" class="cell" data-execution_count="3">
+<div id="621ebe6f" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> standardized_mean_difference(x_treated, x_control, weights<span class="op">=</span><span class="va">None</span>):</span>

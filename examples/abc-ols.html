@@ -4082,6 +4082,10 @@ window.Quarto = {
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4484,7 +4488,7 @@ A\theta = 0.
 <section id="example-abc-versus-base-category-coding" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="example-abc-versus-base-category-coding"><span class="header-section-number">7</span> Example: ABC versus base-category coding</h2>
 <p>The example below cooks an unbalanced sample with a three-level categorical modifier <code>group</code> and a two-level categorical variable <code>sex</code>. The true data-generating process has group-specific intercept and slope deviations.</p>
-<div id="04c59b0e" class="cell" data-execution_count="1">
+<div id="fd4298f8" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -4626,7 +4630,7 @@ d_{20} = -d_{21}.
 <section id="raw-numpy-constrained-solve" class="level3" data-number="7.2">
 <h3 data-number="7.2" class="anchored" data-anchor-id="raw-numpy-constrained-solve"><span class="header-section-number">7.2</span> Raw NumPy constrained solve</h3>
 <p>Before using <code>crabbymetrics</code>, we can solve the overparameterized constrained least-squares problem directly in NumPy. First construct <span class="math inline">\(X_{\rm full}\)</span>, <span class="math inline">\(A\)</span>, and the hand-written null-space basis <span class="math inline">\(Q_{\rm hand}\)</span>.</p>
-<div id="92bc6e3e" class="cell" data-execution_count="2">
+<div id="d4e301ec" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> overparameterized_design(x_centered, group, sex):</span>
@@ -4690,7 +4694,7 @@ max |A Q_hand|: 5.551115123125783e-17</code></pre>
 </div>
 </div>
 <p>Now solve the reduced problem <span class="math inline">\(\min_\phi \|y - X_{\rm full}Q_{\rm hand}\phi\|^2\)</span> and map back to the overparameterized coefficients.</p>
-<div id="e365f6f5" class="cell" data-execution_count="3">
+<div id="5e1b99c8" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Z_hand <span class="op">=</span> X_full <span class="op">@</span> Q_hand</span>
@@ -4729,7 +4733,7 @@ g2:s1       0.0027</code></pre>
 <section id="the-crabbymetrics-solution" class="level3" data-number="7.3">
 <h3 data-number="7.3" class="anchored" data-anchor-id="the-crabbymetrics-solution"><span class="header-section-number">7.3</span> The <code>crabbymetrics</code> solution</h3>
 <p>Now fit <code>ABCOLS</code> with the same continuous-by-categorical and categorical-by-categorical interactions:</p>
-<div id="6e11b860" class="cell" data-execution_count="4">
+<div id="942bd365" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>abc <span class="op">=</span> cm.ABCOLS()</span>
@@ -4767,7 +4771,7 @@ max constraint violation: 6.245004513516506e-17</code></pre>
 </div>
 <p>The package is doing the same constrained least-squares operation. The only implementation difference is that <code>ABCOLS</code> computes a numerical orthonormal null-space basis internally rather than using the hand-written <span class="math inline">\(Q_{\rm hand}\)</span> above.</p>
 <p>Now fit the same linear span using ordinary base-category coding. This drops <code>group=0</code>, <code>sex=0</code>, and the corresponding interaction baseline columns.</p>
-<div id="162e7129" class="cell" data-execution_count="5">
+<div id="83354dee" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> base_category_design(x_centered, group, sex):</span>
@@ -4990,7 +4994,7 @@ max constraint violation: 6.245004513516506e-17</code></pre>
 <section id="interpreting-the-abc-slope" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="interpreting-the-abc-slope"><span class="header-section-number">8</span> Interpreting the ABC slope</h2>
 <p>Under ABC coding, <code>x0</code> is the abundance-weighted average of group-specific slopes. We can verify this directly.</p>
-<div id="3be37fc1" class="cell" data-execution_count="6">
+<div id="3314ac2e" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> <span class="bu">dict</span>(<span class="bu">zip</span>(abc_summary[<span class="st">&quot;column_names&quot;</span>], abc_summary[<span class="st">&quot;coef&quot;</span>]))</span>
@@ -5014,7 +5018,7 @@ ABC main slope: 1.175173399782689</code></pre>
 <section id="interpreting-the-abc-categorical-effects" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="interpreting-the-abc-categorical-effects"><span class="header-section-number">9</span> Interpreting the ABC categorical effects</h2>
 <p>The same logic applies to categorical main effects. The ABC group effects have sample-weighted mean zero:</p>
-<div id="cd38eef9" class="cell" data-execution_count="7">
+<div id="909bd632" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>group_effects <span class="op">=</span> np.array([coef[<span class="ss">f&quot;c0[</span><span class="sc">{</span>level<span class="sc">}</span><span class="ss">]&quot;</span>] <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)])</span>

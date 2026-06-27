@@ -1,0 +1,190 @@
+---
+title: "Anytime-Valid Confidence Sequences"
+subtitle: "Sequentially valid supervised-learning inference from the OLS summary interface"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Why Anytime-Valid?
+
+Ordinary linear regression summaries are fixed-sample summaries. They are calibrated for a sample size chosen before looking at the data. Anytime-valid inference is useful when the same analysis might be checked repeatedly as observations arrive, because its p-values and confidence intervals are calibrated for optional stopping.
+
+`crabbymetrics` exposes this through the usual `OLS.summary(...)` method rather than through a separate model class:
+
+```python
+out = model.summary(vcov="vanilla", anytime_valid=True, g=g_star)
+```
+
+The coefficient estimates are still the ordinary least-squares estimates. The extra fields in the summary are the anytime-valid p-values, confidence intervals, and omnibus F-test p-value.
+
+## Confidence Sequences In The Supervised-Learning Workflow
+
+The supervised-learning use case is monitoring a fitted regression task as more labeled observations arrive. A usual confidence interval answers a fixed-time question: if the analyst commits to one sample size in advance, how wide should the interval be? A confidence sequence answers the sequential version: if the analyst inspects the same coefficient path repeatedly over time, how should the inferential boundary be widened so coverage remains valid across those looks?
+
+In this release the supported supervised-learning entry point is OLS. You fit the regression once on the current labeled design matrix, then request anytime-valid inference from the summary. The same idea can be used in a running evaluation loop by refitting as the sample grows and using the same summary fields for monitored coefficients.
+
+This page uses the term confidence sequence for the sequentially valid coefficient intervals returned in `confint`. The output is still a finite-sample summary dictionary for the fitted model at the current sample size; `crabbymetrics` does not yet expose a streaming estimator object.
+
+## Data-Generating Example
+
+This mirrors the structure of the `avlm` README example: three centered covariates, a binary treatment, and treatment-by-covariate interactions. The coefficient on `trt` is a baseline treatment effect, while the interaction coefficients allow that effect to vary with the covariates.
+
+```{python}
+import numpy as np
+from html import escape
+from IPython.display import HTML, display
+
+import crabbymetrics as cm
+
+np.set_printoptions(precision=4, suppress=True)
+
+
+def html_table(headers, rows):
+    parts = ["<table>", "<thead>", "<tr>"]
+    parts.extend(f"<th>{escape(str(header))}</th>" for header in headers)
+    parts.extend(["</tr>", "</thead>", "<tbody>"])
+    for row in rows:
+        parts.append("<tr>")
+        parts.extend(f"<td>{cell}</td>" for cell in row)
+        parts.append("</tr>")
+    parts.extend(["</tbody>", "</table>"])
+    return "".join(parts)
+
+
+rng = np.random.default_rng(1)
+n = 100
+x = rng.normal(size=(n, 3))
+x = x - x.mean(axis=0)
+trt = rng.choice([0.0, 1.0], size=n)
+noise = rng.normal(size=n)
+
+y = (
+    1.0
+    + 1.4 * x[:, 2]
+    + 2.3 * trt
+    + 2.0 * x[:, 0] * trt
+    + 3.0 * x[:, 1] * trt
+    + noise
+)
+
+design = np.column_stack([x, trt, x * trt[:, None]])
+coef_names = ["Intercept", "X1", "X2", "X3", "trt", "X1:trt", "X2:trt", "X3:trt"]
+```
+
+## Fit OLS Once
+
+The fitted model is just `cm.OLS()`. The `optimal_g(...)` helper chooses the mixture precision parameter that minimizes the anytime-valid confidence-interval width at this target sample size and significance level.
+
+The second argument to `optimal_g` is the total coefficient count, including the intercept fitted internally by `OLS`.
+
+```{python}
+model = cm.OLS()
+model.fit(design, y)
+
+alpha = 0.05
+g_star = cm.optimal_g(n, design.shape[1] + 1, alpha)
+
+plain = model.summary(vcov="vanilla")
+av = model.summary(vcov="vanilla", anytime_valid=True, g=g_star, level=1 - alpha)
+
+print("g_star:", round(g_star, 4))
+```
+
+The usual summary fields remain available. For example, the first three slope coefficients are unchanged when anytime-valid inference is requested:
+
+```{python}
+print("plain slope estimates:", np.round(plain["coef"][:3], 4))
+print("AV slope estimates:   ", np.round(av["coef"][:3], 4))
+```
+
+## Anytime-Valid Coefficient Table
+
+The anytime-valid summary adds full-parameter fields:
+
+- `estimate`: intercept followed by slopes
+- `std_error`: matching standard errors
+- `t_value`: estimate divided by standard error
+- `p_value`: anytime-valid coefficient p-values
+- `confint`: anytime-valid confidence intervals
+- `f_statistic` and `f_p_value`: omnibus test for all non-intercept coefficients
+
+```{python}
+rows = []
+for i, name in enumerate(coef_names):
+    rows.append(
+        [
+            name,
+            f"{av['estimate'][i]:.4f}",
+            f"{av['std_error'][i]:.4f}",
+            f"{av['p_value'][i]:.4g}",
+            f"[{av['confint'][i, 0]:.4f}, {av['confint'][i, 1]:.4f}]",
+        ]
+    )
+
+display(
+    HTML(
+        html_table(
+            ["Term", "Estimate", "Std. Error", "AV p-value", "95% AV interval"],
+            rows,
+        )
+    )
+)
+```
+
+The omnibus anytime-valid F-test is reported in the same dictionary:
+
+```{python}
+print("AV F-statistic:", round(av["f_statistic"], 4))
+print("AV F-test p-value:", f"{av['f_p_value']:.4g}")
+```
+
+## Robust Variant
+
+The anytime-valid option composes with the ordinary `summary(vcov=...)` covariance interface. Here is the same fit with HC1 standard errors:
+
+```{python}
+av_hc1 = model.summary(vcov="hc1", anytime_valid=True, g=g_star, level=0.95)
+
+rows = []
+for i, name in enumerate(coef_names):
+    rows.append(
+        [
+            name,
+            f"{av_hc1['estimate'][i]:.4f}",
+            f"{av_hc1['std_error'][i]:.4f}",
+            f"{av_hc1['p_value'][i]:.4g}",
+            f"[{av_hc1['confint'][i, 0]:.4f}, {av_hc1['confint'][i, 1]:.4f}]",
+        ]
+    )
+
+display(
+    HTML(
+        html_table(
+            ["Term", "Estimate", "HC1 Std. Error", "AV p-value", "95% AV interval"],
+            rows,
+        )
+    )
+)
+```
+
+## Compact Helper
+
+`cm.av(...)` is a small convenience wrapper around the same `OLS.summary(...)` call. It returns the summary dictionary directly, not a new model object.
+
+```{python}
+helper = cm.av(model, g=g_star, vcov="vanilla")
+print(np.allclose(helper["p_value"], av["p_value"]))
+print(np.allclose(helper["confint"], av["confint"]))
+```

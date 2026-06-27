@@ -4082,6 +4082,10 @@ window.Quarto = {
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4346,7 +4350,7 @@ window.Quarto = {
 <p>This page mirrors <code>examples/logit_example.py</code>.</p>
 <section id="fit-a-binary-logit-model" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="fit-a-binary-logit-model"><span class="header-section-number">1</span> Fit A Binary Logit Model</h2>
-<div id="6a3fab52" class="cell" data-execution_count="1">
+<div id="807e25b0" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4354,7 +4358,7 @@ window.Quarto = {
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="3b4d24dc" class="cell" data-execution_count="2">
+<div id="d130c870" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">800</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">4</span></span>
@@ -4390,7 +4394,7 @@ true coef: [ 1.2 -0.8  0.4 -1.1]
 <section id="prediction-surfaces" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="prediction-surfaces"><span class="header-section-number">2</span> Prediction surfaces</h2>
 <p><code>predict_lin()</code> returns the latent index <span class="math inline">\(x_i&#39;\hat\beta + \hat\alpha\)</span>. <code>predict()</code> applies the inverse-logit link to return fitted probabilities. <code>predict_label()</code> thresholds those probabilities into class labels.</p>
-<div id="0311886c" class="cell" data-execution_count="3">
+<div id="59e4e999" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>check <span class="op">=</span> x[:<span class="dv">8</span>]</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> {</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;eta&quot;</span>: model.predict_lin(check),</span>

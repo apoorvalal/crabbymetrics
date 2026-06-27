@@ -4098,6 +4098,10 @@ window.Quarto = {
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4371,7 +4375,7 @@ window.Quarto = {
 </header>
 
 
-<div id="bb239190" class="cell" data-execution_count="1">
+<div id="3965705b" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4387,13 +4391,13 @@ h_i(t \mid x_i) = \lambda_0 \exp(x_i&#39;eta),
 <h2 data-number="2" class="anchored" data-anchor-id="python-api"><span class="header-section-number">2</span> Python API</h2>
 <p>Constructor: <code>cm.ExponentialPH</code></p>
 <p>Use <code>fit(x, time, event)</code>. The layered prediction surface is <code>predict_lin(x)</code> for log hazard, <code>predict_hazard(x)</code>, <code>predict_cumulative_hazard(x, time)</code>, and <code>predict_survival(x, time)</code>. The default <code>predict(x, time)</code> returns survival probabilities.</p>
-<div id="94a99962" class="cell" data-execution_count="2">
+<div id="afbe2fab" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.ExponentialPH))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="e04b7436" class="cell" data-execution_count="3">
+<div id="cc276c28" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.ExponentialPH</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4438,7 +4442,7 @@ h_i(t \mid x_i) = \lambda_0 \exp(x_i&#39;eta),
 </section>
 <section id="minimal-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">3</span> Minimal example</h2>
-<div id="d63396c8" class="cell" data-execution_count="4">
+<div id="0035b594" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">31</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">250</span>,<span class="dv">2</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.04</span><span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.5</span>,<span class="op">-</span><span class="fl">0.3</span>]))<span class="op">;</span> t_event<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">30</span>,size<span class="op">=</span><span class="dv">250</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>time<span class="op">=</span>np.minimum(t_event,c)<span class="op">;</span> event<span class="op">=</span>(t_event<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
@@ -4458,7 +4462,7 @@ h_i(t \mid x_i) = \lambda_0 \exp(x_i&#39;eta),
 <section id="summary-contract" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">4</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="3f3ef985" class="cell" data-execution_count="5">
+<div id="b152cf12" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">131</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">120</span>,<span class="dv">2</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.05</span><span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.4</span>,<span class="op">-</span><span class="fl">0.2</span>]))<span class="op">;</span> te<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">20</span>,size<span class="op">=</span><span class="dv">120</span>)<span class="op">;</span> time<span class="op">=</span>np.minimum(te,c)<span class="op">;</span> event<span class="op">=</span>(te<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.ExponentialPH()<span class="op">;</span> model.fit(x,time,event)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>

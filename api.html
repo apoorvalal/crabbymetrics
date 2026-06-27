@@ -3959,6 +3959,10 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
  <span class="dropdown-text">ABC OLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/ridge.html">
  <span class="dropdown-text">Ridge</span></a>
   </li>  
@@ -4248,7 +4252,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li>it shows the live constructor and method surface from the installed module;</li>
 <li>it groups the growing class list into a navigable left-TOC landing page instead of relying on an oversized navbar dropdown.</li>
 </ul>
-<div id="2786d105" class="cell" data-execution_count="1">
+<div id="467d3b38" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
@@ -4314,10 +4318,12 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </section>
 <section id="regression-and-glms" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="regression-and-glms"><span class="header-section-number">3</span> Regression and GLMs</h2>
+<p>This is the general supervised-learning part of the library: regression, classification, count models, and related coefficient-inference utilities. Anytime-valid confidence sequences currently enter through the fitted OLS summary interface.</p>
 <p>Reference pages:</p>
 <ul>
 <li><a href="./reference/OLS.html">OLS</a></li>
 <li><a href="./reference/ABCOLS.html">ABCOLS</a></li>
+<li><a href="./examples/anytime-valid-ols.html">Anytime-Valid Confidence Sequences</a></li>
 <li><a href="./reference/Ridge.html">Ridge</a></li>
 <li><a href="./reference/FixedEffectsOLS.html">FixedEffectsOLS</a></li>
 <li><a href="./reference/ElasticNet.html">ElasticNet</a></li>
@@ -4329,12 +4335,13 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <p>Worked docs:</p>
 <ul>
 <li><a href="./examples/abc-ols.html">ABC OLS</a></li>
+<li><a href="./examples/anytime-valid-ols.html">Anytime-Valid Confidence Sequences</a></li>
 <li><a href="./examples/mle-prediction-interface.html">MLE Prediction Interface</a></li>
 <li><a href="./examples/logit.html">Logit</a></li>
 <li><a href="./examples/multinomial-logit.html">Multinomial Logit</a></li>
 <li><a href="./examples/poisson.html">Poisson</a></li>
 </ul>
-<div id="8d59eb89" class="cell" data-execution_count="2">
+<div id="0e86c95a" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -4372,7 +4379,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <code>fit_sketch(self, /, x, y, sketch_size, seed=None)</code><br>
 <code>fit_weighted(self, /, x, y, sample_weight)</code><br>
 <code>predict(self, /, x)</code><br>
-<code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None)</code><br>
+<code>summary(self, /, vcov=&#39;hc1&#39;, lags=None, clusters=None, anytime_valid=False, g=1.0, level=0.95)</code><br>
 <code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None)</code></td>
 </tr>
 <tr class="even">
@@ -4463,7 +4470,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <li><a href="./examples/survival-time-to-event-and-recurrent-events.html">Survival / Time-to-Event / Recurrent Events</a></li>
 <li><a href="./examples/survival-models.html">Survival Models (compact worked example)</a></li>
 </ul>
-<div id="504cbea4" class="cell" data-execution_count="3">
+<div id="e9bb6cc2" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
