@@ -3,6 +3,7 @@ mod estimators;
 mod hyptests;
 mod optimizers;
 mod rla;
+mod rotations;
 mod utils;
 
 use crate::abc::ABCOLS;
@@ -59,6 +60,21 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::rla::randomized_svd, m)?)?;
     m.add_function(wrap_pyfunction!(crate::rla::qr_solve, m)?)?;
     m.add_function(wrap_pyfunction!(crate::rla::sketch_ols, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rotations::varimax_rotation, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rotations::l1_sparse_rotation, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rotations::count_small_loadings, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::rotations::local_factor_diagnostic,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::rotations::inverse_participation_ratio,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::rotations::cumulative_participation,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(crate::hyptests::wald_test, m)?)?;
     m.add_function(wrap_pyfunction!(crate::hyptests::likelihood_ratio_test, m)?)?;
     m.add_function(wrap_pyfunction!(crate::hyptests::lr_test, m)?)?;

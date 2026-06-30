@@ -177,6 +177,16 @@ display(HTML(html_table(
 
 - [PCA](reference/PCA.qmd)
 - [KernelBasis](reference/KernelBasis.qmd)
+- [Sparse Factor Rotations](examples/sparse-rotations.qmd)
+
+Function utilities:
+
+- `varimax_rotation(loadings, normalize=False)`
+- `l1_sparse_rotation(loadings, n_starts=None, seed=None, max_iter=None, tol=1e-7)`
+- `count_small_loadings(loadings, threshold=None)`
+- `local_factor_diagnostic(loadings, threshold=None, alpha=0.05, gamma0=0.03)`
+- `inverse_participation_ratio(loadings, axis=0)`
+- `cumulative_participation(loadings)`
 
 ## Estimation interfaces and optimizers
 

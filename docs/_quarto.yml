@@ -104,6 +104,8 @@ website:
         menu:
           - href: examples/pca-and-kernel-basis.qmd
             text: PCA And Kernel Basis
+          - href: examples/sparse-rotations.qmd
+            text: Sparse Factor Rotations
       - text: Ablations
         menu:
           - href: ablations/variance-estimators.qmd
