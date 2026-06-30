@@ -24,10 +24,10 @@ The intended workflow is PCA or SVD first, rotation second, interpretation last.
 
 ```{python}
 from pathlib import Path
-import csv
 
 import matplotlib.pyplot as plt
 import numpy as np
+import polars as pl
 
 import crabbymetrics as cm
 
@@ -41,39 +41,22 @@ if not DATA_DIR.exists():
 ## Helpers
 
 ```{python}
-def read_numeric_csv(path, columns=None):
-    with open(path, newline="") as handle:
-        rows = list(csv.DictReader(handle))
+def read_numeric_data(path, columns=None):
+    frame = pl.read_csv(path, null_values=["", "NA", "NaN"])
+    candidate_columns = columns or [name for name in frame.columns if name != "rownames"]
 
+    numeric = frame.select(
+        pl.col(name).cast(pl.Float64, strict=False).alias(name)
+        for name in candidate_columns
+    )
     if columns is None:
-        columns = []
-        for name in rows[0]:
-            if name == "rownames":
-                continue
-            ok = True
-            for row in rows:
-                value = row[name]
-                if value in {"", "NA", "NaN"}:
-                    continue
-                try:
-                    float(value)
-                except ValueError:
-                    ok = False
-                    break
-            if ok:
-                columns.append(name)
+        columns = [
+            name
+            for name in numeric.columns
+            if numeric.select(pl.col(name).is_not_null().any()).item()
+        ]
 
-    matrix = []
-    for row in rows:
-        values = []
-        for name in columns:
-            value = row[name]
-            values.append(np.nan if value in {"", "NA", "NaN"} else float(value))
-        matrix.append(values)
-
-    x = np.asarray(matrix, dtype=float)
-    keep_rows = np.isfinite(x).all(axis=1)
-    return columns, x[keep_rows]
+    return columns, numeric.select(columns).drop_nulls().to_numpy()
 
 
 def standardize(x):
@@ -101,7 +84,7 @@ Varimax chooses an orthogonal matrix `R` and reports `loadings @ R`. The objecti
 The Harman-Holzinger data are a 9 by 9 correlation matrix of ability tests. The first two unrotated principal loading columns already span the dominant ability-test space, but their axes are arbitrary. Varimax chooses axes that line up more clearly with verbal and arithmetic/spatial-style item groups.
 
 ```{python}
-harman_columns, harman_corr = read_numeric_csv(DATA_DIR / "harman_holzinger.csv")
+harman_columns, harman_corr = read_numeric_data(DATA_DIR / "harman_holzinger.csv")
 harman_loadings = loadings_from_correlation(harman_corr, n_factors=2)
 harman_varimax = cm.varimax_rotation(harman_loadings, normalize=False)
 harman_rotated = np.asarray(harman_varimax["rotated"])
@@ -161,7 +144,7 @@ msq_items = [
     "at.ease",
 ]
 
-_, msq = read_numeric_csv(DATA_DIR / "small_msq.csv", columns=msq_items)
+_, msq = read_numeric_data(DATA_DIR / "small_msq.csv", columns=msq_items)
 msq_loadings = pca_loadings_from_data(msq, n_factors=4)
 
 l1rot = cm.l1_sparse_rotation(
