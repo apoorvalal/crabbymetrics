@@ -151,6 +151,43 @@ Implementation guardrails for sketching work:
 
 ## Highest-Value Next Extensions
 
+### 0. Sparse rotations / local factors / Vintage Sparse PCA
+
+Status: spec branch opened; no public API committed
+
+Why it matters:
+
+- Sparse factor rotations fit the library's econometrics-and-numerics lane better than generic ML breadth.
+- Freyaldenhoven's $\ell_1$ rotation criterion is a natural local-factor estimator for interpretable factor models.
+- Rohe--Zeng's Vintage Sparse PCA / Varimax story gives a complementary large-matrix path for sparse/leptokurtic latent factors.
+- The existing `PCA`, randomized SVD, and transform machinery already provide most of the subspace-estimation substrate.
+
+Scope for the prototype:
+
+- Keep the first PR as a design/spec PR rather than committing to a Python API.
+- Use `docs/specs/sparse-rotations.qmd` as the review target for the proposed numerical scope, wrappers, diagnostics, tests, and API questions.
+- Local source references live under `~/hdd/the_krust_krab`: `l1rotation/`, `vsp/`, and `arxiv-2004.05387/`.
+
+Likely implementation sequence after API review:
+
+1. Low-level dense rotation functions:
+   - `varimax_rotation(...)`
+   - `l1_sparse_rotation(...)`
+   - small-loading / local-factor diagnostics
+   - inverse participation ratio helpers
+2. Synthetic tests against local-factor DGPs and hand-built Varimax examples.
+3. Thin wrappers only after the function-level API feels right:
+   - possible `SparseRotation`
+   - possible `LocalFactors`
+   - possible `VintageSparsePCA`
+
+Guardrails:
+
+- Do not add sparse matrix dependencies in the first pass.
+- Do not claim global optimality for the non-convex $\ell_1$ search.
+- Keep all randomness seedable and surface convergence diagnostics.
+- Keep docs precise about identifying assumptions: local sparse loadings for Freyaldenhoven; independent leptokurtic latent coordinates for Rohe--Zeng.
+
 ### 0. Docs release housekeeping
 
 Status: immediate follow-up, not numerical work

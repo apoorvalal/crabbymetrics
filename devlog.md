@@ -13,6 +13,18 @@ Current release state: `v0.7.1` is published to PyPI and GitHub Releases. The re
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## 2026-06-29 Sparse Rotation Spec Branch
+
+Branch `feature/sparse-rotation-spec` is a design/spec branch for possible sparse-rotation methods, not an implementation branch yet.
+
+Local references were gathered under `~/hdd/the_krust_krab`:
+
+- `l1rotation/`: Freyaldenhoven $\ell_1$ local-factor rotation implementation.
+- `vsp/`: RoheLab Vintage Sparse PCA / Varimax implementation.
+- `arxiv-2004.05387/`: source for Rohe and Zeng, "Vintage Factor Analysis with Varimax Performs Statistical Inference."
+
+The proposed direction is documented in `docs/specs/sparse-rotations.qmd`. The branch proposes low-level dense rotation primitives first, then possible wrappers after API review.
+
 ## Repository Layout
 
 ```text
