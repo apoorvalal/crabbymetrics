@@ -12,13 +12,13 @@ execute:
 jupyter: python3
 ---
 
-This page summarizes the dense sparse-rotation primitives in `crabbymetrics`. They are deliberately small functions rather than a fitted factor-model class:
+This page summarizes the sparse-rotation primitives in `crabbymetrics`. They are deliberately small functions:
 
+- `l1_sparse_rotation(loadings, ...)` searches for local, sparse directions inside a loading space by minimizing an entrywise L1 criterion.
 - `varimax_rotation(loadings, normalize=False)` rotates a loading matrix toward high-contrast columns.
-- `l1_sparse_rotation(loadings, ...)` searches for sparse directions inside a loading space by minimizing an entrywise L1 criterion.
 - `count_small_loadings`, `local_factor_diagnostic`, `inverse_participation_ratio`, and `cumulative_participation` summarize sparsity and localization.
 
-The intended workflow is PCA or SVD first, rotation second, interpretation last. A rotation does not change the fitted subspace; it chooses a basis inside that subspace. The examples below use two compact datasets from the Rdatasets archive: Harman-Holzinger ability-test correlations for Varimax, and `small.msq` affect items for L1 sparse rotation.
+The workflow is PCA or SVD first, rotation second, interpretation last. A rotation preserves the fitted subspace and chooses a basis inside that subspace. Sparse L1 rotation comes first here because it is the sharper tool when a few units or variables should carry each factor.
 
 ## Imports
 
@@ -75,13 +75,174 @@ def loadings_from_correlation(corr, n_factors):
     eigenvalues = eigenvalues[order]
     eigenvectors = eigenvectors[:, order]
     return eigenvectors[:, :n_factors] * np.sqrt(eigenvalues[:n_factors])
+
+
+def normalized_columns(x):
+    return x / np.linalg.norm(x, axis=0, keepdims=True)
+
+
+def max_abs_column_matches(estimate, truth):
+    score = np.abs(normalized_columns(estimate).T @ normalized_columns(truth))
+    return score.max(axis=1)
+
+
+def loading_heatmaps(left, right, row_labels, titles, figsize=(13, 6.5)):
+    fig, axes = plt.subplots(1, 2, figsize=figsize, constrained_layout=True)
+    limit = max(np.abs(left).max(), np.abs(right).max())
+    image = None
+
+    for ax, values, title in zip(axes, [left, right], titles):
+        image = ax.imshow(values, cmap="coolwarm", vmin=-limit, vmax=limit, aspect="auto")
+        ax.set_title(title)
+        ax.set_xticks(range(values.shape[1]), [f"F{j + 1}" for j in range(values.shape[1])])
+        ax.set_yticks(range(len(row_labels)), row_labels)
+        ax.tick_params(axis="y", labelsize=9)
+
+    fig.colorbar(image, ax=axes, shrink=0.85, label="loading")
+    plt.show()
 ```
 
-## Varimax On Ability-Test Correlations
+## L1 Sparse Rotation
 
-Varimax chooses an orthogonal matrix `R` and reports `loadings @ R`. The objective is large when each rotated column has a few large entries and many small entries. This is useful when the latent coordinates are expected to be independent and high-kurtosis, as in the Rohe-Zeng vintage sparse PCA interpretation.
+Let `Lambda` be a `p` by `r` loading matrix. For a unit vector `q` in the `r`-dimensional factor space, the rotated loading column is `Lambda q`. The L1 method searches the sphere for directions with small entrywise absolute mass:
 
-The Harman-Holzinger data are a 9 by 9 correlation matrix of ability tests. The first two unrotated principal loading columns already span the dominant ability-test space, but their axes are arbitrary. Varimax chooses axes that line up more clearly with verbal and arithmetic/spatial-style item groups.
+$$
+\phi(q) = \|\Lambda q\|_1 = \sum_{i=1}^p |(\Lambda q)_i|,
+\qquad \|q\|_2 = 1.
+$$
+
+A low value of `phi(q)` signals a column with many near-zero loadings and a few active coordinates. The implementation parameterizes the unit sphere, runs Nelder-Mead local search from many random starts, clusters repeated local minima, sorts candidates by small-loading counts and objective values, then assembles a full-rank rotation matrix from the selected directions. Signs and column order carry no interpretation by themselves.
+
+### A Favorable Simulation
+
+This simulation starts from three genuinely sparse loading columns. A random orthogonal matrix hides those columns by mixing them into a dense basis. The L1 rotation sees only the dense basis and tries to recover sparse axes inside the same column space.
+
+```{python}
+rng = np.random.default_rng(2026)
+p, n_factors = 72, 3
+
+true_sparse = np.zeros((p, n_factors))
+for j, (start, stop) in enumerate([(0, 16), (16, 36), (36, 52)]):
+    true_sparse[start:stop, j] = rng.normal(1.0, 0.08, size=stop - start)
+true_sparse += 0.015 * rng.normal(size=true_sparse.shape)
+
+mixing, _ = np.linalg.qr(rng.normal(size=(n_factors, n_factors)))
+dense_basis = true_sparse @ mixing
+
+sim_l1 = cm.l1_sparse_rotation(
+    dense_basis,
+    n_starts=300,
+    seed=8,
+    max_iter=120,
+    tol=1e-7,
+)
+sim_rotated = np.asarray(sim_l1["rotated"])
+
+print("candidate L1 values:", np.asarray(sim_l1["fval"])[:3])
+print("small-loading counts:", cm.count_small_loadings(sim_rotated, threshold=0.08))
+print("best absolute matches to true sparse columns:", max_abs_column_matches(sim_rotated, true_sparse))
+```
+
+```{python}
+loading_heatmaps(
+    dense_basis,
+    sim_rotated,
+    row_labels=[str(i + 1) for i in range(p)],
+    titles=("Dense mixed basis", "L1 sparse-rotated basis"),
+    figsize=(13, 8),
+)
+```
+
+The heatmap shows the ideal use case: the input columns are dense because the sparse factors have been mixed, and the rotated columns recover the block-local structure. The printed column-match scores are close to one because the recovered sparse columns align with the generating columns up to sign and order.
+
+### Mood Items From Rdatasets
+
+The `small.msq` dataset has 200 responses to affect items. The item names suggest local blocks: energetic activation, sleepiness/fatigue, anxiety, and calmness. This gives a compact real-data example where sparse rotation can concentrate columns on interpretable item groups.
+
+```{python}
+msq_items = [
+    "active",
+    "alert",
+    "aroused",
+    "sleepy",
+    "tired",
+    "drowsy",
+    "anxious",
+    "jittery",
+    "nervous",
+    "calm",
+    "relaxed",
+    "at.ease",
+]
+
+_, msq = read_numeric_data(DATA_DIR / "small_msq.csv", columns=msq_items)
+msq_loadings = pca_loadings_from_data(msq, n_factors=4)
+
+msq_l1 = cm.l1_sparse_rotation(
+    msq_loadings,
+    n_starts=400,
+    seed=11,
+    max_iter=120,
+    tol=1e-7,
+)
+msq_rotated = np.asarray(msq_l1["rotated"])
+
+print("selected candidate L1 values:", np.asarray(msq_l1["fval"])[:4])
+print("small-loading counts:", cm.count_small_loadings(msq_rotated, threshold=0.20))
+```
+
+```{python}
+loading_heatmaps(
+    msq_loadings,
+    msq_rotated,
+    row_labels=msq_items,
+    titles=("PCA loading basis", "L1 sparse-rotated basis"),
+)
+```
+
+White and near-white cells in the heatmap mark weak loadings. The PCA basis spreads signal across many mood adjectives; the L1-rotated basis concentrates columns on smaller item groups. This is the visual counterpart to the small-loading counts.
+
+## Diagnostics
+
+Freyaldenhoven's local-factor diagnostic counts entries smaller than `h_n = 1 / log(n)` by default and compares the largest count to a Gaussian reference threshold. You can also pass a fixed `threshold` when a scale is known.
+
+```{python}
+diag = cm.local_factor_diagnostic(msq_rotated)
+
+print("has local factors:", diag["has_local_factors"])
+print("n_small:", np.asarray(diag["n_small"]))
+print("gamma_n:", diag["gamma_n"])
+print("h_n:", round(float(diag["h_n"]), 4))
+```
+
+The VSP-style localization utilities are scale-sensitive summaries of concentration:
+
+```{python}
+orthonormal_example = msq_rotated / np.linalg.norm(msq_rotated, axis=0, keepdims=True)
+
+print("IPR by column:", cm.inverse_participation_ratio(orthonormal_example))
+print("cumulative participation:", round(cm.cumulative_participation(orthonormal_example), 6))
+```
+
+For unit-norm singular vectors, `inverse_participation_ratio` is `sum(x**4)`. Values closer to zero are diffuse; values of order one indicate localization.
+
+## Varimax
+
+Varimax also rotates inside the supplied loading space, using a different criterion. For rotated loadings `B = Lambda R`, with `R` orthogonal, `crabbymetrics` maximizes the classic columnwise contrast
+
+$$
+\sum_{j=1}^r
+\left[
+  \sum_{i=1}^p B_{ij}^4
+  - \frac{1}{p}\left(\sum_{i=1}^p B_{ij}^2\right)^2
+\right].
+$$
+
+Large fourth moments reward columns with a few large entries. The subtraction term controls for column scale. The implementation uses the standard SVD update for orthogonal Varimax and optionally applies Kaiser row normalization before the rotation.
+
+### Ability-Test Correlations From Rdatasets
+
+The Harman-Holzinger data are a 9 by 9 correlation matrix of ability tests. The first two principal loading columns span the dominant ability-test space, and Varimax chooses axes that line up more clearly with verbal and arithmetic/spatial-style item groups.
 
 ```{python}
 harman_columns, harman_corr = read_numeric_data(DATA_DIR / "harman_holzinger.csv")
@@ -114,102 +275,14 @@ for ax, values, title in [
 plt.show()
 ```
 
-The visual point is the whole point: the subspace is unchanged, but the rotated axes are easier to name. The verbal tests cluster together, while the arithmetic and object/tool variables move toward a different direction.
-
-## L1 Sparse Rotation On Mood Items
-
-The L1 sparse rotation follows the Freyaldenhoven local-factor idea. Given an initial loading matrix `Lambda`, it searches over unit directions `q` and minimizes:
-
-$$
-\sum_i |(\Lambda q)_i|.
-$$
-
-The minimizer is a direction in the loading space whose rotated column has many entries near zero. Because the objective is non-smooth and non-convex on the sphere, `l1_sparse_rotation` uses many random starts and a Nelder-Mead local search in spherical coordinates. Candidate local minima are clustered, sorted by small-loading counts, and consolidated into a non-singular set of directions.
-
-The `small.msq` dataset has 200 responses to affect items. The item names already suggest local blocks: energetic activation, sleepiness/fatigue, anxiety, and calmness. That makes it a good compact example where a sparse rotation should produce columns that load heavily on a few items rather than diffusely on every mood adjective.
-
-```{python}
-msq_items = [
-    "active",
-    "alert",
-    "aroused",
-    "sleepy",
-    "tired",
-    "drowsy",
-    "anxious",
-    "jittery",
-    "nervous",
-    "calm",
-    "relaxed",
-    "at.ease",
-]
-
-_, msq = read_numeric_data(DATA_DIR / "small_msq.csv", columns=msq_items)
-msq_loadings = pca_loadings_from_data(msq, n_factors=4)
-
-l1rot = cm.l1_sparse_rotation(
-    msq_loadings,
-    n_starts=400,
-    seed=11,
-    max_iter=120,
-    tol=1e-7,
-)
-msq_rotated = np.asarray(l1rot["rotated"])
-
-print("selected candidate L1 values:", np.asarray(l1rot["fval"])[:4])
-print("small-loading counts:", cm.count_small_loadings(msq_rotated, threshold=0.20))
-```
-
-```{python}
-fig, axes = plt.subplots(1, 2, figsize=(13, 6.5), constrained_layout=True)
-
-limit = max(np.abs(msq_loadings).max(), np.abs(msq_rotated).max())
-for ax, values, title in [
-    (axes[0], msq_loadings, "PCA loading basis"),
-    (axes[1], msq_rotated, "L1 sparse-rotated basis"),
-]:
-    image = ax.imshow(values, cmap="coolwarm", vmin=-limit, vmax=limit, aspect="auto")
-    ax.set_title(title)
-    ax.set_xticks(range(values.shape[1]), [f"F{j + 1}" for j in range(values.shape[1])])
-    ax.set_yticks(range(len(msq_items)), msq_items)
-    ax.tick_params(axis="y", labelsize=9)
-
-fig.colorbar(image, ax=axes, shrink=0.85, label="loading")
-plt.show()
-```
-
-In the heatmap, sparsity is visible as white or near-white cells. The unrotated PCA basis spreads signal across many items; the L1-rotated basis concentrates columns on smaller item groups. This is why rotation diagnostics should be visual as well as numerical.
-
-## Diagnostics
-
-Freyaldenhoven's local-factor diagnostic counts entries smaller than `h_n = 1 / log(n)` by default and compares the largest count to a Gaussian reference threshold. You can also pass a fixed `threshold` when a scale is known.
-
-```{python}
-diag = cm.local_factor_diagnostic(msq_rotated)
-
-print("has local factors:", diag["has_local_factors"])
-print("n_small:", np.asarray(diag["n_small"]))
-print("gamma_n:", diag["gamma_n"])
-print("h_n:", round(float(diag["h_n"]), 4))
-```
-
-The VSP-style localization utilities are scale-sensitive summaries of concentration:
-
-```{python}
-orthonormal_example = msq_rotated / np.linalg.norm(msq_rotated, axis=0, keepdims=True)
-
-print("IPR by column:", cm.inverse_participation_ratio(orthonormal_example))
-print("cumulative participation:", round(cm.cumulative_participation(orthonormal_example), 6))
-```
-
-For unit-norm singular vectors, `inverse_participation_ratio` is `sum(x**4)`. Values closer to zero are diffuse; values of order one indicate localization.
+The scatterplot emphasizes the basis-selection role of Varimax. The factor space stays fixed, while the rotated coordinate axes are easier to name.
 
 ## Practical Notes
 
-These routines are basis selectors, not automatic identification machines. They are useful when the application supplies structure inside a PCA/SVD subspace:
+Use these routines when the application supplies structure inside a PCA/SVD subspace:
 
-- Varimax is natural when independent latent coordinates should create high-contrast rotated axes.
 - L1 rotation is natural when meaningful factors should be local or sparse in the loading dimension.
-- Diagnostics should be treated as evidence about structure, not as proof that a factor model is correctly specified.
+- Varimax is natural when independent latent coordinates should create high-contrast rotated axes.
+- Diagnostics give evidence about structure and should be read alongside plots.
 
 For larger factor dimensions, the L1 method can become expensive because it intentionally runs many local searches. Start with a modest `n_starts`, inspect `sol_frequency` and `fval`, then raise `n_starts` when the candidate set is unstable.
