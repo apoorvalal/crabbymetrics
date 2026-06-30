@@ -18,53 +18,122 @@ This page summarizes the dense sparse-rotation primitives in `crabbymetrics`. Th
 - `l1_sparse_rotation(loadings, ...)` searches for sparse directions inside a loading space by minimizing an entrywise L1 criterion.
 - `count_small_loadings`, `local_factor_diagnostic`, `inverse_participation_ratio`, and `cumulative_participation` summarize sparsity and localization.
 
-The intended workflow is PCA or SVD first, rotation second, interpretation last. A rotation does not change the fitted subspace; it chooses a basis inside that subspace.
+The intended workflow is PCA or SVD first, rotation second, interpretation last. A rotation does not change the fitted subspace; it chooses a basis inside that subspace. The examples below use two compact datasets from the Rdatasets archive: Harman-Holzinger ability-test correlations for Varimax, and `small.msq` affect items for L1 sparse rotation.
 
 ## Imports
 
 ```{python}
+from pathlib import Path
+import csv
+
+import matplotlib.pyplot as plt
 import numpy as np
 
 import crabbymetrics as cm
 
 np.set_printoptions(precision=4, suppress=True)
+
+DATA_DIR = Path("docs/data")
+if not DATA_DIR.exists():
+    DATA_DIR = Path("../data")
 ```
 
-## Varimax
+## Helpers
+
+```{python}
+def read_numeric_csv(path, columns=None):
+    with open(path, newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    if columns is None:
+        columns = []
+        for name in rows[0]:
+            if name == "rownames":
+                continue
+            ok = True
+            for row in rows:
+                value = row[name]
+                if value in {"", "NA", "NaN"}:
+                    continue
+                try:
+                    float(value)
+                except ValueError:
+                    ok = False
+                    break
+            if ok:
+                columns.append(name)
+
+    matrix = []
+    for row in rows:
+        values = []
+        for name in columns:
+            value = row[name]
+            values.append(np.nan if value in {"", "NA", "NaN"} else float(value))
+        matrix.append(values)
+
+    x = np.asarray(matrix, dtype=float)
+    keep_rows = np.isfinite(x).all(axis=1)
+    return columns, x[keep_rows]
+
+
+def standardize(x):
+    return (x - x.mean(axis=0, keepdims=True)) / x.std(axis=0, ddof=1, keepdims=True)
+
+
+def pca_loadings_from_data(x, n_factors):
+    z = standardize(x)
+    _, singular_values, vt = np.linalg.svd(z, full_matrices=False)
+    return vt[:n_factors].T * singular_values[:n_factors] / np.sqrt(z.shape[0] - 1)
+
+
+def loadings_from_correlation(corr, n_factors):
+    eigenvalues, eigenvectors = np.linalg.eigh(corr)
+    order = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[order]
+    eigenvectors = eigenvectors[:, order]
+    return eigenvectors[:, :n_factors] * np.sqrt(eigenvalues[:n_factors])
+```
+
+## Varimax On Ability-Test Correlations
 
 Varimax chooses an orthogonal matrix `R` and reports `loadings @ R`. The objective is large when each rotated column has a few large entries and many small entries. This is useful when the latent coordinates are expected to be independent and high-kurtosis, as in the Rohe-Zeng vintage sparse PCA interpretation.
 
-By default `normalize=False`, matching the treatment used by `vsp` and avoiding Kaiser row-normalization unless requested.
+The Harman-Holzinger data are a 9 by 9 correlation matrix of ability tests. The first two unrotated principal loading columns already span the dominant ability-test space, but their axes are arbitrary. Varimax chooses axes that line up more clearly with verbal and arithmetic/spatial-style item groups.
 
 ```{python}
-loadings = np.array(
-    [
-        [0.8, 0.2],
-        [0.7, 0.1],
-        [0.1, 0.9],
-        [0.2, 0.8],
-        [0.5, 0.4],
-    ],
-    dtype=float,
-)
+harman_columns, harman_corr = read_numeric_csv(DATA_DIR / "harman_holzinger.csv")
+harman_loadings = loadings_from_correlation(harman_corr, n_factors=2)
+harman_varimax = cm.varimax_rotation(harman_loadings, normalize=False)
+harman_rotated = np.asarray(harman_varimax["rotated"])
 
-varimax = cm.varimax_rotation(loadings, normalize=False)
-
-print("rotation:")
-print(np.asarray(varimax["rotation"]))
-print("rotated loadings:")
-print(np.asarray(varimax["rotated"]))
-print("objective:", round(float(varimax["objective"]), 6))
+print("Varimax rotation:")
+print(np.asarray(harman_varimax["rotation"]))
+print("Varimax objective:", round(float(harman_varimax["objective"]), 6))
 ```
 
-For this small matrix the result matches R's `stats::varimax(..., normalize = FALSE)` convention. The returned dictionary contains:
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(13, 5.5), constrained_layout=True)
 
-- `rotated`: the rotated loadings;
-- `rotation`: the orthogonal rotation matrix;
-- `objective`: the Varimax objective at the rotated loadings;
-- `n_iter`, `converged`, and `normalize`: optimization metadata.
+for ax, values, title in [
+    (axes[0], harman_loadings, "PCA loading basis"),
+    (axes[1], harman_rotated, "Varimax-rotated basis"),
+]:
+    ax.axhline(0, color="0.75", linewidth=1)
+    ax.axvline(0, color="0.75", linewidth=1)
+    ax.scatter(values[:, 0], values[:, 1], s=45, color="#2f6f9f")
+    for name, x, y in zip(harman_columns, values[:, 0], values[:, 1]):
+        ax.annotate(name.replace("_", " "), (x, y), xytext=(5, 3), textcoords="offset points", fontsize=8)
+    ax.set_title(title)
+    ax.set_xlabel("factor 1 loading")
+    ax.set_ylabel("factor 2 loading")
+    ax.set_aspect("equal", adjustable="datalim")
 
-## L1 Sparse Rotation
+plt.show()
+```
+
+The visual point is the whole point: the subspace is unchanged, but the rotated axes are easier to name. The verbal tests cluster together, while the arithmetic and object/tool variables move toward a different direction.
+
+## L1 Sparse Rotation On Mood Items
 
 The L1 sparse rotation follows the Freyaldenhoven local-factor idea. Given an initial loading matrix `Lambda`, it searches over unit directions `q` and minimizes:
 
@@ -74,55 +143,66 @@ $$
 
 The minimizer is a direction in the loading space whose rotated column has many entries near zero. Because the objective is non-smooth and non-convex on the sphere, `l1_sparse_rotation` uses many random starts and a Nelder-Mead local search in spherical coordinates. Candidate local minima are clustered, sorted by small-loading counts, and consolidated into a non-singular set of directions.
 
+The `small.msq` dataset has 200 responses to affect items. The item names already suggest local blocks: energetic activation, sleepiness/fatigue, anxiety, and calmness. That makes it a good compact example where a sparse rotation should produce columns that load heavily on a few items rather than diffusely on every mood adjective.
+
 ```{python}
-rng = np.random.default_rng(2026)
-n = 160
+msq_items = [
+    "active",
+    "alert",
+    "aroused",
+    "sleepy",
+    "tired",
+    "drowsy",
+    "anxious",
+    "jittery",
+    "nervous",
+    "calm",
+    "relaxed",
+    "at.ease",
+]
 
-true_sparse = np.zeros((n, 2))
-true_sparse[:40, 0] = rng.normal(1.0, 0.15, size=40)
-true_sparse[40:80, 1] = rng.normal(1.0, 0.15, size=40)
-true_sparse += 0.04 * rng.normal(size=true_sparse.shape)
-
-angle = 0.7
-mixing = np.array(
-    [
-        [np.cos(angle), -np.sin(angle)],
-        [np.sin(angle), np.cos(angle)],
-    ]
-)
-dense_basis = true_sparse @ mixing
+_, msq = read_numeric_csv(DATA_DIR / "small_msq.csv", columns=msq_items)
+msq_loadings = pca_loadings_from_data(msq, n_factors=4)
 
 l1rot = cm.l1_sparse_rotation(
-    dense_basis,
-    n_starts=120,
-    seed=7,
-    max_iter=80,
+    msq_loadings,
+    n_starts=400,
+    seed=11,
+    max_iter=120,
     tol=1e-7,
 )
+msq_rotated = np.asarray(l1rot["rotated"])
 
-print("rotation:")
-print(np.asarray(l1rot["rotation"]))
-print("number of small loadings:", cm.count_small_loadings(l1rot["rotated"]))
 print("selected candidate L1 values:", np.asarray(l1rot["fval"])[:4])
+print("small-loading counts:", cm.count_small_loadings(msq_rotated, threshold=0.20))
 ```
 
-The random-start optimizer is reproducible when `seed` is supplied. The result dictionary contains:
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(13, 6.5), constrained_layout=True)
 
-- `rotated`: the sparse rotated loading matrix;
-- `rotation`: the selected direction matrix;
-- `fval`: L1 objective values for selected clustered candidates;
-- `sol_frequency`: how many candidate starts clustered around each selected direction;
-- `l0_norm`: small-loading counts for selected clustered candidates;
-- `candidate_directions` and `candidate_objective`: raw local-search outputs for diagnostics.
+limit = max(np.abs(msq_loadings).max(), np.abs(msq_rotated).max())
+for ax, values, title in [
+    (axes[0], msq_loadings, "PCA loading basis"),
+    (axes[1], msq_rotated, "L1 sparse-rotated basis"),
+]:
+    image = ax.imshow(values, cmap="coolwarm", vmin=-limit, vmax=limit, aspect="auto")
+    ax.set_title(title)
+    ax.set_xticks(range(values.shape[1]), [f"F{j + 1}" for j in range(values.shape[1])])
+    ax.set_yticks(range(len(msq_items)), msq_items)
+    ax.tick_params(axis="y", labelsize=9)
 
-An advanced `initial_directions=` argument accepts a matrix whose columns are already candidate directions. This is mainly for reproducibility tests and for comparing against external implementations.
+fig.colorbar(image, ax=axes, shrink=0.85, label="loading")
+plt.show()
+```
+
+In the heatmap, sparsity is visible as white or near-white cells. The unrotated PCA basis spreads signal across many items; the L1-rotated basis concentrates columns on smaller item groups. This is why rotation diagnostics should be visual as well as numerical.
 
 ## Diagnostics
 
 Freyaldenhoven's local-factor diagnostic counts entries smaller than `h_n = 1 / log(n)` by default and compares the largest count to a Gaussian reference threshold. You can also pass a fixed `threshold` when a scale is known.
 
 ```{python}
-diag = cm.local_factor_diagnostic(l1rot["rotated"])
+diag = cm.local_factor_diagnostic(msq_rotated)
 
 print("has local factors:", diag["has_local_factors"])
 print("n_small:", np.asarray(diag["n_small"]))
@@ -133,7 +213,7 @@ print("h_n:", round(float(diag["h_n"]), 4))
 The VSP-style localization utilities are scale-sensitive summaries of concentration:
 
 ```{python}
-orthonormal_example = l1rot["rotated"] / np.linalg.norm(l1rot["rotated"], axis=0, keepdims=True)
+orthonormal_example = msq_rotated / np.linalg.norm(msq_rotated, axis=0, keepdims=True)
 
 print("IPR by column:", cm.inverse_participation_ratio(orthonormal_example))
 print("cumulative participation:", round(cm.cumulative_participation(orthonormal_example), 6))
