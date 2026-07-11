@@ -32,6 +32,29 @@ $$
 
 It is the lower-level single-path API; the panel estimators use the newer `fit(Y, W)` contract.
 
+## Weight objective
+
+For pre-treatment donor matrix $D\in\mathbb R^{T_0\times J}$ and treated path $y$, the class solves
+
+$$
+\hat w
+=
+\arg\min_{w\in\Delta_J}
+\frac{1}{2T_0}\|Dw-y\|_2^2,
+\qquad
+\Delta_J=\{w:w_j\geq0,\ \mathbf1'w=1\}.
+$$
+
+It parameterizes $w=\operatorname{softmax}(\theta)$ and uses seven-vector-memory L-BFGS with fixed gradient and cost tolerances. This guarantees an interior simplex vector at every finite $\theta$; exact zero donor weights are not attainable except through numerical underflow. There is no intercept, predictor weighting, or pre-period weighting.
+
+## Inference and diagnostics
+
+The summary reports the weights and in-sample pre-treatment RMSE. The class itself receives only donor and treated fitting paths, so it does not calculate a post-treatment effect or ATT. The bootstrap resamples time rows as iid pairs and refits the weights. Those draws are useful as a sensitivity diagnostic, but they do not preserve time-series dependence and are not converted into a formal covariance or confidence interval.
+
+## Performance and numerical behavior
+
+Each objective and gradient evaluation is $O(T_0J)$ and stores the dense donor matrix. Runtime depends on L-BFGS iterations and is multiplied by the number of bootstrap draws. A single donor bypasses optimization with weight one. Collinear donors make weights weakly identified even when the synthetic path is stable; softmax parameter redundancy also leaves $\theta$ unidentified up to a common shift, though the weights remain identified by the optimization target.
+
 ## Python API
 
 Constructor: `cm.SyntheticControl`

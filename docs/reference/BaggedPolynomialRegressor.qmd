@@ -35,6 +35,48 @@ $$
 
 non-intercept polynomial terms. The estimator checks this count and the dense design size before allocation.
 
+## Base-learner objective
+
+For learner $b$, let $I_b$ be its sampled rows and $J_b$ its sampled feature subset. The implementation enumerates every monomial in $x_{J_b}$ with total degree from one through $d$. If $\phi_b(x)$ is that $q$-term vector, it computes in-bag means $\mu_b$ and population-standard-deviation scales $s_b$, then fits
+
+$$
+(\hat a_b,\hat\gamma_b)
+=
+\arg\min_{a,\gamma}
+\sum_{i\in I_b}
+\left[
+y_i-a-\left\{\frac{\phi_b(x_i)-\mu_b}{s_b}\right\}'\gamma
+\right]^2
++\lambda\|\gamma\|_2^2.
+$$
+
+Zero-variance terms retain scale one. The ensemble prediction is the simple average
+
+$$
+\hat f(x)=\frac1B\sum_{b=1}^B
+\left[
+\hat a_b+\left\{\frac{\phi_b(x)-\mu_b}{s_b}\right\}'\hat\gamma_b
+\right].
+$$
+
+Rows are sampled with replacement when bootstrap sampling is enabled. Otherwise the learner uses a shuffled subset without replacement. Feature subsets are always sampled without replacement.
+
+## Diagnostics and inference
+
+This is a prediction estimator and has no coefficient-level analytic inference. With bootstrap row sampling, an observation's out-of-bag prediction averages only learners for which that observation was absent from $I_b$; the reported OOB MSE is computed over covered observations and the coverage fraction is reported separately. No OOB statistic is produced for sampling without replacement, even if a learner uses fewer than all rows. The OOB MSE is a prediction diagnostic, not a standard error or confidence interval.
+
+## Performance and resource limits
+
+For $k$ selected raw features,
+
+$$
+q=\binom{k+d}{d}-1
+$$
+
+grows combinatorially. One learner stores a dense $m\times q$ design and costs roughly $O(mq^2+q^3)$ to fit; prediction costs $O(nq)$ per learner. Total work is multiplied by $B$. OOB computation currently asks every bootstrap learner to predict all $n$ training rows before retaining only uncovered rows.
+
+The implementation rejects $q>100{,}000$ and any single polynomial design above 50 million cells. These guards prevent the largest allocations but still permit expensive dense fits. Reducing selected features is usually more effective than reducing rows because $q$ is combinatorial in feature count and degree. Learners are fit serially, and no polynomial matrix is shared across different feature subspaces.
+
 ## Python API
 
 Constructor: `cm.BaggedPolynomialRegressor`

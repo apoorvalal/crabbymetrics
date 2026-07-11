@@ -26,6 +26,50 @@ from _api_doc_utils import *
 
 `SyntheticDID` combines donor-unit weights and pre-period time weights. It estimates counterfactual treated outcomes by reweighting both units and periods, then reports ATT and event-time summaries under the common `fit(Y, W)` panel contract.
 
+## Cohort weights and ATT
+
+For each adoption cohort $g$, the estimator uses only never-treated controls. Let $Y_{C,\mathrm{pre}}$ be the control-by-pre-period matrix, $\bar Y_{g,\mathrm{pre}}$ the treated-cohort pre-period mean, and $\bar Y_{C,\mathrm{post}}$ each control unit's post-period mean. Unit and time weights solve
+
+$$
+\min_{a,\ \omega\in\Delta_C}
+\frac{1}{2T_{\mathrm{pre}}}
+\|\bar Y_{g,\mathrm{pre}}-a\mathbf1-Y_{C,\mathrm{pre}}'\omega\|_2^2
++\frac{\zeta_\omega^2}{2}\|\omega\|_2^2,
+$$
+
+$$
+\min_{b,\ \lambda\in\Delta_{T_{\mathrm{pre}}}}
+\frac{1}{2C}
+\|\bar Y_{C,\mathrm{post}}-b\mathbf1-Y_{C,\mathrm{pre}}\lambda\|_2^2
++\frac{\zeta_\lambda^2}{2}\|\lambda\|_2^2.
+$$
+
+Both simplex problems use softmax L-BFGS, so finite solutions have strictly positive weights. If penalties are omitted, $\hat\sigma$ is the sample standard deviation of first differences among control pre-period outcomes and
+
+$$
+\zeta_\omega=(N_gT_{\mathrm{post}})^{1/4}\hat\sigma,
+\qquad
+\zeta_\lambda=10^{-6}\hat\sigma.
+$$
+
+Define $u_g=(-\omega',\,\mathbf1_{N_g}'/N_g)'$ across controls and cohort units and $v_g=(-\lambda',\,\mathbf1_{T_{\mathrm{post}}}'/T_{\mathrm{post}})'$ across time. The cohort estimate is
+
+$$
+\hat\tau_g=u_g'Y_gv_g,
+$$
+
+and the overall ATT averages cohort estimates with weights $N_gT_{\mathrm{post}}$. The displayed counterfactual path instead uses the unit-weight fit $a+Y_C'\omega$ at every time; its cell effects and event-study summaries are useful diagnostics but are not the same time-weighted decomposition used for $\hat\tau_g$.
+
+## Inference
+
+There is no analytic covariance. Bootstrap resamples panel units with replacement, carrying each unit's entire outcome and treatment path, and refits the estimator. Jackknife drops each unit in turn. Placebo inference samples only never-treated units, assigns the observed treated timing patterns to a pseudo-treated subset, and requires more controls than treated units. Failed bootstrap and placebo fits are skipped; too few successful estimates return NaN. A jackknife failure returns NaN immediately. The returned covariance is the square of the resulting scalar standard error.
+
+These procedures address sampling variability under different resampling stories, but none repairs a poor pre-treatment match or violations of the never-treated comparison design. With one treated unit, bootstrap and jackknife standard errors are returned as NaN.
+
+## Performance and numerical behavior
+
+Every cohort requires two simplex L-BFGS fits, each with dense panel multiplications. Resampling multiplies the entire cohort-fitting cost by the requested replications; jackknife performs one full fit per unit. The class stores cohort-by-unit and cohort-by-time weight matrices plus panel-sized counterfactual and effect matrices. Softmax can represent very small but not exact zero weights, and weakly identified weight vectors may vary substantially even when ATT is stable.
+
 ## Python API
 
 Constructor: `cm.SyntheticDID`

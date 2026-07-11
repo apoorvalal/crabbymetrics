@@ -1,6 +1,6 @@
 ---
 title: "FTRL"
-subtitle: "Online-style follow-the-regularized-leader classifier"
+subtitle: "Experimental one-update FTRL-Proximal classifier"
 format:
   html:
     toc: true
@@ -24,15 +24,63 @@ from _api_doc_utils import *
 
 **Group:** Regression
 
-`FTRL` is an online-style regularized classifier. The update combines adaptive learning rates with L1/L2 regularization, making it useful for sparse or streaming-style binary prediction problems.
+`FTRL` currently exposes one full-batch FTRL-Proximal update for binary prediction. It does not expose persistent online state, `partial_fit`, epochs, mini-batches, an intercept, or an iterative convergence criterion.
 
-The exposed class is deliberately simple: fit once on a design matrix and binary labels, then predict scores for new rows.
+This distinction is material: the current class is an experimental update wrapper, not a conventional fitted batch classifier and not yet a usable streaming estimator. Any nonzero integer label is treated as true.
+
+## Implemented update
+
+The fit does not minimize a batch loss to convergence. The delegated implementation initializes $n_{0j}=0$ and draws $z_{0j}$ uniformly on $[0,1)$ from a fixed seed. For state $(z_j,n_j)$, it defines
+
+$$
+w_j(z_j,n_j)=
+\begin{cases}
+0, & |z_j|\leq\lambda_1,\\[3pt]
+\dfrac{\operatorname{sign}(z_j)\lambda_1-z_j}
+{(\sqrt{n_j}+\beta)/\alpha+\lambda_2},
+& |z_j|>\lambda_1,
+\end{cases}
+$$
+
+where the constructor arguments named L1 ratio and L2 ratio are used directly as $\lambda_1$ and $\lambda_2$ rather than as fractions of a common penalty. At the defaults, $\lambda_1=1$ makes all initial weights zero because $z_{0j}<1$.
+
+The wrapper then computes one probability vector and one aggregate batch gradient,
+
+$$
+p_i=\operatorname{logit}^{-1}(x_i'w_0),
+\qquad
+g_j=\sum_i x_{ij}(p_i-y_i),
+$$
+
+followed by
+
+$$
+\sigma_j
+=
+\frac{\sqrt{n_{0j}+g_j^2}-\sqrt{n_{0j}}}{\alpha},
+\qquad
+z_{1j}=z_{0j}+g_j-\sigma_jw_{0j},
+\qquad
+n_{1j}=n_{0j}+g_j^2.
+$$
+
+The reported coefficient is $w_j(z_{1j},n_{1j})$. No second gradient is evaluated. With an L1 threshold below one, the random initial $z_0$ can produce nonzero $w_0$ and directly affect this sole update.
+
+## Inference and API status
+
+There is no analytic inference. The pairs bootstrap repeats the same random-initialized, one-update procedure on resampled rows; it is not a substitute for a converged estimator's sampling distribution. There is also no intercept, label validation beyond mapping zero to false and every nonzero integer to true, or access to the updated $(z,n)$ state from Python.
+
+For a defensible online estimator, the public API would need persistent state and repeated calls that feed new observations or mini-batches. For a defensible batch estimator, it would need epochs or a stopping rule tied to a stated empirical objective. Until one of those designs is implemented, this class should be treated as experimental rather than as a production FTRL estimator.
+
+## Performance and numerical behavior
+
+The single update is $O(np)$ time with $O(p)$ state, which is cheap because it performs only one gradient evaluation. The dense input is nevertheless retained so bootstrap can resample it. The delegated sigmoid clips its linear index to $[-35,35]$, and probabilities are passed through a single-precision probability wrapper before being returned as double-precision values. Feature scaling matters directly to the one gradient and adaptive accumulator. The low cost should not be interpreted as convergence speed.
 
 ## Python API
 
 Constructor: `cm.FTRL`
 
-Call `FTRL(alpha, beta, l1_ratio, l2_ratio)`, then `fit(x, y_int32)`. `predict(x)` returns scores in `[0, 1]`; `summary()` returns coefficient estimates and marks analytic inference unavailable for the penalized online estimator.
+Call `FTRL(alpha, beta, l1_ratio, l2_ratio)`, then `fit(x, y_int32)`. `predict(x)` returns probabilities in `[0, 1]`; `summary()` returns the post-update coefficient vector and marks analytic inference unavailable for this experimental estimator.
 
 ```{python}
 print(inspect.signature(cm.FTRL))

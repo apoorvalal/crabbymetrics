@@ -685,6 +685,27 @@ impl Poisson {
         if x.nrows() != y.len() {
             return Err(PyValueError::new_err("x rows must match y length"));
         }
+        if !self.alpha.is_finite() || self.alpha < 0.0 {
+            return Err(PyValueError::new_err(
+                "alpha must be finite and nonnegative",
+            ));
+        }
+        if self.max_iterations == 0 {
+            return Err(PyValueError::new_err("max_iterations must be positive"));
+        }
+        if !self.tolerance.is_finite() || self.tolerance <= 0.0 {
+            return Err(PyValueError::new_err(
+                "tolerance must be finite and positive",
+            ));
+        }
+        if x.iter().any(|value| !value.is_finite()) {
+            return Err(PyValueError::new_err("x must contain only finite values"));
+        }
+        if y.iter().any(|value| !value.is_finite() || *value < 0.0) {
+            return Err(PyValueError::new_err(
+                "y must contain only finite nonnegative values",
+            ));
+        }
         let mut coef = Array1::<f64>::zeros(x.ncols());
         if self.fit_intercept {
             let mean_y = y.mean().unwrap_or(0.0).max(1e-12);

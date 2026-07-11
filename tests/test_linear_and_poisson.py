@@ -779,6 +779,28 @@ def test_poisson_predict_round_trip_and_satisfies_score_conditions():
     )
 
 
+def test_poisson_rejects_inputs_that_make_the_likelihood_invalid():
+    x = np.array([[0.0], [1.0], [2.0]])
+    y = np.array([0.0, 1.0, 2.0])
+
+    with pytest.raises(ValueError, match="alpha must be finite and nonnegative"):
+        cm.Poisson(alpha=-0.1).fit(x, y)
+    with pytest.raises(ValueError, match="max_iterations must be positive"):
+        cm.Poisson(max_iterations=0).fit(x, y)
+    with pytest.raises(ValueError, match="tolerance must be finite and positive"):
+        cm.Poisson(tolerance=0.0).fit(x, y)
+
+    invalid_y = y.copy()
+    invalid_y[0] = -1.0
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        cm.Poisson().fit(x, invalid_y)
+
+    invalid_x = x.copy()
+    invalid_x[0, 0] = np.inf
+    with pytest.raises(ValueError, match="x must contain only finite values"):
+        cm.Poisson().fit(invalid_x, y)
+
+
 def test_poisson_summary_supports_vanilla_and_qmle_vcov():
     rng = np.random.default_rng(9091)
     n = 800
