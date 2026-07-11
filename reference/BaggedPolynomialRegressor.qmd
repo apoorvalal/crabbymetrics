@@ -1,0 +1,126 @@
+---
+title: "BaggedPolynomialRegressor"
+subtitle: "Bagged random-subspace polynomial ridge regression"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: false
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+```{python}
+from _api_doc_utils import *
+```
+
+## Where it fits
+
+**Group:** Regression
+
+`BaggedPolynomialRegressor` is a prediction-only ensemble. Each base learner samples rows and a feature subspace, expands the selected features into monomials of total degree one through $d$, standardizes those polynomial columns, fits ridge regression, and contributes to the averaged prediction.
+
+For $k$ selected features, each base learner uses
+
+$$
+\binom{k+d}{d}-1
+$$
+
+non-intercept polynomial terms. The estimator checks this count and the dense design size before allocation.
+
+## Base-learner objective
+
+For learner $b$, let $I_b$ be its sampled rows and $J_b$ its sampled feature subset. The implementation enumerates every monomial in $x_{J_b}$ with total degree from one through $d$. If $\phi_b(x)$ is that $q$-term vector, it computes in-bag means $\mu_b$ and population-standard-deviation scales $s_b$, then fits
+
+$$
+(\hat a_b,\hat\gamma_b)
+=
+\arg\min_{a,\gamma}
+\sum_{i\in I_b}
+\left[
+y_i-a-\left\{\frac{\phi_b(x_i)-\mu_b}{s_b}\right\}'\gamma
+\right]^2
++\lambda\|\gamma\|_2^2.
+$$
+
+Zero-variance terms retain scale one. The ensemble prediction is the simple average
+
+$$
+\hat f(x)=\frac1B\sum_{b=1}^B
+\left[
+\hat a_b+\left\{\frac{\phi_b(x)-\mu_b}{s_b}\right\}'\hat\gamma_b
+\right].
+$$
+
+Rows are sampled with replacement when bootstrap sampling is enabled. Otherwise the learner uses a shuffled subset without replacement. Feature subsets are always sampled without replacement.
+
+## Diagnostics and inference
+
+This is a prediction estimator and has no coefficient-level analytic inference. With bootstrap row sampling, an observation's out-of-bag prediction averages only learners for which that observation was absent from $I_b$; the reported OOB MSE is computed over covered observations and the coverage fraction is reported separately. No OOB statistic is produced for sampling without replacement, even if a learner uses fewer than all rows. The OOB MSE is a prediction diagnostic, not a standard error or confidence interval.
+
+## Performance and resource limits
+
+For $k$ selected raw features,
+
+$$
+q=\binom{k+d}{d}-1
+$$
+
+grows combinatorially. One learner stores a dense $m\times q$ design and costs roughly $O(mq^2+q^3)$ to fit; prediction costs $O(nq)$ per learner. Total work is multiplied by $B$. OOB computation currently asks every bootstrap learner to predict all $n$ training rows before retaining only uncovered rows.
+
+The implementation rejects $q>100{,}000$ and any single polynomial design above 50 million cells. These guards prevent the largest allocations but still permit expensive dense fits. Reducing selected features is usually more effective than reducing rows because $q$ is combinatorial in feature count and degree. Learners are fit serially, and no polynomial matrix is shared across different feature subspaces.
+
+## Python API
+
+Constructor: `cm.BaggedPolynomialRegressor`
+
+Use `BaggedPolynomialRegressor(n_estimators, degree, max_features, max_samples, bootstrap, penalty, seed)`, then `fit(x, y)`, `predict(x)`, and `summary()`. It does not report coefficient standard errors. With bootstrap sampling, `summary()` reports out-of-bag MSE and coverage.
+
+```{python}
+print(inspect.signature(cm.BaggedPolynomialRegressor))
+```
+
+```{python}
+display(HTML(html_table(["Public method"], public_methods(cm.BaggedPolynomialRegressor))))
+```
+
+## Minimal example
+
+```{python}
+rng = np.random.default_rng(18)
+x = rng.normal(size=(320, 6))
+y = 0.5 + 0.8 * x[:, 0] * x[:, 1] - 0.4 * x[:, 2] ** 2
+y += rng.normal(scale=0.2, size=x.shape[0])
+
+model = cm.BaggedPolynomialRegressor(
+    n_estimators=40,
+    degree=2,
+    max_features=4,
+    max_samples=240,
+    penalty=0.5,
+    seed=18,
+)
+model.fit(x, y)
+print(model.predict(x[:3]))
+print(model.summary()["oob_mse"])
+```
+
+## `summary()` contract
+
+```{python}
+summary = model.summary()
+display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))))
+```
+
+`max_features` and `max_samples` are resolved fitted values rather than possible `None` constructor values. `n_terms` is the checked polynomial width per base learner. `feature_indices` records each random subspace. `oob_mse` is `None` when no observation receives an out-of-bag prediction.
+
+## Resource policy
+
+Polynomial expansion is dense. The implementation rejects more than 100,000 polynomial terms per learner or more than 50 million cells in one polynomial design. Reduce `degree`, `max_features`, or `max_samples` when a guard triggers.

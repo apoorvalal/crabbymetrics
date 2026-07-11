@@ -32,6 +32,84 @@ $$
 
 by least squares. The class stores the fitted intercept and coefficient vector and exposes the common linear-model covariance surface: classical, HC1, Newey-West, and cluster-robust standard errors.
 
+## Criterion and computation
+
+Write $\tilde x_i=(1,x_i')'$ and let $\theta=(\alpha,\beta')'$. The ordinary fit solves
+
+$$
+\hat\theta
+=
+\arg\min_\theta \sum_{i=1}^n (y_i-\tilde x_i'\theta)^2.
+$$
+
+The weighted method instead minimizes $\sum_i w_i(y_i-\tilde x_i'\theta)^2$ by applying least squares to $\sqrt{w_i}\tilde x_i$ and $\sqrt{w_i}y_i$. Both paths use a rank-revealing least-squares solve rather than explicitly forming $(X'X)^{-1}$ for the point estimate.
+
+The sketched method draws a CountSketch matrix $S\in\mathbb R^{s\times n}$ and solves
+
+$$
+\hat\theta_S=\arg\min_\theta\|S(y-\tilde X\theta)\|_2^2.
+$$
+
+This is an approximate point estimator. The fitted object still stores the full original design and computes residuals and covariance estimates on all $n$ observations at $\hat\theta_S$.
+
+## Inference
+
+Let $e_i=y_i-\tilde x_i'\hat\theta$, $H=\tilde X(\tilde X'\tilde X)^{-1}\tilde X'$, and $d_f=n-p$, where $p$ includes the intercept. The implemented covariance choices are:
+
+$$
+\widehat V_{\mathrm{vanilla}}
+=
+\frac{e'e}{d_f}(\tilde X'\tilde X)^{-1},
+$$
+
+and
+
+$$
+\widehat V_{\mathrm{HC}k}
+=
+(\tilde X'\tilde X)^{-1}
+\left(\sum_i a_{ki}e_i^2\tilde x_i\tilde x_i'\right)
+(\tilde X'\tilde X)^{-1},
+$$
+
+with $a_{0i}=1$, $a_{1i}=n/d_f$, $a_{2i}=(1-h_{ii})^{-1}$, and $a_{3i}=(1-h_{ii})^{-2}$. Newey-West uses the Bartlett-weighted autocovariances of the parameter scores $(\tilde X'\tilde X)^{-1}\tilde x_i e_i$ and defaults to $\max\{1,\lfloor4(n/100)^{2/9}\rfloor\}$ lags. Cluster covariance sums those scores within clusters and applies
+
+$$
+\frac{G}{G-1}\frac{n-1}{d_f}.
+$$
+
+Wald tests use the selected covariance. The bootstrap is a pairs bootstrap over rows and refits the model in every draw.
+
+With anytime-valid output enabled, the class converts each squared $t$ statistic to the implemented mixture evidence value
+
+$$
+\log G_t
+=
+\frac12\log r+
+\frac{\nu+1}{2}
+\left[
+\log(1+t^2/\nu)-\log(1+rt^2/\nu)
+\right],
+\qquad
+r=\frac{g}{g+n},\quad \nu=n-p,
+$$
+
+and reports $\min\{1,\exp(-\log G_t)\}$. The confidence-sequence half-width is $c_{n,\alpha,g}\,\mathrm{SE}$, where
+
+$$
+c_{n,\alpha,g}^2
+=
+\nu\frac{1-q}{q-r},
+\qquad
+q=(r\alpha^2)^{1/(\nu+1)}.
+$$
+
+This sequential calculation reuses the requested fixed-sample covariance; it does not change the coefficient fit.
+
+## Performance and numerical behavior
+
+For a dense $n\times p$ design, fitting costs about $O(np^2+p^3)$ and stores $O(np+p^2)$ values. HC2/HC3 explicitly evaluate every leverage and therefore also cost $O(np^2)$. Newey-West adds $O(Lnp)$ score work for $L$ lags; cluster aggregation is linear in $n$ after the scores are formed. A CountSketch reduces the least-squares row dimension to $s$, but full-data prediction, residual construction, and inference remain; it is most useful when the point-estimation solve dominates. Ill-conditioned or rank-deficient designs may produce unstable covariance inversions even when the least-squares point estimate succeeds.
+
 ## Python API
 
 Constructor: `cm.OLS`

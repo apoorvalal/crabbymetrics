@@ -30,7 +30,54 @@ $$
 y = \theta d + g(x) + u, \qquad d = m(x) + v,
 $$
 
-using cross-fitted ridge nuisance regressions. The final coefficient is estimated from the orthogonalized residual-on-residual score.
+using cross-fitted ridge nuisance regressions. The final coefficient is estimated from the orthogonalized residual-on-residual score. Fold membership is a deterministic seeded shuffle, so equal seeds reproduce assignments and different seeds change them.
+
+## Cross-fitted objective
+
+For the partially linear model
+
+$$
+Y=\theta D+\ell(X)+U,
+\qquad
+D=m(X)+V,
+$$
+
+the class creates seeded outer folds. On the complement of each fold it separately fits ridge nuisance regressions for $Y$ and $D$:
+
+$$
+\min_{a,b}
+\sum_{i\in I_{\mathrm{train}}}(r_i-a-X_i'b)^2
++\lambda\|b\|_2^2.
+$$
+
+The intercept is unpenalized and features are not standardized. A scalar penalty is used directly. With a grid, each outer training sample runs its own deterministic, unshuffled inner cross-validation with fold assignment based on row position and selects minimum MSE.
+
+Combining held-out predictions gives $\hat\ell_i$ and $\hat m_i$. The reported coefficient solves the orthogonal residual-on-residual equation
+
+$$
+\hat\theta
+=
+\frac{\sum_i(D_i-\hat m_i)(Y_i-\hat\ell_i)}
+{\sum_i(D_i-\hat m_i)^2}.
+$$
+
+The default is a fixed penalty of one rather than automatic tuning.
+
+## Inference
+
+The score is
+
+$$
+\psi_i(\theta)
+=(D_i-\hat m_i)
+\{Y_i-\hat\ell_i-(D_i-\hat m_i)\theta\},
+$$
+
+with Jacobian $-E_n[(D-\hat m)^2]$. Vanilla is the uncorrected iid empirical sandwich. HC1, Bartlett Newey-West, and cluster choices operate on the resulting scalar parameter scores with their usual package corrections. The nuisance fits and fold assignment are treated as fixed in the reported covariance; there is no repeated-cross-fit adjustment, bootstrap, or built-in Wald method.
+
+## Performance and numerical behavior
+
+Each of $K$ outer folds fits two ridge models. A penalty grid of size $L$ with $F$ inner folds increases this to roughly $2KLF$ training solves plus the final per-fold nuisance fits. Every solve uses dense augmented least squares with up to $O(np^2+p^3)$ work and no decomposition reuse. Cross-fitted prediction arrays require $O(n)$ additional memory, while each fit stores dense fold designs. Near-zero residualized treatment variation raises. Results can vary with the outer seed and with input row order through inner CV.
 
 ## Python API
 

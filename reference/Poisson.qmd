@@ -30,7 +30,63 @@ $$
 \mathbb E[Y_i\mid X_i=x_i]=\exp(\alpha+x_i'\beta).
 $$
 
-The `alpha` constructor argument is an L2 penalty, not the intercept. `summary(vcov='vanilla')` reports Fisher-information standard errors; `summary(vcov='sandwich')` reports robust QMLE-style standard errors.
+The `alpha` constructor argument is an L2 penalty, not the intercept. For `alpha=0`, `summary(vcov='vanilla')` reports Fisher-information standard errors and `summary(vcov='sandwich')` reports robust QMLE-style standard errors. Penalized fits mark inference unavailable and omit `se`/`vcov`.
+
+## Likelihood and solver
+
+With $\eta_i=\alpha_0+x_i'\beta$ and $\mu_i=\exp(\eta_i)$, the implemented criterion is the Poisson negative log-likelihood up to the data-only $\log(y_i!)$ term:
+
+$$
+Q(\alpha_0,\beta)
+=
+\sum_{i=1}^n\{\mu_i-y_i\eta_i\}
++\frac{\lambda}{2}\|\beta\|_2^2.
+$$
+
+The intercept is unpenalized. Newton-CG uses the exact gradient and Hessian
+
+$$
+\nabla^2 Q
+=
+\tilde X'\operatorname{diag}(\mu_i)\tilde X
++\operatorname{diag}(0,\lambda,\ldots,\lambda),
+$$
+
+with $10^{-8}$ added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at $\log\{\max(\bar y,10^{-12})\}$ and slopes start at zero. A fit is stored only after the optimizer reports convergence.
+
+::: {.callout-warning}
+The fit requires finite $y_i\geq0$, a finite nonnegative penalty, finite regressors, a positive tolerance, and a positive iteration budget. Outcomes need not be integers, which permits Poisson QMLE for nonnegative responses.
+:::
+
+## Inference
+
+Analytic inference is disabled for $\lambda>0$. For an unpenalized fit, the vanilla covariance is the inverse Fisher information
+
+$$
+\widehat V_{\mathrm{vanilla}}
+=
+(\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I)^{-1}.
+$$
+
+The sandwich, also accepted under the alias QMLE, is
+
+$$
+\widehat V_{\mathrm{QMLE}}
+=
+B^{-1}
+\left\{
+\sum_i \tilde x_i\tilde x_i'(y_i-\hat\mu_i)^2
+\right\}
+B^{-1},
+\qquad
+B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
+$$
+
+No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw.
+
+## Performance and numerical behavior
+
+Every Newton Hessian evaluation costs $O(np^2)$ and the dense Newton system is up to $O(p^3)$, so this is more expensive per iteration than first-order GLM solvers at large $p$. The code evaluates $\exp(\eta)$ without clipping; extreme indices can overflow and abort optimization. There is no exposure or offset argument, so users must encode those effects in the supplied design only if estimating their coefficient is appropriate. Covariance and bootstrap add dense inversion and repeated-fit costs.
 
 ## Python API
 

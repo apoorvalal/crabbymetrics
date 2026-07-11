@@ -9,7 +9,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: true
+    code-fold: false
     code-summary: "Show code"
 jupyter: python3
 execute:
@@ -98,6 +98,7 @@ Reference pages:
 - [Ridge](reference/Ridge.qmd)
 - [FixedEffectsOLS](reference/FixedEffectsOLS.qmd)
 - [ElasticNet](reference/ElasticNet.qmd)
+- [BaggedPolynomialRegressor](reference/BaggedPolynomialRegressor.qmd)
 - [Logit](reference/Logit.qmd)
 - [MultinomialLogit](reference/MultinomialLogit.qmd)
 - [Poisson](reference/Poisson.qmd)
@@ -106,6 +107,7 @@ Reference pages:
 Worked docs:
 
 - [ABC OLS](examples/abc-ols.qmd)
+- [Bagged Polynomial Regression](examples/bagged-polynomial-regression.qmd)
 - [Anytime-Valid Confidence Sequences](examples/anytime-valid-ols.qmd)
 - [MLE Prediction Interface](examples/mle-prediction-interface.qmd)
 - [Logit](examples/logit.qmd)
@@ -121,6 +123,7 @@ display(HTML(html_table(
         cm.Ridge,
         cm.FixedEffectsOLS,
         cm.ElasticNet,
+        cm.BaggedPolynomialRegressor,
         cm.Logit,
         cm.MultinomialLogit,
         cm.Poisson,
@@ -175,8 +178,21 @@ display(HTML(html_table(
 
 ## Transforms
 
-- [PCA](reference/PCA.qmd)
-- [KernelBasis](reference/KernelBasis.qmd)
+- [PCA and RandomizedPCA](reference/PCA.qmd)
+- [KernelBasis, NystromBasis, and RandomFourierFeatures](reference/KernelBasis.qmd)
+
+```{python}
+display(HTML(html_table(
+    ["Constructor", "Methods"],
+    class_rows([
+        cm.PCA,
+        cm.RandomizedPCA,
+        cm.KernelBasis,
+        cm.NystromBasis,
+        cm.RandomFourierFeatures,
+    ])
+)))
+```
 
 ## Estimation interfaces and optimizers
 

@@ -30,13 +30,54 @@ $$
 \Pr(Y_i=k\mid X_i=x_i)=\frac{\exp(\alpha_k+x_i'\beta_k)}{\sum_\ell \exp(\alpha_\ell+x_i'\beta_\ell)}.
 $$
 
-The summary packs coefficients and standard errors by class.
+The summary identifies the last sorted class as `reference_class` and reports identifiable class-versus-reference coefficient contrasts. Fisher-information standard errors are available only for `alpha=0`.
+
+## Likelihood, parameterization, and solver
+
+For one-hot outcomes $y_{ic}$ and logits $\eta_{ic}=\alpha_c+x_i'\beta_c$, the delegated Linfa solver minimizes
+
+$$
+Q(\alpha,\beta)
+=
+-\sum_{i=1}^n\sum_{c=1}^C
+y_{ic}\log p_{ic}
++\frac{\lambda}{2}\sum_{c=1}^C\|\beta_c\|_2^2,
+\qquad
+p_{ic}=\frac{\exp(\eta_{ic})}{\sum_\ell\exp(\eta_{i\ell})}.
+$$
+
+Intercepts are unpenalized. L-BFGS with a More-Thuente line search operates on all $C$ coefficient columns. This full softmax parameterization is redundant because adding a common coefficient vector to every class leaves probabilities unchanged. The public summary removes that redundancy after fitting by reporting
+
+$$
+\delta_c=(\alpha_c-\alpha_r,\ \beta_c-\beta_r'),
+$$
+
+against the last sorted class $r$. Prediction uses a row-wise max shift before exponentiation for stable softmax probabilities.
+
+## Inference
+
+Inference is available only at $\lambda=0$ and is computed directly in the $(C-1)$ reference-class contrast parameterization. For non-reference classes $a,b$ and $\tilde x_i=(1,x_i')'$, the information blocks are
+
+$$
+H_{ab}
+=
+\sum_i
+\hat p_{ia}
+\{\mathbf1(a=b)-\hat p_{ib}\}
+\tilde x_i\tilde x_i'.
+$$
+
+The returned covariance is $(H+10^{-8}I)^{-1}$. It is model-based only; there is no robust sandwich or Wald-test method on this class. Penalized fits return no covariance. The pairs bootstrap reports class-versus-reference contrasts, but it raises an error if any resample omits an outcome class.
+
+## Performance and numerical behavior
+
+An L-BFGS evaluation costs $O(npC)$ and stores the dense $n\times C$ probability matrix plus $(p+1)C$ parameters. Fisher inference has dimension $(p+1)(C-1)$; constructing its blocks is costly for many classes and dense inversion is cubic in that total dimension. The full fitted parameterization can be weakly identified when $\lambda=0$ even though reported contrasts are identified. Rare classes also make both the Fisher matrix and pairs bootstrap fragile.
 
 ## Python API
 
 Constructor: `cm.MultinomialLogit`
 
-Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns class labels. `summary()` returns `coef` and `se` matrices rather than the scalar-intercept/vector-coefficient schema used by binary GLMs.
+Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns an $n\times C$ probability matrix, `predict_lin(x)` returns logits, and `predict_label(x)` returns class labels. `summary()` returns contrast rows aligned with `class_labels`; penalized fits mark inference unavailable and omit `se`/`vcov`.
 
 ```{python}
 print(inspect.signature(cm.MultinomialLogit))

@@ -32,11 +32,33 @@ $$
 
 It is useful when the goal is prediction or sparse regularized coefficients rather than classical inference.
 
+## Criterion and solver
+
+The delegated Linfa coordinate-descent solver minimizes
+
+$$
+\frac{1}{2n}\|y-\alpha\mathbf 1-X\beta\|_2^2
++\lambda\rho\|\beta\|_1
++\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2,
+$$
+
+where $\lambda$ is the penalty and $\rho$ is the L1 ratio. The intercept is fit after centering and is not penalized. Coordinate updates use soft thresholding, and convergence is checked with coefficient-change and duality-gap criteria up to the configured iteration budget. The wrapper delegates parameter validation to Linfa.
+
+The class does not standardize $X$. Because both the L1 and L2 penalties act on raw coefficients, users must scale features explicitly when a common penalty across columns is intended.
+
+## Inference
+
+The summary deliberately returns no analytic covariance or standard errors. L1 selection makes naive inverse-Hessian inference inappropriate, and the implementation does not provide debiasing, selective inference, or cross-validated penalty selection. The pairs bootstrap refits the same fixed $(\lambda,\rho)$ in every resample and returns raw intercept and coefficient draws. Those draws can describe algorithmic and sampling stability, but the class does not turn them into confidence intervals and does not account for tuning uncertainty.
+
+## Performance and numerical behavior
+
+One complete coordinate sweep is $O(np)$ for dense input, so runtime is approximately $O(Inp)$ for $I$ iterations, plus $O(np)$ storage and residual work. Sparse coefficients do not reduce the stored dense design. Highly correlated or poorly scaled columns can slow coordinate descent and make the selected support unstable. At $\rho=0$ this solver is a coordinate-descent ridge fit with a different penalty normalization from the package's dedicated Ridge class; the same numeric penalty therefore does not imply the same objective.
+
 ## Python API
 
 Constructor: `cm.ElasticNet`
 
-Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates and approximate HC-style standard errors.
+Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates and marks analytic inference unavailable. Bootstrap coefficient draws are stability diagnostics, not automatic confidence intervals.
 
 ```{python}
 print(inspect.signature(cm.ElasticNet))
