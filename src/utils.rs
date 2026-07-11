@@ -318,7 +318,11 @@ pub fn qmle_cov_poisson(
     Ok(bread.dot(&meat).dot(&bread))
 }
 
-pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Array2<f64>, String> {
+pub fn fisher_cov_multinomial(
+    x: &Array2<f64>,
+    probs: &Array2<f64>,
+    reference_class: usize,
+) -> Result<Array2<f64>, String> {
     let n = x.nrows();
     let k = x.ncols();
     let c = probs.ncols();
@@ -326,7 +330,15 @@ pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Ar
         return Err("prob length mismatch".to_string());
     }
 
-    let dim = k * c;
+    if c < 2 {
+        return Err("multinomial covariance requires at least two classes".to_string());
+    }
+    if reference_class >= c {
+        return Err("reference class index is out of bounds".to_string());
+    }
+
+    let modeled_classes: Vec<usize> = (0..c).filter(|class| *class != reference_class).collect();
+    let dim = k * (c - 1);
     let mut h = Array2::<f64>::zeros((dim, dim));
 
     for i in 0..n {
@@ -338,15 +350,15 @@ pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Ar
             }
         }
 
-        for a in 0..c {
-            for b in 0..c {
+        for (a_idx, &a) in modeled_classes.iter().enumerate() {
+            for (b_idx, &b) in modeled_classes.iter().enumerate() {
                 let w = if a == b {
                     probs[[i, a]] * (1.0 - probs[[i, a]])
                 } else {
                     -probs[[i, a]] * probs[[i, b]]
                 };
-                let row_offset = a * k;
-                let col_offset = b * k;
+                let row_offset = a_idx * k;
+                let col_offset = b_idx * k;
                 for r in 0..k {
                     for s in 0..k {
                         h[[row_offset + r, col_offset + s]] += w * outer_x[[r, s]];

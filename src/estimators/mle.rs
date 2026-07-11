@@ -4,7 +4,9 @@ use crate::utils::{
     fisher_cov_poisson, invert_matrix, pyarray1_from_f64, pyarray1_from_i32, pyarray2_from_f64,
     qmle_cov_poisson, take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32, to_array2,
 };
-use argmin::core::{CostFunction, Executor, Gradient, Hessian};
+use argmin::core::{
+    CostFunction, Executor, Gradient, Hessian, State, TerminationReason, TerminationStatus,
+};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::newton::NewtonCG;
 use argmin::solver::quasinewton::LBFGS;
@@ -17,6 +19,22 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rand::{Rng, SeedableRng};
+
+fn optimization_success(status: &TerminationStatus) -> bool {
+    matches!(
+        status,
+        TerminationStatus::Terminated(TerminationReason::SolverConverged)
+            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
+    )
+}
+
+fn binary_logit_orientation(model: &linfa_logistic::FittedLogisticRegression<f64, i32>) -> f64 {
+    if model.labels().pos.class == 1 {
+        1.0
+    } else {
+        -1.0
+    }
+}
 
 fn softmax_rows(logits: &Array2<f64>) -> Array2<f64> {
     let mut out = logits.clone();
@@ -43,7 +61,7 @@ pub struct Logit {
 #[pymethods]
 impl Logit {
     #[new]
-    #[pyo3(signature = (alpha=1.0, max_iterations=100, gradient_tolerance=1e-4))]
+    #[pyo3(signature = (alpha=0.0, max_iterations=100, gradient_tolerance=1e-4))]
     fn new(alpha: f64, max_iterations: u64, gradient_tolerance: f64) -> Self {
         Self {
             alpha,
@@ -61,6 +79,11 @@ impl Logit {
         let y = to_array1_i32(&y);
         if x.nrows() != y.len() {
             return Err(PyValueError::new_err("x rows must match y length"));
+        }
+        if y.iter().any(|value| !matches!(value, 0 | 1)) {
+            return Err(PyValueError::new_err(
+                "Logit labels must contain only 0 and 1",
+            ));
         }
         let dataset = Dataset::new(x.clone(), y.clone());
         let params = LinfaLogisticRegression::new()
@@ -92,7 +115,8 @@ impl Logit {
                 "x column count does not match fitted model",
             ));
         }
-        let eta = x.dot(model.params()) + model.intercept();
+        let orientation = binary_logit_orientation(model);
+        let eta = (x.dot(model.params()) + model.intercept()) * orientation;
         Ok(pyarray1_from_f64(py, &eta))
     }
 
@@ -111,7 +135,8 @@ impl Logit {
                 "x column count does not match fitted model",
             ));
         }
-        let eta = x.dot(model.params()) + model.intercept();
+        let orientation = binary_logit_orientation(model);
+        let eta = (x.dot(model.params()) + model.intercept()) * orientation;
         let probs = eta.mapv(|v| 1.0 / (1.0 + (-v).exp()));
         Ok(pyarray1_from_f64(py, &probs))
     }
@@ -133,7 +158,8 @@ impl Logit {
                 "x column count does not match fitted model",
             ));
         }
-        let eta = x.dot(model.params()) + model.intercept();
+        let orientation = binary_logit_orientation(model);
+        let eta = (x.dot(model.params()) + model.intercept()) * orientation;
         let pred = eta.mapv(|v| {
             if 1.0 / (1.0 + (-v).exp()) >= cutoff {
                 1
@@ -154,32 +180,39 @@ impl Logit {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
 
-        let probs = model.predict_probabilities(x);
-        let design = if self.fit_intercept {
-            add_intercept(x)
-        } else {
-            x.clone()
-        };
-        let cov = fisher_cov_binary(&design, &probs).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
-
-        let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
-            (
-                model.intercept(),
-                model.params().to_owned(),
-                Some(se_all[0]),
-                se_all.slice(s![1..]).to_owned(),
-            )
-        } else {
-            (0.0, model.params().to_owned(), None, se_all)
-        };
-
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
-        dict.set_item("intercept_se", intercept_se)?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
-        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
+        let orientation = binary_logit_orientation(model);
+        let public_coef = model.params().mapv(|value| value * orientation);
+        dict.set_item("intercept", model.intercept() * orientation)?;
+        dict.set_item("coef", pyarray1_from_f64(py, &public_coef))?;
+        dict.set_item("penalty", self.alpha)?;
+        dict.set_item("inference_available", self.alpha == 0.0)?;
+
+        if self.alpha == 0.0 {
+            let probs = model.predict_probabilities(x);
+            let design = if self.fit_intercept {
+                add_intercept(x)
+            } else {
+                x.clone()
+            };
+            let cov = fisher_cov_binary(&design, &probs).map_err(PyValueError::new_err)?;
+            let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
+            if self.fit_intercept {
+                dict.set_item("intercept_se", se_all[0])?;
+                dict.set_item(
+                    "coef_se",
+                    pyarray1_from_f64(py, &se_all.slice(s![1..]).to_owned()),
+                )?;
+            } else {
+                dict.set_item("intercept_se", py.None())?;
+                dict.set_item("coef_se", pyarray1_from_f64(py, &se_all))?;
+            }
+            dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
+        } else {
+            dict.set_item("intercept_se", py.None())?;
+            dict.set_item("coef_se", py.None())?;
+            dict.set_item("vcov", py.None())?;
+        }
         Ok(dict.into())
     }
 
@@ -190,6 +223,11 @@ impl Logit {
         r: PyReadonlyArray2<f64>,
         q: Option<PyReadonlyArray1<f64>>,
     ) -> PyResult<Bound<'py, PyDict>> {
+        if self.alpha != 0.0 {
+            return Err(PyValueError::new_err(
+                "Wald inference is only available for unpenalized Logit fits (alpha=0)",
+            ));
+        }
         let model = self
             .model
             .as_ref()
@@ -205,13 +243,16 @@ impl Logit {
             x.clone()
         };
         let cov = fisher_cov_binary(&design, &probs).map_err(PyValueError::new_err)?;
+        let orientation = binary_logit_orientation(model);
         let mut params =
             Array1::<f64>::zeros(model.params().len() + if self.fit_intercept { 1 } else { 0 });
         if self.fit_intercept {
-            params[0] = model.intercept();
-            params.slice_mut(s![1..]).assign(model.params());
+            params[0] = model.intercept() * orientation;
+            params
+                .slice_mut(s![1..])
+                .assign(&model.params().mapv(|value| value * orientation));
         } else {
-            params.assign(model.params());
+            params.assign(&model.params().mapv(|value| value * orientation));
         }
         let rmat = to_array2(&r);
         let qvec = q.as_ref().map(to_array1);
@@ -250,11 +291,15 @@ impl Logit {
             let model = params
                 .fit(&dataset)
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
+            let orientation = binary_logit_orientation(&model);
             if self.fit_intercept {
-                out[[i, 0]] = model.intercept();
-                out.row_mut(i).slice_mut(s![1..]).assign(model.params());
+                out[[i, 0]] = model.intercept() * orientation;
+                out.row_mut(i)
+                    .slice_mut(s![1..])
+                    .assign(&model.params().mapv(|value| value * orientation));
             } else {
-                out.row_mut(i).assign(model.params());
+                out.row_mut(i)
+                    .assign(&model.params().mapv(|value| value * orientation));
             }
         }
         Ok(pyarray2_from_f64(py, &out))
@@ -275,7 +320,7 @@ pub struct MultinomialLogit {
 #[pymethods]
 impl MultinomialLogit {
     #[new]
-    #[pyo3(signature = (alpha=1.0, max_iterations=100, gradient_tolerance=1e-4))]
+    #[pyo3(signature = (alpha=0.0, max_iterations=100, gradient_tolerance=1e-4))]
     fn new(alpha: f64, max_iterations: u64, gradient_tolerance: f64) -> Self {
         Self {
             alpha,
@@ -387,41 +432,62 @@ impl MultinomialLogit {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
 
-        let probs = model.predict_probabilities(x);
         let design = if self.fit_intercept {
             add_intercept(x)
         } else {
             x.clone()
         };
-
-        let cov = fisher_cov_multinomial(&design, &probs).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
         let k = design.ncols();
-        let c = probs.ncols();
-        let mut coef = Array2::<f64>::zeros((c, k));
-        let mut se = Array2::<f64>::zeros((c, k));
+        let c = model.classes().len();
+        let reference_index = c - 1;
+        let mut raw_coef = Array2::<f64>::zeros((c, k));
         let params = model.params();
         let intercept = model.intercept();
 
         for class in 0..c {
             for j in 0..k {
-                let idx = class * k + j;
-                se[[class, j]] = se_all[idx];
                 if self.fit_intercept {
                     if j == 0 {
-                        coef[[class, j]] = intercept[class];
+                        raw_coef[[class, j]] = intercept[class];
                     } else {
-                        coef[[class, j]] = params[[j - 1, class]];
+                        raw_coef[[class, j]] = params[[j - 1, class]];
                     }
                 } else {
-                    coef[[class, j]] = params[[j, class]];
+                    raw_coef[[class, j]] = params[[j, class]];
                 }
             }
         }
 
+        let mut coef = Array2::<f64>::zeros((c - 1, k));
+        for class in 0..(c - 1) {
+            let contrast = &raw_coef.row(class) - &raw_coef.row(reference_index);
+            coef.row_mut(class).assign(&contrast);
+        }
+
+        let classes = Array1::from_vec(model.classes().to_vec());
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray2_from_f64(py, &coef))?;
-        dict.set_item("se", pyarray2_from_f64(py, &se))?;
+        dict.set_item(
+            "class_labels",
+            pyarray1_from_i32(py, &classes.slice(s![..reference_index]).to_owned()),
+        )?;
+        dict.set_item("reference_class", classes[reference_index])?;
+        dict.set_item("penalty", self.alpha)?;
+        dict.set_item("inference_available", self.alpha == 0.0)?;
+
+        if self.alpha == 0.0 {
+            let probs = model.predict_probabilities(x);
+            let cov = fisher_cov_multinomial(&design, &probs, reference_index)
+                .map_err(PyValueError::new_err)?;
+            let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
+            let se = Array2::from_shape_vec((c - 1, k), se_all.to_vec())
+                .map_err(|err| PyValueError::new_err(err.to_string()))?;
+            dict.set_item("se", pyarray2_from_f64(py, &se))?;
+            dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
+        } else {
+            dict.set_item("se", py.None())?;
+            dict.set_item("vcov", py.None())?;
+        }
         Ok(dict.into())
     }
 
@@ -448,7 +514,7 @@ impl MultinomialLogit {
             .ok_or_else(|| PyValueError::new_err("MultinomialLogit model is not fitted"))?
             .classes()
             .len();
-        let mut out = Array2::<f64>::zeros((n_bootstrap, k * c));
+        let mut out = Array2::<f64>::zeros((n_bootstrap, k * (c - 1)));
         for (i, idx) in idxs.iter().enumerate() {
             let xb = take_rows(x, idx);
             let yb = take_rows_i32(y, idx);
@@ -461,19 +527,29 @@ impl MultinomialLogit {
             let model = params
                 .fit(&dataset)
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            let mut offset = 0;
-            for class in 0..c {
+            if model.classes().len() != c {
+                return Err(PyValueError::new_err(
+                    "bootstrap sample omitted at least one outcome class",
+                ));
+            }
+            let reference_index = c - 1;
+            for class in 0..reference_index {
+                let offset = class * k;
                 if self.fit_intercept {
-                    out[[i, offset]] = model.intercept()[class];
+                    out[[i, offset]] =
+                        model.intercept()[class] - model.intercept()[reference_index];
+                    let contrast =
+                        &model.params().column(class) - &model.params().column(reference_index);
                     out.row_mut(i)
                         .slice_mut(s![offset + 1..offset + k])
-                        .assign(&model.params().column(class));
+                        .assign(&contrast);
                 } else {
+                    let contrast =
+                        &model.params().column(class) - &model.params().column(reference_index);
                     out.row_mut(i)
                         .slice_mut(s![offset..offset + k])
-                        .assign(&model.params().column(class));
+                        .assign(&contrast);
                 }
-                offset += k;
             }
         }
         Ok(pyarray2_from_f64(py, &out))
@@ -630,6 +706,12 @@ impl Poisson {
             .configure(|state| state.param(coef).max_iters(self.max_iterations as u64))
             .run()
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        if !optimization_success(result.state.get_termination_status()) {
+            return Err(PyValueError::new_err(format!(
+                "Poisson optimization did not converge: {}",
+                result.state.get_termination_status()
+            )));
+        }
         let params = result
             .state
             .take_best_param()
@@ -701,43 +783,51 @@ impl Poisson {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
 
-        let mu = (x.dot(coef) + self.intercept).mapv(|v| v.exp());
-        let design = if self.fit_intercept {
-            add_intercept(x)
-        } else {
-            x.clone()
-        };
-        let cov = match vcov {
-            "vanilla" => fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?,
-            "sandwich" | "qmle" => {
-                qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?
-            }
-            _ => {
-                return Err(PyValueError::new_err(
-                    "vcov must be one of {'vanilla', 'sandwich', 'qmle'}",
-                ));
-            }
-        };
-        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
-
-        let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
-            (
-                self.intercept,
-                coef.to_owned(),
-                Some(se_all[0]),
-                se_all.slice(s![1..]).to_owned(),
-            )
-        } else {
-            (0.0, coef.to_owned(), None, se_all)
-        };
-
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
-        dict.set_item("intercept_se", intercept_se)?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
-        dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
-        dict.set_item("vcov_type", if vcov == "qmle" { "sandwich" } else { vcov })?;
+        dict.set_item("intercept", self.intercept)?;
+        dict.set_item("coef", pyarray1_from_f64(py, coef))?;
+        dict.set_item("penalty", self.alpha)?;
+        dict.set_item("converged", true)?;
+        dict.set_item("inference_available", self.alpha == 0.0)?;
+
+        if !matches!(vcov, "vanilla" | "sandwich" | "qmle") {
+            return Err(PyValueError::new_err(
+                "vcov must be one of {'vanilla', 'sandwich', 'qmle'}",
+            ));
+        }
+        if self.alpha == 0.0 {
+            let mu = (x.dot(coef) + self.intercept).mapv(|v| v.exp());
+            let design = if self.fit_intercept {
+                add_intercept(x)
+            } else {
+                x.clone()
+            };
+            let cov = match vcov {
+                "vanilla" => fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?,
+                "sandwich" | "qmle" => {
+                    qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?
+                }
+                _ => unreachable!(),
+            };
+            let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
+            if self.fit_intercept {
+                dict.set_item("intercept_se", se_all[0])?;
+                dict.set_item(
+                    "coef_se",
+                    pyarray1_from_f64(py, &se_all.slice(s![1..]).to_owned()),
+                )?;
+            } else {
+                dict.set_item("intercept_se", py.None())?;
+                dict.set_item("coef_se", pyarray1_from_f64(py, &se_all))?;
+            }
+            dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
+            dict.set_item("vcov_type", if vcov == "qmle" { "sandwich" } else { vcov })?;
+        } else {
+            dict.set_item("intercept_se", py.None())?;
+            dict.set_item("coef_se", py.None())?;
+            dict.set_item("vcov", py.None())?;
+            dict.set_item("vcov_type", py.None())?;
+        }
         Ok(dict.into())
     }
 
@@ -749,6 +839,11 @@ impl Poisson {
         q: Option<PyReadonlyArray1<f64>>,
         vcov: &str,
     ) -> PyResult<Bound<'py, PyDict>> {
+        if self.alpha != 0.0 {
+            return Err(PyValueError::new_err(
+                "Wald inference is only available for unpenalized Poisson fits (alpha=0)",
+            ));
+        }
         let coef = self
             .coef
             .as_ref()
@@ -834,6 +929,12 @@ impl Poisson {
                 .configure(|state| state.param(coef).max_iters(self.max_iterations as u64))
                 .run()
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
+            if !optimization_success(result.state.get_termination_status()) {
+                return Err(PyValueError::new_err(format!(
+                    "Poisson bootstrap optimization did not converge: {}",
+                    result.state.get_termination_status()
+                )));
+            }
             let params = result
                 .state
                 .take_best_param()
@@ -856,10 +957,12 @@ pub struct MEstimator {
     max_iterations: usize,
     tolerance: f64,
     objective_fn: Option<Py<PyAny>>,
+    derivative_step: f64,
     score_fn: Option<Py<PyAny>>,
     theta: Option<Array1<f64>>,
     data: Option<Py<PyAny>>,
     vcov: Option<Array2<f64>>,
+    iterations: Option<usize>,
 }
 
 struct MEstimatorProblem {
@@ -938,29 +1041,57 @@ impl Gradient for MEstimatorProblem {
     }
 }
 
+fn call_mestimator_scores(
+    py: Python,
+    score_fn: &Py<PyAny>,
+    data: &Py<PyAny>,
+    theta: &Array1<f64>,
+) -> PyResult<Array2<f64>> {
+    let theta_py = pyarray1_from_f64(py, theta);
+    let result = score_fn
+        .call1(py, (theta_py, data.clone_ref(py)))
+        .map_err(|err| PyValueError::new_err(format!("score_fn error: {}", err)))?;
+    let scores_py = result
+        .downcast_bound::<PyArray2<f64>>(py)
+        .map_err(|_| PyValueError::new_err("score_fn must return a 2D numpy array"))?;
+    let scores = to_array2(&scores_py.readonly());
+    if scores.nrows() == 0 {
+        return Err(PyValueError::new_err("score_fn returned no observations"));
+    }
+    Ok(scores)
+}
+
 #[pymethods]
 impl MEstimator {
     #[new]
-    #[pyo3(signature = (objective_fn, score_fn, max_iterations=100, tolerance=1e-6))]
+    #[pyo3(signature = (objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-6))]
     fn new(
         objective_fn: Py<PyAny>,
         score_fn: Py<PyAny>,
         max_iterations: usize,
         tolerance: f64,
+        derivative_step: f64,
     ) -> Self {
         Self {
             max_iterations,
             tolerance,
             objective_fn: Some(objective_fn),
+            derivative_step,
             score_fn: Some(score_fn),
             theta: None,
             data: None,
             vcov: None,
+            iterations: None,
         }
     }
 
     fn fit(&mut self, py: Python, data: Py<PyAny>, theta0: PyReadonlyArray1<f64>) -> PyResult<()> {
         let theta_init = to_array1(&theta0);
+        if !self.derivative_step.is_finite() || self.derivative_step <= 0.0 {
+            return Err(PyValueError::new_err(
+                "derivative_step must be finite and positive",
+            ));
+        }
         let objective_fn = self
             .objective_fn
             .as_ref()
@@ -973,7 +1104,11 @@ impl MEstimator {
         };
 
         let linesearch = MoreThuenteLineSearch::new();
-        let solver = LBFGS::new(linesearch, 7);
+        let solver = LBFGS::new(linesearch, 7)
+            .with_tolerance_grad(self.tolerance)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?
+            .with_tolerance_cost(self.tolerance)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         let mut result = Executor::new(problem, solver)
             .configure(|state| {
@@ -984,6 +1119,13 @@ impl MEstimator {
             .run()
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+        if !optimization_success(result.state.get_termination_status()) {
+            return Err(PyValueError::new_err(format!(
+                "M-estimator optimization did not converge: {}",
+                result.state.get_termination_status()
+            )));
+        }
+        let iterations = result.state.get_iter() as usize;
         let theta = result
             .state
             .take_best_param()
@@ -993,6 +1135,7 @@ impl MEstimator {
         self.data = Some(data);
         self.vcov = None;
 
+        self.iterations = Some(iterations);
         Ok(())
     }
 
@@ -1010,19 +1153,9 @@ impl MEstimator {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("score_fn not set"))?;
 
-        let theta_py = pyarray1_from_f64(py, theta);
-        let scores_result = score_fn
-            .call1(py, (theta_py, data.clone_ref(py)))
-            .map_err(|e| PyValueError::new_err(format!("score_fn error: {}", e)))?;
-
-        let scores_py = scores_result
-            .downcast_bound::<PyArray2<f64>>(py)
-            .map_err(|_| PyValueError::new_err("score_fn must return 2D numpy array"))?;
-
-        let scores = to_array2(&scores_py.readonly());
+        let scores = call_mestimator_scores(py, score_fn, data, theta)?;
         let n = scores.nrows();
         let k = scores.ncols();
-
         if k != theta.len() {
             return Err(PyValueError::new_err(format!(
                 "score dimension {} does not match theta dimension {}",
@@ -1031,10 +1164,36 @@ impl MEstimator {
             )));
         }
 
+        let mut a_matrix = Array2::<f64>::zeros((k, k));
+        for column in 0..k {
+            let step = self.derivative_step * theta[column].abs().max(1.0);
+            let mut theta_plus = theta.clone();
+            let mut theta_minus = theta.clone();
+            theta_plus[column] += step;
+            theta_minus[column] -= step;
+            let scores_plus = call_mestimator_scores(py, score_fn, data, &theta_plus)?;
+            let scores_minus = call_mestimator_scores(py, score_fn, data, &theta_minus)?;
+            if scores_plus.raw_dim() != scores.raw_dim()
+                || scores_minus.raw_dim() != scores.raw_dim()
+            {
+                return Err(PyValueError::new_err(
+                    "score_fn output shape changed during numerical differentiation",
+                ));
+            }
+            let mean_plus = scores_plus
+                .mean_axis(Axis(0))
+                .ok_or_else(|| PyValueError::new_err("score_fn returned no observations"))?;
+            let mean_minus = scores_minus
+                .mean_axis(Axis(0))
+                .ok_or_else(|| PyValueError::new_err("score_fn returned no observations"))?;
+            let derivative = (&mean_plus - &mean_minus) / (2.0 * step);
+            a_matrix.column_mut(column).assign(&derivative);
+        }
+
         let b_matrix = scores.t().dot(&scores) / (n as f64);
-        let a_matrix = b_matrix.clone();
         let a_inv = invert_matrix(&a_matrix).map_err(PyValueError::new_err)?;
-        let vcov = a_inv.dot(&b_matrix).dot(&a_inv) / (n as f64);
+        let vcov_raw = a_inv.dot(&b_matrix).dot(&a_inv.t()) / (n as f64);
+        let vcov = (&vcov_raw + &vcov_raw.t()) * 0.5;
 
         self.vcov = Some(vcov);
         Ok(())
@@ -1064,6 +1223,9 @@ impl MEstimator {
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, theta))?;
         dict.set_item("se", pyarray1_from_f64(py, &se))?;
+        dict.set_item("vcov", pyarray2_from_f64(py, vcov))?;
+        dict.set_item("converged", true)?;
+        dict.set_item("iterations", self.iterations)?;
         Ok(dict.into())
     }
 
@@ -1122,7 +1284,11 @@ impl MEstimator {
             };
 
             let linesearch = MoreThuenteLineSearch::new();
-            let solver = LBFGS::new(linesearch, 7);
+            let solver = LBFGS::new(linesearch, 7)
+                .with_tolerance_grad(self.tolerance)
+                .map_err(|err| PyValueError::new_err(err.to_string()))?
+                .with_tolerance_cost(self.tolerance)
+                .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
             let mut result = Executor::new(problem, solver)
                 .configure(|state| {
@@ -1133,6 +1299,12 @@ impl MEstimator {
                 .run()
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+            if !optimization_success(result.state.get_termination_status()) {
+                return Err(PyValueError::new_err(format!(
+                    "M-estimator bootstrap optimization did not converge: {}",
+                    result.state.get_termination_status()
+                )));
+            }
             let theta_boot = result
                 .state
                 .take_best_param()

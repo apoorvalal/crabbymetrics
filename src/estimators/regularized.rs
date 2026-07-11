@@ -1,7 +1,7 @@
 use crate::utils::{
-    add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, hc1_cov, invert_matrix,
-    pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows,
-    scale_vec, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec, to_array1,
+    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
+    pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
+    solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec, to_array1,
     to_array1_i32, to_array1_i64, to_array2,
 };
 use linfa::prelude::{Fit, FitWith, Predict};
@@ -653,41 +653,15 @@ impl ElasticNet {
             .model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("ElasticNet model is not fitted"))?;
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-
-        let y_hat = model.predict(x);
-        let residuals = y - &y_hat;
-        let design = if self.fit_intercept {
-            add_intercept(x)
-        } else {
-            x.clone()
-        };
-        let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
-
-        let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
-            (
-                model.intercept(),
-                model.hyperplane().to_owned(),
-                Some(se_all[0]),
-                se_all.slice(s![1..]).to_owned(),
-            )
-        } else {
-            (0.0, model.hyperplane().to_owned(), None, se_all)
-        };
 
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("intercept", intercept)?;
-        dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
-        dict.set_item("intercept_se", intercept_se)?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
+        dict.set_item("intercept", model.intercept())?;
+        dict.set_item("coef", pyarray1_from_f64(py, model.hyperplane()))?;
+        dict.set_item("penalty", self.penalty)?;
+        dict.set_item("l1_ratio", self.l1_ratio)?;
+        dict.set_item("inference_available", false)?;
+        dict.set_item("intercept_se", py.None())?;
+        dict.set_item("coef_se", py.None())?;
         Ok(dict.into())
     }
 
@@ -801,19 +775,16 @@ impl FTRL {
             .model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
 
         let weights = model.get_weights();
-        let probs = model.predict(x).mapv(|v| f64::from(*v));
-        let cov = fisher_cov_binary(x, &probs).map_err(PyValueError::new_err)?;
-        let se = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
-
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, &weights))?;
-        dict.set_item("coef_se", pyarray1_from_f64(py, &se))?;
+        dict.set_item("alpha", self.alpha)?;
+        dict.set_item("beta", self.beta)?;
+        dict.set_item("l1_ratio", self.l1_ratio)?;
+        dict.set_item("l2_ratio", self.l2_ratio)?;
+        dict.set_item("inference_available", false)?;
+        dict.set_item("coef_se", py.None())?;
         Ok(dict.into())
     }
 
