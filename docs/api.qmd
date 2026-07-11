@@ -9,7 +9,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: true
+    code-fold: false
     code-summary: "Show code"
 jupyter: python3
 execute:
@@ -178,8 +178,21 @@ display(HTML(html_table(
 
 ## Transforms
 
-- [PCA](reference/PCA.qmd)
-- [KernelBasis](reference/KernelBasis.qmd)
+- [PCA and RandomizedPCA](reference/PCA.qmd)
+- [KernelBasis, NystromBasis, and RandomFourierFeatures](reference/KernelBasis.qmd)
+
+```{python}
+display(HTML(html_table(
+    ["Constructor", "Methods"],
+    class_rows([
+        cm.PCA,
+        cm.RandomizedPCA,
+        cm.KernelBasis,
+        cm.NystromBasis,
+        cm.RandomFourierFeatures,
+    ])
+)))
+```
 
 ## Estimation interfaces and optimizers
 

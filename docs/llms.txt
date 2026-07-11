@@ -62,12 +62,12 @@ Use these defaults unless the application has a reason to do otherwise:
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
 - Covariate balancing/calibration weights: `cm.BalancingWeights()`.
-- Binary classification: `cm.Logit()` or online-style `cm.FTRL()`.
+- Binary classification: use `cm.Logit()` for a fitted likelihood estimator. `cm.FTRL()` currently performs one experimental batch update and is not a converged batch or persistent online estimator.
 - Multiclass classification: `cm.MultinomialLogit()`.
 - Count regression: `cm.Poisson()`.
 - User-supplied moment conditions: `cm.GMM(moment_fn, jacobian_fn=None, ...)`.
 - User-supplied objective and scores: `cm.MEstimator(objective_fn, score_fn, ...)`.
-- Feature transformations: `cm.PCA(...)` and `cm.KernelBasis(...)`.
+- Feature transformations: `cm.PCA(...)`, `cm.RandomizedPCA(...)`, `cm.KernelBasis(...)`, `cm.NystromBasis(...)`, and `cm.RandomFourierFeatures(...)`.
 - Regularized estimators expose point estimates for prediction but do not claim analytic standard errors unless the fitted objective and covariance match.
 - Direct numerical optimization with Python callbacks: `cm.Optimizers.minimize_*`.
 
@@ -204,7 +204,7 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-Multiclass labels should be integer-coded. The default unpenalized summary reports identified class-versus-reference contrasts; `alpha>0` is prediction-only.
+Multiclass labels should be integer-coded. `predict()` returns class probabilities, `predict_lin()` returns logits, and `predict_label()` returns labels. The default unpenalized summary reports identified class-versus-reference contrasts; `alpha>0` is prediction-only.
 
 ```python
 cm.Poisson(alpha=0.0, max_iterations=100, tolerance=1e-4)
@@ -224,7 +224,7 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-FTRL is an online-style binary classification estimator. Its summary reports point estimates and explicitly marks analytic inference unavailable.
+FTRL currently initializes a fixed random FTRL state, evaluates one full-batch logistic gradient, performs one proximal update, and stops. It has no intercept, iteration, convergence criterion, `partial_fit`, or Python access to persistent state. Treat it as experimental; the summary marks analytic inference unavailable.
 
 ### Panel estimators and panel helpers
 
@@ -361,7 +361,18 @@ inverse_transform(scores)
 summary()
 ```
 
-PCA transformer for design-matrix preprocessing.
+PCA transformer for design-matrix preprocessing. Explained variance uses $s_j^2/(n-1)$ and ratios use the full centered sample variance. Whitening is undone during inverse transformation.
+
+```python
+cm.RandomizedPCA(n_components, oversamples=10, power_iter=1, seed=None)
+fit(x)
+transform(x)
+fit_transform(x)
+inverse_transform(scores)
+summary()
+```
+
+Randomized SVD PCA transformer for lower-rank approximate decomposition.
 
 ```python
 cm.KernelBasis(kernel="gaussian", bandwidth=0.5, coef0=1.0, degree=2.0)
@@ -371,7 +382,14 @@ fit_transform(x)
 summary()
 ```
 
-Kernel feature basis transformer for richer regression-style applications.
+Exact kernel feature basis transformer. Its Gaussian kernel is `exp(-||x-z||^2 / bandwidth)`.
+
+```python
+cm.NystromBasis(n_components, kernel="gaussian", bandwidth=0.5, coef0=1.0, degree=2.0, ridge=1e-10, seed=None)
+cm.RandomFourierFeatures(n_components, bandwidth=0.5, seed=None)
+```
+
+Both expose `fit`, `transform`, `fit_transform`, and `summary`. Nystrom uses sampled landmark rows and a regularized kernel inverse square root. RandomFourierFeatures approximates the same Gaussian kernel with frequencies drawn from $N(0,2I/\text{bandwidth})$.
 
 ### Optimizers
 
@@ -484,7 +502,7 @@ If you need to inspect or modify source, start here:
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
 - `src/estimators/balancing.rs`: BalancingWeights.
 - `src/estimators/gmm.rs`: GMM.
-- `src/estimators/transforms.rs`: PCA and KernelBasis.
+- `src/estimators/transforms.rs`: PCA, RandomizedPCA, KernelBasis, NystromBasis, and RandomFourierFeatures.
 - `src/optimizers.rs`: Optimizers namespace.
 - `src/utils.rs`: shared array conversion, linear algebra, covariance, bootstrap, and helper routines.
 - `tests/`: Python tests for public behavior; use these as executable API examples when docs are thin.
@@ -506,6 +524,7 @@ uv run quarto render docs
 
 - [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
 - [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
+- Estimator pages under the API reference document the implemented objective or estimating equations, covariance method, inferential limitations, and computational scaling.
 - [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
 - [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
 - [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.
@@ -525,7 +544,7 @@ uv run quarto render docs
 - [Survival Models](https://apoorvalal.github.io/crabbymetrics/examples/survival-models.html): exponential PH, Weibull PH, Cox PH, Andersen--Gill counting-process models, and discrete-time hazard/logit connections.
 - [TwoSLS](https://apoorvalal.github.io/crabbymetrics/examples/twosls.html): instrumental variables regression.
 - [GMM](https://apoorvalal.github.io/crabbymetrics/examples/gmm.html): custom moment estimators.
-- [FTRL](https://apoorvalal.github.io/crabbymetrics/examples/ftrl.html): online-style binary classification.
+- [FTRL](https://apoorvalal.github.io/crabbymetrics/examples/ftrl.html): diagnostic example for the experimental one-update wrapper.
 - [MEstimator Poisson](https://apoorvalal.github.io/crabbymetrics/examples/mestimator-poisson.html): callback M-estimation matched against built-in Poisson.
 - [Balancing Weights](https://apoorvalal.github.io/crabbymetrics/examples/balancing-weights.html): entropy/quadratic calibration weights.
 - [EPLM](https://apoorvalal.github.io/crabbymetrics/examples/eplm.html): partially linear E-estimator.

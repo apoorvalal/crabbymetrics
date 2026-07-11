@@ -14,7 +14,11 @@ jupyter: python3
 
 This page mirrors `examples/ftrl_example.py`.
 
-## Fit An FTRL Classifier
+::: {.callout-warning}
+The current Python wrapper performs one aggregate batch update from a fixed random FTRL state. It has no intercept, epochs, convergence criterion, or persistent online update API. This example displays that update; it is not evidence of a converged classifier. See the [FTRL API page](../reference/FTRL.qmd) for the exact equations and limitations.
+:::
+
+## Run The Experimental FTRL Update
 
 ```{python}
 import numpy as np
