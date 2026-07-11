@@ -87,49 +87,6 @@ pub fn solve_least_squares_mat(a: &Array2<f64>, b: &Array2<f64>) -> Result<Array
         .map_err(|err| err.to_string())
 }
 
-pub fn hc1_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, String> {
-    let n = x.nrows();
-    let k = x.ncols();
-    if residuals.len() != n {
-        return Err("residual length mismatch".to_string());
-    }
-
-    let xtx = x.t().dot(x);
-    let xtx_inv = invert_matrix(&xtx)?;
-
-    let mut meat = Array2::<f64>::zeros((k, k));
-    for i in 0..n {
-        let xi = x.row(i);
-        let u = residuals[i];
-        let outer = xi
-            .to_owned()
-            .insert_axis(Axis(1))
-            .dot(&xi.to_owned().insert_axis(Axis(0)));
-        meat = meat + outer * (u * u);
-    }
-
-    let mut cov = xtx_inv.dot(&meat).dot(&xtx_inv);
-    let scale = n as f64 / (n as f64 - k as f64);
-    cov.mapv_inplace(|v| v * scale);
-    Ok(cov)
-}
-
-pub fn ols_vanilla_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, String> {
-    let n = x.nrows();
-    let k = x.ncols();
-    if residuals.len() != n {
-        return Err("residual length mismatch".to_string());
-    }
-    if n <= k {
-        return Err("need more observations than regressors".to_string());
-    }
-
-    let xtx = x.t().dot(x);
-    let xtx_inv = invert_matrix(&xtx)?;
-    let sigma2 = residuals.dot(residuals) / ((n - k) as f64);
-    Ok(xtx_inv.mapv(|v| v * sigma2))
-}
-
 pub fn default_newey_west_lags(n: usize) -> usize {
     ((4.0 * (n as f64 / 100.0).powf(2.0 / 9.0)).floor() as usize).max(1)
 }

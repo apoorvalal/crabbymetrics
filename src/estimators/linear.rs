@@ -1,7 +1,7 @@
 use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
-    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
+    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
     solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_u32,
     take_rows_vec, to_array1, to_array1_i64, to_array2, to_array2_u32, validate_sample_weight,
@@ -18,12 +18,80 @@ use pyo3::types::PyDict;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use std::collections::{BTreeMap, BTreeSet};
 use within::{Solver as WithinSolver, SolverParams as WithinSolverParams};
 
 struct FixedEffectsOlsFitResult {
     coef: Array1<f64>,
     x_resid: Array2<f64>,
     y_resid: Array1<f64>,
+}
+
+struct UnionFind {
+    parent: Vec<usize>,
+}
+
+impl UnionFind {
+    fn new(size: usize) -> Self {
+        Self {
+            parent: (0..size).collect(),
+        }
+    }
+
+    fn find(&mut self, value: usize) -> usize {
+        let parent = self.parent[value];
+        if parent != value {
+            self.parent[value] = self.find(parent);
+        }
+        self.parent[value]
+    }
+
+    fn union(&mut self, left: usize, right: usize) {
+        let left_root = self.find(left);
+        let right_root = self.find(right);
+        if left_root != right_root {
+            self.parent[right_root] = left_root;
+        }
+    }
+}
+
+fn observed_level_map(fe: &Array2<u32>, column: usize) -> BTreeMap<u32, usize> {
+    let levels: BTreeSet<u32> = fe.column(column).iter().copied().collect();
+    levels
+        .into_iter()
+        .enumerate()
+        .map(|(index, level)| (level, index))
+        .collect()
+}
+
+fn absorbed_fe_rank(fe: &Array2<u32>) -> Result<(usize, &'static str), String> {
+    match fe.ncols() {
+        0 => Err("fe must have at least one column".to_string()),
+        1 => Ok((observed_level_map(fe, 0).len(), "exact_one_way")),
+        2 => {
+            let first = observed_level_map(fe, 0);
+            let second = observed_level_map(fe, 1);
+            let offset = first.len();
+            let mut components = UnionFind::new(first.len() + second.len());
+            for row in 0..fe.nrows() {
+                components.union(first[&fe[[row, 0]]], offset + second[&fe[[row, 1]]]);
+            }
+            let n_components = (0..(first.len() + second.len()))
+                .map(|index| components.find(index))
+                .collect::<BTreeSet<_>>()
+                .len();
+            Ok((first.len() + second.len() - n_components, "exact_two_way"))
+        }
+        n_dimensions => {
+            let total_levels: usize = (0..n_dimensions)
+                .map(|column| observed_level_map(fe, column).len())
+                .sum();
+            Ok((
+                total_levels.saturating_sub(n_dimensions - 1),
+                "conservative_multiway",
+            ))
+        }
+    }
 }
 
 struct TwoSlsFitResult {
@@ -155,26 +223,29 @@ fn linear_covariance(
     vcov: &str,
     lags: Option<usize>,
     clusters: Option<&Array1<i64>>,
+    residual_df: Option<f64>,
 ) -> Result<Array2<f64>, String> {
     let n = design.nrows();
     let p = design.ncols();
     if residuals.len() != n {
         return Err("residual length mismatch".to_string());
     }
+    let df_resid = residual_df.unwrap_or(n as f64 - p as f64);
+    if df_resid <= 0.0 {
+        return Err("need positive residual degrees of freedom".to_string());
+    }
 
     match vcov {
-        "vanilla" => ols_vanilla_cov(design, residuals),
+        "vanilla" => {
+            let xtx_inv = invert_matrix(&design.t().dot(design))?;
+            let sigma2 = residuals.dot(residuals) / df_resid;
+            Ok(xtx_inv.mapv(|value| value * sigma2))
+        }
         "hc1" | "newey_west" | "cluster" => {
             let xtx = design.t().dot(design);
             let bread = invert_matrix(&xtx)?;
             let param_scores = linear_parameter_scores(design, residuals, &bread)?;
-            sandwich_cov_from_parameter_scores(
-                &param_scores,
-                vcov,
-                n as f64 - p as f64,
-                lags,
-                clusters,
-            )
+            sandwich_cov_from_parameter_scores(&param_scores, vcov, df_resid, lags, clusters)
         }
         _ => Err("vcov must be one of {'hc1', 'vanilla', 'newey_west', 'cluster'}".to_string()),
     }
@@ -1589,6 +1660,7 @@ impl OLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            None,
         )
         .map_err(PyValueError::new_err)?;
         let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
@@ -1660,6 +1732,7 @@ impl OLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            None,
         )
         .map_err(PyValueError::new_err)?;
         let rmat = to_array2(&r);
@@ -1797,6 +1870,18 @@ impl FixedEffectsOLS {
             .y_resid
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No residualized response stored"))?;
+        let fe = self
+            .fe
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
+        let (absorbed_df, absorbed_df_method) =
+            absorbed_fe_rank(fe).map_err(PyValueError::new_err)?;
+        let residual_df = y_resid.len() as f64 - x_resid.ncols() as f64 - absorbed_df as f64;
+        if residual_df <= 0.0 {
+            return Err(PyValueError::new_err(
+                "absorbed fixed effects leave no residual degrees of freedom",
+            ));
+        }
         let sample_weight = self.sample_weight.as_ref();
 
         let residuals = y_resid - &x_resid.dot(coef);
@@ -1809,6 +1894,7 @@ impl FixedEffectsOLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            Some(residual_df),
         )
         .map_err(PyValueError::new_err)?;
         let coef_se = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
@@ -1818,6 +1904,9 @@ impl FixedEffectsOLS {
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
+        dict.set_item("absorbed_df", absorbed_df)?;
+        dict.set_item("residual_df", residual_df)?;
+        dict.set_item("absorbed_df_method", absorbed_df_method)?;
         Ok(dict.into())
     }
 
@@ -1843,6 +1932,17 @@ impl FixedEffectsOLS {
             .y_resid
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No residualized response stored"))?;
+        let fe = self
+            .fe
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
+        let (absorbed_df, _) = absorbed_fe_rank(fe).map_err(PyValueError::new_err)?;
+        let residual_df = y_resid.len() as f64 - x_resid.ncols() as f64 - absorbed_df as f64;
+        if residual_df <= 0.0 {
+            return Err(PyValueError::new_err(
+                "absorbed fixed effects leave no residual degrees of freedom",
+            ));
+        }
         let vcov = vcov.unwrap_or("hc1");
         let residuals = y_resid - &x_resid.dot(coef);
         let (design_work, residuals_work) =
@@ -1855,6 +1955,7 @@ impl FixedEffectsOLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            Some(residual_df),
         )
         .map_err(PyValueError::new_err)?;
         let rmat = to_array2(&r);
@@ -3555,8 +3656,15 @@ impl TwoSLS {
             solve_least_squares_vec(&design_work, &y_work).map_err(PyValueError::new_err)?;
         let residuals = y_work - &design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
-        let cov = linear_covariance(&design_work, &residuals, vcov, lags, cluster_ids.as_ref())
-            .map_err(PyValueError::new_err)?;
+        let cov = linear_covariance(
+            &design_work,
+            &residuals,
+            vcov,
+            lags,
+            cluster_ids.as_ref(),
+            None,
+        )
+        .map_err(PyValueError::new_err)?;
 
         let df1 = z.ncols();
         let df2 = design_work.nrows() - design_work.ncols();

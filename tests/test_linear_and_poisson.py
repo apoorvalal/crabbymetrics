@@ -683,10 +683,11 @@ def test_fixed_effects_ols_summary_supports_newey_west_and_cluster_vcov():
     coef, *_ = np.linalg.lstsq(x_resid, y_resid, rcond=None)
     resid = y_resid - x_resid @ coef
     param_scores = (x_resid * resid[:, None]) @ np.linalg.inv(x_resid.T @ x_resid)
-    cov_nw = sandwich_from_parameter_scores(param_scores, n - x.shape[1], "newey_west", lags=3)
+    residual_df = n - x.shape[1] - np.unique(groups).size
+    cov_nw = sandwich_from_parameter_scores(param_scores, residual_df, "newey_west", lags=3)
     cov_cluster = sandwich_from_parameter_scores(
         param_scores,
-        n - x.shape[1],
+        residual_df,
         "cluster",
         clusters=groups.astype(np.int64),
     )
@@ -702,6 +703,8 @@ def test_fixed_effects_ols_summary_supports_newey_west_and_cluster_vcov():
     )
     assert nw["vcov_type"] == "newey_west"
     assert cluster["vcov_type"] == "cluster"
+    assert nw["residual_df"] == residual_df
+    assert nw["absorbed_df"] == np.unique(groups).size
 
 
 def test_fixed_effects_ols_unit_sample_weights_match_unweighted_fit():
