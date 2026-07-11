@@ -161,7 +161,7 @@ impl Logit {
             x.clone()
         };
         let cov = fisher_cov_binary(&design, &probs).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
             (
@@ -395,7 +395,7 @@ impl MultinomialLogit {
         };
 
         let cov = fisher_cov_multinomial(&design, &probs).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
         let k = design.ncols();
         let c = probs.ncols();
         let mut coef = Array2::<f64>::zeros((c, k));
@@ -718,7 +718,7 @@ impl Poisson {
                 ));
             }
         };
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
             (
@@ -1059,7 +1059,7 @@ impl MEstimator {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Failed to compute vcov"))?;
 
-        let se = diag_sqrt(vcov);
+        let se = diag_sqrt(vcov).map_err(PyValueError::new_err)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, theta))?;

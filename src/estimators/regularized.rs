@@ -490,7 +490,7 @@ impl Ridge {
             cluster_ids.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
         let (intercept_se, coef_se) = if self.fit_intercept {
             (Some(se_all[0]), se_all.slice(s![1..]).to_owned())
         } else {
@@ -670,7 +670,7 @@ impl ElasticNet {
             x.clone()
         };
         let cov = hc1_cov(&design, &residuals).map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
             (
@@ -809,7 +809,7 @@ impl FTRL {
         let weights = model.get_weights();
         let probs = model.predict(x).mapv(|v| f64::from(*v));
         let cov = fisher_cov_binary(x, &probs).map_err(PyValueError::new_err)?;
-        let se = diag_sqrt(&cov);
+        let se = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, &weights))?;

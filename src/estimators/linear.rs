@@ -1591,7 +1591,7 @@ impl OLS {
             cluster_ids.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
             (
@@ -1811,7 +1811,7 @@ impl FixedEffectsOLS {
             cluster_ids.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
-        let coef_se = diag_sqrt(&cov);
+        let coef_se = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, coef))?;
@@ -3411,7 +3411,7 @@ impl TwoSLS {
             cluster_ids.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept_se, coef_se) = if self.fit_intercept {
             (Some(se_all[0]), se_all.slice(s![1..]).to_owned())

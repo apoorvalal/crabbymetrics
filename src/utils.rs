@@ -220,13 +220,30 @@ pub fn sandwich_cov_from_parameter_scores(
     }
 }
 
-pub fn diag_sqrt(a: &Array2<f64>) -> Array1<f64> {
-    let n = a.nrows().min(a.ncols());
-    let mut out = Array1::zeros(n);
-    for i in 0..n {
-        out[i] = a[[i, i]].abs().sqrt();
+pub fn diag_sqrt(a: &Array2<f64>) -> Result<Array1<f64>, String> {
+    if a.nrows() != a.ncols() {
+        return Err("covariance matrix must be square".to_string());
     }
-    out
+    let scale = a
+        .iter()
+        .filter(|value| value.is_finite())
+        .fold(1.0_f64, |acc, value| acc.max(value.abs()));
+    if a.iter().any(|value| !value.is_finite()) {
+        return Err("covariance matrix must contain only finite values".to_string());
+    }
+    let tolerance = 1e-12 * scale;
+    let mut out = Array1::zeros(a.nrows());
+    for i in 0..a.nrows() {
+        let value = a[[i, i]];
+        if value < -tolerance {
+            return Err(format!(
+                "covariance diagonal at index {} is negative ({})",
+                i, value
+            ));
+        }
+        out[i] = value.max(0.0).sqrt();
+    }
+    Ok(out)
 }
 
 pub fn fisher_cov_binary(x: &Array2<f64>, probs: &Array1<f64>) -> Result<Array2<f64>, String> {
@@ -429,4 +446,29 @@ pub fn pyarray1_from_i32<'py>(py: Python<'py>, data: &Array1<i32>) -> Bound<'py,
 pub fn pyarray2_from_f64<'py>(py: Python<'py>, data: &Array2<f64>) -> Bound<'py, PyArray2<f64>> {
     let vec2: Vec<Vec<f64>> = data.rows().into_iter().map(|row| row.to_vec()).collect();
     PyArray2::from_vec2(py, &vec2).expect("failed to build array")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::diag_sqrt;
+    use ndarray::array;
+
+    #[test]
+    fn diag_sqrt_accepts_valid_covariance() {
+        let se = diag_sqrt(&array![[4.0, 0.5], [0.5, 9.0]]).unwrap();
+        assert_eq!(se.to_vec(), vec![2.0, 3.0]);
+    }
+
+    #[test]
+    fn diag_sqrt_clips_only_roundoff_negative_values() {
+        let se = diag_sqrt(&array![[-1e-14, 0.0], [0.0, 1.0]]).unwrap();
+        assert_eq!(se.to_vec(), vec![0.0, 1.0]);
+        assert!(diag_sqrt(&array![[-1e-4, 0.0], [0.0, 1.0]]).is_err());
+    }
+
+    #[test]
+    fn diag_sqrt_rejects_nonfinite_or_nonsquare_covariance() {
+        assert!(diag_sqrt(&array![[f64::NAN]]).is_err());
+        assert!(diag_sqrt(&array![[1.0, 0.0]]).is_err());
+    }
 }

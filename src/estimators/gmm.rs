@@ -675,7 +675,7 @@ impl GMM {
             }
         };
 
-        let se = diag_sqrt(&covariance);
+        let se = diag_sqrt(&covariance).map_err(PyValueError::new_err)?;
         let j_df = if moments.ncols() > theta.len() {
             Some(moments.ncols() - theta.len())
         } else {
