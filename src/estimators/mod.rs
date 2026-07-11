@@ -14,7 +14,7 @@ pub use linear::{
     InteractiveFixedEffects, MatrixCompletion, SyntheticControl, SyntheticDID, TwoSLS, OLS,
 };
 pub use mle::{Logit, MEstimator, MultinomialLogit, Poisson};
-pub use regularized::{ElasticNet, Ridge, FTRL};
+pub use regularized::{BaggedPolynomialRegressor, ElasticNet, Ridge, FTRL};
 pub use semiparametric::{AverageDerivative, PartiallyLinearDML, AIPW, EPLM};
 pub use survival::{AndersenGill, CoxPH, ExponentialPH, WeibullPH};
 pub use transforms::{

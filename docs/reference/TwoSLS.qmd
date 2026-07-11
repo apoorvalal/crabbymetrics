@@ -32,6 +32,54 @@ $$
 
 It supports multiple endogenous regressors and excluded instruments.
 
+## Criterion and first-stage projection
+
+Let
+
+$$
+\tilde X=[\mathbf 1,\ X_{\mathrm{endog}},\ X_{\mathrm{exog}}],
+\qquad
+\tilde Z=[\mathbf 1,\ X_{\mathrm{exog}},\ Z_{\mathrm{excluded}}],
+$$
+
+with the intercept omitted from both matrices only when intercept fitting is disabled internally. The implementation first solves $\tilde Z\Pi\approx\tilde X$, forms $\hat X=\tilde Z\hat\Pi=P_Z\tilde X$, and then solves $\hat X\theta\approx y$. Thus the point estimate is
+
+$$
+\hat\theta
+=
+(\tilde X'P_Z\tilde X)^{-1}\tilde X'P_Zy.
+$$
+
+Weighted fitting applies $\sqrt{w_i}$ to $y_i$, every regressor, and every instrument before constructing the projection. The sketched method applies one joint CountSketch to $y$, $\tilde X$, and $\tilde Z$ and performs both stages in the sketched sample; it is an approximate point estimate.
+
+## Inference and weak-instrument test
+
+Define $g_i=z_i\hat u_i$, $G=-\tilde Z'\tilde X/n$, $W=(\tilde Z'\tilde Z/n)^{-1}$, and $A=G'WG$. The homoskedastic covariance is
+
+$$
+\widehat V_{\mathrm{vanilla}}
+=
+\frac{\hat\sigma^2}{n}A^{-1},
+\qquad
+\hat\sigma^2=\frac{\hat u'\hat u}{n-p}.
+$$
+
+The robust estimator replaces $\hat\sigma^2W^{-1}$ with the empirical covariance $\hat\Omega$ of $g_i$:
+
+$$
+\widehat V
+=
+\frac1n A^{-1}G'W\hat\Omega WG A^{-1}.
+$$
+
+The implemented $\hat\Omega$ choices are HC1 iid scores, Bartlett Newey-West scores, and cluster sums with the same finite-sample corrections used by OLS. Wald tests use this covariance. The pairs bootstrap resamples all outcome, regressor, instrument, and weight rows together.
+
+For one endogenous regressor, the Anderson-Rubin method tests $H_0:\beta=\beta_0$ by regressing $y-\beta_0x_{\mathrm{endog}}$ on the included exogenous variables and excluded instruments and jointly testing the excluded-instrument coefficients. It is unavailable with multiple endogenous regressors.
+
+## Performance and numerical behavior
+
+The two least-squares stages scale with the instrument width as well as the regressor width, and inference forms dense instrument and parameter cross-products. Weak instruments do not necessarily cause a numerical error; they instead make $\tilde X'P_Z\tilde X$ poorly conditioned and conventional Wald inference unreliable, which is why the scalar Anderson-Rubin test is exposed. CountSketch reduces the rows used in both point-estimation stages, but the fitted object retains the full sample and evaluates residuals and covariance there. Large instrument sets still incur quadratic storage and cubic dense-factorization costs in their width.
+
 ## Python API
 
 Constructor: `cm.TwoSLS`

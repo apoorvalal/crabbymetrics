@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from statsmodels.sandbox.regression.gmm import IV2SLS
+
 import numpy as np
 import pytest
 
@@ -238,26 +240,49 @@ def twosls_summary_reference(x_endog, x_exog, z, y, kind, lags=None, clusters=No
 
 
 def weighted_twosls_closed_form(x_endog, x_exog, z, y, weights):
+    x_rhs = np.column_stack([x_endog, x_exog])
+    z_rhs = np.column_stack([x_exog, z])
+    x_design = np.column_stack([np.ones(x_rhs.shape[0]), x_rhs])
+    z_design = np.column_stack([np.ones(z_rhs.shape[0]), z_rhs])
     sqrt_w = np.sqrt(weights)
-    return twosls_closed_form(
-        x_endog * sqrt_w[:, None],
-        x_exog * sqrt_w[:, None],
-        z * sqrt_w[:, None],
+    fitted = IV2SLS(
         y * sqrt_w,
-    )
+        x_design * sqrt_w[:, None],
+        z_design * sqrt_w[:, None],
+    ).fit()
+    return fitted.params[0], fitted.params[1:]
 
 
 def weighted_twosls_summary_reference(x_endog, x_exog, z, y, weights, kind, lags=None, clusters=None):
+    x_rhs = np.column_stack([x_endog, x_exog])
+    z_rhs = np.column_stack([x_exog, z])
+    x_design = np.column_stack([np.ones(x_rhs.shape[0]), x_rhs])
+    z_design = np.column_stack([np.ones(z_rhs.shape[0]), z_rhs])
     sqrt_w = np.sqrt(weights)
-    return twosls_summary_reference(
-        x_endog * sqrt_w[:, None],
-        x_exog * sqrt_w[:, None],
-        z * sqrt_w[:, None],
-        y * sqrt_w,
-        kind=kind,
-        lags=lags,
-        clusters=clusters,
-    )
+    x_work = x_design * sqrt_w[:, None]
+    z_work = z_design * sqrt_w[:, None]
+    y_work = y * sqrt_w
+    beta = IV2SLS(y_work, x_work, z_work).fit().params
+    residuals = y_work - x_work @ beta
+    n, p = x_work.shape
+    weight = np.linalg.inv(z_work.T @ z_work / n)
+    jacobian = -(z_work.T @ x_work) / n
+    a_inv = np.linalg.inv(jacobian.T @ weight @ jacobian)
+    if kind == "vanilla":
+        sigma2 = residuals @ residuals / (n - p)
+        cov = a_inv * sigma2 / n
+    else:
+        moment_scores = z_work * residuals[:, None]
+        transform = weight @ jacobian @ a_inv / n
+        param_scores = moment_scores @ transform
+        cov = sandwich_from_parameter_scores(
+            param_scores,
+            df_resid=n - p,
+            kind=kind,
+            lags=lags,
+            clusters=clusters,
+        )
+    return beta, cov
 
 
 def demean_by_group(x, y, groups):
@@ -658,10 +683,11 @@ def test_fixed_effects_ols_summary_supports_newey_west_and_cluster_vcov():
     coef, *_ = np.linalg.lstsq(x_resid, y_resid, rcond=None)
     resid = y_resid - x_resid @ coef
     param_scores = (x_resid * resid[:, None]) @ np.linalg.inv(x_resid.T @ x_resid)
-    cov_nw = sandwich_from_parameter_scores(param_scores, n - x.shape[1], "newey_west", lags=3)
+    residual_df = n - x.shape[1] - np.unique(groups).size
+    cov_nw = sandwich_from_parameter_scores(param_scores, residual_df, "newey_west", lags=3)
     cov_cluster = sandwich_from_parameter_scores(
         param_scores,
-        n - x.shape[1],
+        residual_df,
         "cluster",
         clusters=groups.astype(np.int64),
     )
@@ -677,6 +703,8 @@ def test_fixed_effects_ols_summary_supports_newey_west_and_cluster_vcov():
     )
     assert nw["vcov_type"] == "newey_west"
     assert cluster["vcov_type"] == "cluster"
+    assert nw["residual_df"] == residual_df
+    assert nw["absorbed_df"] == np.unique(groups).size
 
 
 def test_fixed_effects_ols_unit_sample_weights_match_unweighted_fit():
@@ -749,6 +777,28 @@ def test_poisson_predict_round_trip_and_satisfies_score_conditions():
         atol=1e-3,
         rtol=0.0,
     )
+
+
+def test_poisson_rejects_inputs_that_make_the_likelihood_invalid():
+    x = np.array([[0.0], [1.0], [2.0]])
+    y = np.array([0.0, 1.0, 2.0])
+
+    with pytest.raises(ValueError, match="alpha must be finite and nonnegative"):
+        cm.Poisson(alpha=-0.1).fit(x, y)
+    with pytest.raises(ValueError, match="max_iterations must be positive"):
+        cm.Poisson(max_iterations=0).fit(x, y)
+    with pytest.raises(ValueError, match="tolerance must be finite and positive"):
+        cm.Poisson(tolerance=0.0).fit(x, y)
+
+    invalid_y = y.copy()
+    invalid_y[0] = -1.0
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        cm.Poisson().fit(x, invalid_y)
+
+    invalid_x = x.copy()
+    invalid_x[0, 0] = np.inf
+    with pytest.raises(ValueError, match="x must contain only finite values"):
+        cm.Poisson().fit(invalid_x, y)
 
 
 def test_poisson_summary_supports_vanilla_and_qmle_vcov():
@@ -988,6 +1038,7 @@ def test_synthetic_control_recovers_convex_weights_and_post_path():
     np.testing.assert_allclose(weights.sum(), 1.0, atol=1e-8, rtol=0.0)
     assert np.all(weights >= 0.0)
     assert summary["pre_rmse"] < 1e-6
+    assert summary["converged"] is True
     assert model.bootstrap(4, seed=5).shape == (4, donors_pre.shape[1])
 
 
@@ -1050,6 +1101,7 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
     assert np.all(unit_weights >= 0.0)
     assert np.all(time_weights >= 0.0)
     assert summary["pre_rmse"] < 1e-4
+    assert summary["converged"] is True
     assert "event_study" in summary
     assert "group_means" in summary
     assert "weighted" in summary["group_means"]
@@ -1331,3 +1383,21 @@ def test_poisson_prediction_api_exposes_linear_index_and_mean_scale():
 
     np.testing.assert_allclose(mu_hat, np.exp(eta_hat), atol=1e-10, rtol=1e-10)
     assert np.all(mu_hat > 0.0)
+
+
+
+def test_synthetic_estimators_reject_zero_iteration_budget():
+    donors = np.array(
+        [
+            [1.0, 0.0],
+            [0.5, 0.5],
+            [0.0, 1.0],
+        ]
+    )
+    treated = np.array([0.8, 0.5, 0.2])
+    with pytest.raises(ValueError, match="max_iterations must be positive"):
+        cm.SyntheticControl(max_iterations=0).fit(donors, treated)
+
+    panel, treatment = make_synthetic_did_panel(seed=20260712)
+    with pytest.raises(ValueError, match="max_iterations must be positive"):
+        cm.SyntheticDID(max_iterations=0).fit(panel, treatment)

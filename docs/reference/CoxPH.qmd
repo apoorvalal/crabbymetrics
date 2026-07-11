@@ -32,6 +32,34 @@ $$
 
 That means the paved prediction target is relative risk rather than absolute survival. The latent linear index is still useful and is exposed as `predict_lin(x)`.
 
+## Partial likelihood and ties
+
+For event time $t_i$ and risk set $R(t_i)=\{r:t_r\geq t_i\}$, the implementation maximizes
+
+$$
+\ell_p(\beta)
+=
+\sum_{i:d_i=1}
+\left[
+x_i'\beta
+-\log\left\{\sum_{r\in R(t_i)}\exp(x_r'\beta)\right\}
+\right].
+$$
+
+When several events share a time, the same full risk-set denominator is subtracted once per event. This is the Breslow partial-likelihood treatment of ties. Newton updates use the analytic score and information, a $10^{-8}$ ridge in the solve, coordinate-wise step clipping to $[-1,1]$, and backtracking.
+
+Risk-set exponentials are evaluated after clipping $x_r'\beta$ to $[-40,40]$ for stability, while the numerator uses the unclipped index. Outside that range the reported criterion, score, and Hessian are therefore no longer exact derivatives of one common clipped objective. Typical well-scaled fits stay inside the clipping region.
+
+## Inference and prediction
+
+The covariance is the inverse observed partial-likelihood information. Standard errors, normal $z$ statistics, and approximate two-sided chi-square-one $p$-values are derived from it. There is no robust sandwich, clustering, strata, weights, or bootstrap. The class does not estimate a baseline cumulative hazard, so it cannot return survival probabilities; default prediction is $\exp(x'\hat\beta)$ and the linear method returns $x'\hat\beta$.
+
+The iteration count is stored, but the optimizer does not expose a convergence flag and does not raise merely because it reached the configured maximum. Model-based inference assumes independent subjects and a correctly specified proportional-hazards relative-risk model.
+
+## Performance and numerical behavior
+
+The implementation rebuilds every risk set by scanning all $n$ rows for every event and accumulates a dense $p\times p$ second moment. With $E$ events, runtime is approximately $O(Enp^2)$, substantially slower than cumulative-risk-set implementations. The information solve adds $O(p^3)$ per Newton iteration. Prediction exponentiates the unbounded new-data index without clipping, so extreme values can overflow. There is no baseline-hazard storage cost because no baseline is estimated.
+
 ## Python API
 
 Constructor: `cm.CoxPH`

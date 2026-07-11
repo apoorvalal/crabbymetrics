@@ -18,6 +18,33 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
+## Refactor Branch Status (2026-07-10)
+
+The `refactor` branch starts from `origin/master` 0.7.1. The original dirty 0.5.1 audit tree is preserved on `pre-refactor-audit-snapshot`. The correctness pass has completed every P0 and P1 item from `evaluation-review.qmd`:
+
+- correct weighted TwoSLS design and covariance behavior
+- identified and objective-matched likelihood and M-estimator inference
+- explicit no-inference contracts for predictive regularized estimators
+- seeded shuffled DML folds and treatment-stratified AIPW folds
+- absorbed fixed-effect rank in residual degrees of freedom
+- strict covariance-diagonal validation
+- explicit convergence semantics across iterative estimators and optimizers
+- guarded, prediction-only `BaggedPolynomialRegressor` with OOB diagnostics
+
+New estimator work should preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence.
+
+### Estimator Math And API Audit (2026-07-11)
+
+The follow-up audit traced every public estimator through its Rust implementation and documented its implemented criterion or estimating equation, inference method, prediction contract, and performance characteristics in the API references. It also:
+
+- corrected Poisson validation so invalid outcomes, penalties, tolerances, iteration budgets, and nonfinite designs fail before optimization
+- corrected `PCA` explained variance, full-variance ratios, and whitened inverse transformation, with NumPy SVD parity tests
+- added grouped first-class reference coverage for all five public transform classes
+- labeled `FTRL` experimental because its current fit is one full-batch proximal update with fresh state rather than a persistent online algorithm
+- documented that `AndersenGill` cannot produce subject-clustered recurrent-event covariance without a subject identifier
+
+The next estimator branch should resolve those last two public-API questions before adding another broad estimator family.
+
 ## Current Extension Status
 
 ### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.7.1
@@ -142,8 +169,9 @@ Implementation guardrails for sketching work:
   - `Logit`, `MultinomialLogit`, `Poisson`, and the first survival models are in place
   - no negative binomial, grouped/binomial count model, probit, complementary-log-log discrete-time hazard, or baseline survival estimator for Cox-style models yet
 - docs surface depth
-  - the source docs include the new anytime-valid OLS page, but the public site still needs a separate `gh-pages` deployment after the `v0.7.1` source changes
-  - `PCA` and `KernelBasis` have the strongest transform docs; `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` are exported and tested but still need deeper first-class docs if they are meant to be prominent user-facing tools
+  - all public estimator references now document implemented mathematics, inference, and performance behavior
+  - grouped transform references cover `PCA`, `RandomizedPCA`, `KernelBasis`, `NystromBasis`, and `RandomFourierFeatures`
+  - the source docs still require a separate `gh-pages` deployment before the public site reflects the branch
 - IV / GMM diagnostics
   - core fitting and covariance support are there, but richer reporting is still thin
 - `MEstimator`
@@ -151,29 +179,53 @@ Implementation guardrails for sketching work:
 
 ## Highest-Value Next Extensions
 
-### 0. Docs release housekeeping
+### 0. FTRL public API decision
 
-Status: immediate follow-up, not numerical work
+Status: design decision required before promotion
 
 Why it matters:
 
-- `v0.7.1` is live on PyPI, but package release does not publish the Quarto docs site
-- source `master` contains the anytime-valid OLS page and nav/API links
-- the public docs URL is served from `gh-pages`, so a separate render/publish pass is needed for users to see the new page
-- the transform docs are now behind the public Python surface
+- the current `fit` constructs a fresh optimizer, evaluates one full-batch logistic gradient, applies one proximal update, and returns those coefficients
+- there is no intercept, repeated optimization, convergence criterion, `partial_fit`, or persistent optimizer state
+- the class name and standard `fit` shape imply a trained estimator that the implementation does not provide
 
 Scope:
 
-- render enough of `docs/` to include `docs/examples/anytime-valid-ols.qmd`, `docs/api.qmd`, `docs/_quarto.yml`, and search/navigation outputs
-- publish rendered docs through the existing `gh-pages` clone workflow, not by committing rendered artifacts to `master`
-- add compact reference/example coverage for `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`, or explicitly decide they remain advanced utilities documented by the RLA ablation for now
+- preferred path: retain optimizer accumulators in the Python object and expose `partial_fit` for streaming mini-batches
+- define intercept handling, feature-count checks, deterministic zero initialization, and explicit reset semantics
+- make `fit` either run a documented epoch/batch schedule or remove it in favor of the honest online method
+- alternative path: remove `FTRL` from the first-tier public surface if there is no streaming use case
 
 Success condition:
 
-- public docs show the `Anytime-Valid OLS` page and the API overview matches the released `v0.7.1` surface
-- transform docs either cover the exported classes directly or clearly state where those advanced transforms are documented
+- repeated calls have defined stateful semantics and match a hand-calculated FTRL-Proximal update sequence
+- `fit` no longer suggests convergence after one accidental update
+- the class has tests for sparsity, intercept behavior, reset/persistence, and online ordering
 
-### 1. Difference-in-differences and event-study estimators
+### 1. Andersen--Gill subject-clustered inference and risk-set performance
+
+Status: point estimator landed; recurrent-event inference incomplete
+
+Why it matters:
+
+- recurrent event rows from the same subject are dependent
+- the current API has no subject identifier and therefore cannot form a subject-clustered score sandwich
+- `CoxPH` and `AndersenGill` currently scan all rows and rebuild dense second moments for every event, costing approximately $O(Enp^2)$ per Newton iteration
+
+Scope:
+
+- add an explicit subject-ID argument for `AndersenGill`
+- accumulate subject-level score contributions and expose clustered robust covariance as the primary recurrent-event inference path
+- retain inverse-information covariance only as an explicitly naive option
+- replace repeated risk-set scans with cumulative sufficient statistics after sorting by stop time, while preserving Breslow tie handling
+
+Success condition:
+
+- robust covariance matches a trusted counting-process Cox reference on repeated-event data
+- summaries distinguish naive and subject-clustered inference
+- benchmark coverage demonstrates the expected reduction in risk-set work
+
+### 2. Difference-in-differences and event-study estimators
 
 Status: partially started through `SyntheticDID`
 
@@ -196,7 +248,7 @@ Success condition:
 - robust standard errors through the same `summary(vcov=...)` surface
 - one focused vignette with a clear coefficient table
 
-### 2. More likelihood methods
+### 3. More likelihood methods
 
 Status: foundation landed; new families not started
 
@@ -248,7 +300,7 @@ Success condition:
 
 - at least one new likelihood family, ideally NB2, lands with native Rust fitting, layered prediction, covariance summaries, parity/reference tests, and a docs page that explains why it belongs beside the existing Poisson/logit/survival surface.
 
-### 3. Abundance-based constraints beyond OLS
+### 4. Abundance-based constraints beyond OLS
 
 Status: OLS landed; broader families not started
 
@@ -267,7 +319,7 @@ Success condition:
 
 - one vertically complete extension with tests and a focused docs page, not a partial general formula system
 
-### 4. Weighted nonlinear estimators and weighted GMM
+### 5. Weighted nonlinear estimators and weighted GMM
 
 Status: partial foundation only
 
@@ -291,7 +343,7 @@ Success condition:
 - weighted fits and weighted sandwich inference for the nonlinear core estimators
 - tests against hand-coded references or a trusted external implementation
 
-### 5. More IV / GMM diagnostics
+### 6. More IV / GMM diagnostics
 
 Status: partial
 
@@ -312,7 +364,7 @@ Success condition:
 
 ## Medium-Priority Extensions
 
-### 6. Likelihood polish after NB2
+### 7. Likelihood polish after NB2
 
 Status: not started
 
@@ -321,23 +373,24 @@ Notes:
 - grouped binomial / trials, complementary-log-log discrete-time hazards, probit, and Cox baseline survival are all useful, but none should jump ahead of the first new count-family slice unless there is a concrete downstream need
 - keep each addition vertically complete rather than starting a broad unfinished GLM framework
 
-### 7. Better transformer docs and composition
+### 8. Transformer composition only when demanded by workflows
 
-Status: partial
+Status: documentation complete; composition not started
 
 Notes:
 
 - public Python transform classes are `PCA`, `KernelBasis`, `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`
-- the next useful step is richer transform docs/examples first, then lightweight composition helpers if real downstream workflows need them
+- grouped reference pages now document the objective, transform, numerical method, output shape, and scaling of all five classes
+- add lightweight composition helpers only if real downstream workflows demonstrate repeated boilerplate
 - avoid sklearn-style pipeline sprawl
 
-### 8. MEstimator diagnostics cleanup
+### 9. MEstimator diagnostics cleanup
 
 Status: partial
 
 Notes:
 
-- current `MEstimator` is useful for custom objectives, but its variance path is still score-outer-product based and its solver diagnostics are thin
+- current `MEstimator` uses a numerical score Jacobian for the sandwich bread and empirical score outer products for the meat, but its callback-heavy path and solver diagnostics remain thin
 - worth improving only if there is a concrete downstream use case
 
 ## Frisch Status
@@ -369,13 +422,13 @@ Operational note:
 
 ## Recommended Branch Order
 
-1. publish the `v0.7.1` docs site and close the transform-docs gap, if public docs freshness matters before new numerical work
-2. add DiD / event-study support on top of the fixed-effects foundation
-3. add the first new likelihood family, preferably NB2, under the likelihood-methods plan
-4. add weighted nonlinear estimators and weighted GMM
-5. add grouped-binomial / discrete-time-hazard likelihoods or Cox baseline-survival follow-ons, depending on the next concrete use case
-6. add richer IV / GMM diagnostics
-7. consider ABC extensions beyond OLS only if a concrete use case appears
+1. decide whether to rebuild `FTRL` as a persistent online estimator or remove it from the first-tier API
+2. add subject IDs and clustered robust inference to `AndersenGill`, then optimize Cox-family risk-set accumulation
+3. make convergence status explicit for iterative estimators that retain budget-exhausted results
+4. add DiD / event-study support on top of the fixed-effects foundation
+5. add the first new likelihood family, preferably NB2, under the likelihood-methods plan
+6. add weighted nonlinear estimators and weighted GMM
+7. add richer IV / GMM diagnostics, and consider ABC extensions only for a concrete use case
 
 ## Notes for Future Branches
 

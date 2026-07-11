@@ -32,6 +32,47 @@ $$
 
 A scalar penalty gives one ridge fit. A penalty grid with `cv` selects a penalty by cross-validation, stores the coefficient path, and refits on the full sample.
 
+## Criterion and tuning
+
+With $\tilde X=[\mathbf 1,X]$ and $P_\lambda=\operatorname{diag}(0,\lambda,\ldots,\lambda)$, the fitted parameter solves
+
+$$
+\hat\theta_\lambda
+=
+\arg\min_\theta
+\sum_i w_i(y_i-\tilde x_i'\theta)^2+\theta'P_\lambda\theta.
+$$
+
+The penalty is not divided by $n$, so its scale depends on the sample weights and sample size. The intercept is never penalized. The implementation solves an augmented least-squares problem with $\sqrt{\lambda}I$ rows, avoiding an explicit normal-equation inverse for the point estimate.
+
+When given a grid, the class fits every penalty and chooses the lowest mean validation MSE. Folds are deterministic, unshuffled assignments $i\bmod K$; weighted fits use weighted validation MSE. It then selects the corresponding full-sample path coefficient. The grid search does not standardize features, so penalty effects depend directly on column scale.
+
+## Inference
+
+Let $B=\tilde X'\tilde X+P_\lambda$ after any square-root weight transformation and define the effective degrees of freedom
+
+$$
+d_{\mathrm{eff}}
+=
+\operatorname{tr}\{\tilde X'\tilde X B^{-1}\}.
+$$
+
+The model-based covariance is
+
+$$
+\widehat V_{\mathrm{vanilla}}
+=
+\hat\sigma^2B^{-1}\tilde X'\tilde X B^{-1},
+\qquad
+\hat\sigma^2=\frac{e'e}{n-d_{\mathrm{eff}}}.
+$$
+
+HC1, Newey-West, and cluster options use parameter scores $e_i\tilde x_i'B^{-1}$ and the same finite-sample corrections as OLS, replacing $n-p$ by $n-d_{\mathrm{eff}}$. These are conditional linearization variances around the penalized estimator. They do not remove ridge shrinkage bias or account for selecting $\lambda$ by cross-validation. The pairs bootstrap refits at the already selected penalty; it does not rerun the grid search.
+
+## Performance and numerical behavior
+
+A single dense fit has the usual $O(np^2+p^3)$ least-squares cost and $O(np+p^2)$ storage. A path of $K$ penalties repeats that work $K$ times, and $K$-penalty, $F$-fold validation performs about $KF$ additional fits. The implementation does not reuse decompositions across penalties. Dense covariance construction is quadratic in the number of coefficients. Ridge improves conditioning for penalized slopes, but the unpenalized intercept and badly scaled columns can still create numerical problems.
+
 ## Python API
 
 Constructor: `cm.Ridge`

@@ -27,16 +27,61 @@ from _api_doc_utils import *
 `MEstimator` is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:
 
 $$
-\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = H^{-1}\widehat\Omega H^{-1}.
+\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = A^{-1} B A^{-T} / n.
 $$
 
-The class favors flexibility over guardrails.
+The bread $A$ is the numerical Jacobian of the mean score and the meat $B$ is the empirical score outer product. The class checks optimizer convergence and validates score dimensions before reporting inference.
+
+## Objective and estimating equations
+
+The objective callback supplies both $Q_n(\theta)$ and $\nabla Q_n(\theta)$. The class minimizes that objective with seven-vector-memory L-BFGS, a More-Thuente line search, and joint gradient and cost tolerances. A non-converged optimizer result raises rather than storing a fit.
+
+Separately, the score callback must return rows $\psi_i(\theta)'\in\mathbb R^k$. Inference treats the fitted parameter as the solution to
+
+$$
+\frac1n\sum_{i=1}^n\psi_i(\theta)=0.
+$$
+
+The class does not verify that the objective gradient equals the sum of those scores or even that their sample mean is near zero at the optimizer solution. That mathematical consistency is the callback author's responsibility.
+
+## Inference
+
+For coordinate $j$, the mean-score Jacobian is estimated by central differences with
+
+$$
+h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
+$$
+
+$$
+\hat A_{\cdot j}
+=
+\frac{
+\bar\psi(\hat\theta+h_je_j)
+-\bar\psi(\hat\theta-h_je_j)}
+{2h_j},
+\qquad
+\hat B=\frac1n\sum_i\psi_i(\hat\theta)\psi_i(\hat\theta)'.
+$$
+
+The covariance is symmetrized after computing
+
+$$
+\widehat V
+=
+\frac1n\hat A^{-1}\hat B\hat A^{-T}.
+$$
+
+There are no HC, HAC, or cluster variants and no built-in Wald method. The pairs bootstrap is available only when data is a dictionary containing the sample size under the key $n$ and the objective callback honors the injected row-index vector. Bootstrap fits start from the original estimate and abort on the first failed optimization.
+
+## Performance and numerical behavior
+
+Every optimizer cost and gradient request crosses the Python-Rust boundary and calls the objective callback. Covariance requires the score at the fit plus two additional full score evaluations per parameter, so callback work is at least $2k+1$ score matrices of shape $n\times k$. It then stores and factors dense $k\times k$ matrices. Numerical inference is sensitive to the derivative step and fails if $\hat A$ is singular. Cached covariance avoids repeating this work on later summaries, but bootstrap performs one full callback-driven optimization per draw.
 
 ## Python API
 
 Constructor: `cm.MEstimator`
 
-Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.
+Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.
 
 ```{python}
 print(inspect.signature(cm.MEstimator))

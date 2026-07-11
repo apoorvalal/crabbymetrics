@@ -50,7 +50,7 @@ execute:
 - [Multinomial Logit](examples/multinomial-logit.html): multiclass classification.
 - [Poisson](examples/poisson.html): count regression, with model-based or QMLE sandwich inference available from `summary(vcov=...)`.
 - [GMM](examples/gmm.html): fit just-identified score equations, overidentified two-step IV moments, and stacked nuisance-parameter moments with the first-class `GMM` estimator.
-- [FTRL](examples/ftrl.html): online-style binary classification.
+- [FTRL](examples/ftrl.html): experimental one-update FTRL-Proximal classification.
 - [MEstimator Poisson](examples/mestimator-poisson.html): callback-driven estimation matched against the built-in Poisson estimator.
 
 ## Causal Inference Examples

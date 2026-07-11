@@ -28,6 +28,42 @@ from _api_doc_utils import *
 
 The fitted coefficients still live on the proportional-hazards log-risk scale, so the prediction contract mirrors `CoxPH`: latent log hazard ratio plus relative risk.
 
+## Counting-process partial likelihood
+
+For interval record $(s_i,t_i]$, the risk set at event time $t_i$ is
+
+$$
+R(t_i)=\{r:s_r<t_i\leq t_r\}.
+$$
+
+The class maximizes
+
+$$
+\ell_p(\beta)
+=
+\sum_{i:d_i=1}
+\left[
+x_i'\beta
+-\log\left\{\sum_{r\in R(t_i)}\exp(x_r'\beta)\right\}
+\right].
+$$
+
+Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a $10^{-8}$ solve ridge, step clipping, backtracking, and risk-score index clipping to $[-40,40]$ inside the risk sets.
+
+## Inference limitation
+
+The returned covariance is only the inverse observed partial-likelihood information. The API has no subject identifier and cannot aggregate score residuals across multiple intervals belonging to the same subject.
+
+::: {.callout-warning}
+For recurrent-event Andersen-Gill analysis, the usual robust covariance clusters intervals by subject. This class does not implement that covariance. Its reported standard errors and $p$-values treat interval rows through the model-based information and should not be presented as robust recurrent-event inference.
+:::
+
+The class also does not validate that a subject's intervals are nonoverlapping or consistently ordered because subject membership is unavailable. Default prediction is relative risk $\exp(x'\hat\beta)$; no baseline hazard or survival curve is estimated. The reported iteration count does not distinguish convergence from exhausting the maximum.
+
+## Performance and numerical behavior
+
+Every event scans every interval to reconstruct its delayed-entry risk set and accumulates dense second moments, for about $O(Enp^2)$ work per Newton iteration plus an $O(p^3)$ solve. Splitting subjects into more intervals therefore increases both $n$ and often $E$. Risk-set exponentials are clipped but new-data relative-risk predictions are not. This implementation is usable for small counting-process designs and point estimates, but its naive risk-set algorithm and missing subject-cluster covariance are material limitations for production recurrent-event work.
+
 ## Python API
 
 Constructor: `cm.AndersenGill`

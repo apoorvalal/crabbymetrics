@@ -26,6 +26,33 @@ from _api_doc_utils import *
 
 `InteractiveFixedEffects` estimates a low-rank factor structure in a balanced panel. It is closest to a lightweight `fect` helper: remove additive components according to `force`, estimate factors, and reconstruct fitted untreated outcomes.
 
+## Objective and decomposition
+
+For a balanced $T\times N$ outcome matrix, the model is
+
+$$
+Y_{ti}
+=
+\mu+\alpha_i+\xi_t+f_t'\lambda_i+e_{ti}.
+$$
+
+The grand mean $\mu$ is always removed, including when force is zero. Force values one and three include column effects $\alpha_i$; values two and three include row effects $\xi_t$. After those additive effects are removed, the estimator solves the rank-constrained approximation
+
+$$
+\min_{\operatorname{rank}(L)\leq r}
+\|Y-\mu\mathbf1\mathbf1'-\mathbf1\alpha'-\xi\mathbf1'-L\|_F^2.
+$$
+
+With the exact method, $L$ is the rank-$r$ truncated SVD. Factors are normalized as $F=\sqrt{T}U_r$ and loadings as $\Lambda=V_r\operatorname{diag}(s_r)/\sqrt{T}$, so $L=F\Lambda'$. The randomized method substitutes a randomized range finder and truncated SVD controlled by oversampling and power iterations.
+
+## Inference and scope
+
+This class is a matrix decomposition, not a treatment-effect estimator. It returns the in-sample fitted matrix, residuals, additive effects, factors, loadings, and normalized singular-value matrix. It does not select rank, estimate coefficient covariance, provide standard errors, handle missing entries, or extrapolate to new rows or columns. Factor and loading rotations are not separately identified even though their product is.
+
+## Performance and numerical behavior
+
+Exact dense SVD costs approximately $O(\min\{TN^2,T^2N\})$ and stores the full panel. Randomized SVD reduces the leading work to roughly $O(TN(r+s)(q+1))$ for rank $r$, oversampling $s$, and power count $q$, but is approximate and still stores dense matrices. Rank must not exceed $\min(T,N)$. Because only complete balanced panels are accepted, use MatrixCompletion when treated or otherwise missing cells must be excluded from fitting.
+
 ## Python API
 
 Constructor: `cm.InteractiveFixedEffects`

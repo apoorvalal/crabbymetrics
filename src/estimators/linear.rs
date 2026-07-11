@@ -1,12 +1,12 @@
 use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
-    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, ols_vanilla_cov, pyarray1_from_f64,
+    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
     solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_u32,
     take_rows_vec, to_array1, to_array1_i64, to_array2, to_array2_u32, validate_sample_weight,
 };
-use argmin::core::{CostFunction, Executor, Gradient};
+use argmin::core::{CostFunction, Executor, Gradient, State, TerminationReason, TerminationStatus};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use nalgebra::DMatrix;
@@ -18,6 +18,7 @@ use pyo3::types::PyDict;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use std::collections::{BTreeMap, BTreeSet};
 use within::{Solver as WithinSolver, SolverParams as WithinSolverParams};
 
 struct FixedEffectsOlsFitResult {
@@ -26,8 +27,83 @@ struct FixedEffectsOlsFitResult {
     y_resid: Array1<f64>,
 }
 
+struct UnionFind {
+    parent: Vec<usize>,
+}
+
+impl UnionFind {
+    fn new(size: usize) -> Self {
+        Self {
+            parent: (0..size).collect(),
+        }
+    }
+
+    fn find(&mut self, value: usize) -> usize {
+        let parent = self.parent[value];
+        if parent != value {
+            self.parent[value] = self.find(parent);
+        }
+        self.parent[value]
+    }
+
+    fn union(&mut self, left: usize, right: usize) {
+        let left_root = self.find(left);
+        let right_root = self.find(right);
+        if left_root != right_root {
+            self.parent[right_root] = left_root;
+        }
+    }
+}
+
+fn observed_level_map(fe: &Array2<u32>, column: usize) -> BTreeMap<u32, usize> {
+    let levels: BTreeSet<u32> = fe.column(column).iter().copied().collect();
+    levels
+        .into_iter()
+        .enumerate()
+        .map(|(index, level)| (level, index))
+        .collect()
+}
+
+fn absorbed_fe_rank(fe: &Array2<u32>) -> Result<(usize, &'static str), String> {
+    match fe.ncols() {
+        0 => Err("fe must have at least one column".to_string()),
+        1 => Ok((observed_level_map(fe, 0).len(), "exact_one_way")),
+        2 => {
+            let first = observed_level_map(fe, 0);
+            let second = observed_level_map(fe, 1);
+            let offset = first.len();
+            let mut components = UnionFind::new(first.len() + second.len());
+            for row in 0..fe.nrows() {
+                components.union(first[&fe[[row, 0]]], offset + second[&fe[[row, 1]]]);
+            }
+            let n_components = (0..(first.len() + second.len()))
+                .map(|index| components.find(index))
+                .collect::<BTreeSet<_>>()
+                .len();
+            Ok((first.len() + second.len() - n_components, "exact_two_way"))
+        }
+        n_dimensions => {
+            let total_levels: usize = (0..n_dimensions)
+                .map(|column| observed_level_map(fe, column).len())
+                .sum();
+            Ok((
+                total_levels.saturating_sub(n_dimensions - 1),
+                "conservative_multiway",
+            ))
+        }
+    }
+}
+
 struct TwoSlsFitResult {
     params: Array1<f64>,
+}
+
+fn optimization_success(status: &TerminationStatus) -> bool {
+    matches!(
+        status,
+        TerminationStatus::Terminated(TerminationReason::SolverConverged)
+            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
+    )
 }
 
 fn combine_endog_exog(x_endog: &Array2<f64>, x_exog: &Array2<f64>) -> PyResult<Array2<f64>> {
@@ -153,6 +229,7 @@ fn ols_hc_covariance(
     design: &Array2<f64>,
     residuals: &Array1<f64>,
     kind: &str,
+    residual_df: f64,
 ) -> Result<Array2<f64>, String> {
     let n = design.nrows();
     let p = design.ncols();
@@ -172,7 +249,7 @@ fn ols_hc_covariance(
         let mut weight = residuals[i] * residuals[i];
         match kind {
             "hc0" => {}
-            "hc1" => weight *= n as f64 / (n - p) as f64,
+            "hc1" => weight *= n as f64 / residual_df,
             "hc2" => weight /= denom,
             "hc3" => weight /= denom * denom,
             _ => return Err("vcov must be one of {'hc0', 'hc1', 'hc2', 'hc3'}".to_string()),
@@ -191,27 +268,30 @@ fn linear_covariance(
     vcov: &str,
     lags: Option<usize>,
     clusters: Option<&Array1<i64>>,
+    residual_df: Option<f64>,
 ) -> Result<Array2<f64>, String> {
     let n = design.nrows();
     let p = design.ncols();
     if residuals.len() != n {
         return Err("residual length mismatch".to_string());
     }
+    let df_resid = residual_df.unwrap_or(n as f64 - p as f64);
+    if df_resid <= 0.0 {
+        return Err("need positive residual degrees of freedom".to_string());
+    }
 
     match vcov {
-        "vanilla" => ols_vanilla_cov(design, residuals),
-        "hc0" | "hc1" | "hc2" | "hc3" => ols_hc_covariance(design, residuals, vcov),
+        "vanilla" => {
+            let xtx_inv = invert_matrix(&design.t().dot(design))?;
+            let sigma2 = residuals.dot(residuals) / df_resid;
+            Ok(xtx_inv.mapv(|value| value * sigma2))
+        }
+        "hc0" | "hc1" | "hc2" | "hc3" => ols_hc_covariance(design, residuals, vcov, df_resid),
         "newey_west" | "cluster" => {
             let xtx = design.t().dot(design);
             let bread = invert_matrix(&xtx)?;
             let param_scores = linear_parameter_scores(design, residuals, &bread)?;
-            sandwich_cov_from_parameter_scores(
-                &param_scores,
-                vcov,
-                n as f64 - p as f64,
-                lags,
-                clusters,
-            )
+            sandwich_cov_from_parameter_scores(&param_scores, vcov, df_resid, lags, clusters)
         }
         _ => Err(
             "vcov must be one of {'vanilla', 'hc0', 'hc1', 'hc2', 'hc3', 'newey_west', 'cluster'}"
@@ -371,41 +451,21 @@ fn fit_two_sls_closed_form(
         return Err(PyValueError::new_err("row count mismatch"));
     }
 
+    let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, fit_intercept)?;
     let sqrt_weight = sqrt_sample_weight(sample_weight, y.len()).map_err(PyValueError::new_err)?;
-    let x_endog_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_rows(x_endog, scale).map_err(PyValueError::new_err)?,
-        None => x_endog.clone(),
-    };
-    let x_exog_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_rows(x_exog, scale).map_err(PyValueError::new_err)?,
-        None => x_exog.clone(),
-    };
-    let z_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_rows(z, scale).map_err(PyValueError::new_err)?,
-        None => z.clone(),
-    };
-    let y_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_vec(y, scale).map_err(PyValueError::new_err)?,
-        None => y.clone(),
+    let (x_work, z_work, y_work) = match sqrt_weight.as_ref() {
+        Some(scale) => (
+            scale_rows(&x_design, scale).map_err(PyValueError::new_err)?,
+            scale_rows(&z_design, scale).map_err(PyValueError::new_err)?,
+            scale_vec(y, scale).map_err(PyValueError::new_err)?,
+        ),
+        None => (x_design, z_design, y.clone()),
     };
 
-    let (_x_design, z_design) =
-        build_iv_designs(&x_endog_work, &x_exog_work, &z_work, fit_intercept)?;
-    let x_endog_hat =
-        solve_least_squares_mat(&z_design, &x_endog_work).map(|pi_hat| z_design.dot(&pi_hat));
-    let x_endog_hat = x_endog_hat.map_err(PyValueError::new_err)?;
-    let x_hat_rhs = if x_exog_work.ncols() > 0 {
-        concatenate(Axis(1), &[x_endog_hat.view(), x_exog_work.view()])
-            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-    } else {
-        x_endog_hat
-    };
-    let x_hat_design = if fit_intercept {
-        add_intercept(&x_hat_rhs)
-    } else {
-        x_hat_rhs
-    };
-    let params = solve_least_squares_vec(&x_hat_design, &y_work).map_err(PyValueError::new_err)?;
+    let x_hat = solve_least_squares_mat(&z_work, &x_work)
+        .map(|pi_hat| z_work.dot(&pi_hat))
+        .map_err(PyValueError::new_err)?;
+    let params = solve_least_squares_vec(&x_hat, &y_work).map_err(PyValueError::new_err)?;
 
     Ok(TwoSlsFitResult { params })
 }
@@ -516,6 +576,9 @@ fn fit_synthetic_control_weights(
     treated: &Array1<f64>,
     max_iterations: u64,
 ) -> PyResult<Array1<f64>> {
+    if max_iterations == 0 {
+        return Err(PyValueError::new_err("max_iterations must be positive"));
+    }
     if donors.nrows() != treated.len() {
         return Err(PyValueError::new_err(
             "donor rows must match treated length",
@@ -539,13 +602,23 @@ fn fit_synthetic_control_weights(
     };
     let theta0 = Array1::<f64>::zeros(donors.ncols());
     let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7);
+    let solver = LBFGS::new(linesearch, 7)
+        .with_tolerance_grad(1e-8)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?
+        .with_tolerance_cost(1e-12)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
     let mut result = Executor::new(problem, solver)
         .configure(|state| state.param(theta0).max_iters(max_iterations))
         .run()
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+    if !optimization_success(result.state.get_termination_status()) {
+        return Err(PyValueError::new_err(format!(
+            "simplex optimization did not converge: {}",
+            result.state.get_termination_status()
+        )));
+    }
     let theta = result
         .state
         .take_best_param()
@@ -561,6 +634,9 @@ fn fit_simplex_least_squares_weights(
     intercept: bool,
     max_iterations: u64,
 ) -> PyResult<Array1<f64>> {
+    if max_iterations == 0 {
+        return Err(PyValueError::new_err("max_iterations must be positive"));
+    }
     if design.nrows() != target.len() {
         return Err(PyValueError::new_err(
             "design rows must match target length",
@@ -587,13 +663,23 @@ fn fit_simplex_least_squares_weights(
     };
     let theta0 = Array1::<f64>::zeros(design.ncols());
     let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7);
+    let solver = LBFGS::new(linesearch, 7)
+        .with_tolerance_grad(1e-8)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?
+        .with_tolerance_cost(1e-12)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
     let mut result = Executor::new(problem, solver)
         .configure(|state| state.param(theta0).max_iters(max_iterations))
         .run()
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+    if !optimization_success(result.state.get_termination_status()) {
+        return Err(PyValueError::new_err(format!(
+            "simplex optimization did not converge: {}",
+            result.state.get_termination_status()
+        )));
+    }
     let theta = result
         .state
         .take_best_param()
@@ -1691,9 +1777,10 @@ impl OLS {
             &vcov_normalized,
             lags,
             cluster_ids.as_ref(),
+            None,
         )
         .map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept, coef, intercept_se, coef_se) = if self.fit_intercept {
             (
@@ -1809,6 +1896,7 @@ impl OLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            None,
         )
         .map_err(PyValueError::new_err)?;
         let rmat = to_array2(&r);
@@ -2007,6 +2095,18 @@ impl FixedEffectsOLS {
             .y_resid
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No residualized response stored"))?;
+        let fe = self
+            .fe
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
+        let (absorbed_df, absorbed_df_method) =
+            absorbed_fe_rank(fe).map_err(PyValueError::new_err)?;
+        let residual_df = y_resid.len() as f64 - x_resid.ncols() as f64 - absorbed_df as f64;
+        if residual_df <= 0.0 {
+            return Err(PyValueError::new_err(
+                "absorbed fixed effects leave no residual degrees of freedom",
+            ));
+        }
         let sample_weight = self.sample_weight.as_ref();
 
         let residuals = y_resid - &x_resid.dot(coef);
@@ -2019,15 +2119,19 @@ impl FixedEffectsOLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            Some(residual_df),
         )
         .map_err(PyValueError::new_err)?;
-        let coef_se = diag_sqrt(&cov);
+        let coef_se = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", pyarray1_from_f64(py, coef))?;
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
+        dict.set_item("absorbed_df", absorbed_df)?;
+        dict.set_item("residual_df", residual_df)?;
+        dict.set_item("absorbed_df_method", absorbed_df_method)?;
         Ok(dict.into())
     }
 
@@ -2053,6 +2157,17 @@ impl FixedEffectsOLS {
             .y_resid
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No residualized response stored"))?;
+        let fe = self
+            .fe
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
+        let (absorbed_df, _) = absorbed_fe_rank(fe).map_err(PyValueError::new_err)?;
+        let residual_df = y_resid.len() as f64 - x_resid.ncols() as f64 - absorbed_df as f64;
+        if residual_df <= 0.0 {
+            return Err(PyValueError::new_err(
+                "absorbed fixed effects leave no residual degrees of freedom",
+            ));
+        }
         let vcov = vcov.unwrap_or("hc1");
         let residuals = y_resid - &x_resid.dot(coef);
         let (design_work, residuals_work) =
@@ -2065,6 +2180,7 @@ impl FixedEffectsOLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            Some(residual_df),
         )
         .map_err(PyValueError::new_err)?;
         let rmat = to_array2(&r);
@@ -2902,6 +3018,7 @@ impl SyntheticControl {
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("weights", pyarray1_from_f64(py, weights))?;
         dict.set_item("pre_rmse", synthetic_control_rmse(donors, treated, weights))?;
+        dict.set_item("converged", true)?;
         Ok(dict.into())
     }
 
@@ -3366,6 +3483,7 @@ impl SyntheticDID {
         dict.set_item("control_units", self.control_units.clone())?;
         dict.set_item("treated_units", self.treated_units.clone())?;
         dict.set_item("cohorts", self.cohorts.clone())?;
+        dict.set_item("converged", true)?;
         Ok(dict.into())
     }
 
@@ -3599,26 +3717,16 @@ impl TwoSLS {
         } else {
             params.assign(fitted_coef);
         }
-        let (x_design_work, z_design_work, y_work) = match sample_weight {
-            Some(weights) => {
-                let sqrt_weight = sqrt_sample_weight(Some(weights), y.len())
-                    .map_err(PyValueError::new_err)?
-                    .expect("weights were provided");
-                let x_endog_work =
-                    scale_rows(x_endog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let x_exog_work =
-                    scale_rows(x_exog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let z_work = scale_rows(z, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let y_work = scale_vec(y, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let (x_design_work, z_design_work) =
-                    build_iv_designs(&x_endog_work, &x_exog_work, &z_work, self.fit_intercept)?;
-                (x_design_work, z_design_work, y_work)
-            }
-            None => {
-                let (x_design, z_design) =
-                    build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
-                (x_design, z_design, y.clone())
-            }
+        let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+        let sqrt_weight =
+            sqrt_sample_weight(sample_weight, y.len()).map_err(PyValueError::new_err)?;
+        let (x_design_work, z_design_work, y_work) = match sqrt_weight.as_ref() {
+            Some(scale) => (
+                scale_rows(&x_design, scale).map_err(PyValueError::new_err)?,
+                scale_rows(&z_design, scale).map_err(PyValueError::new_err)?,
+                scale_vec(y, scale).map_err(PyValueError::new_err)?,
+            ),
+            None => (x_design, z_design, y.clone()),
         };
         let residuals = y_work - &x_design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
@@ -3631,7 +3739,7 @@ impl TwoSLS {
             cluster_ids.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
-        let se_all = diag_sqrt(&cov);
+        let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let (intercept_se, coef_se) = if self.fit_intercept {
             (Some(se_all[0]), se_all.slice(s![1..]).to_owned())
@@ -3688,26 +3796,16 @@ impl TwoSLS {
         } else {
             params.assign(fitted_coef);
         }
-        let (x_design_work, z_design_work, y_work) = match self.sample_weight.as_ref() {
-            Some(weights) => {
-                let sqrt_weight = sqrt_sample_weight(Some(weights), y.len())
-                    .map_err(PyValueError::new_err)?
-                    .expect("weights were provided");
-                let x_endog_work =
-                    scale_rows(x_endog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let x_exog_work =
-                    scale_rows(x_exog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let z_work = scale_rows(z, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let y_work = scale_vec(y, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let (x_design_work, z_design_work) =
-                    build_iv_designs(&x_endog_work, &x_exog_work, &z_work, self.fit_intercept)?;
-                (x_design_work, z_design_work, y_work)
-            }
-            None => {
-                let (x_design, z_design) =
-                    build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
-                (x_design, z_design, y.clone())
-            }
+        let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+        let sqrt_weight = sqrt_sample_weight(self.sample_weight.as_ref(), y.len())
+            .map_err(PyValueError::new_err)?;
+        let (x_design_work, z_design_work, y_work) = match sqrt_weight.as_ref() {
+            Some(scale) => (
+                scale_rows(&x_design, scale).map_err(PyValueError::new_err)?,
+                scale_rows(&z_design, scale).map_err(PyValueError::new_err)?,
+                scale_vec(y, scale).map_err(PyValueError::new_err)?,
+            ),
+            None => (x_design, z_design, y.clone()),
         };
         let residuals = y_work - &x_design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
@@ -3785,8 +3883,15 @@ impl TwoSLS {
             solve_least_squares_vec(&design_work, &y_work).map_err(PyValueError::new_err)?;
         let residuals = y_work - &design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
-        let cov = linear_covariance(&design_work, &residuals, vcov, lags, cluster_ids.as_ref())
-            .map_err(PyValueError::new_err)?;
+        let cov = linear_covariance(
+            &design_work,
+            &residuals,
+            vcov,
+            lags,
+            cluster_ids.as_ref(),
+            None,
+        )
+        .map_err(PyValueError::new_err)?;
 
         let df1 = z.ncols();
         let df2 = design_work.nrows() - design_work.ncols();

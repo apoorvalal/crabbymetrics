@@ -32,6 +32,73 @@ $$
 
 The objective can be quadratic or entropy-like, with optional lower/upper bounds and ridge stabilization.
 
+## Calibration system and numerical objective
+
+Let $\bar x_T$ be the optionally weighted target mean and define calibration rows
+
+$$
+z_i=(1,\ x_i-\bar x_T)'.
+$$
+
+Weights are normalized implicitly by solving $Z'w=e_1$. For entropy calibration, the dual map is
+
+$$
+w_i(\beta)=
+\begin{cases}
+\exp(z_i'\beta), & \text{without baseline weights},\\
+q_i\exp(z_i'\beta-1), & \text{with normalized baseline }q_i,
+\end{cases}
+$$
+
+clipped to the configured box when the bounded phase is needed. For quadratic calibration it is
+
+$$
+w_i(\beta)=
+\begin{cases}
+z_i'\beta, & \text{without baseline weights},\\
+q_i(1+z_i'\beta), & \text{with baseline }q_i,
+\end{cases}
+$$
+
+again clipped to the weight box. Thus the objective name selects the primal calibration geometry and corresponding dual weight map; it is not the literal function passed to the optimizer.
+
+For allowed L2 imbalance $\delta$, define
+
+$$
+s(\beta_{-0})
+=
+\begin{cases}
+\delta\,\beta_{-0}/\|\beta_{-0}\|_2,&\|\beta_{-0}\|_2>0,\\
+0,&\text{otherwise}.
+\end{cases}
+$$
+
+The numerical solver minimizes
+
+$$
+\frac12\|r(\beta)\|_2^2,
+\qquad
+r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
+$$
+
+Gauss-Newton uses the analytic residual Jacobian with a small $10^{-8}$ normal-equation ridge and backtracking. Automatic mode tries Gauss-Newton first and falls back to BFGS only when needed. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.
+
+## Diagnostics and inference
+
+There is no outcome model, treatment-effect estimand, standard error, or covariance calculation. The fitted object returns normalized weights, original-scale mean differences, effective sample size
+
+$$
+\mathrm{ESS}=\frac{1}{\sum_i w_i^2},
+$$
+
+the dual coefficient, and solver diagnostics. A successful fit must satisfy calibration residual tolerance, weight sum and bounds, and the L2 mean-difference tolerance.
+
+With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. The final success check also compares the unscaled mean-difference norm to the same L2 tolerance. Consequently, success can be false even when the scaled calibration system converged; the reported original-scale mean differences should be inspected directly.
+
+## Performance and numerical behavior
+
+For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. BFGS fallback adds repeated residual and Jacobian evaluations. Tight box constraints or an infeasible balance tolerance can leave a finite set of weights with success false rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped.
+
 ## Python API
 
 Constructor: `cm.BalancingWeights`
