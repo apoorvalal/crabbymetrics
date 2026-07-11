@@ -45,9 +45,11 @@ The follow-up audit traced every public estimator through its Rust implementatio
 
 The next estimator branch should resolve those last two public-API questions before adding another broad estimator family.
 
+The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07-11. The release includes Linux and macOS wheels for Python 3.10 through 3.14, a small docs-excluded sdist, and the separately deployed full Quarto site.
+
 ## Current Extension Status
 
-### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.7.1
+### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
 
 The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
 
@@ -57,7 +59,7 @@ The 2026-05 through 2026-06 extension sequence landed several items that used to
 - Anytime-valid OLS is landed and released in `v0.7.1`. `OLS.summary(...)` now accepts `anytime_valid=True`, `g=...`, and `level=...`, while module-level `optimal_g(...)` and `av(...)` cover the convenience path. Tests compare against `avlm` reference values.
 - The v0.7.0 MLE prediction overhaul is landed. `Logit`, `MultinomialLogit`, and `Poisson` now follow the layered `predict_lin(...)` / `predict(...)` / classifier-only `predict_label(...)` contract, documented in `docs/examples/mle-prediction-interface.qmd`.
 - The first survival/event-time module is landed. `ExponentialPH`, `WeibullPH`, `CoxPH`, and `AndersenGill` are exported, tested against simulated DGPs and `lifelines`, and documented through reference pages plus survival vignettes.
-- Release automation for the current shape is working: `v0.7.1` built Linux/macOS wheels for Python 3.10 through 3.14, published a small sdist, created the GitHub Release, and published to PyPI.
+- Release automation for the current shape is working: `v0.8.0` built Linux/macOS wheels for Python 3.10 through 3.14, published a 410,390-byte sdist, created the GitHub Release, and published to PyPI.
 
 
 ### Sketching / randomized linear algebra follow-on plan
@@ -171,7 +173,7 @@ Implementation guardrails for sketching work:
 - docs surface depth
   - all public estimator references now document implemented mathematics, inference, and performance behavior
   - grouped transform references cover `PCA`, `RandomizedPCA`, `KernelBasis`, `NystromBasis`, and `RandomFourierFeatures`
-  - the source docs still require a separate `gh-pages` deployment before the public site reflects the branch
+  - all 94 pages render from the `v0.8.0` tag and are deployed separately through `gh-pages`
 - IV / GMM diagnostics
   - core fitting and covariance support are there, but richer reporting is still thin
 - `MEstimator`

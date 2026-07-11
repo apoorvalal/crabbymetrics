@@ -9,7 +9,7 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.7.1` is published to PyPI and GitHub Releases. The release contains the anytime-valid OLS surface added in PR #14, plus the broader `v0.7.0` docs / likelihood / survival work.
+Current release state: `v0.8.0` is published to PyPI and GitHub Releases. It contains the estimator-correctness remediation, complete estimator math/API audit, guarded `BaggedPolynomialRegressor`, and PCA/Poisson corrections merged in PR #16, in addition to the earlier anytime-valid OLS, likelihood, and survival work.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
@@ -21,7 +21,7 @@ The `refactor` branch was created from `origin/master` 0.7.0 after preserving th
 
 The follow-up source audit covers every public estimator and all five public transforms. Each API reference now states the implemented objective or estimating equations, covariance or inferential method, prediction contract, and the relevant dense computational scaling. The audit also corrected Poisson input validation and the PCA explained-variance and whitening-inverse formulas. FTRL is now explicitly labeled experimental because its current Python fit performs only one full-batch proximal update; Andersen--Gill is explicitly limited to inverse-information covariance because the API has no subject identifier for clustered recurrent-event inference.
 
-Current validation is 143 passing Python tests and 3 passing Rust tests. The API overview and all 31 reference pages render with live Python execution, displayed mathematics, and visible estimator code. A whole-site review preview is available at `https://lalten.org/drafts/crabbymetrics-pr16-estimator-docs/`; the full executing site remains blocked at the pre-existing Ding chapter that expects absent `ding_w_source/repl/nhanes_bmi.csv`. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
+Current validation is 143 passing Python tests and 3 passing Rust tests. The `v0.8.0` release-tag build renders all 94 Quarto pages with live Python execution, including the API overview, all 31 reference pages, and the Ding pages. The earlier Ding failure was a local path problem: `ding_w_source` pointed at the replication directory while the pages correctly append `repl/`; the symlink now points at the parent `Ding_CausalInference` directory. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
 
 ## Repository Layout
 
@@ -198,14 +198,14 @@ For estimator docs, `ABCOLS` now has both a worked example page (`docs/examples/
 
 Anytime-valid OLS is documented through a worked page (`docs/examples/anytime-valid-ols.qmd`) rather than a class reference page, because the public surface is `OLS.summary(..., anytime_valid=True, ...)` plus module-level helpers `av(...)` and `optimal_g(...)`.
 
-The v0.7.x docs architecture uses `docs/api.qmd` as the full API landing page and keeps the navbar slimmer:
+The v0.8.x docs architecture uses `docs/api.qmd` as the full API landing page and keeps the navbar slimmer:
 
 - `API` links to grouped anchors for regression/GLMs, survival/event-time models, causal inference/panels, hypothesis testing, transforms, and estimation interfaces.
 - `Regression And GLMs` includes the `mle-prediction-interface` vignette documenting the layered MLE prediction contract.
 - `Survival / Time-to-Event / Recurrent Events` has both a richer worked example and compact class reference pages for `ExponentialPH`, `WeibullPH`, `CoxPH`, and `AndersenGill`.
 - `Transforms` includes grouped PCA and kernel-transform reference pages covering `PCA`, `RandomizedPCA`, `KernelBasis`, `NystromBasis`, and `RandomFourierFeatures`.
 
-Important docs deployment note: the PyPI release workflow does not deploy the Quarto site. After `v0.7.1`, source `master` contains the anytime-valid OLS page and nav/API links, but public GitHub Pages still needs the separate `gh-pages` publish path before the live site reflects those source docs.
+Important docs deployment note: the PyPI release workflow does not deploy the Quarto site. The full `v0.8.0` site is rendered separately from the release tag and published through the `gh-pages` clone workflow; rendered HTML remains off `master`.
 
 The translation rule for that section is:
 
@@ -439,7 +439,7 @@ Current expectations:
 - `cargo check` is the main Rust sanity pass
 - `uv run quarto render docs` is part of verification for any docs-heavy branch
 
-As of `v0.7.1`, the Python regression suite has 126 test functions across 16 test files.
+As of `v0.8.0`, the Python regression suite has 143 passing tests.
 
 The test suite now covers:
 
@@ -455,7 +455,7 @@ The test suite now covers:
 
 ### Public docs deployment is separate from package release
 
-`v0.7.1` is published to PyPI, but GitHub Pages is served from `gh-pages`, not from `master`. Docs changes such as `docs/examples/anytime-valid-ols.qmd` need the separate rendered-site deployment workflow before they are visible at the public docs URL.
+`v0.8.0` is published to PyPI, but GitHub Pages is served from `gh-pages`, not from `master`. The release site is therefore rebuilt and pushed separately; generated HTML, search indexes, and Quarto execution artifacts stay off the source branch.
 
 ### Transform math and numerical contracts are now explicit
 
@@ -594,3 +594,12 @@ That is the current state the next extension branch should assume.
 - Local pre-release sdist sanity check produced a small source distribution (`crabbymetrics-0.7.0.tar.gz` at roughly 370 KiB before the workflow bumped the version); the published `v0.7.1` GitHub Release sdist is similarly small (`crabbymetrics-0.7.1.tar.gz`, 377,323 bytes).
 - Current release links: PyPI latest is `0.7.1`; GitHub Release is `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.7.1`; release workflow run is `https://github.com/apoorvalal/crabbymetrics/actions/runs/28292326463`.
 - Follow-up still pending: deploy rendered docs to `gh-pages` if the public docs site should show the new anytime-valid OLS page immediately.
+
+## 2026-07-11 v0.8.0 Estimator Audit Release
+
+- PR #16 landed via squash merge as `bbf7868 Correct estimator inference, add bagged polynomial regression, and audit APIs (#16)`.
+- Released `v0.8.0` through the `Build wheels` workflow at `https://github.com/apoorvalal/crabbymetrics/actions/runs/29166538588`.
+- The workflow passed Python 3.10 and 3.12 test jobs, built Linux and macOS wheels for Python 3.10 through 3.14, published 10 wheels plus a 410,390-byte sdist, created the GitHub Release, and published to PyPI.
+- Local release gates passed with 143 Python tests, 3 Rust tests, Rust formatting, and a clean-checkout 404 KiB sdist containing neither `docs/` nor the untracked local `ding_ci` notebooks.
+- Rebuilt all 94 public Quarto pages from the `v0.8.0` tag. The stale local `ding_w_source` symlink had pointed one directory too deep; pointing it at the parent `Ding_CausalInference` directory restored every external replication-data path.
+- Release links: PyPI version `0.8.0`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.0`; public docs `https://apoorvalal.github.io/crabbymetrics/`.
