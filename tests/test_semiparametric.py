@@ -33,12 +33,25 @@ def _manual_iv(x, z, y):
     return np.linalg.lstsq(x_hat, y, rcond=None)[0]
 
 
-def _kfold_splits(n, n_folds, seed):
+def _splitmix64(value):
+    mask = (1 << 64) - 1
+    value = (value + 0x9E3779B97F4A7C15) & mask
+    value = ((value ^ (value >> 30)) * 0xBF58476D1CE4E5B9) & mask
+    value = ((value ^ (value >> 27)) * 0x94D049BB133111EB) & mask
+    return value ^ (value >> 31)
+
+
+def _kfold_splits(n, n_folds, seed, strata=None):
     k = min(n, n_folds)
     fold_id = np.empty(n, dtype=int)
-    offset = seed % k
-    for idx in range(n):
-        fold_id[idx] = (idx + offset) % k
+    if strata is None:
+        groups = [np.arange(n)]
+    else:
+        groups = [np.flatnonzero(strata == 0.0), np.flatnonzero(strata == 1.0)]
+    for group in groups:
+        ordered = sorted(group, key=lambda idx: _splitmix64(seed ^ int(idx)))
+        for position, idx in enumerate(ordered):
+            fold_id[idx] = position % k
     out = []
     for fold in range(k):
         test_idx = np.flatnonzero(fold_id == fold)
@@ -179,7 +192,7 @@ def test_aipw_matches_manual_crossfit_formula():
     mu0_hat = np.zeros_like(y)
     mu1_hat = np.zeros_like(y)
     pi_hat = np.zeros_like(y)
-    for train_idx, test_idx in _kfold_splits(len(y), 5, 29):
+    for train_idx, test_idx in _kfold_splits(len(y), 5, 29, strata=d):
         train_d = d[train_idx]
         treat_idx = train_idx[train_d == 1.0]
         control_idx = train_idx[train_d == 0.0]
