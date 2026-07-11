@@ -12,6 +12,9 @@ use ndarray::{s, Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
+use rand::{Rng, SeedableRng};
 
 fn parse_penalties(value: &Bound<'_, PyAny>) -> PyResult<Array1<f64>> {
     let penalties = if let Ok(scalar) = value.extract::<f64>() {
@@ -277,6 +280,164 @@ fn ridge_covariance(
             sandwich_cov_from_parameter_scores(&param_scores, vcov, denom, lags, clusters)
         }
         _ => Err("vcov must be one of {'hc1', 'vanilla', 'newey_west', 'cluster'}".to_string()),
+    }
+}
+
+const MAX_POLYNOMIAL_TERMS: usize = 100_000;
+const MAX_POLYNOMIAL_DESIGN_CELLS: usize = 50_000_000;
+
+fn validate_finite_array1(name: &str, values: &Array1<f64>) -> Result<(), String> {
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(format!("{} must contain only finite values", name));
+    }
+    Ok(())
+}
+
+fn validate_finite_array2(name: &str, values: &Array2<f64>) -> Result<(), String> {
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err(format!("{} must contain only finite values", name));
+    }
+    Ok(())
+}
+
+fn polynomial_term_count(n_features: usize, degree: usize) -> Result<usize, String> {
+    if n_features == 0 {
+        return Err("x must have at least one feature".to_string());
+    }
+    if degree == 0 {
+        return Err("degree must be at least 1".to_string());
+    }
+
+    let mut combinations = 1_u128;
+    for current_degree in 1..=degree {
+        combinations = combinations
+            .checked_mul((n_features + current_degree) as u128)
+            .ok_or_else(|| "polynomial term count overflowed".to_string())?
+            / current_degree as u128;
+    }
+    let count = combinations
+        .checked_sub(1)
+        .ok_or_else(|| "polynomial term count underflowed".to_string())?;
+    if count > MAX_POLYNOMIAL_TERMS as u128 {
+        return Err(format!(
+            "polynomial design has {} terms; maximum supported is {}",
+            count, MAX_POLYNOMIAL_TERMS
+        ));
+    }
+    Ok(count as usize)
+}
+
+fn validate_polynomial_design_size(n_rows: usize, n_terms: usize) -> Result<(), String> {
+    let cells = n_rows
+        .checked_mul(n_terms + 1)
+        .ok_or_else(|| "polynomial design size overflowed".to_string())?;
+    if cells > MAX_POLYNOMIAL_DESIGN_CELLS {
+        return Err(format!(
+            "polynomial design needs {} cells; maximum supported is {}",
+            cells, MAX_POLYNOMIAL_DESIGN_CELLS
+        ));
+    }
+    Ok(())
+}
+
+fn append_polynomial_terms(
+    n_features: usize,
+    start: usize,
+    remaining_degree: usize,
+    current: &mut Vec<usize>,
+    terms: &mut Vec<Vec<usize>>,
+) {
+    if remaining_degree == 0 {
+        terms.push(current.clone());
+        return;
+    }
+    for feature in start..n_features {
+        current.push(feature);
+        append_polynomial_terms(n_features, feature, remaining_degree - 1, current, terms);
+        current.pop();
+    }
+}
+
+fn polynomial_terms(n_features: usize, degree: usize) -> Result<Vec<Vec<usize>>, String> {
+    let expected = polynomial_term_count(n_features, degree)?;
+    let mut terms = Vec::with_capacity(expected);
+    let mut current = Vec::new();
+    for term_degree in 1..=degree {
+        append_polynomial_terms(n_features, 0, term_degree, &mut current, &mut terms);
+    }
+    Ok(terms)
+}
+
+fn select_columns(x: &Array2<f64>, columns: &[usize]) -> Array2<f64> {
+    let mut out = Array2::<f64>::zeros((x.nrows(), columns.len()));
+    for (j, col) in columns.iter().enumerate() {
+        out.column_mut(j).assign(&x.column(*col));
+    }
+    out
+}
+
+fn polynomial_design(x: &Array2<f64>, terms: &[Vec<usize>]) -> Result<Array2<f64>, String> {
+    validate_polynomial_design_size(x.nrows(), terms.len())?;
+    let mut out = Array2::<f64>::ones((x.nrows(), terms.len()));
+    for (j, term) in terms.iter().enumerate() {
+        for feature in term {
+            for i in 0..x.nrows() {
+                out[[i, j]] *= x[[i, *feature]];
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn standardize_polynomial_design(poly: &mut Array2<f64>) -> (Array1<f64>, Array1<f64>) {
+    let mut means = Array1::<f64>::zeros(poly.ncols());
+    let mut scales = Array1::<f64>::ones(poly.ncols());
+    for j in 0..poly.ncols() {
+        let mean = poly.column(j).mean().unwrap_or(0.0);
+        let variance = poly
+            .column(j)
+            .iter()
+            .map(|value| (value - mean).powi(2))
+            .sum::<f64>()
+            / poly.nrows() as f64;
+        let scale = variance.sqrt();
+        means[j] = mean;
+        if scale > 1e-12 {
+            scales[j] = scale;
+        }
+        for i in 0..poly.nrows() {
+            poly[[i, j]] = (poly[[i, j]] - means[j]) / scales[j];
+        }
+    }
+    (means, scales)
+}
+
+struct PolynomialBaseLearner {
+    features: Vec<usize>,
+    terms: std::sync::Arc<Vec<Vec<usize>>>,
+    term_means: Array1<f64>,
+    term_scales: Array1<f64>,
+    params: Array1<f64>,
+    train_mse: f64,
+}
+
+impl PolynomialBaseLearner {
+    fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>, String> {
+        if self.features.iter().any(|feature| *feature >= x.ncols()) {
+            return Err("x has fewer columns than the fitted model expects".to_string());
+        }
+        let x_sub = select_columns(x, &self.features);
+        let mut poly = polynomial_design(&x_sub, self.terms.as_ref())?;
+        for j in 0..poly.ncols() {
+            for i in 0..poly.nrows() {
+                poly[[i, j]] = (poly[[i, j]] - self.term_means[j]) / self.term_scales[j];
+            }
+        }
+        let design = add_intercept(&poly);
+        if design.ncols() != self.params.len() {
+            return Err("base learner parameter length mismatch".to_string());
+        }
+        Ok(design.dot(&self.params))
     }
 }
 
@@ -580,6 +741,250 @@ impl Ridge {
         }
 
         Ok(pyarray2_from_f64(py, &out))
+    }
+}
+
+#[pyclass]
+pub struct BaggedPolynomialRegressor {
+    n_estimators: usize,
+    degree: usize,
+    max_features: Option<usize>,
+    max_samples: Option<usize>,
+    bootstrap: bool,
+    penalty: f64,
+    seed: u64,
+    learners: Option<Vec<PolynomialBaseLearner>>,
+    n_features_in: Option<usize>,
+    max_features_fitted: Option<usize>,
+    max_samples_fitted: Option<usize>,
+    n_terms: Option<usize>,
+    oob_mse: Option<f64>,
+    oob_coverage: f64,
+}
+
+#[pymethods]
+impl BaggedPolynomialRegressor {
+    #[new]
+    #[pyo3(signature = (n_estimators=50, degree=2, max_features=None, max_samples=None, bootstrap=true, penalty=1.0, seed=42))]
+    fn new(
+        n_estimators: usize,
+        degree: usize,
+        max_features: Option<usize>,
+        max_samples: Option<usize>,
+        bootstrap: bool,
+        penalty: f64,
+        seed: u64,
+    ) -> PyResult<Self> {
+        if n_estimators == 0 {
+            return Err(PyValueError::new_err("n_estimators must be at least 1"));
+        }
+        if degree == 0 {
+            return Err(PyValueError::new_err("degree must be at least 1"));
+        }
+        if !penalty.is_finite() || penalty < 0.0 {
+            return Err(PyValueError::new_err(
+                "penalty must be finite and nonnegative",
+            ));
+        }
+        if matches!(max_features, Some(0)) {
+            return Err(PyValueError::new_err("max_features must be at least 1"));
+        }
+        if matches!(max_samples, Some(0)) {
+            return Err(PyValueError::new_err("max_samples must be at least 1"));
+        }
+        Ok(Self {
+            n_estimators,
+            degree,
+            max_features,
+            max_samples,
+            bootstrap,
+            penalty,
+            seed,
+            learners: None,
+            n_features_in: None,
+            max_features_fitted: None,
+            max_samples_fitted: None,
+            n_terms: None,
+            oob_mse: None,
+            oob_coverage: 0.0,
+        })
+    }
+
+    fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+        let x = to_array2(&x);
+        let y = to_array1(&y);
+        if x.nrows() != y.len() {
+            return Err(PyValueError::new_err("x rows must match y length"));
+        }
+        if x.nrows() == 0 {
+            return Err(PyValueError::new_err("x must have at least one row"));
+        }
+        if x.ncols() == 0 {
+            return Err(PyValueError::new_err("x must have at least one feature"));
+        }
+        validate_finite_array2("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite_array1("y", &y).map_err(PyValueError::new_err)?;
+
+        let n = x.nrows();
+        let p = x.ncols();
+        let max_features = self.max_features.unwrap_or(p);
+        if max_features > p {
+            return Err(PyValueError::new_err(
+                "max_features cannot exceed the number of x columns",
+            ));
+        }
+        let max_samples = self.max_samples.unwrap_or(n);
+        if max_samples > n {
+            return Err(PyValueError::new_err(
+                "max_samples cannot exceed the number of x rows",
+            ));
+        }
+
+        let terms = std::sync::Arc::new(
+            polynomial_terms(max_features, self.degree).map_err(PyValueError::new_err)?,
+        );
+        validate_polynomial_design_size(max_samples, terms.len()).map_err(PyValueError::new_err)?;
+
+        let mut rng = StdRng::seed_from_u64(self.seed);
+        let mut learners = Vec::with_capacity(self.n_estimators);
+        let all_features: Vec<usize> = (0..p).collect();
+        let mut oob_sum = Array1::<f64>::zeros(n);
+        let mut oob_count = vec![0_usize; n];
+
+        for _ in 0..self.n_estimators {
+            let row_idx: Vec<usize> = if self.bootstrap {
+                (0..max_samples).map(|_| rng.gen_range(0..n)).collect()
+            } else {
+                let mut rows: Vec<usize> = (0..n).collect();
+                rows.shuffle(&mut rng);
+                rows.truncate(max_samples);
+                rows.sort_unstable();
+                rows
+            };
+            let mut in_bag = vec![false; n];
+            for row in &row_idx {
+                in_bag[*row] = true;
+            }
+
+            let mut feature_idx = all_features.clone();
+            feature_idx.shuffle(&mut rng);
+            feature_idx.truncate(max_features);
+            feature_idx.sort_unstable();
+
+            let x_rows = take_rows(&x, &row_idx);
+            let y_rows = take_rows_vec(&y, &row_idx);
+            let x_sub = select_columns(&x_rows, &feature_idx);
+            let mut poly =
+                polynomial_design(&x_sub, terms.as_ref()).map_err(PyValueError::new_err)?;
+            let (term_means, term_scales) = standardize_polynomial_design(&mut poly);
+            let design = add_intercept(&poly);
+            let params = fit_ridge_params(&design, &y_rows, self.penalty, true, None)
+                .map_err(PyValueError::new_err)?;
+            let residuals = &y_rows - &design.dot(&params);
+            let train_mse = residuals.dot(&residuals) / residuals.len() as f64;
+
+            let learner = PolynomialBaseLearner {
+                features: feature_idx,
+                terms: terms.clone(),
+                term_means,
+                term_scales,
+                params,
+                train_mse,
+            };
+            if self.bootstrap {
+                let prediction = learner.predict(&x).map_err(PyValueError::new_err)?;
+                for i in 0..n {
+                    if !in_bag[i] {
+                        oob_sum[i] += prediction[i];
+                        oob_count[i] += 1;
+                    }
+                }
+            }
+            learners.push(learner);
+        }
+
+        let covered: Vec<usize> = (0..n).filter(|i| oob_count[*i] > 0).collect();
+        self.oob_coverage = covered.len() as f64 / n as f64;
+        self.oob_mse = if covered.is_empty() {
+            None
+        } else {
+            let squared_error = covered
+                .iter()
+                .map(|i| {
+                    let prediction = oob_sum[*i] / oob_count[*i] as f64;
+                    (y[*i] - prediction).powi(2)
+                })
+                .sum::<f64>();
+            Some(squared_error / covered.len() as f64)
+        };
+        self.learners = Some(learners);
+        self.n_features_in = Some(p);
+        self.max_features_fitted = Some(max_features);
+        self.max_samples_fitted = Some(max_samples);
+        self.n_terms = Some(terms.len());
+        Ok(())
+    }
+
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let learners = self.learners.as_ref().ok_or_else(|| {
+            PyValueError::new_err("BaggedPolynomialRegressor model is not fitted")
+        })?;
+        let expected_features = self.n_features_in.ok_or_else(|| {
+            PyValueError::new_err("BaggedPolynomialRegressor model is not fitted")
+        })?;
+        let x = to_array2(&x);
+        if x.ncols() != expected_features {
+            return Err(PyValueError::new_err(format!(
+                "x has {} columns; fitted model expects {}",
+                x.ncols(),
+                expected_features
+            )));
+        }
+        validate_finite_array2("x", &x).map_err(PyValueError::new_err)?;
+        validate_polynomial_design_size(x.nrows(), self.n_terms.unwrap_or(0))
+            .map_err(PyValueError::new_err)?;
+
+        let mut prediction = Array1::<f64>::zeros(x.nrows());
+        for learner in learners {
+            prediction = prediction + learner.predict(&x).map_err(PyValueError::new_err)?;
+        }
+        prediction /= learners.len() as f64;
+        Ok(pyarray1_from_f64(py, &prediction))
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let learners = self.learners.as_ref().ok_or_else(|| {
+            PyValueError::new_err("BaggedPolynomialRegressor model is not fitted")
+        })?;
+        let feature_indices: Vec<Vec<usize>> = learners
+            .iter()
+            .map(|learner| learner.features.clone())
+            .collect();
+        let term_counts = vec![self.n_terms.unwrap_or(0); learners.len()];
+        let train_mse =
+            Array1::from_vec(learners.iter().map(|learner| learner.train_mse).collect());
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("n_estimators", self.n_estimators)?;
+        dict.set_item("degree", self.degree)?;
+        dict.set_item("max_features", self.max_features_fitted)?;
+        dict.set_item("max_samples", self.max_samples_fitted)?;
+        dict.set_item("bootstrap", self.bootstrap)?;
+        dict.set_item("penalty", self.penalty)?;
+        dict.set_item("seed", self.seed)?;
+        dict.set_item("n_features_in", self.n_features_in)?;
+        dict.set_item("n_terms", self.n_terms)?;
+        dict.set_item("feature_indices", feature_indices)?;
+        dict.set_item("term_counts", term_counts)?;
+        dict.set_item("train_mse", pyarray1_from_f64(py, &train_mse))?;
+        dict.set_item("oob_mse", self.oob_mse)?;
+        dict.set_item("oob_coverage", self.oob_coverage)?;
+        dict.set_item("inference_available", false)?;
+        Ok(dict.into())
     }
 }
 
