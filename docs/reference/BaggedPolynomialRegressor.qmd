@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: true
+    code-fold: false
     code-summary: "Show code"
 execute:
   echo: true

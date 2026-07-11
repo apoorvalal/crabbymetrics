@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: true
+    code-fold: false
 execute:
   echo: true
   warning: false
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: true
+#| code-fold: false
 def moments(theta, data):
     resid = data['y'] - data['x'] * theta[0]
     return data['z'] * resid[:, None]

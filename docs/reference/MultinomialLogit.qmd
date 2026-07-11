@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: true
+    code-fold: false
 execute:
   echo: true
   warning: false
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: true
+#| code-fold: false
 rng = np.random.default_rng(6)
 x = rng.normal(size=(240, 2))
 logits = x @ np.array([[0.6, -0.3], [-0.4, 0.5], [0.2, 0.2]]).T + np.array([0.1, -0.2, 0.0])
