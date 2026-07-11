@@ -284,12 +284,18 @@ fn solve_gauss_newton(
         iter += 1;
         theta = candidate;
 
-        if (current_criterion - accepted_criterion).abs() < tolerance || iter >= max_iterations {
+        if (current_criterion - accepted_criterion).abs() < tolerance {
             return Ok(FitResult {
                 theta,
                 criterion: accepted_criterion,
                 nit: iter,
             });
+        }
+        if iter >= max_iterations {
+            return Err(PyValueError::new_err(format!(
+                "GMM optimization did not converge within {} iterations",
+                max_iterations
+            )));
         }
     }
 }
@@ -689,6 +695,7 @@ impl GMM {
         dict.set_item("vcov", pyarray2_from_f64(py, &covariance))?;
         dict.set_item("criterion", self.criterion)?;
         dict.set_item("nit", self.nit)?;
+        dict.set_item("converged", true)?;
         dict.set_item("weighting", self.weighting.clone())?;
         dict.set_item("vcov_type", vcov)?;
         dict.set_item(

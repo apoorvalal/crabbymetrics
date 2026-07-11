@@ -584,9 +584,14 @@ pub fn minimize_gauss_newton_ls<'py>(
             .jacobian(&x)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+        if jacobian.len() != residual.len() || jacobian.iter().any(|row| row.len() != x.len()) {
+            return Err(PyValueError::new_err(
+                "Jacobian shape must be (n_residuals, n_parameters)",
+            ));
+        }
         let residual_arr = array1_from_vec(&residual);
         let jacobian_arr = Array2::from_shape_vec(
-            (jacobian.len(), x.len()),
+            (residual.len(), x.len()),
             jacobian.into_iter().flatten().collect(),
         )
         .map_err(|_| PyValueError::new_err("Invalid Jacobian shape"))?;
@@ -594,9 +599,17 @@ pub fn minimize_gauss_newton_ls<'py>(
 
         let jt = jacobian_arr.t().to_owned();
         let gradient = jt.dot(&residual_arr);
+        if gradient.dot(&gradient).sqrt() <= tolerance {
+            status = TerminationStatus::Terminated(TerminationReason::SolverConverged);
+            break;
+        }
         let normal = jt.dot(&jacobian_arr);
         let inv = crate::utils::invert_matrix(&normal).map_err(PyValueError::new_err)?;
         let step = inv.dot(&gradient);
+        if step.dot(&step).sqrt() <= tolerance {
+            status = TerminationStatus::Terminated(TerminationReason::SolverConverged);
+            break;
+        }
 
         let mut alpha = 1.0;
         let mut accepted = false;
@@ -679,7 +692,6 @@ pub fn minimize_simulated_annealing<'py>(
     }
 
     let x0 = to_array1(&x0);
-    let initial_fun = call_objective_array1(&fun, &x0)?;
     let fun_eval = Python::with_gil(|py| fun.clone_ref(py));
     let (lower_bound, upper_bound) = optional_bounds(&x0, lower.as_ref(), upper.as_ref())?;
     let rng = match seed {
@@ -711,20 +723,12 @@ pub fn minimize_simulated_annealing<'py>(
         PyValueError::new_err("Simulated annealing did not produce a parameter vector")
     })?;
     let fun_value = call_objective_array1(&fun_eval, &x)?;
-    let status = result.state.get_termination_status();
-    let success = optimization_success(status) || fun_value <= initial_fun;
-    let message = if success && !optimization_success(status) {
-        "Returned best solution after fixed annealing budget".to_string()
-    } else {
-        status.to_string()
-    };
-    optimize_result_dict_explicit(
+    optimize_result_dict(
         py,
         &x,
         fun_value,
         result.state.get_iter(),
-        success,
-        &message,
+        result.state.get_termination_status(),
         "simulated_annealing",
     )
 }

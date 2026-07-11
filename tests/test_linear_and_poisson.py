@@ -1016,6 +1016,7 @@ def test_synthetic_control_recovers_convex_weights_and_post_path():
     np.testing.assert_allclose(weights.sum(), 1.0, atol=1e-8, rtol=0.0)
     assert np.all(weights >= 0.0)
     assert summary["pre_rmse"] < 1e-6
+    assert summary["converged"] is True
     assert model.bootstrap(4, seed=5).shape == (4, donors_pre.shape[1])
 
 
@@ -1078,6 +1079,7 @@ def test_synthetic_did_recovers_constant_effect_in_factor_panel():
     assert np.all(unit_weights >= 0.0)
     assert np.all(time_weights >= 0.0)
     assert summary["pre_rmse"] < 1e-4
+    assert summary["converged"] is True
     assert "event_study" in summary
     assert "group_means" in summary
     assert "weighted" in summary["group_means"]
@@ -1359,3 +1361,21 @@ def test_poisson_prediction_api_exposes_linear_index_and_mean_scale():
 
     np.testing.assert_allclose(mu_hat, np.exp(eta_hat), atol=1e-10, rtol=1e-10)
     assert np.all(mu_hat > 0.0)
+
+
+
+def test_synthetic_estimators_reject_zero_iteration_budget():
+    donors = np.array(
+        [
+            [1.0, 0.0],
+            [0.5, 0.5],
+            [0.0, 1.0],
+        ]
+    )
+    treated = np.array([0.8, 0.5, 0.2])
+    with pytest.raises(ValueError, match="max_iterations must be positive"):
+        cm.SyntheticControl(max_iterations=0).fit(donors, treated)
+
+    panel, treatment = make_synthetic_did_panel(seed=20260712)
+    with pytest.raises(ValueError, match="max_iterations must be positive"):
+        cm.SyntheticDID(max_iterations=0).fit(panel, treatment)

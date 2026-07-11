@@ -267,3 +267,18 @@ def test_gmm_fit_sketch_rejects_too_small_sketch():
     model = cm.GMM(moments)
     with np.testing.assert_raises(ValueError):
         model.fit_sketch({}, np.zeros(2), sketch_size=1)
+
+
+
+def test_gmm_rejects_nonconverged_iteration_budget():
+    def nonlinear_moments(theta, data):
+        del data
+        return np.full((40, 1), theta[0] ** 2 - 2.0)
+
+    model = cm.GMM(
+        nonlinear_moments,
+        max_iterations=1,
+        tolerance=1e-14,
+    )
+    with np.testing.assert_raises_regex(ValueError, "did not converge"):
+        model.fit({}, np.array([10.0]), weighting="identity")

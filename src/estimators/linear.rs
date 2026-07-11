@@ -6,7 +6,7 @@ use crate::utils::{
     solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_u32,
     take_rows_vec, to_array1, to_array1_i64, to_array2, to_array2_u32, validate_sample_weight,
 };
-use argmin::core::{CostFunction, Executor, Gradient};
+use argmin::core::{CostFunction, Executor, Gradient, State, TerminationReason, TerminationStatus};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use nalgebra::DMatrix;
@@ -96,6 +96,14 @@ fn absorbed_fe_rank(fe: &Array2<u32>) -> Result<(usize, &'static str), String> {
 
 struct TwoSlsFitResult {
     params: Array1<f64>,
+}
+
+fn optimization_success(status: &TerminationStatus) -> bool {
+    matches!(
+        status,
+        TerminationStatus::Terminated(TerminationReason::SolverConverged)
+            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
+    )
 }
 
 fn combine_endog_exog(x_endog: &Array2<f64>, x_exog: &Array2<f64>) -> PyResult<Array2<f64>> {
@@ -489,6 +497,9 @@ fn fit_synthetic_control_weights(
     treated: &Array1<f64>,
     max_iterations: u64,
 ) -> PyResult<Array1<f64>> {
+    if max_iterations == 0 {
+        return Err(PyValueError::new_err("max_iterations must be positive"));
+    }
     if donors.nrows() != treated.len() {
         return Err(PyValueError::new_err(
             "donor rows must match treated length",
@@ -512,13 +523,23 @@ fn fit_synthetic_control_weights(
     };
     let theta0 = Array1::<f64>::zeros(donors.ncols());
     let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7);
+    let solver = LBFGS::new(linesearch, 7)
+        .with_tolerance_grad(1e-8)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?
+        .with_tolerance_cost(1e-12)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
     let mut result = Executor::new(problem, solver)
         .configure(|state| state.param(theta0).max_iters(max_iterations))
         .run()
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+    if !optimization_success(result.state.get_termination_status()) {
+        return Err(PyValueError::new_err(format!(
+            "simplex optimization did not converge: {}",
+            result.state.get_termination_status()
+        )));
+    }
     let theta = result
         .state
         .take_best_param()
@@ -534,6 +555,9 @@ fn fit_simplex_least_squares_weights(
     intercept: bool,
     max_iterations: u64,
 ) -> PyResult<Array1<f64>> {
+    if max_iterations == 0 {
+        return Err(PyValueError::new_err("max_iterations must be positive"));
+    }
     if design.nrows() != target.len() {
         return Err(PyValueError::new_err(
             "design rows must match target length",
@@ -560,13 +584,23 @@ fn fit_simplex_least_squares_weights(
     };
     let theta0 = Array1::<f64>::zeros(design.ncols());
     let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7);
+    let solver = LBFGS::new(linesearch, 7)
+        .with_tolerance_grad(1e-8)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?
+        .with_tolerance_cost(1e-12)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
     let mut result = Executor::new(problem, solver)
         .configure(|state| state.param(theta0).max_iters(max_iterations))
         .run()
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+    if !optimization_success(result.state.get_termination_status()) {
+        return Err(PyValueError::new_err(format!(
+            "simplex optimization did not converge: {}",
+            result.state.get_termination_status()
+        )));
+    }
     let theta = result
         .state
         .take_best_param()
@@ -2793,6 +2827,7 @@ impl SyntheticControl {
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("weights", pyarray1_from_f64(py, weights))?;
         dict.set_item("pre_rmse", synthetic_control_rmse(donors, treated, weights))?;
+        dict.set_item("converged", true)?;
         Ok(dict.into())
     }
 
@@ -3257,6 +3292,7 @@ impl SyntheticDID {
         dict.set_item("control_units", self.control_units.clone())?;
         dict.set_item("treated_units", self.treated_units.clone())?;
         dict.set_item("cohorts", self.cohorts.clone())?;
+        dict.set_item("converged", true)?;
         Ok(dict.into())
     }
 

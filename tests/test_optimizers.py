@@ -67,5 +67,35 @@ def test_simulated_annealing_finds_low_cost_solution():
 
     assert result["fun"] < 0.1
     assert abs(result["x"][0] - 1.5) < 0.35
-    assert result["success"]
+    assert not result["success"]
     assert result["method"] == "simulated_annealing"
+
+
+
+def test_gauss_newton_accepts_an_exact_initial_solution():
+    target = np.array([1.0, -2.0])
+    result = cm.Optimizers.minimize_gauss_newton_ls(
+        residual,
+        target,
+        jacobian,
+        max_iterations=5,
+        tolerance=1e-10,
+    )
+
+    np.testing.assert_allclose(result["x"], target, atol=0.0, rtol=0.0)
+    assert result["fun"] == 0.0
+    assert result["nit"] == 0
+    assert result["success"]
+
+
+def test_gauss_newton_rejects_incompatible_jacobian_shape():
+    def bad_jacobian(theta):
+        del theta
+        return np.ones((1, 2))
+
+    with np.testing.assert_raises_regex(ValueError, "Jacobian shape"):
+        cm.Optimizers.minimize_gauss_newton_ls(
+            residual,
+            np.array([5.0, 5.0]),
+            bad_jacobian,
+        )
