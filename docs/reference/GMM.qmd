@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -36,7 +36,7 @@ The user supplies a Python callback returning the per-observation moment matrix.
 
 Constructor: `cm.GMM`
 
-Construct with `GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-6, ridge=1e-8, fd_eps=1e-6)`. `fit(data, theta0, weighting='auto')` stores the fitted parameters. `fit_sketch(...)` row-sketches the moment problem. `summary(vcov='sandwich', omega='iid', lags=None, clusters=None)` controls inference.
+Construct with `GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-6, ridge=1e-8, fd_eps=1e-6)`. `fit(data, theta0, weighting='auto')` stores the fitted parameters and raises when the iteration budget is exhausted without meeting the convergence tolerance. `fit_sketch(...)` row-sketches the moment problem. `summary(vcov='sandwich', omega='iid', lags=None, clusters=None)` controls inference.
 
 ```{python}
 print(inspect.signature(cm.GMM))
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 def moments(theta, data):
     resid = data['y'] - data['x'] * theta[0]
     return data['z'] * resid[:, None]

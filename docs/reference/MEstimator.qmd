@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -27,16 +27,16 @@ from _api_doc_utils import *
 `MEstimator` is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:
 
 $$
-\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = H^{-1}\widehat\Omega H^{-1}.
+\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = A^{-1} B A^{-T} / n.
 $$
 
-The class favors flexibility over guardrails.
+The bread $A$ is the numerical Jacobian of the mean score and the meat $B$ is the empirical score outer product. The class checks optimizer convergence and validates score dimensions before reporting inference.
 
 ## Python API
 
 Constructor: `cm.MEstimator`
 
-Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.
+Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-5)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.
 
 ```{python}
 print(inspect.signature(cm.MEstimator))
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 def obj(theta, data):
     X, y = (data['X'], data['y'])
     idx = data.get('indices', np.arange(len(y)))

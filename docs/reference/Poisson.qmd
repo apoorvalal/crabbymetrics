@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -30,7 +30,7 @@ $$
 \mathbb E[Y_i\mid X_i=x_i]=\exp(\alpha+x_i'\beta).
 $$
 
-The `alpha` constructor argument is an L2 penalty, not the intercept. `summary(vcov='vanilla')` reports Fisher-information standard errors; `summary(vcov='sandwich')` reports robust QMLE-style standard errors.
+The `alpha` constructor argument is an L2 penalty, not the intercept. For `alpha=0`, `summary(vcov='vanilla')` reports Fisher-information standard errors and `summary(vcov='sandwich')` reports robust QMLE-style standard errors. Penalized fits mark inference unavailable and omit `se`/`vcov`.
 
 ## Python API
 
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 rng = np.random.default_rng(7)
 x = rng.normal(size=(250, 2))
 mu = np.exp(0.2 + x @ np.array([0.4, -0.25]))

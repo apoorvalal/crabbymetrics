@@ -1,0 +1,84 @@
+---
+title: "BaggedPolynomialRegressor"
+subtitle: "Bagged random-subspace polynomial ridge regression"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+```{python}
+from _api_doc_utils import *
+```
+
+## Where it fits
+
+**Group:** Regression
+
+`BaggedPolynomialRegressor` is a prediction-only ensemble. Each base learner samples rows and a feature subspace, expands the selected features into monomials of total degree one through $d$, standardizes those polynomial columns, fits ridge regression, and contributes to the averaged prediction.
+
+For $k$ selected features, each base learner uses
+
+$$
+\binom{k+d}{d}-1
+$$
+
+non-intercept polynomial terms. The estimator checks this count and the dense design size before allocation.
+
+## Python API
+
+Constructor: `cm.BaggedPolynomialRegressor`
+
+Use `BaggedPolynomialRegressor(n_estimators, degree, max_features, max_samples, bootstrap, penalty, seed)`, then `fit(x, y)`, `predict(x)`, and `summary()`. It does not report coefficient standard errors. With bootstrap sampling, `summary()` reports out-of-bag MSE and coverage.
+
+```{python}
+print(inspect.signature(cm.BaggedPolynomialRegressor))
+```
+
+```{python}
+display(HTML(html_table(["Public method"], public_methods(cm.BaggedPolynomialRegressor))))
+```
+
+## Minimal example
+
+```{python}
+rng = np.random.default_rng(18)
+x = rng.normal(size=(320, 6))
+y = 0.5 + 0.8 * x[:, 0] * x[:, 1] - 0.4 * x[:, 2] ** 2
+y += rng.normal(scale=0.2, size=x.shape[0])
+
+model = cm.BaggedPolynomialRegressor(
+    n_estimators=40,
+    degree=2,
+    max_features=4,
+    max_samples=240,
+    penalty=0.5,
+    seed=18,
+)
+model.fit(x, y)
+print(model.predict(x[:3]))
+print(model.summary()["oob_mse"])
+```
+
+## `summary()` contract
+
+```{python}
+summary = model.summary()
+display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))))
+```
+
+`max_features` and `max_samples` are resolved fitted values rather than possible `None` constructor values. `n_terms` is the checked polynomial width per base learner. `feature_indices` records each random subspace. `oob_mse` is `None` when no observation receives an out-of-bag prediction.
+
+## Resource policy
+
+Polynomial expansion is dense. The implementation rejects more than 100,000 polynomial terms per learner or more than 50 million cells in one polynomial design. Reduce `degree`, `max_features`, or `max_samples` when a guard triggers.

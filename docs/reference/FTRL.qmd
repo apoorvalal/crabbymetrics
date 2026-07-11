@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -32,7 +32,7 @@ The exposed class is deliberately simple: fit once on a design matrix and binary
 
 Constructor: `cm.FTRL`
 
-Call `FTRL(alpha, beta, l1_ratio, l2_ratio)`, then `fit(x, y_int32)`. `predict(x)` returns scores in `[0, 1]`; `summary()` returns coefficient estimates and standard errors.
+Call `FTRL(alpha, beta, l1_ratio, l2_ratio)`, then `fit(x, y_int32)`. `predict(x)` returns scores in `[0, 1]`; `summary()` returns coefficient estimates and marks analytic inference unavailable for the penalized online estimator.
 
 ```{python}
 print(inspect.signature(cm.FTRL))
@@ -46,7 +46,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 rng = np.random.default_rng(8)
 x = rng.normal(size=(220, 4))
 p = 1 / (1 + np.exp(-(x @ np.array([0.7, -0.4, 0.2, 0.3]))))

@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -36,7 +36,7 @@ It is useful when the goal is prediction or sparse regularized coefficients rath
 
 Constructor: `cm.ElasticNet`
 
-Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates and approximate HC-style standard errors.
+Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates and marks analytic inference unavailable. Bootstrap coefficient draws are stability diagnostics, not automatic confidence intervals.
 
 ```{python}
 print(inspect.signature(cm.ElasticNet))
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 rng = np.random.default_rng(4)
 x = rng.normal(size=(180, 8))
 y = 0.4 + x[:, :3] @ np.array([1.0, -0.8, 0.5]) + rng.normal(scale=0.5, size=180)

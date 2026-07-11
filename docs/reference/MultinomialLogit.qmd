@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -30,13 +30,13 @@ $$
 \Pr(Y_i=k\mid X_i=x_i)=\frac{\exp(\alpha_k+x_i'\beta_k)}{\sum_\ell \exp(\alpha_\ell+x_i'\beta_\ell)}.
 $$
 
-The summary packs coefficients and standard errors by class.
+The summary identifies the last sorted class as `reference_class` and reports identifiable class-versus-reference coefficient contrasts. Fisher-information standard errors are available only for `alpha=0`.
 
 ## Python API
 
 Constructor: `cm.MultinomialLogit`
 
-Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns class labels. `summary()` returns `coef` and `se` matrices rather than the scalar-intercept/vector-coefficient schema used by binary GLMs.
+Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns class labels. `summary()` returns contrast rows aligned with `class_labels`; penalized fits mark inference unavailable and omit `se`/`vcov`.
 
 ```{python}
 print(inspect.signature(cm.MultinomialLogit))
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 rng = np.random.default_rng(6)
 x = rng.normal(size=(240, 2))
 logits = x @ np.array([[0.6, -0.3], [-0.4, 0.5], [0.2, 0.2]]).T + np.array([0.1, -0.2, 0.0])

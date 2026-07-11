@@ -4,6 +4,7 @@ project:
   render:
     - index.qmd
     - api.qmd
+    - evaluation-review.qmd
     - reference/*.qmd
     - first-course-ding.qmd
     - ding/*.qmd
@@ -40,6 +41,8 @@ website:
             text: Transforms
           - href: api.qmd#estimation-interfaces-and-optimizers
             text: Estimation Interfaces
+      - href: evaluation-review.qmd
+        text: Evaluation Review
       - href: mechanics-ols.qmd
         text: Binding Crash Course
       - text: Regression And GLMs
@@ -50,6 +53,8 @@ website:
             text: ABC OLS
           - href: examples/ridge.qmd
             text: Ridge
+          - href: examples/bagged-polynomial-regression.qmd
+            text: Bagged Polynomial Regression
           - href: examples/fixed-effects-ols.qmd
             text: Fixed Effects OLS
           - href: examples/elastic-net.qmd

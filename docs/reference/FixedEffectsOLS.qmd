@@ -8,7 +8,7 @@ format:
     number-sections: true
     embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -36,7 +36,7 @@ The fixed-effect matrix `fe` is a 2D `uint32` array of zero-based category codes
 
 Constructor: `cm.FixedEffectsOLS`
 
-Call `fit(x, fe, y)` or `fit_weighted(x, fe, y, sample_weight)`. There is no `predict()` because the class is estimation-first and does not materialize fixed-effect coefficients. `summary()` supports the same covariance options as the other linear estimators.
+Call `fit(x, fe, y)` or `fit_weighted(x, fe, y, sample_weight)`. There is no `predict()` because the class is estimation-first and does not materialize fixed-effect coefficients. `summary()` supports the same covariance options as the other linear estimators and reports `absorbed_df`, `residual_df`, and `absorbed_df_method`. Rank is exact for one- and two-way fixed effects; three or more dimensions use a labeled conservative count.
 
 ```{python}
 print(inspect.signature(cm.FixedEffectsOLS))
@@ -50,7 +50,7 @@ display(HTML(html_table(["Public method"], public_methods(cls))))
 ## Minimal example
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
 rng = np.random.default_rng(3)
 n = 300
 x = rng.normal(size=(n, 2))

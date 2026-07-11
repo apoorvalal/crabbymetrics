@@ -18,6 +18,21 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
+## Refactor Branch Status (2026-07-10)
+
+The `refactor` branch starts from `origin/master` 0.7.0. The original dirty 0.5.1 audit tree is preserved on `pre-refactor-audit-snapshot`. The correctness pass has completed every P0 and P1 item from `docs/evaluation-review.qmd`:
+
+- correct weighted TwoSLS design and covariance behavior
+- identified and objective-matched likelihood and M-estimator inference
+- explicit no-inference contracts for predictive regularized estimators
+- seeded shuffled DML folds and treatment-stratified AIPW folds
+- absorbed fixed-effect rank in residual degrees of freedom
+- strict covariance-diagonal validation
+- explicit convergence semantics across iterative estimators and optimizers
+- guarded, prediction-only `BaggedPolynomialRegressor` with OOB diagnostics
+
+New estimator work should preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence.
+
 ## Current Extension Status
 
 ### Recently landed: randomized linear algebra, hypothesis tests, and ABC OLS

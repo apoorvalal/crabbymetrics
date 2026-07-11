@@ -51,6 +51,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Plain linear regression with robust standard errors: `cm.OLS()`.
 - Linear regression with abundance-based constraints / weighted effect coding for categorical main effects and categorical modifiers: `cm.ABCOLS()`.
 - Penalized linear regression / shrinkage / cross-validated ridge: `cm.Ridge(penalty=None_or_grid, cv=5)`.
+- Nonlinear prediction with a bagged random-subspace polynomial ridge ensemble: `cm.BaggedPolynomialRegressor(...)`.
 - Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.
 - Instrumental variables / 2SLS: `cm.TwoSLS()`.
 - Single treated time series with donor paths and simplex donor weights: `cm.SyntheticControl()`.
@@ -66,6 +67,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - User-supplied moment conditions: `cm.GMM(moment_fn, jacobian_fn=None, ...)`.
 - User-supplied objective and scores: `cm.MEstimator(objective_fn, score_fn, ...)`.
 - Feature transformations: `cm.PCA(...)` and `cm.KernelBasis(...)`.
+- Regularized estimators expose point estimates for prediction but do not claim analytic standard errors unless the fitted objective and covariance match.
 - Direct numerical optimization with Python callbacks: `cm.Optimizers.minimize_*`.
 
 ## Panel causal API: most important recent contract
@@ -158,7 +160,7 @@ summary(vcov="hc1", lags=None, clusters=None)
 bootstrap(n_bootstrap, seed=None)
 ```
 
-`fe` is a 2D `uint32`-like matrix of zero-based category codes, shape `(n_observations, n_fixed_effect_dimensions)`. The estimator partials out the fixed effects and estimates slopes without an intercept.
+`fe` is a 2D `uint32`-like matrix of zero-based category codes, shape `(n_observations, n_fixed_effect_dimensions)`. The estimator partials out fixed effects and estimates slopes without an intercept. `summary()` reports absorbed and residual degrees of freedom; one- and two-way absorbed rank is exact, while three-or-more-way rank is explicitly labeled conservative.
 
 ```python
 cm.TwoSLS()
@@ -181,27 +183,27 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage.
+`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage. `summary()` exposes point estimates and marks analytic inference unavailable.
 
 ```python
-cm.Logit(alpha=1.0, max_iterations=100, gradient_tolerance=1e-4)
+cm.Logit(alpha=0.0, max_iterations=100, gradient_tolerance=1e-4)
 fit(x, y)
 predict(x)
 summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-Binary labels should be integer-coded. Predictions are probabilities or class-like outputs according to the estimator page; inspect the example page for exact usage.
+Binary labels must be coded 0/1. `predict()` returns probabilities for label 1 and `predict_label()` returns labels. Fisher inference is available only for the default unpenalized fit; `alpha>0` is prediction-only.
 
 ```python
-cm.MultinomialLogit(alpha=1.0, max_iterations=100, gradient_tolerance=1e-4)
+cm.MultinomialLogit(alpha=0.0, max_iterations=100, gradient_tolerance=1e-4)
 fit(x, y)
 predict(x)
 summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-Multiclass labels should be integer-coded.
+Multiclass labels should be integer-coded. The default unpenalized summary reports identified class-versus-reference contrasts; `alpha>0` is prediction-only.
 
 ```python
 cm.Poisson(alpha=0.0, max_iterations=100, tolerance=1e-4)
@@ -211,7 +213,7 @@ summary(vcov="vanilla")
 bootstrap(n_bootstrap, seed=None)
 ```
 
-Use Poisson for count regression. The docs demonstrate model-based and QMLE/sandwich inference.
+Use Poisson for nonnegative count-like outcomes. Model-based and QMLE/sandwich inference are available only at `alpha=0`; penalized fits are prediction-only.
 
 ```python
 cm.FTRL(alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0)
@@ -221,7 +223,7 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-FTRL is an online-style binary classification estimator.
+FTRL is an online-style binary classification estimator. Its summary reports point estimates and explicitly marks analytic inference unavailable.
 
 ### Panel estimators and panel helpers
 
@@ -306,7 +308,7 @@ fit(y, d, x)
 summary(vcov=None, lags=None, clusters=None)
 ```
 
-Cross-fit ridge nuisance implementation of the partially linear Double ML score for a scalar continuous treatment.
+Cross-fit ridge nuisance implementation of the partially linear Double ML score for a scalar continuous treatment. Folds use a deterministic seeded shuffle.
 
 ```python
 cm.AIPW(penalty=None, cv=5, n_folds=5, propensity_clip=0.02, seed=42)
@@ -314,7 +316,18 @@ fit(y, d, x)
 summary(vcov=None, lags=None, clusters=None)
 ```
 
-Binary-treatment augmented inverse probability weighting estimator for the ATE. Treatment `d` should be coded `0/1`.
+Binary-treatment augmented inverse probability weighting estimator for the ATE. Treatment `d` should be coded `0/1`; fold assignment is deterministically shuffled within treatment strata.
+
+### Bagged polynomial regression
+
+```python
+cm.BaggedPolynomialRegressor(n_estimators=100, degree=2, max_features=None, max_samples=None, bootstrap=True, penalty=1.0, seed=None)
+fit(x, y)
+predict(x)
+summary()
+```
+
+Prediction-only ensemble with guarded polynomial expansion, internal column scaling, row bagging, random feature subspaces, and out-of-bag diagnostics when bootstrap sampling is enabled.
 
 ### Moment and callback-driven estimators
 
@@ -334,7 +347,7 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-Lowest-level likelihood-style callback interface. Python supplies the objective and per-observation scores; Rust owns optimization and variance computation.
+Lowest-level callback M-estimation interface. Python supplies the objective and per-observation scores; Rust checks optimization convergence and estimates $A^{-1} B A^{-T}/n$ from a numerical mean-score Jacobian and empirical score meat.
 
 ### Transforms
 
@@ -465,7 +478,7 @@ If you need to inspect or modify source, start here:
 
 - `src/lib.rs`: PyO3 module registration; exported Python classes and functions.
 - `src/estimators/linear.rs`: OLS, FixedEffectsOLS, TwoSLS, panel estimators, synthetic control, synthetic DID, matrix completion, interactive fixed effects, panel helpers.
-- `src/estimators/regularized.rs`: Ridge, ElasticNet, FTRL.
+- `src/estimators/regularized.rs`: Ridge, ElasticNet, FTRL, BaggedPolynomialRegressor.
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
 - `src/estimators/balancing.rs`: BalancingWeights.
@@ -492,6 +505,7 @@ uv run quarto render docs
 
 - [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
 - [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
+- [Evaluation review](https://apoorvalal.github.io/crabbymetrics/evaluation-review.html): baseline correctness audit and refactor remediation record.
 - [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
 - [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
 - [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.
@@ -500,6 +514,7 @@ uv run quarto render docs
 
 - [OLS](https://apoorvalal.github.io/crabbymetrics/examples/ols.html): baseline linear regression and covariance choices.
 - [Ridge](https://apoorvalal.github.io/crabbymetrics/examples/ridge.html): L2 regularization and cross-validated penalty grids.
+- [Bagged Polynomial Regression](https://apoorvalal.github.io/crabbymetrics/examples/bagged-polynomial-regression.html): leakage-free repeated prediction comparison and OOB diagnostics.
 - [Fixed Effects OLS](https://apoorvalal.github.io/crabbymetrics/examples/fixed-effects-ols.html): one-way and multi-way fixed effects.
 - [ElasticNet](https://apoorvalal.github.io/crabbymetrics/examples/elastic-net.html): mixed L1/L2 regularized linear regression.
 - [Synthetic Control](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-control.html): low-level simplex donor weights for one treated path.

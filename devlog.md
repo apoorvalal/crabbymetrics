@@ -11,6 +11,14 @@
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## Refactor Correctness Pass (2026-07-10)
+
+The `refactor` branch was created from `origin/master` 0.7.0 after preserving the audited dirty 0.5.1 tree on `pre-refactor-audit-snapshot`. It fixes the review P0/P1 set: weighted TwoSLS, generic M-estimator covariance, identified multinomial inference, penalized-estimator inference contracts, shuffled/stratified cross-fitting, absorbed fixed-effect degrees of freedom, covariance-diagonal validation, and convergence semantics.
+
+`BaggedPolynomialRegressor` is now a guarded prediction-only class in `regularized.rs`. It standardizes polynomial columns inside each learner, stores random subspaces and resolved dimensions, reports OOB MSE/coverage, enforces dense-design limits, and has direct scikit-learn parity tests. The public docs include a reference page, a leakage-free repeated-draw demo, and the baseline audit plus remediation record at `docs/evaluation-review.qmd`.
+
+Current validation is 134 passing Python tests and 3 passing Rust tests. All changed executable Quarto pages render. A 94-page no-execute site assembly passes; the full executing site remains blocked by the pre-existing absent `ding_w_source/repl/nhanes_bmi.csv`. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
+
 ## Repository Layout
 
 ```text
@@ -29,7 +37,7 @@ crabbymetrics/
     estimators/
       mod.rs
       linear.rs
-      regularized.rs
+      regularized.rs  # includes BaggedPolynomialRegressor
       mle.rs
       gmm.rs
       balancing.rs
@@ -93,6 +101,7 @@ The current Python module exports:
   - `Ridge`
   - `ElasticNet`
   - `FTRL`
+  - `BaggedPolynomialRegressor`
 - likelihood / generic:
   - `Logit`
   - `MultinomialLogit`
