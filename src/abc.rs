@@ -9,9 +9,7 @@ use pyo3::types::{PyDict, PyList};
 #[derive(Clone)]
 enum ColumnKind {
     Intercept,
-    Continuous {
-        j: usize,
-    },
+    Continuous,
     Categorical {
         k: usize,
         level: u32,
@@ -391,7 +389,7 @@ fn build_design(
 
     for j in 0..x.ncols() {
         cols.push(x.column(j).to_owned());
-        kinds.push(ColumnKind::Continuous { j });
+        kinds.push(ColumnKind::Continuous);
         names.push(format!("x{j}"));
     }
     for k in 0..cats.ncols() {

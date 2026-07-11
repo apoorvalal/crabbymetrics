@@ -975,18 +975,16 @@ impl CostFunction for MEstimatorProblem {
     type Output = f64;
 
     fn cost(&self, theta: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             let result = self
                 .objective_fn
                 .call1(py, (theta_py, self.data.clone_ref(py)))
                 .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
 
-            let tuple = result
-                .downcast_bound::<pyo3::types::PyTuple>(py)
-                .map_err(|_| {
-                    argmin::core::Error::msg("Objective function must return (obj, grad)")
-                })?;
+            let tuple = result.cast_bound::<pyo3::types::PyTuple>(py).map_err(|_| {
+                argmin::core::Error::msg("Objective function must return (obj, grad)")
+            })?;
 
             if tuple.len() != 2 {
                 return Err(argmin::core::Error::msg(
@@ -1011,18 +1009,16 @@ impl Gradient for MEstimatorProblem {
         &self,
         theta: &Self::Param,
     ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             let result = self
                 .objective_fn
                 .call1(py, (theta_py, self.data.clone_ref(py)))
                 .map_err(|e| argmin::core::Error::msg(format!("Python callback error: {}", e)))?;
 
-            let tuple = result
-                .downcast_bound::<pyo3::types::PyTuple>(py)
-                .map_err(|_| {
-                    argmin::core::Error::msg("Objective function must return (obj, grad)")
-                })?;
+            let tuple = result.cast_bound::<pyo3::types::PyTuple>(py).map_err(|_| {
+                argmin::core::Error::msg("Objective function must return (obj, grad)")
+            })?;
 
             if tuple.len() != 2 {
                 return Err(argmin::core::Error::msg(
@@ -1032,7 +1028,7 @@ impl Gradient for MEstimatorProblem {
 
             let grad_item = tuple.get_item(1)?;
             let grad_py = grad_item
-                .downcast::<PyArray1<f64>>()
+                .cast::<PyArray1<f64>>()
                 .map_err(|_| argmin::core::Error::msg("Gradient must be a numpy array"))?;
 
             let grad = to_array1(&grad_py.readonly());
@@ -1052,7 +1048,7 @@ fn call_mestimator_scores(
         .call1(py, (theta_py, data.clone_ref(py)))
         .map_err(|err| PyValueError::new_err(format!("score_fn error: {}", err)))?;
     let scores_py = result
-        .downcast_bound::<PyArray2<f64>>(py)
+        .cast_bound::<PyArray2<f64>>(py)
         .map_err(|_| PyValueError::new_err("score_fn must return a 2D numpy array"))?;
     let scores = to_array2(&scores_py.readonly());
     if scores.nrows() == 0 {
@@ -1249,11 +1245,9 @@ impl MEstimator {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("objective_fn not set"))?;
 
-        let data_dict = data
-            .downcast_bound::<pyo3::types::PyDict>(py)
-            .map_err(|_| {
-                PyValueError::new_err("data must be a dict with 'indices' key for bootstrap")
-            })?;
+        let data_dict = data.cast_bound::<pyo3::types::PyDict>(py).map_err(|_| {
+            PyValueError::new_err("data must be a dict with 'indices' key for bootstrap")
+        })?;
 
         let mut rng = match seed {
             Some(s) => rand::rngs::StdRng::seed_from_u64(s),
