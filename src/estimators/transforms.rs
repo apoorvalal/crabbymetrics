@@ -126,12 +126,36 @@ fn cross_kernel_matrix(
     Ok(out)
 }
 
+fn total_sample_variance(x: &Array2<f64>) -> PyResult<f64> {
+    if x.nrows() < 2 {
+        return Err(PyValueError::new_err(
+            "PCA requires at least two observations",
+        ));
+    }
+    let mean = x
+        .mean_axis(ndarray::Axis(0))
+        .ok_or_else(|| PyValueError::new_err("failed to compute mean"))?;
+    let sum_squares = x
+        .rows()
+        .into_iter()
+        .map(|row| {
+            row.iter()
+                .zip(mean.iter())
+                .map(|(value, center)| (value - center).powi(2))
+                .sum::<f64>()
+        })
+        .sum::<f64>();
+    Ok(sum_squares / (x.nrows() - 1) as f64)
+}
+
 #[pyclass(name = "PCA")]
 pub struct PcaTransformer {
     n_components: usize,
     whiten: bool,
     model: Option<Pca<f64>>,
     n_features: Option<usize>,
+    n_samples: Option<usize>,
+    total_variance: Option<f64>,
 }
 
 #[pymethods]
@@ -144,14 +168,14 @@ impl PcaTransformer {
             whiten,
             model: None,
             n_features: None,
+            n_samples: None,
+            total_variance: None,
         }
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>) -> PyResult<()> {
         let x = to_array2(&x);
-        if x.nrows() == 0 {
-            return Err(PyValueError::new_err("x must have at least one row"));
-        }
+        let total_variance = total_sample_variance(&x)?;
         if self.n_components == 0 || self.n_components > x.ncols() {
             return Err(PyValueError::new_err(
                 "n_components must be between 1 and the number of columns in x",
@@ -165,6 +189,8 @@ impl PcaTransformer {
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         self.n_features = Some(x.ncols());
+        self.n_samples = Some(x.nrows());
+        self.total_variance = Some(total_variance);
         self.model = Some(model);
         Ok(())
     }
@@ -189,9 +215,7 @@ impl PcaTransformer {
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let x = to_array2(&x);
-        if x.nrows() == 0 {
-            return Err(PyValueError::new_err("x must have at least one row"));
-        }
+        let total_variance = total_sample_variance(&x)?;
         if self.n_components == 0 || self.n_components > x.ncols() {
             return Err(PyValueError::new_err(
                 "n_components must be between 1 and the number of columns in x",
@@ -206,6 +230,8 @@ impl PcaTransformer {
         let scores = model.predict(&x);
 
         self.n_features = Some(x.ncols());
+        self.n_samples = Some(x.nrows());
+        self.total_variance = Some(total_variance);
         self.model = Some(model);
         Ok(pyarray2_from_f64(py, &scores))
     }
@@ -225,7 +251,21 @@ impl PcaTransformer {
                 "score columns must match n_components",
             ));
         }
-        let reconstructed = model.inverse_transform(scores);
+        let reconstructed = if self.whiten {
+            let n_samples = self
+                .n_samples
+                .ok_or_else(|| PyValueError::new_err("PCA model is not fitted"))?;
+            let mut unscaled = scores;
+            for (j, singular_value) in model.singular_values().iter().enumerate() {
+                let inverse_whitening = singular_value * singular_value / (n_samples - 1) as f64;
+                unscaled
+                    .column_mut(j)
+                    .mapv_inplace(|value| value * inverse_whitening);
+            }
+            unscaled.dot(model.components()) + model.mean()
+        } else {
+            model.inverse_transform(scores)
+        };
         Ok(pyarray2_from_f64(py, &reconstructed))
     }
 
@@ -234,19 +274,34 @@ impl PcaTransformer {
             .model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("PCA model is not fitted"))?;
+        let n_samples = self
+            .n_samples
+            .ok_or_else(|| PyValueError::new_err("PCA model is not fitted"))?;
+        let total_variance = self
+            .total_variance
+            .ok_or_else(|| PyValueError::new_err("PCA model is not fitted"))?;
+        let explained_variance = model
+            .singular_values()
+            .mapv(|value| value * value / (n_samples - 1) as f64);
+        let explained_variance_ratio = if total_variance > 0.0 {
+            explained_variance.mapv(|value| value / total_variance)
+        } else {
+            Array1::<f64>::zeros(explained_variance.len())
+        };
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("n_components", self.n_components)?;
         dict.set_item("n_features", self.n_features.unwrap_or(0))?;
+        dict.set_item("n_samples", n_samples)?;
         dict.set_item("whiten", self.whiten)?;
         dict.set_item("components", pyarray2_from_f64(py, model.components()))?;
         dict.set_item("mean", pyarray1_from_f64(py, model.mean()))?;
         dict.set_item(
             "explained_variance",
-            pyarray1_from_f64(py, &model.explained_variance()),
+            pyarray1_from_f64(py, &explained_variance),
         )?;
         dict.set_item(
             "explained_variance_ratio",
-            pyarray1_from_f64(py, &model.explained_variance_ratio()),
+            pyarray1_from_f64(py, &explained_variance_ratio),
         )?;
         dict.set_item(
             "singular_values",

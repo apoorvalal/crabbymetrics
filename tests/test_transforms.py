@@ -31,11 +31,21 @@ def test_pca_recovers_low_rank_structure_and_feeds_regression():
     assert summary["mean"].shape == (n_features,)
     assert summary["explained_variance"].shape == (2,)
     assert summary["explained_variance_ratio"].shape == (2,)
+    centered = x - x.mean(axis=0, keepdims=True)
+    singular_values = np.linalg.svd(centered, compute_uv=False)
+    expected_variance = singular_values[:2] ** 2 / (n - 1)
+    expected_ratio = expected_variance / np.var(x, axis=0, ddof=1).sum()
     np.testing.assert_allclose(
-        np.sum(summary["explained_variance_ratio"]),
-        1.0,
-        atol=1e-10,
-        rtol=0.0,
+        summary["explained_variance"],
+        expected_variance,
+        atol=1e-8,
+        rtol=1e-8,
+    )
+    np.testing.assert_allclose(
+        summary["explained_variance_ratio"],
+        expected_ratio,
+        atol=1e-8,
+        rtol=1e-8,
     )
 
     baseline_mse = np.mean((x - x.mean(axis=0, keepdims=True)) ** 2)
@@ -47,6 +57,21 @@ def test_pca_recovers_low_rank_structure_and_feeds_regression():
     preds = model.predict(scores)
     r2 = 1.0 - np.sum((y - preds) ** 2) / np.sum((y - y.mean()) ** 2)
     assert r2 > 0.97
+
+
+def test_whitened_pca_inverse_undoes_whitening_scale():
+    rng = np.random.default_rng(5151)
+    x = rng.normal(size=(180, 5)) * np.array([12.0, 4.0, 1.5, 0.4, 0.1])
+    centered = x - x.mean(axis=0, keepdims=True)
+    _, _, vt = np.linalg.svd(centered, full_matrices=False)
+    expected = centered @ vt[:3].T @ vt[:3] + x.mean(axis=0, keepdims=True)
+
+    model = cm.PCA(3, whiten=True)
+    scores = model.fit_transform(x)
+    reconstructed = model.inverse_transform(scores)
+
+    np.testing.assert_allclose(np.cov(scores, rowvar=False), np.eye(3), atol=1e-8, rtol=1e-8)
+    np.testing.assert_allclose(reconstructed, expected, atol=1e-7, rtol=1e-7)
 
 
 def test_kernel_basis_matches_linear_kernel_exactly():

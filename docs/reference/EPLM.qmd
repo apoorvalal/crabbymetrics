@@ -28,6 +28,63 @@ from _api_doc_utils import *
 
 The intended estimand is the coefficient on the scalar treatment after accounting for controls $W$ without treating the nuisance regression as the object of interest.
 
+## Estimating equations
+
+Let $\tilde W=[\mathbf1,W]$. The class first fits the linear treatment projection
+
+$$
+\hat\pi=\arg\min_\pi\|D-\tilde W\pi\|_2^2,
+\qquad
+\hat v=D-\tilde W\hat\pi,
+$$
+
+and then estimates
+
+$$
+\hat\beta
+=
+\frac{\hat v'Y}{\hat v'D}.
+$$
+
+Because OLS makes $\hat v$ orthogonal to $\tilde W$, the denominator equals $\hat v'\hat v$ up to numerical error. This is the partialling-out coefficient in the partially linear specification
+
+$$
+Y=\beta D+g(W)+U
+$$
+
+when both the treatment projection and control adjustment are restricted to the supplied linear control basis.
+
+Inference treats $\theta=(\pi',\beta)'$ as the exactly identified solution to the stacked per-observation moments
+
+$$
+\psi_i(\theta)
+=
+\begin{bmatrix}
+\tilde W_i(D_i-\tilde W_i'\pi)\\
+(D_i-\tilde W_i'\pi)(Y_i-D_i\beta)
+\end{bmatrix}.
+$$
+
+The treatment is not required to be binary; it may be continuous.
+
+## Inference
+
+The mean-moment Jacobian $A=\partial\bar\psi/\partial\theta'$ is evaluated by central differences. The uncorrected iid option, named vanilla, is already an empirical sandwich:
+
+$$
+\widehat V
+=
+\frac1n\hat A^{-1}
+\left\{\frac1n\sum_i\psi_i\psi_i'\right\}
+\hat A^{-T}.
+$$
+
+HC1 multiplies the corresponding parameter-score covariance by $n/(n-k)$, where $k$ includes nuisance parameters. Newey-West applies Bartlett lag weights and that same correction; cluster covariance sums parameter scores by cluster and applies the package's $G/(G-1)\times(n-1)/(n-k)$ correction. The summary returns only the $\beta$ variance block and nuisance point estimates. There is no bootstrap or built-in Wald method.
+
+## Performance and numerical behavior
+
+Point estimation is a pair of dense least-squares calculations with approximately $O(np^2+p^3)$ work for $p$ control columns. Summary-time numerical differentiation evaluates the full moment system twice per element of $(\pi,\beta)$ and then inverts its dense Jacobian, so inference can cost more than fitting. Near-zero residual treatment variation raises. There is no sample splitting, nonlinear nuisance learner, or regularization, and collinear controls can make both projection and covariance unstable.
+
 ## Python API
 
 Constructor: `cm.EPLM`

@@ -1,6 +1,6 @@
 ---
-title: "KernelBasis"
-subtitle: "Kernel feature transformer against the training basis"
+title: "Kernel basis transforms"
+subtitle: "Exact, Nystrom, and random-Fourier feature maps"
 format:
   html:
     toc: true
@@ -27,16 +27,78 @@ from _api_doc_utils import *
 `KernelBasis` stores a training design and transforms new rows into kernel similarities against that basis. For a Gaussian kernel, the transformed feature for training row $j$ is
 
 $$
-\phi_j(x) = \exp\{-\|x-x_j\|^2/(2h^2)\}.
+\phi_j(x) = \exp\{-\|x-x_j\|^2/h\}.
 $$
 
 The resulting feature matrix can be fed into any downstream regression estimator.
 
+## Kernel definitions
+
+The shared kernels are
+
+$$
+k_{\mathrm{Gaussian}}(x,z)
+=
+\exp\{-\|x-z\|_2^2/h\},
+\qquad
+k_{\mathrm{linear}}(x,z)=x'z,
+$$
+
+and
+
+$$
+k_{\mathrm{poly}}(x,z)=(x'z+c_0)^d.
+$$
+
+Here the bandwidth $h$ is the direct denominator of squared distance. It is not a Gaussian standard deviation and there is no extra factor of two.
+
+**KernelBasis** stores all $n$ training rows and returns the exact cross-kernel matrix
+
+$$
+\Phi(x)=K(x,X_{\mathrm{train}})\in\mathbb R^{n_{\mathrm{new}}\times n}.
+$$
+
+It is a feature map only; a downstream linear estimator determines the eventual loss and regularization.
+
+## Approximate bases
+
+**NystromBasis** chooses $m$ landmark rows, forms $K_{mm}$, and returns
+
+$$
+\Phi_{\mathrm{Nys}}(x)
+=
+K(x,X_m)(K_{mm}+\rho I)^{-1/2}.
+$$
+
+The inverse square root uses a symmetric eigendecomposition and floors eigenvalues at $10^{-14}$. With no seed, the first $m$ rows are landmarks; with a seed, a reproducibly shuffled subset is used. Then $\Phi_{\mathrm{Nys}}\Phi_{\mathrm{Nys}}'$ approximates the full kernel matrix.
+
+**RandomFourierFeatures** is available only for the Gaussian kernel above. It draws
+
+$$
+\omega_j\sim N(0,2I/h),
+\qquad
+b_j\sim\operatorname{Uniform}(0,2\pi),
+$$
+
+and returns
+
+$$
+\phi_j(x)=\sqrt{\frac2m}\cos(x'\omega_j+b_j).
+$$
+
+Its feature inner products approximate the Gaussian kernel in expectation. An omitted seed still uses a fixed internal seed, so repeated fits are reproducible rather than independently randomized.
+
+## Inference and performance
+
+None of these transforms estimates a response model or supplies statistical inference. KernelBasis fitting and storage are $O(n^2p)$ time and $O(n^2+np)$ memory because it materializes the full Gram matrix. Transforming $r$ new rows costs $O(rnp)$ and returns $n$ features.
+
+NystromBasis costs $O(m^2p+m^3)$ to fit and approximately $O(rmp+rm^2)$ to transform, with $O(mp+m^2)$ fitted storage. RandomFourierFeatures stores $O(pm)$ random weights and transforms in $O(rpm)$. Kernel and random-feature outputs are dense; downstream ridge or OLS can still become expensive when $m$ or the exact training-basis width is large.
+
 ## Python API
 
-Constructor: `cm.KernelBasis`
+Constructors: `cm.KernelBasis`, `cm.NystromBasis`, and `cm.RandomFourierFeatures`
 
-Use `KernelBasis(kernel='gaussian', bandwidth=0.5, coef0=1.0, degree=2.0)`. `fit(x)` stores training rows. `transform(x)` returns kernel features. `summary()` reports the chosen kernel and basis dimensions.
+All three classes expose `fit`, `transform`, `fit_transform`, and `summary`. `KernelBasis` uses the full training sample as its basis. `NystromBasis(n_components, ...)` selects landmark rows and takes a kernel ridge for its inverse square root. `RandomFourierFeatures(n_components, bandwidth, seed)` draws a fixed-width Gaussian-kernel approximation.
 
 ```{python}
 print(inspect.signature(cm.KernelBasis))
@@ -45,6 +107,12 @@ print(inspect.signature(cm.KernelBasis))
 ```{python}
 cls = cm.KernelBasis
 display(HTML(html_table(["Public method"], public_methods(cls))))
+```
+
+```{python}
+for cls in (cm.NystromBasis, cm.RandomFourierFeatures):
+    print(cls.__name__, inspect.signature(cls))
+    display(HTML(html_table(["Public method"], public_methods(cls))))
 ```
 
 ## Minimal example
@@ -60,6 +128,11 @@ reg = cm.Ridge(penalty=0.1)
 reg.fit(z, y)
 print(basis.summary())
 print(reg.predict(basis.transform(x[:3])))
+
+nystrom = cm.NystromBasis(16, kernel='gaussian', bandwidth=0.8, seed=23)
+random_features = cm.RandomFourierFeatures(64, bandwidth=0.8, seed=23)
+print(nystrom.fit_transform(x).shape)
+print(random_features.fit_transform(x).shape)
 ```
 
 ## `summary()` contract
@@ -73,4 +146,20 @@ model = cm.KernelBasis(kernel='gaussian', bandwidth=0.8)
 model.fit(x)
 summary = model.summary()
 display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))))
+```
+
+```{python}
+nystrom = cm.NystromBasis(10, kernel='gaussian', bandwidth=0.8, seed=123)
+nystrom.fit(x)
+display(HTML(html_table(
+    ["NystromBasis summary key", "shape"],
+    summary_shape_rows(nystrom.summary()),
+)))
+
+random_features = cm.RandomFourierFeatures(32, bandwidth=0.8, seed=123)
+random_features.fit(x)
+display(HTML(html_table(
+    ["RandomFourierFeatures summary key", "shape"],
+    summary_shape_rows(random_features.summary()),
+)))
 ```

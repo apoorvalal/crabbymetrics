@@ -32,6 +32,50 @@ $$
 
 so the baseline hazard is constant over time. Because the full hazard is identified, the class can expose the whole prediction stack: log hazard, hazard, cumulative hazard, and survival.
 
+## Likelihood and predictions
+
+The model has constant baseline hazard
+
+$$
+h(t\mid x)=\lambda\exp(x'\beta),
+\qquad
+H(t\mid x)=\lambda t\exp(x'\beta),
+\qquad
+\lambda=\exp(\alpha).
+$$
+
+For observed time $t_i$ and event indicator $d_i$, the implemented right-censored log-likelihood is
+
+$$
+\ell(\alpha,\beta)
+=
+\sum_i
+\left[
+d_i(\alpha+x_i'\beta)
+-\exp(\alpha+x_i'\beta)t_i
+\right].
+$$
+
+Newton iterations use the analytic score and Hessian, subtract $10^{-8}$ from the log-likelihood Hessian diagonal before solving, clamp each proposed parameter step to $[-2,2]$, and backtrack until log-likelihood does not decrease. The initial log baseline hazard is $\log\{\sum_i d_i/\sum_i t_i\}$ and slopes start at zero.
+
+Prediction returns survival $\exp\{-H(t\mid x)\}$ by default. The linear prediction is the full log hazard $\alpha+x'\beta$, not only a relative-risk index.
+
+## Inference
+
+The returned covariance is the inverse observed information
+
+$$
+\widehat V
+=
+\{-\nabla^2\ell(\hat\alpha,\hat\beta)\}^{-1}.
+$$
+
+It is model-based under independent observations, correct exponential proportional hazards, and noninformative right censoring. There is no robust, clustered, bootstrap, or Wald interface. The covariance includes the log baseline hazard first and slope coefficients afterward, although the summary does not separately report standard errors. The iteration count is reported, but reaching the maximum still stores a fit without an explicit convergence flag.
+
+## Performance and numerical behavior
+
+Each score evaluation is $O(np)$; forming the dense Hessian is $O(np^2)$ and solving it is up to $O(p^3)$ per Newton iteration. The implementation stores the dense design but no risk sets. Exponential evaluations are not clipped, so extreme covariates or steps can overflow. The class supports only positive finite stop times, binary events, no delayed entry, no ties issue beyond ordinary parametric likelihood, and no observation weights.
+
 ## Python API
 
 Constructor: `cm.ExponentialPH`

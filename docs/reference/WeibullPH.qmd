@@ -32,6 +32,48 @@ $$
 
 which nests increasing, decreasing, and constant baseline hazards depending on the shape parameter $ho$. Like `ExponentialPH`, it identifies absolute hazard and survival objects.
 
+## Likelihood and predictions
+
+With $\lambda=\exp(\alpha)$ and shape $\rho=\exp(\gamma)$, the model is
+
+$$
+h(t\mid x)
+=
+\lambda\rho t^{\rho-1}\exp(x'\beta),
+\qquad
+H(t\mid x)
+=
+\lambda t^\rho\exp(x'\beta).
+$$
+
+The right-censored log-likelihood is
+
+$$
+\ell(\alpha,\beta,\gamma)
+=
+\sum_i
+\left[
+d_i\{\alpha+\gamma+x_i'\beta+(\rho-1)\log t_i\}
+-\exp(\alpha+x_i'\beta+\rho\log t_i)
+\right].
+$$
+
+Newton optimization uses analytic derivatives, a $10^{-8}$ Hessian ridge, per-coordinate step clipping to $[-2,2]$, and backtracking. Initialization uses the exponential event-rate estimate for $\alpha$, zero slopes, and $\rho=1$. Default prediction is $\exp\{-H(t\mid x)\}$; the linear prediction is the time-specific log hazard.
+
+## Inference
+
+The covariance is inverse observed information for the parameter order
+
+$$
+(\alpha,\ \beta',\ \gamma)'.
+$$
+
+It is model-based under a correctly specified Weibull PH likelihood, independent observations, and noninformative right censoring. The summary exposes the full covariance and shape but does not split out standard errors. There is no robust, cluster, bootstrap, or Wald method. Maximum-iteration termination is not distinguished from convergence in the stored result; inspect the reported iteration count.
+
+## Performance and numerical behavior
+
+Dense Hessian construction costs $O(np^2)$ and its Newton solve up to $O(p^3)$ per iteration. Terms involving $\exp(\gamma)\log t$ make the model more sensitive than ExponentialPH to extreme time scales; rescaling time can materially improve conditioning while changing the scale parameter in the expected way. Exponentials are not clipped. The implementation accepts only positive finite stop times and binary event indicators, with no delayed entry, weights, strata, or time-varying covariates.
+
 ## Python API
 
 Constructor: `cm.WeibullPH`
