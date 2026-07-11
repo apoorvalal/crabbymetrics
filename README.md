@@ -45,6 +45,35 @@ model.fit(x, y)
 print(model.summary())
 ```
 
+Anytime-valid OLS inference is available from `OLS.summary(...)`:
+
+```python
+import numpy as np
+import crabbymetrics as cm
+
+rng = np.random.default_rng(1)
+n = 100
+x = rng.normal(size=(n, 3))
+x = x - x.mean(axis=0)
+trt = rng.choice([0.0, 1.0], size=n)
+y = (
+    1.0
+    + 1.4 * x[:, 2]
+    + 2.3 * trt
+    + 2.0 * x[:, 0] * trt
+    + 3.0 * x[:, 1] * trt
+    + rng.normal(size=n)
+)
+design = np.column_stack([x, trt, x * trt[:, None]])
+
+model = cm.OLS()
+model.fit(design, y)
+g_star = cm.optimal_g(n, design.shape[1] + 1, alpha=0.05)
+summary = model.summary(vcov="vanilla", anytime_valid=True, g=g_star)
+print(summary["p_value"])
+print(summary["confint"])
+```
+
 Panel causal estimators take matrices directly rather than long data frames:
 
 ```python

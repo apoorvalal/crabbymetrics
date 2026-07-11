@@ -49,6 +49,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 Use these defaults unless the application has a reason to do otherwise:
 
 - Plain linear regression with robust standard errors: `cm.OLS()`.
+- Anytime-valid confidence sequences for fitted OLS coefficients: `model.summary(vcov="vanilla", anytime_valid=True, g=cm.optimal_g(n, k, alpha))`.
 - Linear regression with abundance-based constraints / weighted effect coding for categorical main effects and categorical modifiers: `cm.ABCOLS()`.
 - Penalized linear regression / shrinkage / cross-validated ridge: `cm.Ridge(penalty=None_or_grid, cv=5)`.
 - Nonlinear prediction with a bagged random-subspace polynomial ridge ensemble: `cm.BaggedPolynomialRegressor(...)`.
@@ -505,7 +506,6 @@ uv run quarto render docs
 
 - [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
 - [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
-- [Evaluation review](https://apoorvalal.github.io/crabbymetrics/evaluation-review.html): baseline correctness audit and refactor remediation record.
 - [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
 - [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
 - [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.

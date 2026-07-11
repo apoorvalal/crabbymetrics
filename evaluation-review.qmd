@@ -17,7 +17,7 @@ jupyter: python3
 
 ## Refactor remediation status
 
-> The detailed findings below preserve the audit of the checkpointed 0.5.1 working tree. The repository is now on `refactor`, created from `origin/master` 0.7.0 after preserving the original dirty tree on `pre-refactor-audit-snapshot`. This table records the current disposition of every P0 and P1 finding.
+> The detailed findings below preserve the audit of the checkpointed 0.5.1 working tree. The repository is now on `refactor`, created from `origin/master` 0.7.0 and subsequently merged with current `master` 0.7.1. The original dirty tree is preserved on `pre-refactor-audit-snapshot`. This table records the current disposition of every P0 and P1 finding.
 
 | Priority finding | Refactor resolution | Verification |
 |---|---|---|
@@ -38,9 +38,9 @@ The ported `BaggedPolynomialRegressor` also adds the pre-merge guardrails identi
 
 | Check | Current result |
 |---|---|
-| `uv run pytest -q tests` | 134 passed; external-library warnings only. |
+| `uv run pytest -q tests` | 141 passed; external-library warnings only. |
 | `cargo test --all-targets` | 3 passed, covering covariance-diagonal validation. |
-| Changed Quarto pages with execution | Evaluation review, API overview, 11 affected class references, and the bagged-polynomial demo rendered successfully. |
+| Changed Quarto pages with execution | The repository-level evaluation review, API overview, 11 affected class references, and the bagged-polynomial demo rendered successfully. |
 | `quarto render docs --no-execute` | All 94 site pages assembled successfully. |
 | Full executing site render | Stopped at page 19 because the pre-existing Ding chapter expects absent `ding_w_source/repl/nhanes_bmi.csv`. No changed page depends on that file. |
 | `cargo clippy --all-targets -- -D warnings` | PyO3 deprecations and the unused ABC column field were removed; 30 pre-existing structural style lints remain, chiefly public econometric acronyms, Python-facing argument counts, range loops, and type complexity. |

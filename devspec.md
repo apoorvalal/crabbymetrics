@@ -20,7 +20,7 @@ Any new work here should usually satisfy most of the following:
 
 ## Refactor Branch Status (2026-07-10)
 
-The `refactor` branch starts from `origin/master` 0.7.0. The original dirty 0.5.1 audit tree is preserved on `pre-refactor-audit-snapshot`. The correctness pass has completed every P0 and P1 item from `docs/evaluation-review.qmd`:
+The `refactor` branch starts from `origin/master` 0.7.1. The original dirty 0.5.1 audit tree is preserved on `pre-refactor-audit-snapshot`. The correctness pass has completed every P0 and P1 item from `evaluation-review.qmd`:
 
 - correct weighted TwoSLS design and covariance behavior
 - identified and objective-matched likelihood and M-estimator inference
@@ -35,13 +35,17 @@ New estimator work should preserve these contracts. In particular, a summary mus
 
 ## Current Extension Status
 
-### Recently landed: randomized linear algebra, hypothesis tests, and ABC OLS
+### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.7.1
 
-The 2026-05 extension sequence landed several items that used to be active or pending in this file:
+The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
 
 - Randomized linear algebra / PR #8 is no longer an active PR. It added native randomized range finding, SVD, QR, QR solve, CountSketch OLS, `OLS.fit_sketch(...)`, `TwoSLS.fit_sketch(...)`, `GMM.fit_sketch(...)`, randomized SVD paths in `MatrixCompletion` / `InteractiveFixedEffects`, and the reusable `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` transformers.
 - Hypothesis-test helpers are landed. Estimator-level `wald_test(...)` methods exist for the main covariance-bearing estimators, module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` exist, and `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests.
 - `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed worked example at `docs/examples/abc-ols.qmd` and a class reference page at `docs/reference/ABCOLS.qmd`.
+- Anytime-valid OLS is landed and released in `v0.7.1`. `OLS.summary(...)` now accepts `anytime_valid=True`, `g=...`, and `level=...`, while module-level `optimal_g(...)` and `av(...)` cover the convenience path. Tests compare against `avlm` reference values.
+- The v0.7.0 MLE prediction overhaul is landed. `Logit`, `MultinomialLogit`, and `Poisson` now follow the layered `predict_lin(...)` / `predict(...)` / classifier-only `predict_label(...)` contract, documented in `docs/examples/mle-prediction-interface.qmd`.
+- The first survival/event-time module is landed. `ExponentialPH`, `WeibullPH`, `CoxPH`, and `AndersenGill` are exported, tested against simulated DGPs and `lifelines`, and documented through reference pages plus survival vignettes.
+- Release automation for the current shape is working: `v0.7.1` built Linux/macOS wheels for Python 3.10 through 3.14, published a small sdist, created the GitHub Release, and published to PyPI.
 
 
 ### Sketching / randomized linear algebra follow-on plan
@@ -99,6 +103,10 @@ Implementation guardrails for sketching work:
   - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` now share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", ...)`
 - weighted linear estimation
   - `OLS`, `Ridge`, `FixedEffectsOLS`, and `TwoSLS` have weighted fits through `fit_weighted(...)`
+- anytime-valid OLS inference
+  - `OLS.summary(..., anytime_valid=True, g=..., level=...)` adds anytime-valid coefficient p-values, confidence intervals, and omnibus F-test fields
+  - `optimal_g(n, number_of_coefficients, alpha)` and `av(model, g=..., vcov="vanilla", level=...)` are exported module-level helpers
+  - `docs/examples/anytime-valid-ols.qmd` is present in source, and tests match `avlm` reference calculations
 - balancing / calibration weights
   - `BalancingWeights` supports entropy and quadratic objectives, baseline weights, autoscaling, and approximate balance
 - panel causal estimators
@@ -113,9 +121,16 @@ Implementation guardrails for sketching work:
   - `AverageDerivative(method="ob" | "ipw" | "dr")`
   - `PartiallyLinearDML`
   - `AIPW`
+- MLE prediction contract and survival models
+  - `Logit`, `MultinomialLogit`, and `Poisson` expose layered prediction APIs: `predict_lin(...)`, `predict(...)`, and classifier-only `predict_label(...)`
+  - `ExponentialPH` and `WeibullPH` expose absolute hazard, cumulative-hazard, and survival predictions
+  - `CoxPH` and `AndersenGill` expose semiparametric relative-risk predictions
 - docs and ablations
   - the main docs nav now uses `Regression And GLMs`, `Causal Inference`, and `Transforms` rather than the older supervised / semiparametric / unsupervised grouping
+  - the API overview now includes grouped anchors for regression/GLMs, survival/event-time models, causal inference/panels, hypothesis testing, transforms, and estimation interfaces
   - causal examples include separate public-facing pages for `SyntheticControl`, `SyntheticDID`, `HorizontalPanelRidge`, `MatrixCompletion`, and `InteractiveFixedEffects`, with the matrix panel pages using small self-contained synthetic panels
+  - likelihood examples now include the MLE prediction interface and survival/event-time pages
+  - anytime-valid OLS has a worked source page and nav/API links; public `gh-pages` deployment is separate from PyPI release and should be run explicitly when the live docs need to update
   - the Hainmueller--Hangartner staggered-adoption vignette demonstrates the shared `fit(Y, W)` matrix panel API on a real panel and compares the matrix estimators to pyfixest vanilla TWFE and saturated/Sun-Abraham-style event studies
   - cached ablation notebooks cover variance estimators, semiparametric comparisons, panel-DGP comparisons, and the Same Root Basque/California panel case studies with simulation, first-class `HorizontalPanelRidge`, plus HAC/placebo inference
   - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, Chapters 21 and 23, and a narrow Chapter 27 Baron-Kenny mediation page with explicit simulation DGPs
@@ -138,12 +153,40 @@ Implementation guardrails for sketching work:
 
 - weighted estimation outside the linear family
   - not yet in `Logit`, `Poisson`, or `GMM`
+- likelihood family breadth
+  - `Logit`, `MultinomialLogit`, `Poisson`, and the first survival models are in place
+  - no negative binomial, grouped/binomial count model, probit, complementary-log-log discrete-time hazard, or baseline survival estimator for Cox-style models yet
+- docs surface depth
+  - the source docs include the new anytime-valid OLS page, but the public site still needs a separate `gh-pages` deployment after the `v0.7.1` source changes
+  - `PCA` and `KernelBasis` have the strongest transform docs; `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` are exported and tested but still need deeper first-class docs if they are meant to be prominent user-facing tools
 - IV / GMM diagnostics
   - core fitting and covariance support are there, but richer reporting is still thin
 - `MEstimator`
   - useful and working, but still more of a low-level escape hatch than a polished estimator family
 
 ## Highest-Value Next Extensions
+
+### 0. Docs release housekeeping
+
+Status: immediate follow-up, not numerical work
+
+Why it matters:
+
+- `v0.7.1` is live on PyPI, but package release does not publish the Quarto docs site
+- source `master` contains the anytime-valid OLS page and nav/API links
+- the public docs URL is served from `gh-pages`, so a separate render/publish pass is needed for users to see the new page
+- the transform docs are now behind the public Python surface
+
+Scope:
+
+- render enough of `docs/` to include `docs/examples/anytime-valid-ols.qmd`, `docs/api.qmd`, `docs/_quarto.yml`, and search/navigation outputs
+- publish rendered docs through the existing `gh-pages` clone workflow, not by committing rendered artifacts to `master`
+- add compact reference/example coverage for `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`, or explicitly decide they remain advanced utilities documented by the RLA ablation for now
+
+Success condition:
+
+- public docs show the `Anytime-Valid OLS` page and the API overview matches the released `v0.7.1` surface
+- transform docs either cover the exported classes directly or clearly state where those advanced transforms are documented
 
 ### 1. Difference-in-differences and event-study estimators
 
@@ -168,26 +211,57 @@ Success condition:
 - robust standard errors through the same `summary(vcov=...)` surface
 - one focused vignette with a clear coefficient table
 
-### 2. Negative binomial regression
+### 2. More likelihood methods
 
-Status: not started
+Status: foundation landed; new families not started
 
 Why it matters:
 
-- the count-model surface currently stops at Poisson
-- users will want an overdispersed alternative without leaving the library
-- it fits the current Newton / score / sandwich design style
+- the current likelihood surface is coherent but narrow: `Logit`, `MultinomialLogit`, `Poisson`, and first-pass survival models
+- the v0.7.0 prediction contract gives new likelihood estimators a clear API target
+- negative binomial, grouped binomial, and discrete-time hazard models are natural econometrics additions that do not require pandas, formulas, or a large dependency stack
 
-Scope:
+Integration plan:
 
-- start with NB2
-- expose `fit`, `predict`, and `summary(vcov="vanilla" | "sandwich")`
-- keep dispersion estimation and likelihood work in Rust
+1. **Shared likelihood foundation**
+   - Reuse the existing Newton / line-search / score / Hessian style from `mle.rs` and `survival.rs`.
+   - Keep the public contract consistent: `fit(...)`, `predict_lin(...)`, `predict(...)`, `summary(...)`, and `predict_label(...)` only when the fitted object is a classifier.
+   - Standardize summary keys across likelihood models where possible: `coef`, `intercept` when applicable, `vcov`, `se`, `z`, `p_value`, `log_likelihood`, `iterations`, and family-specific parameters.
+   - Add weights, offsets, and exposure only when each family has a clean algebraic interpretation; do not bolt them on inconsistently.
+
+2. **NB2 / overdispersed counts**
+   - First vertical slice after DiD unless a weighted-GLM branch becomes urgent.
+   - Estimate mean parameters and dispersion in Rust.
+   - Use `predict_lin(...)` for log mean and `predict(...)` for mean counts.
+   - Support `summary(vcov="vanilla" | "sandwich")` and tests against hand-coded likelihood/score checks or `statsmodels` under test extras.
+
+3. **Grouped binomial / trials API**
+   - Add a model for `successes` out of `trials`, rather than forcing users to expand rows.
+   - Start with logit link; consider complementary-log-log as a separate discrete-time hazard variant.
+   - This should share code with binary `Logit` where possible but avoid changing `Logit.fit(x, y)` semantics.
+
+4. **Discrete-time hazard bridge**
+   - Use grouped binomial or complementary-log-log likelihoods to connect the survival docs' person-period discussion to an actual estimator.
+   - Keep it distinct from continuous-time `CoxPH` / `AndersenGill` so baseline-hazard interpretation stays clear.
+
+5. **Probit**
+   - Add only after NB2 and grouped binomial unless there is a concrete need.
+   - Requires stable normal CDF/PDF approximations in Rust without adding a heavy dependency.
+
+6. **Survival follow-ons**
+   - Add Cox baseline cumulative hazard and survival curves before broadening into more exotic survival families.
+   - Consider piecewise exponential PH if grouped-duration/discrete-time docs expose a real use case.
+
+Guardrails:
+
+- Do not add a generic formula or dataframe interface as part of likelihood expansion.
+- Prefer one vertically complete family at a time, with tests and one focused docs page.
+- Use external packages only as test/reference extras, not runtime dependencies.
+- Avoid exposing a generic GLM superclass until at least two new families reveal real shared public behavior.
 
 Success condition:
 
-- stable fit on moderate count data
-- direct tests against known formulas or a trusted reference implementation
+- at least one new likelihood family, ideally NB2, lands with native Rust fitting, layered prediction, covariance summaries, parity/reference tests, and a docs page that explains why it belongs beside the existing Poisson/logit/survival surface.
 
 ### 3. Abundance-based constraints beyond OLS
 
@@ -253,24 +327,24 @@ Success condition:
 
 ## Medium-Priority Extensions
 
-### 6. Probit
+### 6. Likelihood polish after NB2
 
 Status: not started
 
 Notes:
 
-- useful and standard
-- lower priority than negative binomial and DiD
-- only worth doing if the numerical story remains clean without inflating dependencies
+- grouped binomial / trials, complementary-log-log discrete-time hazards, probit, and Cox baseline survival are all useful, but none should jump ahead of the first new count-family slice unless there is a concrete downstream need
+- keep each addition vertically complete rather than starting a broad unfinished GLM framework
 
-### 7. Better transformer composition
+### 7. Better transformer docs and composition
 
 Status: partial
 
 Notes:
 
-- `PcaTransformer` and `KernelBasis` already exist
-- the next useful step is lightweight composition helpers or richer examples, not sklearn-style pipeline sprawl
+- public Python transform classes are `PCA`, `KernelBasis`, `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`
+- the next useful step is richer transform docs/examples first, then lightweight composition helpers if real downstream workflows need them
+- avoid sklearn-style pipeline sprawl
 
 ### 8. MEstimator diagnostics cleanup
 
@@ -310,11 +384,13 @@ Operational note:
 
 ## Recommended Branch Order
 
-1. add DiD / event-study support on top of the fixed-effects foundation
-2. add negative binomial regression
-3. add weighted nonlinear estimators and weighted GMM
-4. add richer IV / GMM diagnostics
-5. consider ABC extensions beyond OLS only if a concrete use case appears
+1. publish the `v0.7.1` docs site and close the transform-docs gap, if public docs freshness matters before new numerical work
+2. add DiD / event-study support on top of the fixed-effects foundation
+3. add the first new likelihood family, preferably NB2, under the likelihood-methods plan
+4. add weighted nonlinear estimators and weighted GMM
+5. add grouped-binomial / discrete-time-hazard likelihoods or Cox baseline-survival follow-ons, depending on the next concrete use case
+6. add richer IV / GMM diagnostics
+7. consider ABC extensions beyond OLS only if a concrete use case appears
 
 ## Notes for Future Branches
 
