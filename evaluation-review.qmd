@@ -1,7 +1,7 @@
 ---
 title: "Estimator Correctness and API Design Review"
 subtitle: "Baseline audit and refactor remediation record"
-date: "2026-07-10"
+date: "2026-07-11"
 format:
   html:
     embed-resources: true
@@ -38,12 +38,29 @@ The ported `BaggedPolynomialRegressor` also adds the pre-merge guardrails identi
 
 | Check | Current result |
 |---|---|
-| `uv run pytest -q tests` | 141 passed; external-library warnings only. |
+| `uv run pytest -q tests` | 143 passed; external-library warnings only. |
 | `cargo test --all-targets` | 3 passed, covering covariance-diagonal validation. |
-| Changed Quarto pages with execution | The repository-level evaluation review, API overview, 11 affected class references, and the bagged-polynomial demo rendered successfully. |
-| `quarto render docs --no-execute` | All 94 site pages assembled successfully. |
-| Full executing site render | Stopped at page 19 because the pre-existing Ding chapter expects absent `ding_w_source/repl/nhanes_bmi.csv`. No changed page depends on that file. |
+| Changed Quarto pages with execution | The API overview and all 31 reference pages rendered successfully with live Python execution; equations were visually checked and reference code is unfolded. |
+| Draft site | Whole-site review preview published at `https://lalten.org/drafts/crabbymetrics-pr16-estimator-docs/`. |
+| Full executing site render | Stopped at page 17 because the pre-existing Ding chapter expects absent `ding_w_source/repl/nhanes_bmi.csv`. No changed page depends on that file. |
 | `cargo clippy --all-targets -- -D warnings` | PyO3 deprecations and the unused ABC column field were removed; 30 pre-existing structural style lints remain, chiefly public econometric acronyms, Python-facing argument counts, range loops, and type complexity. |
+
+## Current implementation audit addendum
+
+The refactor remediation fixed the original wrong-result findings, but the 2026-07-11 class-by-class source audit found several remaining design and performance limitations in the current 0.7.1 implementation. The API reference pages now state the exact criterion or estimating equations, covariance method, inferential scope, and dense computational scaling for every public estimator.
+
+| Current class or family | Source-audit result | Disposition on this branch |
+|---|---|---|
+| **FTRL** | The Python fit initializes an upstream random FTRL state, evaluates one aggregate full-batch logistic gradient, applies one proximal update, and stops. It has no intercept, iteration, convergence target, partial-fit method, or persistent Python state. With a low L1 threshold, the random initial accumulator can affect the only update. | Reference and example pages label it experimental and derive the exact one-update equations. Recommended next action is a real persistent online API or removal from the first-tier estimator surface. |
+| **AndersenGill** | The point estimate uses the counting-process Cox partial likelihood, but the API accepts no subject identifier and returns inverse-information covariance. It cannot compute the subject-clustered robust variance normally used for recurrent events. | The reference page carries an explicit warning. A subject-ID argument and clustered score covariance are required before treating it as production recurrent-event inference. |
+| **CoxPH / AndersenGill performance** | Every event scans every row and rebuilds a dense second moment, producing approximately $O(Enp^2)$ work per Newton iteration. Breslow ties are implemented. | Exact risk-set and tie behavior plus the scaling limitation are documented. Cumulative risk-set sufficient statistics are the natural optimization follow-up. |
+| **MatrixCompletion** | The nuclear-norm objective and proximal threshold are coherent. Reaching the iteration budget still stores a result without a convergence flag, and randomized truncated SVD only approximately follows the displayed proximal objective. | Objective history, missing convergence status, and randomized approximation are documented. |
+| **BalancingWeights** | The dual calibration system is coherent, but autoscaling solves balance in scaled units and the success flag additionally checks the original-scale L2 norm against the same tolerance. | The unit mismatch is documented; a later API pass should separate scaled solver tolerance from original-scale balance diagnostics. |
+| **Poisson** | Negative penalty previously made the objective inconsistent with its gradient and Hessian, and invalid outcomes were not rejected. | Fit now rejects nonfinite regressors, nonfinite or negative outcomes, negative/nonfinite penalty, nonpositive tolerance, and zero iteration budgets; direct tests were added. |
+| **PCA** | The delegated summary divided singular-value squares by retained-components minus one instead of observations minus one. Whitened inverse transformation reapplied rather than removed the whitening scale. | The wrapper now stores sample variance metadata, reports $s_j^2/(n-1)$ and full-variance ratios, correctly reverses whitening, and has direct SVD/reconstruction tests. |
+| **Public transforms** | NystromBasis, RandomFourierFeatures, and RandomizedPCA were exported but lacked grouped first-class API pages; the Gaussian bandwidth convention was misstated in the KernelBasis page. | Grouped PCA and kernel-transform pages now cover all five classes and use the implemented kernel $\exp(-\|x-z\|^2/h)$. |
+
+These findings change the next design priorities. FTRL and Andersen-Gill need API work before broader promotion; the remaining estimators are usable within the limitations now made explicit in their reference pages.
 
 ## Baseline executive verdict
 

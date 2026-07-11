@@ -13,13 +13,15 @@ Current release state: `v0.7.1` is published to PyPI and GitHub Releases. The re
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
-## Refactor Correctness Pass (2026-07-10)
+## Refactor Correctness And Documentation Pass (2026-07-10 through 2026-07-11)
 
 The `refactor` branch was created from `origin/master` 0.7.0 after preserving the audited dirty 0.5.1 tree on `pre-refactor-audit-snapshot`, then merged with current `master` 0.7.1. It fixes the review P0/P1 set: weighted TwoSLS, generic M-estimator covariance, identified multinomial inference, penalized-estimator inference contracts, shuffled/stratified cross-fitting, absorbed fixed-effect degrees of freedom, covariance-diagonal validation, and convergence semantics.
 
 `BaggedPolynomialRegressor` is now a guarded prediction-only class in `regularized.rs`. It standardizes polynomial columns inside each learner, stores random subspaces and resolved dimensions, reports OOB MSE/coverage, enforces dense-design limits, and has direct scikit-learn parity tests. The public docs include a reference page and a leakage-free repeated-draw demo; both leave executable code visible by default. The repository-level baseline audit and remediation record is `evaluation-review.qmd`.
 
-Current validation is 141 passing Python tests and 3 passing Rust tests. All changed executable Quarto pages render. A 94-page no-execute site assembly passes; the full executing site remains blocked by the pre-existing absent `ding_w_source/repl/nhanes_bmi.csv`. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
+The follow-up source audit covers every public estimator and all five public transforms. Each API reference now states the implemented objective or estimating equations, covariance or inferential method, prediction contract, and the relevant dense computational scaling. The audit also corrected Poisson input validation and the PCA explained-variance and whitening-inverse formulas. FTRL is now explicitly labeled experimental because its current Python fit performs only one full-batch proximal update; Andersen--Gill is explicitly limited to inverse-information covariance because the API has no subject identifier for clustered recurrent-event inference.
+
+Current validation is 143 passing Python tests and 3 passing Rust tests. The API overview and all 31 reference pages render with live Python execution, displayed mathematics, and visible estimator code. A whole-site review preview is available at `https://lalten.org/drafts/crabbymetrics-pr16-estimator-docs/`; the full executing site remains blocked at the pre-existing Ding chapter that expects absent `ding_w_source/repl/nhanes_bmi.csv`. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
 
 ## Repository Layout
 
@@ -201,7 +203,7 @@ The v0.7.x docs architecture uses `docs/api.qmd` as the full API landing page an
 - `API` links to grouped anchors for regression/GLMs, survival/event-time models, causal inference/panels, hypothesis testing, transforms, and estimation interfaces.
 - `Regression And GLMs` includes the `mle-prediction-interface` vignette documenting the layered MLE prediction contract.
 - `Survival / Time-to-Event / Recurrent Events` has both a richer worked example and compact class reference pages for `ExponentialPH`, `WeibullPH`, `CoxPH`, and `AndersenGill`.
-- `Transforms` includes the PCA/kernel page, while randomized transformers are represented in the API surface and RLA ablation until they get deeper standalone docs.
+- `Transforms` includes grouped PCA and kernel-transform reference pages covering `PCA`, `RandomizedPCA`, `KernelBasis`, `NystromBasis`, and `RandomFourierFeatures`.
 
 Important docs deployment note: the PyPI release workflow does not deploy the Quarto site. After `v0.7.1`, source `master` contains the anytime-valid OLS page and nav/API links, but public GitHub Pages still needs the separate `gh-pages` publish path before the live site reflects those source docs.
 
@@ -367,15 +369,16 @@ The semiparametric module is intentionally opinionated:
 
 This is not a general DML framework. The choices are explicit so the Rust layer stays compact and testable.
 
-### 6. Fold splitting is deterministic
+### 6. Fold splitting is seeded and reproducible
 
-Cross-fit estimators use deterministic fold assignment by row order plus a seed offset. This makes:
+Cross-fit estimators use a deterministic seeded hash shuffle. `AIPW` assigns folds within treatment strata so each nuisance-training split retains both treatment arms when the data permit. This makes:
 
 - tests exact and reproducible
 - debugging straightforward
 - docs examples stable across rebuilds
+- different seeds change fold membership rather than only relabeling fixed row blocks
 
-This is a deliberate tradeoff in favor of reproducibility over random fold shuffling.
+The split is random-looking but reproducible for a fixed seed; row order is not used as the fold boundary.
 
 ### 7. Docs are part of the product
 
@@ -383,7 +386,8 @@ The Quarto site is checked in and is expected to stay coherent. Important conven
 
 - `embed-resources: true`
 - full-width pages
-- code kept in the doc but folded where appropriate
+- estimator API, reference, and worked-example code visible by default
+- setup, utility, and ablation code folded only where the page configuration calls for it
 - ablation pages under `docs/ablations/` use `execute.cache: true`
 - ablation pages under `docs/ablations/` use `freeze: auto`
 
@@ -453,9 +457,9 @@ The test suite now covers:
 
 `v0.7.1` is published to PyPI, but GitHub Pages is served from `gh-pages`, not from `master`. Docs changes such as `docs/examples/anytime-valid-ols.qmd` need the separate rendered-site deployment workflow before they are visible at the public docs URL.
 
-### Transform docs are thinner than the Python surface
+### Transform math and numerical contracts are now explicit
 
-The Python module exports `PCA`, `KernelBasis`, `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`, but `docs/api.qmd` and the current transform nav still foreground only PCA/kernel examples. The randomized/Nystrom/RFF transforms are tested and referenced by the RLA ablation, but they still need deeper first-class reference/example docs if they become user-facing priorities.
+The grouped PCA and kernel-transform references now cover all five exported classes. The audit also fixed `PCA` to report $s_j^2/(n-1)$, compute explained-variance ratios against total centered variance, and correctly undo whitening in `inverse_transform`. The Gaussian kernel page now matches the implementation's bandwidth convention, $\exp(-\lVert x-z\rVert^2/h)$.
 
 ### Weighted support is still incomplete
 
@@ -473,24 +477,29 @@ This is intentional and keeps the dependency story clean, but it means:
 
 It is useful as an escape hatch, but it still has limitations:
 
-- variance uses a score-outer-product approximation for both bread and meat
+- covariance uses a numerical Jacobian for the bread and empirical score outer products for the meat
+- Python callbacks keep it outside the all-Rust hot-path design
 - solver diagnostics are thin
 - it is best treated as a low-level custom hook, not as the flagship inference path
 
-### PyO3 deprecation warnings remain
+### `FTRL` is not yet a coherent online estimator API
 
-The codebase still emits PyO3 deprecation warnings around `with_gil` and older downcast helpers. They do not currently block builds, but the warning debt is real.
+The current wrapper initializes a fresh upstream state, computes one aggregate full-batch logistic gradient, applies one proximal update, and discards the optimizer state. There is no intercept, `partial_fit`, iteration control, or convergence target. It should remain experimental until it becomes a persistent online estimator or is removed from the first-tier public surface.
+
+### `AndersenGill` lacks recurrent-event robust inference
+
+The point estimator is the counting-process Cox partial likelihood with Breslow ties, but the public API has no subject identifier. Its inverse-information covariance is not the subject-clustered sandwich variance generally needed when subjects contribute recurrent events. Both `CoxPH` and `AndersenGill` also rescan all rows for every event and build dense second moments, costing approximately $O(Enp^2)$ per Newton iteration.
 
 ## Current Direction
 
-After the randomized linear algebra, ABC OLS, anytime-valid OLS, hypothesis-test, MLE prediction, and survival work, the most plausible next branch directions are:
+After the correctness and class-by-class API audit, the most plausible next branch directions are:
 
-1. docs housekeeping: publish the rendered `v0.7.1` docs site and fill in transform docs for `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`
-2. difference-in-differences / event-study support
-3. more likelihood methods, starting with negative binomial and grouped/binomial likelihoods
-4. weighted nonlinear estimators and weighted GMM
-5. richer IV / GMM diagnostics
-6. Cox baseline-hazard / survival-curve follow-ons
+1. decide whether to redesign `FTRL` around persistent `partial_fit` state or remove it from the first-tier estimator surface
+2. add a subject identifier and clustered score covariance to `AndersenGill`, then optimize Cox-family risk-set accumulation
+3. expose convergence status for iterative estimators that currently retain budget-exhausted results, especially `MatrixCompletion` and survival fits
+4. difference-in-differences / event-study support
+5. more likelihood methods, starting with negative binomial and grouped/binomial likelihoods
+6. weighted nonlinear estimators, weighted GMM, and richer IV / GMM diagnostics
 
 That is the current state the next extension branch should assume.
 
