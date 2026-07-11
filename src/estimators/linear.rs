@@ -293,41 +293,21 @@ fn fit_two_sls_closed_form(
         return Err(PyValueError::new_err("row count mismatch"));
     }
 
+    let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, fit_intercept)?;
     let sqrt_weight = sqrt_sample_weight(sample_weight, y.len()).map_err(PyValueError::new_err)?;
-    let x_endog_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_rows(x_endog, scale).map_err(PyValueError::new_err)?,
-        None => x_endog.clone(),
-    };
-    let x_exog_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_rows(x_exog, scale).map_err(PyValueError::new_err)?,
-        None => x_exog.clone(),
-    };
-    let z_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_rows(z, scale).map_err(PyValueError::new_err)?,
-        None => z.clone(),
-    };
-    let y_work = match sqrt_weight.as_ref() {
-        Some(scale) => scale_vec(y, scale).map_err(PyValueError::new_err)?,
-        None => y.clone(),
+    let (x_work, z_work, y_work) = match sqrt_weight.as_ref() {
+        Some(scale) => (
+            scale_rows(&x_design, scale).map_err(PyValueError::new_err)?,
+            scale_rows(&z_design, scale).map_err(PyValueError::new_err)?,
+            scale_vec(y, scale).map_err(PyValueError::new_err)?,
+        ),
+        None => (x_design, z_design, y.clone()),
     };
 
-    let (_x_design, z_design) =
-        build_iv_designs(&x_endog_work, &x_exog_work, &z_work, fit_intercept)?;
-    let x_endog_hat =
-        solve_least_squares_mat(&z_design, &x_endog_work).map(|pi_hat| z_design.dot(&pi_hat));
-    let x_endog_hat = x_endog_hat.map_err(PyValueError::new_err)?;
-    let x_hat_rhs = if x_exog_work.ncols() > 0 {
-        concatenate(Axis(1), &[x_endog_hat.view(), x_exog_work.view()])
-            .map_err(|_| PyValueError::new_err("failed to concat endog/exog"))?
-    } else {
-        x_endog_hat
-    };
-    let x_hat_design = if fit_intercept {
-        add_intercept(&x_hat_rhs)
-    } else {
-        x_hat_rhs
-    };
-    let params = solve_least_squares_vec(&x_hat_design, &y_work).map_err(PyValueError::new_err)?;
+    let x_hat = solve_least_squares_mat(&z_work, &x_work)
+        .map(|pi_hat| z_work.dot(&pi_hat))
+        .map_err(PyValueError::new_err)?;
+    let params = solve_least_squares_vec(&x_hat, &y_work).map_err(PyValueError::new_err)?;
 
     Ok(TwoSlsFitResult { params })
 }
@@ -3409,26 +3389,16 @@ impl TwoSLS {
         } else {
             params.assign(fitted_coef);
         }
-        let (x_design_work, z_design_work, y_work) = match sample_weight {
-            Some(weights) => {
-                let sqrt_weight = sqrt_sample_weight(Some(weights), y.len())
-                    .map_err(PyValueError::new_err)?
-                    .expect("weights were provided");
-                let x_endog_work =
-                    scale_rows(x_endog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let x_exog_work =
-                    scale_rows(x_exog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let z_work = scale_rows(z, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let y_work = scale_vec(y, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let (x_design_work, z_design_work) =
-                    build_iv_designs(&x_endog_work, &x_exog_work, &z_work, self.fit_intercept)?;
-                (x_design_work, z_design_work, y_work)
-            }
-            None => {
-                let (x_design, z_design) =
-                    build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
-                (x_design, z_design, y.clone())
-            }
+        let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+        let sqrt_weight =
+            sqrt_sample_weight(sample_weight, y.len()).map_err(PyValueError::new_err)?;
+        let (x_design_work, z_design_work, y_work) = match sqrt_weight.as_ref() {
+            Some(scale) => (
+                scale_rows(&x_design, scale).map_err(PyValueError::new_err)?,
+                scale_rows(&z_design, scale).map_err(PyValueError::new_err)?,
+                scale_vec(y, scale).map_err(PyValueError::new_err)?,
+            ),
+            None => (x_design, z_design, y.clone()),
         };
         let residuals = y_work - &x_design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);
@@ -3498,26 +3468,16 @@ impl TwoSLS {
         } else {
             params.assign(fitted_coef);
         }
-        let (x_design_work, z_design_work, y_work) = match self.sample_weight.as_ref() {
-            Some(weights) => {
-                let sqrt_weight = sqrt_sample_weight(Some(weights), y.len())
-                    .map_err(PyValueError::new_err)?
-                    .expect("weights were provided");
-                let x_endog_work =
-                    scale_rows(x_endog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let x_exog_work =
-                    scale_rows(x_exog, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let z_work = scale_rows(z, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let y_work = scale_vec(y, &sqrt_weight).map_err(PyValueError::new_err)?;
-                let (x_design_work, z_design_work) =
-                    build_iv_designs(&x_endog_work, &x_exog_work, &z_work, self.fit_intercept)?;
-                (x_design_work, z_design_work, y_work)
-            }
-            None => {
-                let (x_design, z_design) =
-                    build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
-                (x_design, z_design, y.clone())
-            }
+        let (x_design, z_design) = build_iv_designs(x_endog, x_exog, z, self.fit_intercept)?;
+        let sqrt_weight = sqrt_sample_weight(self.sample_weight.as_ref(), y.len())
+            .map_err(PyValueError::new_err)?;
+        let (x_design_work, z_design_work, y_work) = match sqrt_weight.as_ref() {
+            Some(scale) => (
+                scale_rows(&x_design, scale).map_err(PyValueError::new_err)?,
+                scale_rows(&z_design, scale).map_err(PyValueError::new_err)?,
+                scale_vec(y, scale).map_err(PyValueError::new_err)?,
+            ),
+            None => (x_design, z_design, y.clone()),
         };
         let residuals = y_work - &x_design_work.dot(&params);
         let cluster_ids = clusters.as_ref().map(to_array1_i64);

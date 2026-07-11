@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from statsmodels.sandbox.regression.gmm import IV2SLS
+
 import numpy as np
 import pytest
 
@@ -238,26 +240,49 @@ def twosls_summary_reference(x_endog, x_exog, z, y, kind, lags=None, clusters=No
 
 
 def weighted_twosls_closed_form(x_endog, x_exog, z, y, weights):
+    x_rhs = np.column_stack([x_endog, x_exog])
+    z_rhs = np.column_stack([x_exog, z])
+    x_design = np.column_stack([np.ones(x_rhs.shape[0]), x_rhs])
+    z_design = np.column_stack([np.ones(z_rhs.shape[0]), z_rhs])
     sqrt_w = np.sqrt(weights)
-    return twosls_closed_form(
-        x_endog * sqrt_w[:, None],
-        x_exog * sqrt_w[:, None],
-        z * sqrt_w[:, None],
+    fitted = IV2SLS(
         y * sqrt_w,
-    )
+        x_design * sqrt_w[:, None],
+        z_design * sqrt_w[:, None],
+    ).fit()
+    return fitted.params[0], fitted.params[1:]
 
 
 def weighted_twosls_summary_reference(x_endog, x_exog, z, y, weights, kind, lags=None, clusters=None):
+    x_rhs = np.column_stack([x_endog, x_exog])
+    z_rhs = np.column_stack([x_exog, z])
+    x_design = np.column_stack([np.ones(x_rhs.shape[0]), x_rhs])
+    z_design = np.column_stack([np.ones(z_rhs.shape[0]), z_rhs])
     sqrt_w = np.sqrt(weights)
-    return twosls_summary_reference(
-        x_endog * sqrt_w[:, None],
-        x_exog * sqrt_w[:, None],
-        z * sqrt_w[:, None],
-        y * sqrt_w,
-        kind=kind,
-        lags=lags,
-        clusters=clusters,
-    )
+    x_work = x_design * sqrt_w[:, None]
+    z_work = z_design * sqrt_w[:, None]
+    y_work = y * sqrt_w
+    beta = IV2SLS(y_work, x_work, z_work).fit().params
+    residuals = y_work - x_work @ beta
+    n, p = x_work.shape
+    weight = np.linalg.inv(z_work.T @ z_work / n)
+    jacobian = -(z_work.T @ x_work) / n
+    a_inv = np.linalg.inv(jacobian.T @ weight @ jacobian)
+    if kind == "vanilla":
+        sigma2 = residuals @ residuals / (n - p)
+        cov = a_inv * sigma2 / n
+    else:
+        moment_scores = z_work * residuals[:, None]
+        transform = weight @ jacobian @ a_inv / n
+        param_scores = moment_scores @ transform
+        cov = sandwich_from_parameter_scores(
+            param_scores,
+            df_resid=n - p,
+            kind=kind,
+            lags=lags,
+            clusters=clusters,
+        )
+    return beta, cov
 
 
 def demean_by_group(x, y, groups):
