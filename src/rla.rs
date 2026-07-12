@@ -2,6 +2,7 @@ use crate::utils::{
     add_intercept, pyarray1_from_f64, pyarray2_from_f64, solve_least_squares_mat,
     solve_least_squares_vec,
 };
+use crate::validation::validate_finite;
 use nalgebra::DMatrix;
 use ndarray::{s, Array1, Array2};
 use numpy::{PyArray2, PyReadonlyArray1, PyReadonlyArray2};
@@ -20,15 +21,6 @@ pub struct RandomizedSvdResult {
 pub struct RandomizedQrResult {
     pub q: Array2<f64>,
     pub r: Array2<f64>,
-}
-
-fn validate_finite_matrix(name: &str, a: &Array2<f64>) -> PyResult<()> {
-    if a.iter().any(|value| !value.is_finite()) {
-        return Err(PyValueError::new_err(format!(
-            "{name} must contain only finite values"
-        )));
-    }
-    Ok(())
 }
 
 fn validate_rank_params(
@@ -101,7 +93,7 @@ pub fn randomized_range_finder(
     power_iter: usize,
     seed: Option<u64>,
 ) -> PyResult<Array2<f64>> {
-    validate_finite_matrix("a", a)?;
+    validate_finite("a", a).map_err(PyValueError::new_err)?;
     let sketch_cols = validate_rank_params(a.nrows(), a.ncols(), rank, oversamples, power_iter)?;
     let mut rng = StdRng::seed_from_u64(seed.unwrap_or(0xC0FFEE));
     let omega = rademacher_matrix(a.ncols(), sketch_cols, &mut rng);
@@ -125,7 +117,7 @@ pub fn randomized_qr_impl(
     power_iter: usize,
     seed: Option<u64>,
 ) -> PyResult<RandomizedQrResult> {
-    validate_finite_matrix("a", a)?;
+    validate_finite("a", a).map_err(PyValueError::new_err)?;
     validate_rank_params(a.nrows(), a.ncols(), rank, oversamples, power_iter)?;
     let q_range = randomized_range_finder(a, rank, oversamples, power_iter, seed)?;
     let b = q_range.t().dot(a);
@@ -147,7 +139,7 @@ pub fn randomized_svd_impl(
     power_iter: usize,
     seed: Option<u64>,
 ) -> PyResult<RandomizedSvdResult> {
-    validate_finite_matrix("a", a)?;
+    validate_finite("a", a).map_err(PyValueError::new_err)?;
     let target_rank = rank;
     validate_rank_params(a.nrows(), a.ncols(), rank, oversamples, power_iter)?;
     let q = randomized_range_finder(a, rank, oversamples, power_iter, seed)?;
@@ -196,7 +188,7 @@ pub fn count_sketch_joint(
                 "all sketched matrices must have the same row count",
             ));
         }
-        validate_finite_matrix("matrix", matrix)?;
+        validate_finite("matrix", matrix).map_err(PyValueError::new_err)?;
     }
     for vector in vectors {
         if vector.len() != n {
@@ -267,7 +259,7 @@ pub fn sketch_ols_params(
     sketch_size: usize,
     seed: Option<u64>,
 ) -> PyResult<Array1<f64>> {
-    validate_finite_matrix("x", x)?;
+    validate_finite("x", x).map_err(PyValueError::new_err)?;
     if y.iter().any(|value| !value.is_finite()) {
         return Err(PyValueError::new_err("y must contain only finite values"));
     }

@@ -1,12 +1,11 @@
+use crate::fit::optimization_success;
 use crate::hyptests::wald_test_arrays;
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, fisher_cov_multinomial,
     fisher_cov_poisson, invert_matrix, pyarray1_from_f64, pyarray1_from_i32, pyarray2_from_f64,
     qmle_cov_poisson, take_rows, take_rows_i32, take_rows_vec, to_array1, to_array1_i32, to_array2,
 };
-use argmin::core::{
-    CostFunction, Executor, Gradient, Hessian, State, TerminationReason, TerminationStatus,
-};
+use argmin::core::{CostFunction, Executor, Gradient, Hessian, State};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::newton::NewtonCG;
 use argmin::solver::quasinewton::LBFGS;
@@ -19,14 +18,6 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rand::{Rng, SeedableRng};
-
-fn optimization_success(status: &TerminationStatus) -> bool {
-    matches!(
-        status,
-        TerminationStatus::Terminated(TerminationReason::SolverConverged)
-            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
-    )
-}
 
 fn binary_logit_orientation(model: &linfa_logistic::FittedLogisticRegression<f64, i32>) -> f64 {
     if model.labels().pos.class == 1 {

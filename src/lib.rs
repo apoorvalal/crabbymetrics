@@ -1,9 +1,11 @@
 mod abc;
 mod estimators;
+mod fit;
 mod hyptests;
 mod optimizers;
 mod rla;
 mod utils;
+mod validation;
 
 use crate::abc::ABCOLS;
 use crate::estimators::{

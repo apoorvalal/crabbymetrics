@@ -1,3 +1,4 @@
+use crate::fit::optimization_success;
 use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
@@ -6,7 +7,7 @@ use crate::utils::{
     solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_u32,
     take_rows_vec, to_array1, to_array1_i64, to_array2, to_array2_u32, validate_sample_weight,
 };
-use argmin::core::{CostFunction, Executor, Gradient, State, TerminationReason, TerminationStatus};
+use argmin::core::{CostFunction, Executor, Gradient, State};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use nalgebra::DMatrix;
@@ -96,14 +97,6 @@ fn absorbed_fe_rank(fe: &Array2<u32>) -> Result<(usize, &'static str), String> {
 
 struct TwoSlsFitResult {
     params: Array1<f64>,
-}
-
-fn optimization_success(status: &TerminationStatus) -> bool {
-    matches!(
-        status,
-        TerminationStatus::Terminated(TerminationReason::SolverConverged)
-            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
-    )
 }
 
 fn combine_endog_exog(x_endog: &Array2<f64>, x_exog: &Array2<f64>) -> PyResult<Array2<f64>> {

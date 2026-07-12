@@ -4,6 +4,7 @@ use crate::utils::{
     solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec, to_array1,
     to_array1_i32, to_array1_i64, to_array2,
 };
+use crate::validation::validate_finite;
 use linfa::prelude::{Fit, FitWith, Predict};
 use linfa::Dataset;
 use linfa_elasticnet::ElasticNet as LinfaElasticNet;
@@ -285,20 +286,6 @@ fn ridge_covariance(
 
 const MAX_POLYNOMIAL_TERMS: usize = 100_000;
 const MAX_POLYNOMIAL_DESIGN_CELLS: usize = 50_000_000;
-
-fn validate_finite_array1(name: &str, values: &Array1<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
-
-fn validate_finite_array2(name: &str, values: &Array2<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
 
 fn polynomial_term_count(n_features: usize, degree: usize) -> Result<usize, String> {
     if n_features == 0 {
@@ -822,8 +809,8 @@ impl BaggedPolynomialRegressor {
         if x.ncols() == 0 {
             return Err(PyValueError::new_err("x must have at least one feature"));
         }
-        validate_finite_array2("x", &x).map_err(PyValueError::new_err)?;
-        validate_finite_array1("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
 
         let n = x.nrows();
         let p = x.ncols();
@@ -944,7 +931,7 @@ impl BaggedPolynomialRegressor {
                 expected_features
             )));
         }
-        validate_finite_array2("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
         validate_polynomial_design_size(x.nrows(), self.n_terms.unwrap_or(0))
             .map_err(PyValueError::new_err)?;
 

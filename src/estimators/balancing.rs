@@ -1,8 +1,7 @@
+use crate::fit::optimization_success;
 use crate::utils::{pyarray1_from_f64, scale_rows, solve_least_squares_vec, to_array2};
-use argmin::core::{
-    CostFunction, Error as ArgminError, Executor, Gradient, State, TerminationReason,
-    TerminationStatus,
-};
+use crate::validation::validate_weights;
+use argmin::core::{CostFunction, Error as ArgminError, Executor, Gradient, State};
 use argmin::solver::{linesearch::MoreThuenteLineSearch, quasinewton::BFGS};
 use ndarray::{s, Array1, Array2, Axis};
 use numpy::{PyArray1, PyReadonlyArray2};
@@ -47,33 +46,6 @@ impl SolveMode {
 enum EntropyPhase {
     Relaxed,
     Bounded,
-}
-
-fn optimization_success(status: &TerminationStatus) -> bool {
-    matches!(
-        status,
-        TerminationStatus::Terminated(TerminationReason::SolverConverged)
-            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
-    )
-}
-
-fn validate_weights(name: &str, weights: &Array1<f64>, n: usize) -> Result<(), String> {
-    if weights.len() != n {
-        return Err(format!(
-            "{} length must match the number of observations",
-            name
-        ));
-    }
-    if weights
-        .iter()
-        .any(|value| !value.is_finite() || *value < 0.0)
-    {
-        return Err(format!("{} values must be finite and nonnegative", name));
-    }
-    if weights.iter().all(|value| *value == 0.0) {
-        return Err(format!("{} must contain at least one positive value", name));
-    }
-    Ok(())
 }
 
 fn normalize_weights(name: &str, weights: &Array1<f64>) -> Result<Array1<f64>, String> {

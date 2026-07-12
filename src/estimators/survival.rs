@@ -1,4 +1,5 @@
 use crate::utils::{invert_matrix, pyarray1_from_f64, pyarray2_from_f64, to_array1, to_array2};
+use crate::validation::{validate_binary_f64, validate_finite, validate_positive};
 use ndarray::{Array1, Array2};
 use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -9,23 +10,14 @@ fn validate_binary_event(event: &Array1<f64>, n: usize) -> PyResult<()> {
     if event.len() != n {
         return Err(PyValueError::new_err("event length must match time length"));
     }
-    if event
-        .iter()
-        .any(|v| !v.is_finite() || (*v != 0.0 && *v != 1.0))
-    {
-        return Err(PyValueError::new_err("event indicators must be 0/1"));
-    }
-    Ok(())
+    validate_binary_f64("event indicators", event).map_err(PyValueError::new_err)
 }
 
 fn validate_x(x: &Array2<f64>, n: usize) -> PyResult<()> {
     if x.nrows() != n {
         return Err(PyValueError::new_err("x rows must match time length"));
     }
-    if x.iter().any(|v| !v.is_finite()) {
-        return Err(PyValueError::new_err("x must contain only finite values"));
-    }
-    Ok(())
+    validate_finite("x", x).map_err(PyValueError::new_err)
 }
 
 fn max_abs(v: &Array1<f64>) -> f64 {
@@ -206,9 +198,7 @@ impl ExponentialPH {
         let event = to_array1(&event);
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
-        if time.iter().any(|v| !v.is_finite() || *v <= 0.0) {
-            return Err(PyValueError::new_err("time must be positive and finite"));
-        }
+        validate_positive("time", &time).map_err(PyValueError::new_err)?;
         let (theta, vcov, ll, it) =
             fit_parametric(&x, &time, &event, false, max_iterations, tolerance)
                 .map_err(PyValueError::new_err)?;
@@ -389,9 +379,7 @@ impl WeibullPH {
         let event = to_array1(&event);
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
-        if time.iter().any(|v| !v.is_finite() || *v <= 0.0) {
-            return Err(PyValueError::new_err("time must be positive and finite"));
-        }
+        validate_positive("time", &time).map_err(PyValueError::new_err)?;
         let (theta, vcov, ll, it) =
             fit_parametric(&x, &time, &event, true, max_iterations, tolerance)
                 .map_err(PyValueError::new_err)?;
@@ -688,9 +676,7 @@ impl CoxPH {
         let event = to_array1(&event);
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
-        if time.iter().any(|v| !v.is_finite() || *v <= 0.0) {
-            return Err(PyValueError::new_err("time must be positive and finite"));
-        }
+        validate_positive("time", &time).map_err(PyValueError::new_err)?;
         let (coef, vcov, ll, it) = fit_cox_core(&x, None, &time, &event, max_iterations, tolerance)
             .map_err(PyValueError::new_err)?;
         self.coef = Some(coef);
