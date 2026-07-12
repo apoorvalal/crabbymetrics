@@ -71,6 +71,9 @@ def test_penalized_likelihood_models_do_not_report_unpenalized_inference():
     assert poisson_summary["inference_available"] is False
     assert poisson_summary["vcov"] is None
     assert poisson_summary["coef_se"] is None
+    assert poisson_summary["converged"] is True
+    assert poisson_summary["iterations"] > 0
+    assert np.isfinite(poisson_summary["objective"])
     with pytest.raises(ValueError, match="only available for unpenalized"):
         poisson.wald_test(np.eye(3))
 
@@ -153,6 +156,8 @@ def test_mestimator_sandwich_covariance_matches_statsmodels_hc0():
 
     assert summary["converged"] is True
     assert summary["iterations"] < 500
+    assert summary["termination_reason"] == "Solver converged"
+    assert np.isfinite(summary["objective"])
     np.testing.assert_allclose(summary["coef"], reference.params, atol=2e-6, rtol=2e-6)
     np.testing.assert_allclose(summary["vcov"], reference.cov_params(), atol=2e-8, rtol=2e-6)
 
@@ -168,6 +173,10 @@ def test_predictive_regularized_models_mark_analytic_inference_unavailable():
     assert elastic_summary["inference_available"] is False
     assert elastic_summary["intercept_se"] is None
     assert elastic_summary["coef_se"] is None
+    assert elastic_summary["converged"] is True
+    assert elastic_summary["iterations"] > 0
+    assert elastic_summary["duality_gap"] <= elastic_summary["duality_gap_tolerance"]
+    assert np.isfinite(elastic_summary["objective"])
 
     binary_y = (y > np.median(y)).astype(np.int32)
     ftrl = cm.FTRL()
@@ -175,3 +184,21 @@ def test_predictive_regularized_models_mark_analytic_inference_unavailable():
     ftrl_summary = ftrl.summary()
     assert ftrl_summary["inference_available"] is False
     assert ftrl_summary["coef_se"] is None
+
+
+def test_elastic_net_rejects_unsatisfied_duality_gap():
+    rng = np.random.default_rng(1206)
+    x = rng.normal(size=(400, 8))
+    y = x @ np.array([1.0, -0.7, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0])
+    y += rng.normal(scale=0.3, size=x.shape[0])
+
+    model = cm.ElasticNet(
+        penalty=0.05,
+        l1_ratio=0.6,
+        tolerance=1e-6,
+        max_iterations=1,
+    )
+    with pytest.raises(ValueError, match="duality gap"):
+        model.fit(x, y)
+    with pytest.raises(ValueError, match="not fitted"):
+        model.summary()

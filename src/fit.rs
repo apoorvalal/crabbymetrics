@@ -49,10 +49,15 @@ impl FitDiagnostics {
         }
     }
 
-    pub(crate) fn write_summary(&self, dict: &Bound<'_, PyDict>) -> PyResult<()> {
+    pub(crate) fn write_status(&self, dict: &Bound<'_, PyDict>) -> PyResult<()> {
         dict.set_item("converged", self.converged)?;
         dict.set_item("iterations", self.iterations)?;
         dict.set_item("termination_reason", &self.termination_reason)?;
+        Ok(())
+    }
+
+    pub(crate) fn write_summary(&self, dict: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.write_status(dict)?;
         dict.set_item("objective", self.objective)?;
         Ok(())
     }

@@ -1,3 +1,4 @@
+use crate::fit::FitDiagnostics;
 use crate::utils::{invert_matrix, pyarray1_from_f64, pyarray2_from_f64, to_array1, to_array2};
 use crate::validation::{validate_binary_f64, validate_finite, validate_positive};
 use ndarray::{Array1, Array2};
@@ -108,6 +109,13 @@ fn parametric_ll_grad_hess(
     (ll, grad, hess)
 }
 
+struct SurvivalFit {
+    params: Array1<f64>,
+    vcov: Array2<f64>,
+    log_likelihood: f64,
+    diagnostics: FitDiagnostics,
+}
+
 fn fit_parametric(
     x: &Array2<f64>,
     time: &Array1<f64>,
@@ -115,7 +123,13 @@ fn fit_parametric(
     weibull: bool,
     max_iter: usize,
     tol: f64,
-) -> Result<(Array1<f64>, Array2<f64>, f64, usize), String> {
+) -> Result<SurvivalFit, String> {
+    if max_iter == 0 {
+        return Err("max_iterations must be positive".to_string());
+    }
+    if !tol.is_finite() || tol <= 0.0 {
+        return Err("tolerance must be positive and finite".to_string());
+    }
     let p = x.ncols();
     let k = 1 + p + if weibull { 1 } else { 0 };
     let mut theta = Array1::<f64>::zeros(k);
@@ -125,13 +139,13 @@ fn fit_parametric(
     if weibull {
         theta[k - 1] = 0.0;
     }
-    let mut last_ll = f64::NEG_INFINITY;
-    let mut used = 0;
+    let mut termination_reason = None;
+    let mut used = 0_u64;
     for iter in 0..max_iter {
-        used = iter + 1;
+        used = (iter + 1) as u64;
         let (ll, grad, hess) = parametric_ll_grad_hess(&theta, x, time, event, weibull);
         if max_abs(&grad) < tol {
-            last_ll = ll;
+            termination_reason = Some("Gradient tolerance reached".to_string());
             break;
         }
         let mut step = solve_newton(&hess, &grad, 1e-8)?;
@@ -143,8 +157,10 @@ fn fit_parametric(
             let (cand_ll, _, _) = parametric_ll_grad_hess(&cand, x, time, event, weibull);
             if cand_ll.is_finite() && cand_ll >= ll - 1e-10 {
                 theta = cand;
-                last_ll = cand_ll;
                 accepted = true;
+                if (cand_ll - ll).abs() < tol * (1.0 + ll.abs()) {
+                    termination_reason = Some("Relative objective tolerance reached".to_string());
+                }
                 break;
             }
             scale *= 0.5;
@@ -152,14 +168,30 @@ fn fit_parametric(
         if !accepted {
             return Err("Newton line search failed".to_string());
         }
-        if (last_ll - ll).abs() < tol * (1.0 + ll.abs()) {
+        if termination_reason.is_some() {
             break;
         }
     }
-    let (_, _, hess) = parametric_ll_grad_hess(&theta, x, time, event, weibull);
+    let (log_likelihood, _, hess) = parametric_ll_grad_hess(&theta, x, time, event, weibull);
+    let diagnostics = FitDiagnostics::new(
+        termination_reason.is_some(),
+        used,
+        termination_reason.unwrap_or_else(|| "Maximum number of iterations reached".to_string()),
+        Some(-log_likelihood),
+    );
+    diagnostics.require_converged(if weibull {
+        "WeibullPH"
+    } else {
+        "ExponentialPH"
+    })?;
     let info = hess.mapv(|v| -v);
     let vcov = invert_matrix(&info)?;
-    Ok((theta, vcov, last_ll, used))
+    Ok(SurvivalFit {
+        params: theta,
+        vcov,
+        log_likelihood,
+        diagnostics,
+    })
 }
 
 #[pyclass]
@@ -168,7 +200,7 @@ pub struct ExponentialPH {
     log_baseline_hazard: f64,
     vcov: Option<Array2<f64>>,
     log_likelihood: f64,
-    iterations: usize,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 #[pymethods]
@@ -180,7 +212,7 @@ impl ExponentialPH {
             log_baseline_hazard: 0.0,
             vcov: None,
             log_likelihood: f64::NAN,
-            iterations: 0,
+            diagnostics: None,
         }
     }
 
@@ -193,20 +225,22 @@ impl ExponentialPH {
         max_iterations: usize,
         tolerance: f64,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.vcov = None;
+        self.diagnostics = None;
         let x = to_array2(&x);
         let time = to_array1(&time);
         let event = to_array1(&event);
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
         validate_positive("time", &time).map_err(PyValueError::new_err)?;
-        let (theta, vcov, ll, it) =
-            fit_parametric(&x, &time, &event, false, max_iterations, tolerance)
-                .map_err(PyValueError::new_err)?;
-        self.log_baseline_hazard = theta[0];
-        self.coef = Some(theta.slice(ndarray::s![1..]).to_owned());
-        self.vcov = Some(vcov);
-        self.log_likelihood = ll;
-        self.iterations = it;
+        let fit = fit_parametric(&x, &time, &event, false, max_iterations, tolerance)
+            .map_err(PyValueError::new_err)?;
+        self.log_baseline_hazard = fit.params[0];
+        self.coef = Some(fit.params.slice(ndarray::s![1..]).to_owned());
+        self.vcov = Some(fit.vcov);
+        self.log_likelihood = fit.log_likelihood;
+        self.diagnostics = Some(fit.diagnostics);
         Ok(())
     }
 
@@ -336,7 +370,10 @@ impl ExponentialPH {
         dict.set_item("hazard_ratio", pyarray1_from_f64(py, &coef.mapv(f64::exp)))?;
         dict.set_item("vcov", pyarray2_from_f64(py, vcov))?;
         dict.set_item("log_likelihood", self.log_likelihood)?;
-        dict.set_item("iterations", self.iterations)?;
+        self.diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?
+            .write_summary(&dict)?;
         Ok(dict.into())
     }
 }
@@ -348,7 +385,7 @@ pub struct WeibullPH {
     log_shape: f64,
     vcov: Option<Array2<f64>>,
     log_likelihood: f64,
-    iterations: usize,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 #[pymethods]
@@ -361,7 +398,7 @@ impl WeibullPH {
             log_shape: 0.0,
             vcov: None,
             log_likelihood: f64::NAN,
-            iterations: 0,
+            diagnostics: None,
         }
     }
 
@@ -374,22 +411,24 @@ impl WeibullPH {
         max_iterations: usize,
         tolerance: f64,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.vcov = None;
+        self.diagnostics = None;
         let x = to_array2(&x);
         let time = to_array1(&time);
         let event = to_array1(&event);
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
         validate_positive("time", &time).map_err(PyValueError::new_err)?;
-        let (theta, vcov, ll, it) =
-            fit_parametric(&x, &time, &event, true, max_iterations, tolerance)
-                .map_err(PyValueError::new_err)?;
+        let fit = fit_parametric(&x, &time, &event, true, max_iterations, tolerance)
+            .map_err(PyValueError::new_err)?;
         let p = x.ncols();
-        self.log_scale_hazard = theta[0];
-        self.coef = Some(theta.slice(ndarray::s![1..1 + p]).to_owned());
-        self.log_shape = theta[1 + p];
-        self.vcov = Some(vcov);
-        self.log_likelihood = ll;
-        self.iterations = it;
+        self.log_scale_hazard = fit.params[0];
+        self.coef = Some(fit.params.slice(ndarray::s![1..1 + p]).to_owned());
+        self.log_shape = fit.params[1 + p];
+        self.vcov = Some(fit.vcov);
+        self.log_likelihood = fit.log_likelihood;
+        self.diagnostics = Some(fit.diagnostics);
         Ok(())
     }
 
@@ -536,7 +575,10 @@ impl WeibullPH {
         dict.set_item("hazard_ratio", pyarray1_from_f64(py, &coef.mapv(f64::exp)))?;
         dict.set_item("vcov", pyarray2_from_f64(py, vcov))?;
         dict.set_item("log_likelihood", self.log_likelihood)?;
-        dict.set_item("iterations", self.iterations)?;
+        self.diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?
+            .write_summary(&dict)?;
         Ok(dict.into())
     }
 }
@@ -602,16 +644,22 @@ fn fit_cox_core(
     event: &Array1<f64>,
     max_iter: usize,
     tol: f64,
-) -> Result<(Array1<f64>, Array2<f64>, f64, usize), String> {
+) -> Result<SurvivalFit, String> {
+    if max_iter == 0 {
+        return Err("max_iterations must be positive".to_string());
+    }
+    if !tol.is_finite() || tol <= 0.0 {
+        return Err("tolerance must be positive and finite".to_string());
+    }
     let p = x.ncols();
     let mut beta = Array1::<f64>::zeros(p);
-    let mut last_ll = f64::NEG_INFINITY;
-    let mut used = 0;
+    let mut termination_reason = None;
+    let mut used = 0_u64;
     for iter in 0..max_iter {
-        used = iter + 1;
+        used = (iter + 1) as u64;
         let (ll, grad, hess) = cox_ll_grad_hess(&beta, x, start, stop, event);
         if max_abs(&grad) < tol {
-            last_ll = ll;
+            termination_reason = Some("Gradient tolerance reached".to_string());
             break;
         }
         let mut step = solve_newton(&hess, &grad, 1e-8)?;
@@ -623,8 +671,10 @@ fn fit_cox_core(
             let (cand_ll, _, _) = cox_ll_grad_hess(&cand, x, start, stop, event);
             if cand_ll.is_finite() && cand_ll >= ll - 1e-10 {
                 beta = cand;
-                last_ll = cand_ll;
                 accepted = true;
+                if (cand_ll - ll).abs() < tol * (1.0 + ll.abs()) {
+                    termination_reason = Some("Relative objective tolerance reached".to_string());
+                }
                 break;
             }
             scale *= 0.5;
@@ -632,14 +682,30 @@ fn fit_cox_core(
         if !accepted {
             return Err("Cox Newton line search failed".to_string());
         }
-        if (last_ll - ll).abs() < tol * (1.0 + ll.abs()) {
+        if termination_reason.is_some() {
             break;
         }
     }
-    let (_, _, hess) = cox_ll_grad_hess(&beta, x, start, stop, event);
+    let (log_likelihood, _, hess) = cox_ll_grad_hess(&beta, x, start, stop, event);
+    let diagnostics = FitDiagnostics::new(
+        termination_reason.is_some(),
+        used,
+        termination_reason.unwrap_or_else(|| "Maximum number of iterations reached".to_string()),
+        Some(-log_likelihood),
+    );
+    diagnostics.require_converged(if start.is_some() {
+        "AndersenGill"
+    } else {
+        "CoxPH"
+    })?;
     let info = hess.mapv(|v| -v);
     let vcov = invert_matrix(&info)?;
-    Ok((beta, vcov, last_ll, used))
+    Ok(SurvivalFit {
+        params: beta,
+        vcov,
+        log_likelihood,
+        diagnostics,
+    })
 }
 
 #[pyclass]
@@ -647,7 +713,7 @@ pub struct CoxPH {
     coef: Option<Array1<f64>>,
     vcov: Option<Array2<f64>>,
     log_likelihood: f64,
-    iterations: usize,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 #[pymethods]
@@ -658,7 +724,7 @@ impl CoxPH {
             coef: None,
             vcov: None,
             log_likelihood: f64::NAN,
-            iterations: 0,
+            diagnostics: None,
         }
     }
 
@@ -671,18 +737,21 @@ impl CoxPH {
         max_iterations: usize,
         tolerance: f64,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.vcov = None;
+        self.diagnostics = None;
         let x = to_array2(&x);
         let time = to_array1(&time);
         let event = to_array1(&event);
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
         validate_positive("time", &time).map_err(PyValueError::new_err)?;
-        let (coef, vcov, ll, it) = fit_cox_core(&x, None, &time, &event, max_iterations, tolerance)
+        let fit = fit_cox_core(&x, None, &time, &event, max_iterations, tolerance)
             .map_err(PyValueError::new_err)?;
-        self.coef = Some(coef);
-        self.vcov = Some(vcov);
-        self.log_likelihood = ll;
-        self.iterations = it;
+        self.coef = Some(fit.params);
+        self.vcov = Some(fit.vcov);
+        self.log_likelihood = fit.log_likelihood;
+        self.diagnostics = Some(fit.diagnostics);
         Ok(())
     }
 
@@ -745,7 +814,7 @@ impl CoxPH {
             self.coef.as_ref(),
             self.vcov.as_ref(),
             self.log_likelihood,
-            self.iterations,
+            self.diagnostics.as_ref(),
         )
     }
 }
@@ -755,7 +824,7 @@ pub struct AndersenGill {
     coef: Option<Array1<f64>>,
     vcov: Option<Array2<f64>>,
     log_likelihood: f64,
-    iterations: usize,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 #[pymethods]
@@ -766,7 +835,7 @@ impl AndersenGill {
             coef: None,
             vcov: None,
             log_likelihood: f64::NAN,
-            iterations: 0,
+            diagnostics: None,
         }
     }
 
@@ -780,6 +849,9 @@ impl AndersenGill {
         max_iterations: usize,
         tolerance: f64,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.vcov = None;
+        self.diagnostics = None;
         let x = to_array2(&x);
         let start = to_array1(&start);
         let stop = to_array1(&stop);
@@ -800,13 +872,12 @@ impl AndersenGill {
                 ));
             }
         }
-        let (coef, vcov, ll, it) =
-            fit_cox_core(&x, Some(&start), &stop, &event, max_iterations, tolerance)
-                .map_err(PyValueError::new_err)?;
-        self.coef = Some(coef);
-        self.vcov = Some(vcov);
-        self.log_likelihood = ll;
-        self.iterations = it;
+        let fit = fit_cox_core(&x, Some(&start), &stop, &event, max_iterations, tolerance)
+            .map_err(PyValueError::new_err)?;
+        self.coef = Some(fit.params);
+        self.vcov = Some(fit.vcov);
+        self.log_likelihood = fit.log_likelihood;
+        self.diagnostics = Some(fit.diagnostics);
         Ok(())
     }
 
@@ -869,7 +940,7 @@ impl AndersenGill {
             self.coef.as_ref(),
             self.vcov.as_ref(),
             self.log_likelihood,
-            self.iterations,
+            self.diagnostics.as_ref(),
         )
     }
 }
@@ -880,7 +951,7 @@ fn survival_summary<'py>(
     coef: Option<&Array1<f64>>,
     vcov: Option<&Array2<f64>>,
     ll: f64,
-    iterations: usize,
+    diagnostics: Option<&FitDiagnostics>,
 ) -> PyResult<Py<PyAny>> {
     let coef = coef.ok_or_else(|| PyValueError::new_err("model is not fitted"))?;
     let vcov = vcov.unwrap();
@@ -896,6 +967,8 @@ fn survival_summary<'py>(
     dict.set_item("p_value", pyarray1_from_f64(py, &p))?;
     dict.set_item("vcov", pyarray2_from_f64(py, vcov))?;
     dict.set_item("log_likelihood", ll)?;
-    dict.set_item("iterations", iterations)?;
+    diagnostics
+        .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?
+        .write_summary(&dict)?;
     Ok(dict.into())
 }

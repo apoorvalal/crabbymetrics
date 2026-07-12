@@ -1,4 +1,4 @@
-use crate::fit::{optimization_success, FitDiagnostics};
+use crate::fit::FitDiagnostics;
 use crate::hyptests::wald_test_arrays;
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, fisher_cov_binary, fisher_cov_multinomial,
@@ -419,6 +419,9 @@ impl Logit {
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<i32>) -> PyResult<()> {
+        self.model = None;
+        self.x = None;
+        self.y = None;
         let x = to_array2(&x);
         let y = to_array1_i32(&y);
         let model = fit_binary_logit(
@@ -655,6 +658,9 @@ impl MultinomialLogit {
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<i32>) -> PyResult<()> {
+        self.model = None;
+        self.x = None;
+        self.y = None;
         let x = to_array2(&x);
         let y = to_array1_i32(&y);
         let model = fit_multinomial_logit(
@@ -887,6 +893,7 @@ pub struct Poisson {
     intercept: f64,
     x: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 struct PoissonProblem<'a> {
@@ -997,10 +1004,15 @@ impl Poisson {
             intercept: 0.0,
             x: None,
             y: None,
+            diagnostics: None,
         }
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+        self.coef = None;
+        self.x = None;
+        self.y = None;
+        self.diagnostics = None;
         let x = to_array2(&x);
         let y = to_array1(&y);
         if x.nrows() != y.len() {
@@ -1042,12 +1054,14 @@ impl Poisson {
             .configure(|state| state.param(coef).max_iters(self.max_iterations as u64))
             .run()
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        if !optimization_success(result.state.get_termination_status()) {
-            return Err(PyValueError::new_err(format!(
-                "Poisson optimization did not converge: {}",
-                result.state.get_termination_status()
-            )));
-        }
+        let diagnostics = FitDiagnostics::from_argmin(
+            result.state.get_termination_status(),
+            result.state.get_iter(),
+            Some(result.state.get_best_cost()),
+        );
+        diagnostics
+            .require_converged("Poisson")
+            .map_err(PyValueError::new_err)?;
         let params = result
             .state
             .take_best_param()
@@ -1062,6 +1076,7 @@ impl Poisson {
         }
         self.x = Some(x);
         self.y = Some(y);
+        self.diagnostics = Some(diagnostics);
         Ok(())
     }
 
@@ -1123,7 +1138,10 @@ impl Poisson {
         dict.set_item("intercept", self.intercept)?;
         dict.set_item("coef", pyarray1_from_f64(py, coef))?;
         dict.set_item("penalty", self.alpha)?;
-        dict.set_item("converged", true)?;
+        self.diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?
+            .write_summary(&dict)?;
         dict.set_item("inference_available", self.alpha == 0.0)?;
 
         if !matches!(vcov, "vanilla" | "sandwich" | "qmle") {
@@ -1265,12 +1283,14 @@ impl Poisson {
                 .configure(|state| state.param(coef).max_iters(self.max_iterations as u64))
                 .run()
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            if !optimization_success(result.state.get_termination_status()) {
-                return Err(PyValueError::new_err(format!(
-                    "Poisson bootstrap optimization did not converge: {}",
-                    result.state.get_termination_status()
-                )));
-            }
+            let diagnostics = FitDiagnostics::from_argmin(
+                result.state.get_termination_status(),
+                result.state.get_iter(),
+                Some(result.state.get_best_cost()),
+            );
+            diagnostics
+                .require_converged(&format!("Poisson bootstrap replicate {i}"))
+                .map_err(PyValueError::new_err)?;
             let params = result
                 .state
                 .take_best_param()
@@ -1298,7 +1318,7 @@ pub struct MEstimator {
     theta: Option<Array1<f64>>,
     data: Option<Py<PyAny>>,
     vcov: Option<Array2<f64>>,
-    iterations: Option<usize>,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 struct MEstimatorProblem {
@@ -1413,12 +1433,25 @@ impl MEstimator {
             theta: None,
             data: None,
             vcov: None,
-            iterations: None,
+            diagnostics: None,
         }
     }
 
     fn fit(&mut self, py: Python, data: Py<PyAny>, theta0: PyReadonlyArray1<f64>) -> PyResult<()> {
+        self.theta = None;
+        self.data = None;
+        self.vcov = None;
+        self.diagnostics = None;
         let theta_init = to_array1(&theta0);
+        validate_finite("theta0", &theta_init).map_err(PyValueError::new_err)?;
+        if self.max_iterations == 0 {
+            return Err(PyValueError::new_err("max_iterations must be positive"));
+        }
+        if !self.tolerance.is_finite() || self.tolerance <= 0.0 {
+            return Err(PyValueError::new_err(
+                "tolerance must be positive and finite",
+            ));
+        }
         if !self.derivative_step.is_finite() || self.derivative_step <= 0.0 {
             return Err(PyValueError::new_err(
                 "derivative_step must be finite and positive",
@@ -1451,13 +1484,14 @@ impl MEstimator {
             .run()
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
-        if !optimization_success(result.state.get_termination_status()) {
-            return Err(PyValueError::new_err(format!(
-                "M-estimator optimization did not converge: {}",
-                result.state.get_termination_status()
-            )));
-        }
-        let iterations = result.state.get_iter() as usize;
+        let diagnostics = FitDiagnostics::from_argmin(
+            result.state.get_termination_status(),
+            result.state.get_iter(),
+            Some(result.state.get_best_cost()),
+        );
+        diagnostics
+            .require_converged("MEstimator")
+            .map_err(PyValueError::new_err)?;
         let theta = result
             .state
             .take_best_param()
@@ -1465,9 +1499,7 @@ impl MEstimator {
 
         self.theta = Some(theta);
         self.data = Some(data);
-        self.vcov = None;
-
-        self.iterations = Some(iterations);
+        self.diagnostics = Some(diagnostics);
         Ok(())
     }
 
@@ -1556,8 +1588,10 @@ impl MEstimator {
         dict.set_item("coef", pyarray1_from_f64(py, theta))?;
         dict.set_item("se", pyarray1_from_f64(py, &se))?;
         dict.set_item("vcov", pyarray2_from_f64(py, vcov))?;
-        dict.set_item("converged", true)?;
-        dict.set_item("iterations", self.iterations)?;
+        self.diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?
+            .write_summary(&dict)?;
         Ok(dict.into())
     }
 
@@ -1629,12 +1663,14 @@ impl MEstimator {
                 .run()
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
-            if !optimization_success(result.state.get_termination_status()) {
-                return Err(PyValueError::new_err(format!(
-                    "M-estimator bootstrap optimization did not converge: {}",
-                    result.state.get_termination_status()
-                )));
-            }
+            let diagnostics = FitDiagnostics::from_argmin(
+                result.state.get_termination_status(),
+                result.state.get_iter(),
+                Some(result.state.get_best_cost()),
+            );
+            diagnostics
+                .require_converged(&format!("MEstimator bootstrap replicate {i}"))
+                .map_err(PyValueError::new_err)?;
             let theta_boot = result
                 .state
                 .take_best_param()

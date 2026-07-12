@@ -1,4 +1,4 @@
-use crate::fit::optimization_success;
+use crate::fit::{optimization_success, FitDiagnostics};
 use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::{count_sketch_joint, randomized_svd_impl, sketch_ols_params};
 use crate::utils::{
@@ -2436,8 +2436,7 @@ pub struct MatrixCompletion {
     time_effects: Option<Array1<f64>>,
     singular_values: Option<Array1<f64>>,
     fitted_lambda_l: Option<f64>,
-    objective: Option<f64>,
-    iterations: Option<usize>,
+    diagnostics: Option<FitDiagnostics>,
     history_objective: Vec<f64>,
     history_rmse: Vec<f64>,
     y: Option<Array2<f64>>,
@@ -2477,10 +2476,16 @@ impl MatrixCompletion {
                 "lambda_fraction must be finite and nonnegative",
             ));
         }
-        if !tolerance.is_finite() || tolerance < 0.0 {
+        if !tolerance.is_finite() || tolerance <= 0.0 {
             return Err(PyValueError::new_err(
-                "tolerance must be finite and nonnegative",
+                "tolerance must be positive and finite",
             ));
+        }
+        if max_iterations == 0 {
+            return Err(PyValueError::new_err("max_iterations must be positive"));
+        }
+        if effect_iterations == 0 {
+            return Err(PyValueError::new_err("effect_iterations must be positive"));
         }
         if svd_method != "exact" && svd_method != "randomized" {
             return Err(PyValueError::new_err(
@@ -2512,8 +2517,7 @@ impl MatrixCompletion {
             time_effects: None,
             singular_values: None,
             fitted_lambda_l: None,
-            objective: None,
-            iterations: None,
+            diagnostics: None,
             history_objective: Vec::new(),
             history_rmse: Vec::new(),
             y: None,
@@ -2525,6 +2529,18 @@ impl MatrixCompletion {
     }
 
     fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
+        self.completed = None;
+        self.low_rank = None;
+        self.unit_effects = None;
+        self.time_effects = None;
+        self.singular_values = None;
+        self.fitted_lambda_l = None;
+        self.diagnostics = None;
+        self.y = None;
+        self.w = None;
+        self.treatment_info = None;
+        self.treatment_effect = None;
+        self.att = None;
         let y_input = to_array2(&y);
         let w_input = to_array2(&w);
         let treatment_info = infer_panel_treatment(&y_input, &w_input)?;
@@ -2572,6 +2588,7 @@ impl MatrixCompletion {
         self.history_objective.clear();
         self.history_rmse.clear();
         let mut final_iteration = 0usize;
+        let mut converged = false;
 
         for iteration in 0..self.max_iterations {
             matrix_completion_update_effects(
@@ -2627,6 +2644,7 @@ impl MatrixCompletion {
             if let Some(prev) = previous_obj {
                 let rel = (prev - obj).abs() / (prev.abs() + 1e-12);
                 if rel < self.tolerance {
+                    converged = true;
                     break;
                 }
             }
@@ -2656,8 +2674,16 @@ impl MatrixCompletion {
         self.time_effects = Some(col_effects);
         self.singular_values = Some(singular_values);
         self.fitted_lambda_l = Some(lambda_l);
-        self.objective = self.history_objective.last().copied();
-        self.iterations = Some(final_iteration);
+        self.diagnostics = Some(FitDiagnostics::new(
+            converged,
+            final_iteration as u64,
+            if converged {
+                "Relative objective tolerance reached"
+            } else {
+                "Maximum number of iterations reached"
+            },
+            self.history_objective.last().copied(),
+        ));
         self.y = Some(y_input);
         self.w = Some(w_input);
         self.treatment_info = Some(treatment_info);
@@ -2717,8 +2743,10 @@ impl MatrixCompletion {
         dict.set_item("time_effects", pyarray1_from_f64(py, time_effects))?;
         dict.set_item("singular_values", pyarray1_from_f64(py, singular_values))?;
         dict.set_item("lambda_l", self.fitted_lambda_l)?;
-        dict.set_item("objective", self.objective)?;
-        dict.set_item("iterations", self.iterations)?;
+        self.diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?
+            .write_summary(&dict)?;
         dict.set_item("history_objective", self.history_objective.clone())?;
         dict.set_item("history_rmse", self.history_rmse.clone())?;
         dict.set_item("svd_method", self.svd_method.clone())?;
