@@ -31,6 +31,8 @@ The API references now document the implemented loss or likelihood, inferential 
 
 The follow-up implementation-doc pass adds source-level walkthroughs to all 29 estimator, transform, and optimizer class pages. The pages now expose concrete parameter order, initialization, derivative and matrix construction, randomization, line searches, convergence gates, state retention, and prediction paths. They also identify the exact delegation boundaries: fixed-effect absorption uses `within`, ElasticNet coordinate descent and exact PCA/kernel primitives use Linfa, while the surrounding contracts and the remaining estimator algorithms are package-owned. The reference generator now skips existing audited pages by default so a scaffold refresh cannot silently erase these sections.
 
+The complete 92-page site rendered successfully with live Python execution. The docs-heavy PR preview is `https://lalten.org/drafts/crabbymetrics-estimator-implementation-docs/`; representative likelihood, panel, transform, and optimizer pages were checked for rendered math, visible example code, and implementation-section navigation before the rendered artifacts were removed from the source branch.
+
 ## Refactor Correctness And Documentation Pass (2026-07-10 through 2026-07-11)
 
 The `refactor` branch was created from `origin/master` 0.7.0 after preserving the audited dirty 0.5.1 tree on `pre-refactor-audit-snapshot`, then merged with current `master` 0.7.1. It fixes the review P0/P1 set: weighted TwoSLS, generic M-estimator covariance, identified multinomial inference, penalized-estimator inference contracts, shuffled/stratified cross-fitting, absorbed fixed-effect degrees of freedom, covariance-diagonal validation, and convergence semantics.
