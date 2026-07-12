@@ -25,6 +25,28 @@ def test_logit_unpenalized_inference_matches_statsmodels():
         rtol=2e-5,
     )
     np.testing.assert_allclose(summary["vcov"], reference.cov_params(), atol=2e-6, rtol=2e-5)
+    assert summary["converged"] is True
+    assert summary["iterations"] > 0
+    assert summary["termination_reason"] == "Solver converged"
+    assert np.isfinite(summary["objective"])
+
+
+@pytest.mark.parametrize("estimator", [cm.Logit, cm.MultinomialLogit])
+def test_logistic_estimators_reject_iteration_budget_exhaustion(estimator):
+    rng = np.random.default_rng(1210)
+    x = rng.normal(size=(300, 3))
+    if estimator is cm.Logit:
+        probability = 1.0 / (1.0 + np.exp(-(x @ np.array([1.0, -0.7, 0.4]))))
+        y = rng.binomial(1, probability).astype(np.int32)
+    else:
+        logits = np.column_stack([x[:, 0], x[:, 1], -x[:, 0] - x[:, 1]])
+        y = (logits + rng.normal(size=logits.shape)).argmax(axis=1).astype(np.int32)
+
+    model = estimator(max_iterations=1, gradient_tolerance=1e-14)
+    with pytest.raises(ValueError, match="Maximum number of iterations reached"):
+        model.fit(x, y)
+    with pytest.raises(ValueError, match="not fitted"):
+        model.summary()
 
 
 def test_penalized_likelihood_models_do_not_report_unpenalized_inference():
@@ -93,6 +115,10 @@ def test_multinomial_reference_contrasts_and_covariance_match_statsmodels():
     np.testing.assert_allclose(summary["coef"], expected_coef, atol=3e-5, rtol=3e-5)
     np.testing.assert_allclose(summary["vcov"], expected_vcov, atol=3e-6, rtol=3e-5)
     np.testing.assert_allclose(summary["se"], np.sqrt(np.diag(expected_vcov)).reshape(2, 3))
+    assert summary["converged"] is True
+    assert summary["iterations"] > 0
+    assert summary["termination_reason"] == "Solver converged"
+    assert np.isfinite(summary["objective"])
 
 
 def test_mestimator_sandwich_covariance_matches_statsmodels_hc0():
