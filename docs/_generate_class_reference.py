@@ -169,7 +169,12 @@ model=cm.FixedEffectsOLS(); model.fit(x, fe, y)"""),
  math="""`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The delegated implementation centers the outcome but not the feature columns:
 
 $$
-\min_{\beta}\; \frac{1}{2n}\|y-\bar y\mathbf1-X\beta\|_2^2 + \lambda\left(\rho\|\beta\|_1 + \frac{1-\rho}{2}\|\beta\|_2^2\right).
+\begin{aligned}
+\min_{\beta}\quad
+&\frac{1}{2n}\|y-\bar y\mathbf1-X\beta\|_2^2 \\
+&+\lambda\rho\|\beta\|_1
++\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2.
+\end{aligned}
 $$
 
 Prediction is $\bar y+X\hat\beta$. The wrapper recomputes the final duality gap and rejects budget-exhausted, nonconverged fits.""",

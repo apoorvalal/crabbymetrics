@@ -27,7 +27,12 @@ from _api_doc_utils import *
 `ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The current delegated coordinate-descent implementation centers the outcome, but not the feature columns. With $\bar y=n^{-1}\sum_i y_i$ and $y_c=y-\bar y\mathbf1$, it solves
 
 $$
-\min_{\beta}\; \frac{1}{2n}\|y_c-X\beta\|_2^2 + \lambda\left(\rho\|\beta\|_1 + \frac{1-\rho}{2}\|\beta\|_2^2\right),
+\begin{aligned}
+\min_{\beta}\quad
+&\frac{1}{2n}\|y_c-X\beta\|_2^2 \\
+&+\lambda\rho\|\beta\|_1
++\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2.
+\end{aligned}
 $$
 
 and predicts $\hat y=\bar y\mathbf1+X\hat\beta$. Thus the reported intercept is $\bar y$, not $\bar y-\bar x'\hat\beta$. This equals the usual jointly optimized unpenalized-intercept formulation when feature columns are centered; otherwise it is a different criterion. This behavior is retained for compatibility and should be accounted for when preparing features.
@@ -37,22 +42,22 @@ and predicts $\hat y=\bar y\mathbf1+X\hat\beta$. Thus the reported intercept is 
 Here $\lambda$ is `penalty` and $\rho$ is `l1_ratio`. Coordinate updates use soft thresholding. The wrapper independently recomputes the final duality gap rather than treating the existence of returned coefficients as convergence. Let
 
 $$
-r=y_c-X\hat\beta,
-\qquad
-a=X'r-n\lambda(1-\rho)\hat\beta,
-\qquad
-L=n\lambda\rho,
+\begin{aligned}
+r&=y_c-X\hat\beta, \\
+a&=X'r-n\lambda(1-\rho)\hat\beta, \\
+L&=n\lambda\rho.
+\end{aligned}
 $$
 
 and let $c=\min\{1,L/\|a\|_\infty\}$, with $c=1$ when $\|a\|_\infty\leq L$. The reported gap is
 
 $$
-G
-=
-\frac12(1+c^2)\|r\|_2^2
-+L\|\hat\beta\|_1
--c\,r'y_c
+\begin{aligned}
+G={}&\frac12(1+c^2)\|r\|_2^2
++L\|\hat\beta\|_1 \\
+&-c\,r'y_c
 +\frac{n\lambda(1-\rho)}{2}(1+c^2)\|\hat\beta\|_2^2.
+\end{aligned}
 $$
 
 The fit is accepted only when $G$ is finite and $G\leq\tau\|y_c\|_2^2$, where $\tau$ is `tolerance`. Otherwise `fit()` raises `ValueError` and clears any previous fitted state. A successful summary exposes `duality_gap`, `duality_gap_tolerance`, `converged`, `iterations`, `termination_reason`, and the final primal `objective`. Inputs and all hyperparameters are validated before fitting.
