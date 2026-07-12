@@ -60,7 +60,7 @@ display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))
 PAGES = {
 "OLS": dict(
  group="Regression", subtitle="Ordinary least squares with robust covariance options",
- math="""`OLS` estimates the linear projection
+ math=r"""`OLS` estimates the linear projection
 
 $$
 y_i = \alpha + x_i'\beta + u_i
@@ -82,7 +82,7 @@ x = rng.normal(size=(80, 3))
 y = 0.5 + x @ np.array([1.0, -0.7, 0.25]) + rng.normal(scale=0.3, size=80)
 model = cm.OLS(); model.fit(x, y)"""),
 "ABCOLS": dict(group="Regression", subtitle="Abundance-based constrained OLS for categorical modifiers",
- math="""`ABCOLS` is an OLS reparameterization for categorical main effects and categorical modifiers using abundance-based constraints / weighted effect coding.
+ math=r"""`ABCOLS` is an OLS reparameterization for categorical main effects and categorical modifiers using abundance-based constraints / weighted effect coding.
 
 Instead of treating one level as the omitted baseline, it estimates an overcomplete dummy/interactions design under linear constraints that force categorical effects to average to zero under empirical level frequencies. This makes the intercept and continuous main slopes sample-abundance-weighted averages rather than reference-category coefficients.""",
  api="""Call `fit(y, x, categories, cont_cat_interactions=None, cat_cat_interactions=None, center_continuous=True)`. Categorical inputs are zero-based dense `uint32` codes. `predict(x, categories)` returns fitted means for new rows under the same coding scheme. `summary()` reports constrained coefficients, standard errors, column names, constraint names, residual variance, residual degrees of freedom, rank, and a maximum-constraint-violation diagnostic.""",
@@ -124,7 +124,7 @@ y = (
 model = cm.ABCOLS()
 model.fit(y, x, categories, cont_cat_interactions=[(0, 0)], cat_cat_interactions=[(0, 1)])"""),
 "Ridge": dict(group="Regression", subtitle="L2-regularized least squares with optional CV",
- math="""`Ridge` solves
+ math=r"""`Ridge` solves
 
 $$
 \min_{\alpha,\beta} \sum_i (y_i - \alpha - x_i'\beta)^2 + \lambda \|\beta\|_2^2.
@@ -144,7 +144,7 @@ print(model.predict(x[:3]))""",
 x = rng.normal(size=(90, 4)); y = 0.3 + x @ np.array([1, -.5, .2, 0]) + rng.normal(size=90)
 model = cm.Ridge(penalty=np.array([0.0, 0.1, 1.0]), cv=3); model.fit(x, y)"""),
 "FixedEffectsOLS": dict(group="Regression", subtitle="Within-estimator for high-dimensional fixed effects",
- math="""`FixedEffectsOLS` partials out one or more categorical fixed effects, then runs least squares on residualized variables:
+ math=r"""`FixedEffectsOLS` partials out one or more categorical fixed effects, then runs least squares on residualized variables:
 
 $$
 M_F y = M_F X\beta + M_F u.
@@ -166,7 +166,7 @@ n=100; x=rng.normal(size=(n,2)); g=rng.integers(0,10,size=n,dtype=np.uint32); h=
 fe=np.column_stack([g,h]).astype(np.uint32); y=x@np.array([.8,-.5])+rng.normal(size=10)[g]+rng.normal(size=n)*.2
 model=cm.FixedEffectsOLS(); model.fit(x, fe, y)"""),
 "ElasticNet": dict(group="Regression", subtitle="Coordinate-descent elastic net regression",
- math="""`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The delegated implementation centers the outcome but not the feature columns:
+ math=r"""`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The delegated implementation centers the outcome but not the feature columns:
 
 $$
 \begin{aligned}
@@ -189,7 +189,7 @@ print(model.predict(x[:3]))""",
  setup="""rng=np.random.default_rng(104); x=rng.normal(size=(90,5)); y=.4+x[:,:2]@np.array([1,-.8])+rng.normal(size=90)*.3
 model=cm.ElasticNet(penalty=.05,l1_ratio=.7); model.fit(x,y)"""),
 "Logit": dict(group="Regression", subtitle="Binary logistic regression",
- math="""`Logit` models a binary outcome through
+ math=r"""`Logit` models a binary outcome through
 
 $$
 \Pr(Y_i=1\mid X_i=x_i)=\Lambda(\alpha+x_i'\beta),
@@ -206,7 +206,7 @@ print(model.predict(x[:5]))""",
  setup="""rng=np.random.default_rng(105); x=rng.normal(size=(90,3)); p=1/(1+np.exp(-(x@np.array([.7,-.4,.9])))); y=rng.binomial(1,p,size=90).astype(np.int32)
 model=cm.Logit(max_iterations=200); model.fit(x,y)"""),
 "MultinomialLogit": dict(group="Regression", subtitle="Multiclass logistic regression",
- math="""`MultinomialLogit` generalizes binary logit to $K$ classes with softmax probabilities:
+ math=r"""`MultinomialLogit` generalizes binary logit to $K$ classes with softmax probabilities:
 
 $$
 \Pr(Y_i=k\mid X_i=x_i)=\frac{\exp(\alpha_k+x_i'\beta_k)}{\sum_\ell \exp(\alpha_\ell+x_i'\beta_\ell)}.
@@ -224,7 +224,7 @@ print(model.predict(x[:5]))""",
  setup="""rng=np.random.default_rng(106); x=rng.normal(size=(100,2)); logits=x@np.array([[.6,-.3],[-.4,.5],[.2,.2]]).T; p=np.exp(logits-logits.max(1,keepdims=True)); p=p/p.sum(1,keepdims=True); y=np.array([rng.choice(3,p=row) for row in p],dtype=np.int32)
 model=cm.MultinomialLogit(max_iterations=200); model.fit(x,y)"""),
 "Poisson": dict(group="Regression", subtitle="Poisson GLM for count outcomes",
- math="""`Poisson` fits
+ math=r"""`Poisson` fits
 
 $$
 \mathbb E[Y_i\mid X_i=x_i]=\exp(\alpha+x_i'\beta).
@@ -241,7 +241,7 @@ print(model.predict(x[:3]))""",
  setup="""rng=np.random.default_rng(107); x=rng.normal(size=(100,2)); y=rng.poisson(np.exp(.2+x@np.array([.4,-.25]))).astype(float)
 model=cm.Poisson(max_iterations=200); model.fit(x,y)"""),
 "TwoSLS": dict(group="Causal inference", subtitle="Closed-form linear IV / two-stage least squares",
- math="""`TwoSLS` estimates linear instrumental-variables models. With endogenous regressors $X_e$, exogenous controls $X_c$, instruments $Z$, and outcome $y$, it runs the projection of the second-stage design on the instrument span and then estimates
+ math=r"""`TwoSLS` estimates linear instrumental-variables models. With endogenous regressors $X_e$, exogenous controls $X_c$, instruments $Z$, and outcome $y$, it runs the projection of the second-stage design on the instrument span and then estimates
 
 $$
 y = \alpha + X_e\beta_e + X_c\beta_c + u.
@@ -258,7 +258,7 @@ print(model.summary(vcov="newey_west", lags=3)["coef_se"])""",
  setup="""rng=np.random.default_rng(109); n=120; z=rng.normal(size=(n,2)); x_exog=rng.normal(size=(n,1)); v=rng.normal(size=(n,1)); x_endog=z@np.array([[.8],[-.4]])+.2*x_exog+v; y=.5+1.2*x_endog[:,0]-.7*x_exog[:,0]+.6*v[:,0]+rng.normal(size=n)*.4
 model=cm.TwoSLS(); model.fit(x_endog,x_exog,z,y)"""),
 "BalancingWeights": dict(group="Causal inference", subtitle="Calibration weights for covariate balance",
- math="""`BalancingWeights` chooses weights for a source sample so weighted source covariate means match a target sample:
+ math=r"""`BalancingWeights` chooses weights for a source sample so weighted source covariate means match a target sample:
 
 $$
 \sum_i w_i x_i / \sum_i w_i \approx \sum_j q_j x_j / \sum_j q_j.
@@ -276,7 +276,7 @@ print(model.get_weights()[:5])""",
  setup="""rng=np.random.default_rng(110); x0=rng.normal(size=(80,3)); x1=rng.normal(loc=np.array([.4,-.2,.1]), size=(40,3))
 model=cm.BalancingWeights(); model.fit(x0,x1)"""),
 "EPLM": dict(group="Causal inference", subtitle="Robins-Newey partially linear E-estimator",
- math="""`EPLM` targets a scalar treatment effect in a partially linear model. It combines an outcome equation with a working model for $E[D\mid W]$ and solves the resulting stacked moment system.
+ math=r"""`EPLM` targets a scalar treatment effect in a partially linear model. It combines an outcome equation with a working model for $E[D\mid W]$ and solves the resulting stacked moment system.
 
 The intended estimand is the coefficient on the scalar treatment after accounting for controls $W$ without treating the nuisance regression as the object of interest.""",
  api="""Call `fit(y, d, w)` with scalar treatment `d` and 2D controls `w`. `summary(vcov=None, lags=None, clusters=None)` returns the coefficient, standard error, covariance matrix, and nuisance coefficients. There is no `predict()` method.""",
@@ -288,7 +288,7 @@ print(model.summary()["se"])""",
  setup="""rng=np.random.default_rng(111); w=rng.normal(size=(120,3)); d=.4+w@np.array([.6,-.2,.3])+rng.normal(size=120); y=1.1*d+w@np.array([.2,.1,-.2])+rng.normal(size=120)*.5
 model=cm.EPLM(); model.fit(y,d,w)"""),
 "AverageDerivative": dict(group="Causal inference", subtitle="Average derivative estimator for continuous treatments",
- math="""`AverageDerivative` targets an average marginal effect of a scalar continuous treatment. The class exposes three related estimating equations through `method='ob'`, `'ipw'`, or `'dr'`.
+ math=r"""`AverageDerivative` targets an average marginal effect of a scalar continuous treatment. The class exposes three related estimating equations through `method='ob'`, `'ipw'`, or `'dr'`.
 
 The doubly robust option combines outcome-bridge and weighting components, while the other options expose the individual pieces.""",
  api="""Call `fit(y, d, w)`. The summary reports `method`, `coef`, `se`, and `vcov`. There is no `predict()` method because the object is a semiparametric target rather than a full conditional mean model.""",
@@ -299,7 +299,7 @@ print(model.summary())""",
  setup="""rng=np.random.default_rng(112); w=rng.normal(size=(120,2)); d=.2+w@np.array([.5,-.3])+rng.normal(size=120)*.7; y=.8*d+w@np.array([.2,-.1])+rng.normal(size=120)*.5
 model=cm.AverageDerivative(method='dr'); model.fit(y,d,w)"""),
 "PartiallyLinearDML": dict(group="Causal inference", subtitle="Cross-fit partially linear Double ML",
- math="""`PartiallyLinearDML` estimates the treatment coefficient in
+ math=r"""`PartiallyLinearDML` estimates the treatment coefficient in
 
 $$
 y = \theta d + g(x) + u, \qquad d = m(x) + v,
@@ -315,7 +315,7 @@ print(model.summary()["outcome_penalties"][:2])""",
  setup="""rng=np.random.default_rng(113); x=rng.normal(size=(160,4)); d=.3+x@np.array([.5,-.4,.2,.1])+rng.normal(size=160)*.8; y=1.3*d+x@np.array([.4,-.2,.1,.3])+rng.normal(size=160)*.6
 model=cm.PartiallyLinearDML(penalty=np.logspace(-4,1,6),cv=3,n_folds=4,seed=1); model.fit(y,d,x)"""),
 "AIPW": dict(group="Causal inference", subtitle="Cross-fit augmented inverse-probability weighting",
- math="""`AIPW` estimates a binary-treatment ATE by combining outcome regressions and a propensity model:
+ math=r"""`AIPW` estimates a binary-treatment ATE by combining outcome regressions and a propensity model:
 
 $$
 \hat\tau = n^{-1}\sum_i \left[\hat\mu_1(x_i)-\hat\mu_0(x_i) + \frac{d_i(y_i-\hat\mu_1(x_i))}{\hat e(x_i)} - \frac{(1-d_i)(y_i-\hat\mu_0(x_i))}{1-\hat e(x_i)}\right].
@@ -331,7 +331,7 @@ print(model.summary()["se"])""",
  setup="""rng=np.random.default_rng(114); x=rng.normal(size=(160,3)); pi=1/(1+np.exp(-(.1+x@np.array([.6,-.3,.2])))); d=rng.binomial(1,pi,size=160).astype(float); y=.5+x@np.array([.2,-.1,.3])+d+rng.normal(size=160)
 model=cm.AIPW(penalty=np.logspace(-4,1,6),cv=3,n_folds=4,seed=2); model.fit(y,d,x)"""),
 "SyntheticControl": dict(group="Causal inference", subtitle="Single-treated-unit donor weighting",
- math="""`SyntheticControl` fits nonnegative donor weights that sum to one, minimizing pre-treatment imbalance between the treated path and a convex combination of donor paths:
+ math=r"""`SyntheticControl` fits nonnegative donor weights that sum to one, minimizing pre-treatment imbalance between the treated path and a convex combination of donor paths:
 
 $$
 \min_{w\ge 0,\;1'w=1}\|y_{\mathrm{treated,pre}} - Y_{\mathrm{donor,pre}}w\|_2^2.
@@ -347,7 +347,7 @@ print(model.predict(donors[-3:]))""",
  setup="""rng=np.random.default_rng(115); donors=rng.normal(size=(30,4)); treated=donors@np.array([.45,.25,.2,.1])
 model=cm.SyntheticControl(max_iterations=300); model.fit(donors,treated)"""),
 "HorizontalPanelRidge": dict(group="Causal inference", subtitle="Horizontal ridge counterfactuals for panel treatment effects",
- math="""`HorizontalPanelRidge` implements a horizontal panel-prediction design. For each adoption cohort, never-treated donor outcomes at time $t$ become features for treated outcomes at time $t$ in the pre-period. Ridge then extrapolates counterfactual treated paths into the treated post-period.
+ math=r"""`HorizontalPanelRidge` implements a horizontal panel-prediction design. For each adoption cohort, never-treated donor outcomes at time $t$ become features for treated outcomes at time $t$ in the pre-period. Ridge then extrapolates counterfactual treated paths into the treated post-period.
 
 The public panel contract is `fit(Y, W)`: balanced outcomes plus a same-shaped absorbing treatment matrix.""",
  api="""After `fit(y, w)`, `predict()` returns treated-unit counterfactuals, `treatment_effect()` returns observed-minus-counterfactual effects, and `summary()` returns ATT, event-study, group means, fitted coefficients, cohorts, and diagnostics.""",
@@ -359,7 +359,7 @@ print(list(model.summary()["event_study"].items())[:3])""",
  setup="""rng=np.random.default_rng(116); y=rng.normal(size=(8,12)); w=np.zeros_like(y); w[6:,8:]=1; y[6:,8:]+=.8
 model=cm.HorizontalPanelRidge(); model.fit(y,w)"""),
 "SyntheticDID": dict(group="Causal inference", subtitle="Synthetic difference-in-differences for balanced panels",
- math="""`SyntheticDID` combines donor-unit weights and pre-period time weights. It estimates counterfactual treated outcomes by reweighting both units and periods, then reports ATT and event-time summaries under the common `fit(Y, W)` panel contract.""",
+ math=r"""`SyntheticDID` combines donor-unit weights and pre-period time weights. It estimates counterfactual treated outcomes by reweighting both units and periods, then reports ATT and event-time summaries under the common `fit(Y, W)` panel contract.""",
  api="""Use `SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)`. `fit(y, w)` infers cohorts and donors. `predict()`, `treatment_effect()`, `summary()`, `vcov()`, and `se()` expose fitted counterfactuals and uncertainty helpers.""",
  example="""rng=np.random.default_rng(17)
 y=rng.normal(size=(9,13)); w=np.zeros_like(y); w[6:,8:]=1; y[6:,8:]+=0.7
@@ -369,7 +369,7 @@ print(model.treatment_effect().shape)""",
  setup="""rng=np.random.default_rng(117); y=rng.normal(size=(8,12)); w=np.zeros_like(y); w[6:,8:]=1; y[6:,8:]+=.7
 model=cm.SyntheticDID(max_iterations=300); model.fit(y,w)"""),
 "MatrixCompletion": dict(group="Causal inference", subtitle="Nuclear-norm panel counterfactual completion",
- math="""`MatrixCompletion` treats untreated cells as observed entries and treated cells as missing counterfactuals. It estimates a low-rank untreated-outcome surface, optionally with unit and time effects, using nuclear-norm style shrinkage.
+ math=r"""`MatrixCompletion` treats untreated cells as observed entries and treated cells as missing counterfactuals. It estimates a low-rank untreated-outcome surface, optionally with unit and time effects, using nuclear-norm style shrinkage.
 
 The completed values in treated cells become counterfactual outcomes for ATT and event-study summaries.""",
  api="""Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values. `summary()` reports ATT, low-rank components, histories, and explicit convergence diagnostics; a budget-exhausted final iterate is retained with `converged=False`.""",
@@ -381,7 +381,7 @@ print(model.predict().shape)""",
  setup="""rng=np.random.default_rng(118); y=rng.normal(size=(8,10)); w=np.zeros_like(y); w[6:,7:]=1; y[6:,7:]+=.8
 model=cm.MatrixCompletion(max_iterations=80,tolerance=1e-5); model.fit(y,w)"""),
 "InteractiveFixedEffects": dict(group="Causal inference", subtitle="Factor-model panel counterfactual helper",
- math="""`InteractiveFixedEffects` estimates a low-rank factor structure in a balanced panel. It is closest to a lightweight `fect` helper: remove additive components according to `force`, estimate factors, and reconstruct fitted untreated outcomes.""",
+ math=r"""`InteractiveFixedEffects` estimates a low-rank factor structure in a balanced panel. It is closest to a lightweight `fect` helper: remove additive components according to `force`, estimate factors, and reconstruct fitted untreated outcomes.""",
  api="""Use `InteractiveFixedEffects(rank=0, force=3, ...)`, then `fit(y)`. `predict()` reconstructs the fitted panel. `summary()` reports low-rank pieces, additive effects, singular values, chosen rank, and diagnostics.""",
  example="""rng=np.random.default_rng(19)
 y=rng.normal(size=(12,16)) + rng.normal(size=(12,1)) + rng.normal(size=(1,16))
@@ -392,7 +392,7 @@ print(model.predict().shape)""",
 model=cm.InteractiveFixedEffects(rank=2); model.fit(y)"""),
 "StaggeredPanelEventStudy": None,
 "GMM": dict(group="Estimation interfaces", subtitle="Callback-driven generalized method of moments",
- math="""`GMM` solves moment restrictions of the form
+ math=r"""`GMM` solves moment restrictions of the form
 
 $$
 \mathbb E[g_i(\theta)] = 0.
@@ -419,7 +419,7 @@ def jac(theta,data):
 rng=np.random.default_rng(120); n=120; z=rng.normal(size=(n,3)); v=rng.normal(size=n); x=z@np.array([.9,.4,-.3])+v; y=1.2*x+.5*v+rng.normal(size=n)*.3
 model=cm.GMM(moments,jacobian_fn=jac,max_iterations=200); model.fit({'x':x,'y':y,'z':z},np.array([0.0]),weighting='identity')"""),
 "MEstimator": dict(group="Estimation interfaces", subtitle="Low-level objective-plus-score M-estimation",
- math="""`MEstimator` is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:
+ math=r"""`MEstimator` is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:
 
 $$
 \hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = A^{-1} B A^{-T}/n.
@@ -447,7 +447,7 @@ def score(theta,data):
 rng=np.random.default_rng(121); X=rng.normal(size=(100,2)); y=X@np.array([1,-.5])+rng.normal(size=100)*.2
 model=cm.MEstimator(obj,score,max_iterations=200); model.fit({'X':X,'y':y,'n':len(y)},np.zeros(2))"""),
 "PCA": dict(group="Transforms", subtitle="Principal-components transformer",
- math="""`PCA` learns an orthogonal low-rank basis from a design matrix. It centers the training data, computes principal directions, and maps observations to component scores:
+ math=r"""`PCA` learns an orthogonal low-rank basis from a design matrix. It centers the training data, computes principal directions, and maps observations to component scores:
 
 $$
 Z = (X - \bar X) V_k.
@@ -463,7 +463,7 @@ print(model.summary()["explained_variance_ratio"])
 print(model.inverse_transform(scores[:2]))""",
  setup="""rng=np.random.default_rng(122); x=rng.normal(size=(80,5)); model=cm.PCA(n_components=2); model.fit(x)"""),
 "KernelBasis": dict(group="Transforms", subtitle="Kernel feature transformer against the training basis",
- math="""`KernelBasis` stores a training design and transforms new rows into kernel similarities against that basis. For a Gaussian kernel, the transformed feature for training row $j$ is
+ math=r"""`KernelBasis` stores a training design and transforms new rows into kernel similarities against that basis. For a Gaussian kernel, the transformed feature for training row $j$ is
 
 $$
 \phi_j(x) = \exp\{-\|x-x_j\|^2/(2h^2)\}.
@@ -479,7 +479,7 @@ print(basis.summary())
 print(reg.predict(basis.transform(x[:3])))""",
  setup="""rng=np.random.default_rng(123); x=rng.normal(size=(50,2)); model=cm.KernelBasis(kernel='gaussian',bandwidth=.8); model.fit(x)"""),
 "Optimizers": dict(group="Estimation interfaces", subtitle="Static optimization routines for Python callbacks",
- math="""`Optimizers` is a small namespace for callback-driven numerical optimization. It is not an estimator; it exposes reusable routines for smooth objectives, nonlinear least squares, and a simple stochastic global search.""",
+ math=r"""`Optimizers` is a small namespace for callback-driven numerical optimization. It is not an estimator; it exposes reusable routines for smooth objectives, nonlinear least squares, and a simple stochastic global search.""",
  api="""The methods are static and return plain dictionaries with scipy-like keys: `x`, `fun`, `nit`, `success`, `message`, and `method`. Smooth minimizers require objective and gradient callbacks; Gauss-Newton requires residual and Jacobian callbacks; simulated annealing only requires the objective.""",
  example="""def fun(theta):
     return float(np.sum((theta - np.array([1.0, -2.0]))**2))
