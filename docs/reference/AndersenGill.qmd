@@ -50,6 +50,19 @@ $$
 
 Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a $10^{-8}$ solve ridge, step clipping, backtracking, and risk-score index clipping to $[-40,40]$ inside the risk sets. Convergence requires either $\|\nabla\ell_p\|_\infty<\tau$ or an accepted partial-likelihood change below $\tau(1+|\ell_p|)$.
 
+## Implementation walkthrough
+
+`AndersenGill` calls the same native partial-likelihood kernel and Newton loop as `CoxPH`, with one additional entry-time predicate.
+
+1. The wrapper validates aligned arrays, finite covariates, binary events, and every interval condition $0\leq s_i<t_i$. It has no subject identifier and therefore cannot validate interval ordering or overlap within a subject.
+2. Slopes start at zero. At each candidate, raw indices are computed once and risk scores use $\exp\{\operatorname{clip}(x_i'\beta,-40,40)\}$. For every event record $i$, the inner scan includes record $r$ precisely when $s_r<t_i\leq t_r$, matching the open-left, closed-right counting-process interval.
+3. That scan accumulates the same scalar denominator and weighted first and second covariate moments as `CoxPH`. It adds one raw event index to the numerator and one log denominator per event, so equal stop-time events receive Breslow handling.
+4. The shared Newton step explicitly inverts a Hessian with $10^{-8}$ subtracted from its diagonal, clips step coordinates to $[-1,1]$, and backtracks through at most 30 halvings. Maximum-score or relative-objective convergence is required; the iteration cap is failure.
+5. Final covariance is the inverse observed information across interval rows. The code has no cluster-score accumulation stage, so repeated records from one subject are treated as separate contributions to this model-based information.
+6. Prediction ignores interval endpoints because the fitted object is only a relative-risk model: it returns $X\hat\beta$ or $\exp(X\hat\beta)$. It does not estimate a baseline hazard or a subject-specific event process.
+
+The source-level difference from `CoxPH` is deliberately small, which makes the counting-process risk-set rule clear. It also makes the API limitation clear: without subject IDs, the implementation cannot supply the robust sandwich that usually makes Andersen-Gill inference useful.
+
 ## Inference limitation
 
 The returned covariance is only the inverse observed partial-likelihood information. The API has no subject identifier and cannot aggregate score residuals across multiple intervals belonging to the same subject.

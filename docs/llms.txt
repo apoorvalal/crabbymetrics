@@ -45,6 +45,21 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 - Iterative likelihood and callback estimators expose `converged`, `iterations`, `termination_reason`, and `objective` in `summary()`. They reject budget-exhausted fits unless the estimator explicitly documents retention of a diagnostic best iterate, as `MatrixCompletion` does.
 - The package does not require pandas, scikit-learn, scipy, statsmodels, or polars at runtime. If you start from a DataFrame, convert to NumPy explicitly before fitting.
 
+## Implementation-detail references
+
+Every estimator, transform, and optimizer class page under `docs/reference/` contains an implementation walkthrough in addition to the estimand, inference, and performance sections. These walkthroughs are source-audited descriptions of parameter layout, initialization, linear algebra, callback flow, stopping rules, prediction reconstruction, randomization, and retained fitted state.
+
+Important ownership boundaries:
+
+- `Logit`, `MultinomialLogit`, and `Poisson` own their likelihoods and analytic derivatives. Binary logit uses stable-softplus L-BFGS rather than IRLS; multinomial logit uses a full-class softmax parameterization; Poisson uses exact-Hessian Newton-CG.
+- OLS, Ridge, TwoSLS, ABCOLS, BaggedPolynomialRegressor, the semiparametric estimators, GMM, balancing weights, survival models, and panel estimators own their estimator-specific numerical construction in Rust. Argmin or dense linear-algebra crates provide generic solver/factorization primitives where documented.
+- `FixedEffectsOLS` delegates absorption to the Rust `within` crate but owns batch orchestration, the slope solve, absorbed degrees of freedom, covariance, and the Python contract.
+- `ElasticNet` delegates coordinate descent to `linfa-elasticnet`; crabbymetrics owns input validation, the independently recomputed duality-gap convergence gate, diagnostics, and bootstrap policy.
+- Exact `PCA` and exact training-Gram construction for `KernelBasis` delegate narrow primitives to Linfa. RandomizedPCA, NystromBasis, RandomFourierFeatures, out-of-sample cross-kernel construction, and all wrapper diagnostics are package-owned.
+- There is no monolithic `KernelRidge` class. Exact or approximate kernel ridge is the explicit composition `KernelBasis` / `NystromBasis` / `RandomFourierFeatures` followed by `Ridge`; the two class pages document both halves of that pipeline.
+
+Do not run `docs/_generate_class_reference.py --force` as a routine maintenance step. It creates first-pass scaffolds and would replace the audited hand-written sections. Without `--force`, it skips existing pages.
+
 ## Quick estimator selection
 
 Use these defaults unless the application has a reason to do otherwise:

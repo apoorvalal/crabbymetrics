@@ -50,6 +50,26 @@ $$
 
 This identifies one empirically centered representative from the otherwise non-unique full-indicator coefficient system. The constraints depend on the estimation sample, so coefficients need not be invariant to changing the sample's category proportions.
 
+## Implementation walkthrough
+
+The abundance-based parameterization is constructed explicitly; it is not implemented by choosing omitted levels and recoding coefficients afterward.
+
+1. Continuous columns are optionally centered by their estimation-sample means, which are retained for prediction. Each categorical column must use contiguous observed codes $0,\ldots,L_k-1$; a gap is rejected rather than silently treated as an empty level.
+2. The code computes empirical marginal level shares and, for every requested category-by-category interaction, empirical cell shares. Every requested interaction cell must occur. These sample shares become coefficients in the restrictions, so the constraints and the coefficient interpretation are data-dependent.
+3. The full design is materialized in a deterministic order: intercept, continuous main effects, all indicator columns for each category, requested continuous-by-category products, and requested category-by-category cell indicators. Metadata for every column is stored alongside human-readable names.
+4. Constraint rows are assembled against those column metadata. Main categorical effects and continuous-by-category blocks receive abundance-weighted zero-sum rows. A two-category table receives weighted margin restrictions in both directions, with one redundant margin omitted before numerical null-space construction.
+5. The code forms $A'A$, performs a symmetric eigendecomposition, and defines a numerical null direction when its eigenvalue is no larger than
+
+   $$
+   100\max(m,p)\epsilon\max\{\lambda_{\max}(A'A),1\}.
+   $$
+
+   The selected eigenvectors are the orthonormal columns of $Q$. This avoids choosing an arbitrary reference cell but squares the condition number of $A$.
+6. It materializes $Z=X_fQ$, checks that at least one free coordinate and positive residual degrees of freedom remain, solves $Z\phi\approx y$ by least squares, and maps back with $\theta=Q\phi$. Fitted values use the original full design and constrained coefficients.
+7. Prediction centers new continuous values with the stored training means, rejects unseen categorical codes, rebuilds the same full column layout, and multiplies by $\hat\theta$. The reported maximum violation is $\|A\hat\theta\|_\infty$ and is a direct numerical audit of the reparameterization.
+
+The null-space route makes the estimand transparent and keeps the least-squares solve unconstrained. Its cost is dense expansion plus a tolerance-sensitive eigendecomposition; a sparse QR of $A'$ would be a more scalable construction for high-cardinality systems.
+
 ## Inference
 
 Inference is homoskedastic and conditional on the constructed design and empirical constraints. With $Z=X_fQ$, $r=\operatorname{rank}(Z)$, and $e=y-Z\hat\phi$,

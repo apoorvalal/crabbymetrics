@@ -60,6 +60,30 @@ $$
 
 Newton optimization uses analytic derivatives, a $10^{-8}$ Hessian ridge, per-coordinate step clipping to $[-2,2]$, and backtracking. Initialization uses the exponential event-rate estimate for $\alpha$, zero slopes, and $\rho=1$. Convergence requires either $\|\nabla\ell\|_\infty<\tau$ or an accepted likelihood change below $\tau(1+|\ell|)$. Default prediction is $\exp\{-H(t\mid x)\}$; the linear prediction is the time-specific log hazard.
 
+## Implementation walkthrough
+
+`WeibullPH` reuses the exponential model's native Newton driver but adds the log-shape coordinate analytically.
+
+1. The parameter vector is $(\alpha,\beta',\gamma)'$ with $\rho=e^\gamma$, which enforces a positive shape without constrained optimization. Initialization uses the exponential event-rate log hazard, zero slopes, and $\gamma=0$ so $\rho=1$.
+2. For every row the derivative kernel computes $L_i=\log t_i$, $z_i=\exp(\alpha+x_i'\beta+\rho L_i)$, and the full censored likelihood contribution. The $(\alpha,\beta)$ score is $(d_i-z_i)(1,x_i')'$; the shape score is
+
+   $$
+   d_i(1+\rho L_i)-z_i\rho L_i.
+   $$
+
+3. The Hessian's $(\alpha,\beta)$ block is the negative weighted outer product from the exponential model. Cross-derivatives with $\gamma$ use $-z_i(1,x_i')'\rho L_i$, and the shape diagonal adds
+
+   $$
+   d_i\rho L_i-z_i\{(\rho L_i)^2+\rho L_i\}.
+   $$
+
+   These are evaluated directly rather than by automatic or finite differentiation.
+4. The optimizer subtracts $10^{-8}$ from the log-likelihood Hessian diagonal, explicitly inverts it, clips every coordinate of $H^{-1}g$ to $[-2,2]$, and tries up to 30 step halvings in $\theta-H^{-1}g$. It accepts a finite nondecreasing likelihood and otherwise aborts.
+5. Maximum-score and relative-objective stopping are checked exactly as in `ExponentialPH`; the iteration cap is not accepted as convergence. The final observed-information covariance is recomputed without the solve ridge.
+6. Prediction reconstructs $\rho=e^{\hat\gamma}$. The time-specific log hazard includes $\log\rho+(\rho-1)\log t$, while cumulative hazard uses $\exp(\alpha+X\beta)t^\rho$. Survival is its negative exponential.
+
+Optimizing log shape avoids boundary handling, but large $|\gamma|$ or $|\log t|$ can magnify both $z_i$ and its shape derivatives. Step clipping is the main safeguard; there is no exponential clipping or rescaling inside the implementation.
+
 ## Inference
 
 The covariance is inverse observed information for the parameter order

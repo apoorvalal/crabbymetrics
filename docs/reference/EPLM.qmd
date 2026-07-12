@@ -67,6 +67,18 @@ $$
 
 The treatment is not required to be binary; it may be continuous.
 
+## Implementation walkthrough
+
+The point estimate and stacked-moment inference are both native dense linear algebra.
+
+1. `fit()` validates aligned finite arrays and prepends an explicit intercept to $W$. It solves the treatment projection by rectangular least squares, then stores $v=D-\tilde W\hat\pi$.
+2. The scalar coefficient is computed directly as $v'Y/(v'D)$ rather than by a second regression object. A denominator below $10^{-12}$ in absolute value is treated as lack of residual treatment variation and raises.
+3. The stored parameter vector is ordered $(\pi',\beta)'`. At summary time, the code reconstructs every observation's full moment row by scaling $\tilde W_i$ with $v_i$ and appending $v_i(Y_i-D_i\beta)$.
+4. For each parameter coordinate it perturbs by $h_j=\text{fd eps}\max(|\theta_j|,1)$, reevaluates the complete moment matrix at plus and minus perturbations, averages columns, and fills one central-difference Jacobian column. No closed-form Jacobian is used even though this particular system is analytic.
+5. The square Jacobian is inverted once. Moment rows are mapped to parameter-score rows as $\psi_iA^{-T}/n$; the shared iid, HC1, Newey-West, or cluster aggregator then supplies the covariance. Only the final scalar row and column are exposed publicly.
+
+The implementation deliberately treats nuisance estimation and target inference as one exactly identified system. This accounts for the linear treatment projection algebraically, at the cost of repeated moment construction during numerical differentiation.
+
 ## Inference
 
 The mean-moment Jacobian $A=\partial\bar\psi/\partial\theta'$ is evaluated by central differences. The uncorrected iid option, named vanilla, is already an empirical sandwich:

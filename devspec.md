@@ -34,6 +34,8 @@ The clean `api-hardening` branch starts from `origin/master` at `ce5ea3b`, after
 
 New estimator work must preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence. Common iterative summary keys are `converged`, `iterations`, `termination_reason`, and `objective`.
 
+The branch's public reference pages now also document estimator internals at source-code granularity. All 29 estimator, transform, and optimizer pages explain parameter layout, initialization, numerical steps, stopping and failure behavior, prediction reconstruction, and dominant allocations. They explicitly separate package-owned algorithms from narrow delegation boundaries in `FixedEffectsOLS`, `ElasticNet`, exact `PCA`, and exact `KernelBasis`. The class-page generator is scaffold-only and skips these audited pages unless explicitly forced.
+
 ### Estimator Math And API Audit (2026-07-11)
 
 The follow-up audit traced every public estimator through its Rust implementation and documented its implemented criterion or estimating equation, inference method, prediction contract, and performance characteristics in the API references. It also:

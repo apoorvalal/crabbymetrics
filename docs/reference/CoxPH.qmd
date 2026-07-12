@@ -50,6 +50,27 @@ When several events share a time, the same full risk-set denominator is subtract
 
 Risk-set exponentials are evaluated after clipping $x_r'\beta$ to $[-40,40]$ for stability, while the numerator uses the unclipped index. Outside that range the reported criterion, score, and Hessian are therefore no longer exact derivatives of one common clipped objective. Typical well-scaled fits stay inside the clipping region.
 
+## Implementation walkthrough
+
+The partial likelihood is evaluated by literal event-by-event risk-set scans; there is no delegated survival engine or cumulative-sum optimization.
+
+1. `fit()` clears prior state, validates finite $X$, positive times, and binary events, and initializes all slopes at zero. It does not sort the observations because every risk set is reconstructed from comparisons with the event time.
+2. At a candidate $\beta$, the code computes all raw indices $\eta=X\beta$ once and all risk scores as $\exp\{\operatorname{clip}(\eta,-40,40)\}$. It then loops over rows and skips every non-event.
+3. For an event at $t_i$, an inner scan includes row $r$ when $t_r\geq t_i$. It accumulates the denominator, the risk-weighted first moment $S^{(1)}$, and the full risk-weighted second moment $S^{(2)}$. The event contributes
+
+   $$
+   \eta_i-\log S^{(0)},\qquad
+   x_i-S^{(1)}/S^{(0)},\qquad
+   -\{S^{(2)}/S^{(0)}-\bar x\bar x'\}
+   $$
+
+   to likelihood, score, and Hessian. Separate tied events repeat the same denominator, which is exactly the stated Breslow contribution.
+4. The Newton helper subtracts $10^{-8}$ from the log-likelihood Hessian diagonal and explicitly inverts it. Coordinates of $H^{-1}g$ are clipped to $[-1,1]$, a tighter bound than in the parametric models. Up to 30 halvings seek a finite partial likelihood no smaller than the current value minus $10^{-10}$.
+5. The loop stops before a step when the maximum score is below tolerance or after a step when the likelihood change is relatively small. An exhausted budget or failed line search raises. Final covariance reevaluates the Hessian, negates it, and inverts it without the optimization ridge.
+6. Prediction performs only $X\hat\beta$ and its exponential. No baseline hazard is estimated as a post-fit step, so no absolute-risk or survival prediction is available.
+
+This direct implementation mirrors the mathematics closely enough to inspect each risk-set moment, but it does redundant work for sorted event times and ties. A production implementation would normally sort once, update cumulative risk-set sums, and compute a Breslow baseline after fitting.
+
 ## Inference and prediction
 
 The covariance is the inverse observed partial-likelihood information. Standard errors, normal $z$ statistics, and approximate two-sided chi-square-one $p$-values are derived from it. There is no robust sandwich, clustering, strata, weights, or bootstrap. The class does not estimate a baseline cumulative hazard, so it cannot return survival probabilities; default prediction is $\exp(x'\hat\beta)$ and the linear method returns $x'\hat\beta$.

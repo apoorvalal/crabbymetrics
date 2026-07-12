@@ -83,6 +83,21 @@ $$
 
 Gauss-Newton uses the analytic residual Jacobian with a small $10^{-8}$ normal-equation ridge and backtracking. Automatic mode tries Gauss-Newton first and falls back to BFGS only when needed. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.
 
+## Implementation walkthrough
+
+The class solves a package-owned nonlinear calibration system; the named objective determines the primal-to-dual weight map, while both solver choices minimize squared calibration residuals.
+
+1. Optional baseline and target weights are validated and normalized to sum one. With autoscaling, each source column is mapped by its source minimum and range and the identical affine map is applied to target rows. A source range at or below $10^{-12}$ maps both samples to zero in that column; target values are allowed outside $[0,1]$.
+2. The target mean is computed in fitting coordinates and the dense design $Z=[\mathbf1,X-\bar x_T]$ is built. Entropy starts its dual vector at zero. Quadratic calibration instead solves a linearized calibration system for its starting vector, with a baseline-weight adjustment when supplied.
+3. Given $\beta$, one pass computes $Z\beta$, the entropy or quadratic weight map, and the derivative of each weight with respect to its scalar index. Clipped weights receive derivative zero. The residual is $Z'w-e_1$ plus the radial L2 slack, and the analytic Jacobian is $Z'\operatorname{diag}(w')Z$ plus the slack Jacobian.
+4. Native Gauss-Newton forms $J'J+10^{-8}I$, solves its least-squares system for the step, and halves the step until the residual sum of squares strictly decreases or the scale falls below $10^{-8}$. Only the scaled residual norm reaching tolerance counts as convergence; small steps or small objective changes alone are explicitly labeled nonconverged.
+5. The BFGS alternative exposes $\|r(\beta)\|^2/2$ and $J'r$ to Argmin, initializes the inverse Hessian at identity, and uses More-Thuente search. It is accepted as converged only when both Argmin's status and the package's residual-norm check pass.
+6. In `solver='auto'`, a nonconverged Gauss-Newton result seeds BFGS. BFGS replaces it only if the BFGS objective is no larger; otherwise the better Gauss-Newton iterate is retained. A finite nonconverged fit is therefore reportable for diagnostics.
+7. Entropy first permits weights up to $10^8$ and no lower clipping to preserve a smooth solve. If that result violates the requested box, the same solver sequence is rerun from its dual vector with bounded exponential clipping. Quadratic calibration uses the requested box from the start.
+8. Final `success` separately requires solver convergence, unit weight sum within $10^{-6}$, finite weights, and box feasibility. Original-scale weighted means are recomputed from the unscaled covariates, so diagnostic balance is not inferred from the scaled residual.
+
+This design makes infeasibility observable rather than exceptional: the object can retain the best finite weights with `solver_converged=False` or `success=False`. The zero derivative at active clipping bounds also explains why tight boxes can stall either local solver.
+
 ## Diagnostics and inference
 
 There is no outcome model, treatment-effect estimand, standard error, or covariance calculation. The fitted object returns normalized weights, original-scale mean differences, effective sample size

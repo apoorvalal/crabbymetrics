@@ -47,6 +47,24 @@ $$
 
 It parameterizes $w=\operatorname{softmax}(\theta)$ and uses seven-vector-memory L-BFGS with fixed gradient and cost tolerances. This guarantees an interior simplex vector at every finite $\theta$; exact zero donor weights are not attainable except through numerical underflow. There is no intercept, predictor weighting, or pre-period weighting.
 
+## Implementation walkthrough
+
+The simplex objective and softmax gradient are native; Argmin supplies only the generic L-BFGS state machine and line search.
+
+1. `fit()` validates finite donor and treated arrays, aligned pre-period rows, at least one period and donor, and a positive iteration budget. A single donor is an explicit shortcut returning weight one without optimization.
+2. With multiple donors, the unconstrained vector $\theta$ starts at zero, so the first weight vector is uniform. Stable softmax subtracts $\max_j\theta_j$ before exponentiating and normalizing.
+3. The cost callback forms $r=Dw-y$ and returns $r'r/(2T_0)$. The derivative with respect to simplex weights is $g_w=D'r/T_0$. Rather than materializing a $J\times J$ softmax Jacobian, the code applies it as
+
+   $$
+   \nabla_\theta Q=w\odot\{g_w-(w'g_w)\mathbf1\}.
+   $$
+
+4. Seven-pair L-BFGS uses a More-Thuente line search, gradient tolerance $10^{-8}$, and cost tolerance $10^{-12}$. The wrapper rejects any termination status other than solver convergence or target cost; reaching `max_iterations` does not return the current weights.
+5. The accepted best $\theta$ is transformed to weights once more and stored with owned fitting data. `predict()` checks only the donor-column count and performs a dense matrix-vector product, so the same weights can be applied to post-period donor rows.
+6. `summary()` recomputes pre-period RMSE from stored data. The bootstrap samples pre-period row indices with replacement, copies donor and treated rows together, and reruns the complete simplex fit; it returns raw weight draws and aborts on a failed replicate.
+
+Softmax makes feasibility automatic and the chain-rule gradient concise. Its common-shift redundancy and inability to represent exact boundary weights are the price; a projected or active-set simplex solver would expose sparse donor solutions more directly.
+
 ## Inference and diagnostics
 
 The summary reports the weights and in-sample pre-treatment RMSE. The class itself receives only donor and treated fitting paths, so it does not calculate a post-treatment effect or ATT. The bootstrap resamples time rows as iid pairs and refits the weights. Those draws are useful as a sensitivity diagnostic, but they do not preserve time-series dependence and are not converted into a formal covariance or confidence interval.

@@ -52,6 +52,20 @@ $$
 
 The iterative absorption must converge for the outcome and every regressor; otherwise the fit raises an error. Fixed-effect coefficients are not recovered or stored.
 
+## Implementation walkthrough
+
+This class has a narrow delegation boundary: the `within` Rust crate performs absorption, while crabbymetrics owns orchestration, the slope solve, degrees of freedom, covariance, and Python behavior.
+
+1. The wrapper validates aligned rows, at least one regressor and fixed-effect dimension, and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to `within::Solver` using that crate's default convergence parameters.
+2. Instead of invoking absorption separately, it creates one batch whose first right-hand side is $y$ and whose remaining right-hand sides are the columns of $X$. One solver instance therefore uses the same encoded factors and numerical settings for every variable.
+3. The fit inspects the convergence flag for every right-hand side. If even one regressor has not converged, it raises an error containing the complete convergence and final-residual vectors. It never combines partially converged columns into a regression.
+4. The returned demeaned vectors are copied into $y^*=M_Dy$ and $X^*=M_DX$. The package then applies optional square-root weights again in the slope least-squares solve. This matches the `within` solver's weighted projection convention and the weighted Frisch-Waugh-Lovell objective.
+5. The slope vector and residualized arrays are retained; nuisance fixed-effect coefficients are never reconstructed. This is why the class can report slope inference but deliberately cannot predict level outcomes for new observations.
+6. For degrees of freedom, one factor contributes its observed level count. Two factors are represented as a bipartite graph and a union-find pass computes $L_1+L_2-C$ exactly. For three or more factors the code counts observed levels and subtracts $J-1$, labeling the result as conservative rather than claiming exact graph rank.
+7. Covariance uses $X^*$ and residuals $y^*-X^*\hat\beta$ in the shared linear sandwich code. The bootstrap resamples $X$, $y$, every fixed-effect code, and optional weights together, then repeats absorption from scratch.
+
+The implementation is optimized for many levels and few reported slopes: it avoids dummy expansion but keeps a dense residualized copy of every regressor. Convergence quality belongs to the delegated absorber; inferential conventions and failure policy belong to this wrapper.
+
 ## Inference
 
 All OLS covariance options are applied to the residualized design and outcome: homoskedastic, HC0-HC3, Newey-West, and cluster robust. The residual degrees of freedom are

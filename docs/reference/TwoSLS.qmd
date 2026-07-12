@@ -52,6 +52,20 @@ $$
 
 Weighted fitting applies $\sqrt{w_i}$ to $y_i$, every regressor, and every instrument before constructing the projection. The sketched method applies one joint CountSketch to $y$, $\tilde X$, and $\tilde Z$ and performs both stages in the sketched sample; it is an approximate point estimate.
 
+## Implementation walkthrough
+
+The estimator implements 2SLS as two rectangular least-squares problems, avoiding an explicit $n\times n$ projection matrix.
+
+1. The package concatenates endogenous regressors before exogenous controls for the reported second-stage design. The instrument design contains exogenous controls before excluded instruments. A common intercept column is prepended to both. It rejects fewer excluded instruments than endogenous regressors and any total instrument width smaller than the regressor width.
+2. A weighted fit scales $\tilde X$, $\tilde Z$, and $y$ rowwise by the same $\sqrt{w_i}$. It then solves the multi-response least-squares problem $\tilde Z\Pi\approx\tilde X$ and forms $\hat X=\tilde Z\hat\Pi$. No projection matrix $P_Z$ is materialized.
+3. The second rectangular solve is $\hat X\theta\approx y$. Algebraically it is the usual 2SLS estimator, but numerically both stages use the shared least-squares primitive rather than inverses of $Z'Z$ and $X'P_ZX$.
+4. The CountSketch path first constructs the full aligned designs, then hashes every observation once to a bucket and sign. That same draw is accumulated jointly into $S\tilde X$, $S\tilde Z$, and $Sy$, preserving their row alignment. Both least-squares stages occur entirely in the sketched sample. The sketch width must be at least the larger design width.
+5. After either fit, the wrapper splits the intercept and slopes but stores the original endogenous, exogenous, instrument, outcome, and optional weight arrays. Full-sample structural residuals $y-\tilde X\hat\theta$ drive every covariance and diagnostic, including after a sketched point estimate.
+6. Robust covariance is implemented through GMM-style parameter scores. It forms $W=(Z'Z/n)^{-1}$, $G=-Z'X/n$, transforms observation moments $z_i\hat u_i$ by $WG(G'WG)^{-1}/n$, and passes those parameter-score rows to the shared HC1, HAC, or cluster aggregator.
+7. The Anderson-Rubin method for one endogenous regressor constructs $y_0=y-\beta_0x_e$, residualizes the null regression against included exogenous variables, and tests the excluded-instrument block jointly. This test is recomputed for the supplied null rather than inferred from the 2SLS Wald covariance.
+
+The explicit fitted-regressor route is easy to inspect and stable relative to normal equations, but it materializes another dense $n\times p$ matrix. The implementation checks order conditions, not statistical rank or instrument strength; near-collinearity is left to the numerical solve and diagnostics.
+
 ## Inference and weak-instrument test
 
 Define $g_i=z_i\hat u_i$, $G=-\tilde Z'\tilde X/n$, $W=(\tilde Z'\tilde Z/n)^{-1}$, and $A=G'WG$. The homoskedastic covariance is

@@ -60,6 +60,19 @@ Newton iterations use the analytic score and Hessian, subtract $10^{-8}$ from th
 
 Prediction returns survival $\exp\{-H(t\mid x)\}$ by default. The linear prediction is the full log hazard $\alpha+x'\beta$, not only a relative-risk index.
 
+## Implementation walkthrough
+
+The likelihood, derivatives, damped Newton loop, and prediction functions are native Rust code.
+
+1. `fit()` clears fitted state, validates finite $X$, positive finite times, binary floating-point event indicators, and the solver controls. It initializes $(\alpha,\beta')$ at $(\log\{\max(\sum d_i,1)/\max(\sum t_i,10^{-12})\},0')$; the event count is floored at one, so an all-censored sample still receives a finite starting hazard.
+2. One observation pass evaluates $z_i=\exp(\alpha+x_i'\beta)t_i$, adds $d_i(\alpha+x_i'\beta)-z_i$ to the log likelihood, and accumulates the score $(d_i-z_i)(1,x_i')'$. A nested loop adds $-z_i(1,x_i')(1,x_i')$ to the Hessian.
+3. The Newton helper subtracts $10^{-8}$ from every diagonal of the log-likelihood Hessian, explicitly inverts that dense matrix, and returns $H^{-1}g$. Because the Hessian is negative definite near the optimum, the outer loop proposes $\theta_{\mathrm{new}}=\theta-H^{-1}g$.
+4. Every coordinate of that raw step is clipped to $[-2,2]$. The line search tries scale one and then at most 29 successive halvings. It accepts the first finite candidate whose log likelihood is no worse than the current value minus $10^{-10}$; otherwise the fit fails with a line-search error.
+5. The loop checks the maximum absolute score before solving and the relative likelihood change after an accepted step. Exhausting `max_iterations` is explicitly nonconvergence. The covariance is computed only afterward by reevaluating the Hessian and inverting its negative without the optimization ridge.
+6. Prediction stores no baseline grid because the baseline is a scalar. Log hazard is $\alpha+X\beta$, hazard exponentiates it, cumulative hazard multiplies by each requested time, and survival exponentiates the negative cumulative hazard.
+
+The explicit Hessian makes this implementation easy to audit, but explicit inversion is less stable and more expensive than solving the Newton linear system by factorization. The event-count floor is only an initialization device; it does not make a no-event likelihood identify the hazard.
+
 ## Inference
 
 The returned covariance is the inverse observed information

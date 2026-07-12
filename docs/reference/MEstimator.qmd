@@ -44,6 +44,19 @@ $$
 
 The class does not verify that the objective gradient equals the sum of those scores or even that their sample mean is near zero at the optimizer solution. That mathematical consistency is the callback author's responsibility.
 
+## Implementation walkthrough
+
+This interface combines an Argmin optimizer with a separately implemented score-sandwich path.
+
+1. `fit()` clears fitted state, validates the initial vector and controls, and stores Python callable objects inside an Argmin problem. Each cost request calls `objective_fn(theta, data)`, requires a two-element tuple, and extracts only its scalar first element.
+2. Each gradient request calls the same Python function again and extracts only the second tuple element as a one-dimensional NumPy array. Cost and gradient are therefore separate Python calls even if the optimizer asks for both at the same parameter; there is no shared callback cache or explicit gradient-length check before Argmin uses it.
+3. Seven-pair L-BFGS starts exactly at `theta0`, uses More-Thuente line search, and applies the same tolerance to gradient and cost stopping. The wrapper converts Argmin termination to common diagnostics and rejects an iteration cap or other nonconverged status before storing parameters and data.
+4. Covariance is lazy: the first `summary()` calls `score_fn` at the estimate and requires a nonempty $n\times k$ matrix with $k=\dim\theta$. It then calls the score function twice for each coordinate perturbation and requires every perturbed output to retain the original shape.
+5. Column means of those perturbed score matrices yield the central-difference bread $A$. The meat is the uncentered $\Psi'\Psi/n$. The code explicitly inverts $A$, computes $A^{-1}BA^{-T}/n$, and averages the result with its transpose to remove numerical asymmetry. Later summaries reuse this cached covariance.
+6. Bootstrap reads `data['n']`, draws row indices, shallow-copies the Python dictionary, inserts an `indices` array, and calls the same L-BFGS problem from the original fitted estimate. The score callback is not used in bootstrap fitting. Correct resampling therefore depends entirely on `objective_fn` honoring that injected key.
+
+The split callback design is flexible but intentionally low level. It permits objective and score equations that disagree, repeats Python work between cost and gradient, and leaves all data-index semantics to the caller; those are API powers and failure modes, not hidden implementation details.
+
 ## Inference
 
 For coordinate $j$, the mean-score Jacobian is estimated by central differences with
