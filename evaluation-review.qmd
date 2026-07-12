@@ -30,7 +30,7 @@ jupyter: python3
 | BalancingWeights | Scaled calibration residuals determine solver convergence; normalized-weight feasibility determines overall success; original-unit balance is reported separately and cannot reverse solver status. | Extreme-feature-scale regression test. |
 | Validation and source layout | Consolidated common array/hyperparameter/weight checks and optimizer status handling. Split the former estimator monolith into linear, IV, panel, and synthetic modules without changing public imports. | Full Python and Rust suites plus a warning-free Cargo check. |
 
-The implementation checkpoint before this documentation pass was 153 passing Python tests and 5 passing Rust tests. The final branch gate reruns both suites, formatting, source checks, and the relevant Quarto site render.
+Final branch validation is 153 passing Python tests and 5 passing Rust tests after a fresh `maturin develop`, with `cargo fmt --all --check`, generator compilation, and `git diff --check` clean. All 92 Quarto site pages rendered from the committed branch; the visible-code and mobile-math checks are reflected in the draft at `https://lalten.org/drafts/crabbymetrics-api-hardening/`.
 
 Remaining limitations are deliberately not hidden: Andersen--Gill still lacks subject-clustered recurrent-event covariance; Cox-style risk-set construction remains $O(Enp^2)$ per Newton iteration; randomized MatrixCompletion SVD is an approximate proximal update; and ElasticNet retains Linfa's outcome-centering-only intercept convention for compatibility.
 

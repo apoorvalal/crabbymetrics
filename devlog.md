@@ -25,9 +25,9 @@ The `api-hardening` branch completes the P0--P1 estimator stocktake without expa
 - Added shared `FitDiagnostics` and common validation helpers. Iterative summaries use `converged`, `iterations`, `termination_reason`, and `objective`; maximum-iteration termination is not success.
 - Hardened ExponentialPH, WeibullPH, CoxPH, AndersenGill, ElasticNet, MatrixCompletion, BalancingWeights, Poisson, and MEstimator around explicit nonconvergence behavior. ElasticNet exposes its final duality gap; MatrixCompletion retains a budget-exhausted iterate only with `converged=False`; BalancingWeights separates scaled solver convergence from original-scale balance.
 - Split estimator source ownership into `linear.rs`, `iv.rs`, `panel.rs`, and `synthetic.rs` while preserving the existing Python imports.
-- Added targeted nonconvergence, external-parity, scaled-balance, and public-surface tests. The implementation checkpoint passed 153 Python tests and 5 Rust tests before the documentation render gate.
+- Added targeted nonconvergence, external-parity, scaled-balance, and public-surface tests. Final validation passes 153 Python tests and 5 Rust tests after a fresh extension build; Rust formatting, generator compilation, and diff checks are clean.
 
-The API references now document the implemented loss or likelihood, inferential method, stopping rule, summary diagnostics, and performance characteristics for every affected estimator. The maintenance generator, `docs/llms.txt`, evaluation record, and worked examples were updated alongside those pages, with substantive example code visible.
+The API references now document the implemented loss or likelihood, inferential method, stopping rule, summary diagnostics, and performance characteristics for every affected estimator. The maintenance generator, `docs/llms.txt`, evaluation record, and worked examples were updated alongside those pages, with substantive example code visible. All 92 Quarto pages render from the branch; the whole-site review draft is `https://lalten.org/drafts/crabbymetrics-api-hardening/`.
 
 ## Refactor Correctness And Documentation Pass (2026-07-10 through 2026-07-11)
 
