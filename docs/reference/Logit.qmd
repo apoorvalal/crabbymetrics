@@ -34,7 +34,7 @@ with optional L2 regularization controlled by `alpha`. `predict(x)` returns prob
 
 ## Likelihood and solver
 
-With $\eta_i=\alpha_0+x_i'\beta$ and $p_i=\{1+\exp(-\eta_i)\}^{-1}$, the delegated Linfa fit minimizes the unnormalized penalized negative log-likelihood
+With $\eta_i=\alpha_0+x_i'\beta$ and $p_i=\{1+\exp(-\eta_i)\}^{-1}$, the native fit minimizes the unnormalized penalized negative log-likelihood
 
 $$
 Q(\alpha_0,\beta)
@@ -46,7 +46,9 @@ Q(\alpha_0,\beta)
 +\frac{\lambda}{2}\|\beta\|_2^2,
 $$
 
-where the constructor argument named alpha is $\lambda$ and the intercept is unpenalized. Optimization uses L-BFGS with a More-Thuente line search and the requested gradient tolerance and iteration budget. Public coefficients are oriented so that the linear index and probability always refer to label 1, regardless of the internal class ordering.
+where the constructor argument named `alpha` is $\lambda$ and the intercept is unpenalized. The implementation evaluates $\log(1+\exp\eta)$ with a branch-stable softplus and evaluates the logistic function without overflowing for large negative indices. It supplies the analytic gradient to ten-vector-memory L-BFGS with a More-Thuente line search, starts all parameters at zero, and stops only when Argmin reports solver convergence or a target cost.
+
+Reaching `max_iterations` is not convergence. `fit()` raises `ValueError` and clears any previous fitted state if the budget is exhausted or optimization otherwise fails. A successful `summary()` records `converged`, `iterations`, `termination_reason`, and the final penalized `objective`. The linear index and probability always refer to label 1.
 
 ## Inference
 
@@ -62,13 +64,13 @@ The $10^{-8}$ diagonal ridge is numerical stabilization, not a reported statisti
 
 ## Performance and numerical behavior
 
-Each L-BFGS objective and gradient evaluation is $O(np)$, with limited-memory state linear in $p$. Computing the Fisher covariance forms a dense $p\times p$ information matrix in $O(np^2)$ and inverts it in $O(p^3)$. Complete or near separation can drive coefficients to large magnitudes and make the information matrix nearly singular; the small diagonal ridge can make inversion succeed without resolving the inferential weakness. Bootstrap multiplies the full optimization cost by the number of draws.
+Each L-BFGS objective and gradient evaluation is $O(np)$, with solver state linear in $p$ for a fixed memory size. Computing the Fisher covariance forms a dense $(p+1)\times(p+1)$ information matrix in $O(np^2)$ and inverts it in $O(p^3)$. Complete or near separation can drive coefficients to large magnitudes and make the information matrix nearly singular; the small diagonal ridge can make inversion succeed without resolving the inferential weakness. Bootstrap multiplies the full optimization cost by the number of draws, and any nonconverged replicate aborts the bootstrap.
 
 ## Python API
 
 Constructor: `cm.Logit`
 
-Fit with integer labels using `fit(x, y_int32)`. `summary()` returns intercept and coefficient estimates. Fisher-information standard errors are available only for the unpenalized fit (`alpha=0`); penalized fits are explicitly prediction-only. `bootstrap()` resamples observations and refits the classifier.
+Fit with integer labels using `fit(x, y_int32)`. Labels must be exactly 0 and 1, with both represented. `summary()` returns intercept and coefficient estimates plus fit diagnostics. Fisher-information standard errors are available only for the unpenalized fit (`alpha=0`); penalized fits are explicitly prediction-only. `bootstrap()` resamples observations and refits the classifier.
 
 ```{python}
 print(inspect.signature(cm.Logit))
@@ -90,7 +92,9 @@ p = 1 / (1 + np.exp(-eta))
 y = rng.binomial(1, p, size=220).astype(np.int32)
 model = cm.Logit(max_iterations=200)
 model.fit(x, y)
-print(model.summary()['coef'])
+fit = model.summary()
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['coef'])
 print(model.predict(x[:5]))
 ```
 

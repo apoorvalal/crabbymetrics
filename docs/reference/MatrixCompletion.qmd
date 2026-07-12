@@ -61,17 +61,23 @@ Exact SVD applies the full proximal map. Randomized SVD with an explicit rank is
 
 The completed counterfactual surface is $\hat Y_{it}(0)=\hat a_i+\hat b_t+\hat L_{it}$. Reported treated-cell effects are $Y_{it}-\hat Y_{it}(0)$, and ATT is their simple mean over cells marked treated. Event-study and group summaries aggregate the same cell differences.
 
-There is no analytic or resampling inference, rank selection, or penalty cross-validation. Iteration stops when the relative objective change falls below tolerance. Reaching the iteration budget still stores a result, and the summary reports iterations and histories but no convergence flag, so users should inspect the objective history. Identification requires untreated observations to reveal the relevant low-rank and additive structure; the optimizer cannot diagnose failure of that causal assumption.
+There is no analytic or resampling inference, rank selection, or penalty cross-validation. If $Q_k$ denotes the displayed objective after iteration $k$, convergence requires
+
+$$
+\frac{|Q_{k-1}-Q_k|}{|Q_{k-1}|+10^{-12}}<\text{tolerance}.
+$$
+
+Unlike likelihood estimators in this package, `MatrixCompletion` retains the final iterate when the budget is exhausted because a partial completion can still be diagnostically useful. It does not call that outcome convergence: `summary()` reports `converged=False`, `iterations`, `termination_reason='Maximum number of iterations reached'`, and the final `objective`, together with both histories. Identification requires untreated observations to reveal the relevant low-rank and additive structure; optimizer convergence cannot diagnose failure of that causal assumption.
 
 ## Performance and numerical behavior
 
-Each exact iteration performs a dense SVD with roughly $O(\min\{NT^2,N^2T\})$ time and $O(NT)$ matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite.
+Each exact iteration performs a dense SVD with roughly $O(\min\{NT^2,N^2T\})$ time and $O(NT)$ matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite. Iteration budgets, effect-update counts, and tolerances must be positive; invalid settings fail before fitting.
 
 ## Python API
 
 Constructor: `cm.MatrixCompletion`
 
-Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values and `summary()` reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective history, and panel summaries.
+Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values and `summary()` reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective and RMSE histories, fit diagnostics, and panel summaries. Check `converged` before treating the retained solution as numerically settled.
 
 ```{python}
 print(inspect.signature(cm.MatrixCompletion))
@@ -95,7 +101,9 @@ w[7:, 9:] = 1
 y[7:, 9:] += 1
 model = cm.MatrixCompletion(max_iterations=100, tolerance=1e-05)
 model.fit(y, w)
-print(model.summary()['att'])
+fit = model.summary()
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['att'])
 print(model.predict().shape)
 ```
 

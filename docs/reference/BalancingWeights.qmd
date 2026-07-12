@@ -91,19 +91,19 @@ $$
 \mathrm{ESS}=\frac{1}{\sum_i w_i^2},
 $$
 
-the dual coefficient, and solver diagnostics. A successful fit must satisfy calibration residual tolerance, weight sum and bounds, and the L2 mean-difference tolerance.
+the dual coefficient, and solver diagnostics. `solver_converged` means that the scaled calibration residual satisfies the requested tolerance and, for BFGS, that the optimizer also reports a converged status. The generic `converged`, `iterations`, and `termination_reason` keys describe that same scaled-coordinate solve. `success` additionally requires finite normalized weights whose sum and box constraints are feasible.
 
-With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. The final success check also compares the unscaled mean-difference norm to the same L2 tolerance. Consequently, success can be false even when the scaled calibration system converged; the reported original-scale mean differences should be inspected directly.
+With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. Solver convergence is intentionally not reclassified by applying that scaled tolerance to unscaled covariates. `scaled_residual_norm` and `solver_objective` report the numerical problem; `original_balance_l2` and `original_balance_max_abs` report balance in the units supplied by the user. The legacy aliases `residual_norm`, `criterion`, `l2_diff`, and `max_abs_diff` remain available. Large original-unit imbalance can therefore coexist with solver convergence when feature scales are large, and should be judged substantively rather than against a dimensionless solver tolerance.
 
 ## Performance and numerical behavior
 
-For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. BFGS fallback adds repeated residual and Jacobian evaluations. Tight box constraints or an infeasible balance tolerance can leave a finite set of weights with success false rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped.
+For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. BFGS fallback adds repeated residual and Jacobian evaluations. Tight box constraints or an infeasible balance tolerance can leave a finite set of weights with `success=False` rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped. Very disparate original feature scales favor `autoscale=True`, but original-unit diagnostics must still be interpreted feature by feature.
 
 ## Python API
 
 Constructor: `cm.BalancingWeights`
 
-Use `fit(covariates, target_covariates, baseline_weights=None, target_weights=None)`. `get_weights()` returns the fitted source weights. `summary()` reports balance diagnostics, the dual coefficients, effective sample size, and solver status.
+Use `fit(covariates, target_covariates, baseline_weights=None, target_weights=None)`. `get_weights()` returns the fitted source weights. The read-only `solver_converged` property reports scaled solver convergence, while `success` also checks weight feasibility. `summary()` reports both statuses, scaled numerical diagnostics, original-scale balance, the dual coefficients, and effective sample size.
 
 ```{python}
 print(inspect.signature(cm.BalancingWeights))
@@ -123,8 +123,10 @@ x0 = rng.normal(size=(180, 3))
 x1 = rng.normal(loc=np.array([0.4, -0.2, 0.1]), size=(80, 3))
 model = cm.BalancingWeights(objective='quadratic', max_iterations=500)
 model.fit(x0, x1)
-print(model.summary()['mean_diff'])
-print(model.summary()['effective_sample_size'])
+fit = model.summary()
+print({key: fit[key] for key in ['solver_converged', 'success', 'scaled_residual_norm', 'original_balance_l2']})
+print(fit['mean_diff'])
+print(fit['effective_sample_size'])
 print(model.get_weights()[:5])
 ```
 

@@ -27,10 +27,10 @@ from _api_doc_utils import *
 `WeibullPH` generalizes the exponential PH model to
 
 $$
-h_i(t \mid x_i) = \lambda_0 ho t^{ho-1} \exp(x_i'eta),
+h_i(t \mid x_i) = \lambda_0 \rho t^{\rho-1} \exp(x_i'\beta),
 $$
 
-which nests increasing, decreasing, and constant baseline hazards depending on the shape parameter $ho$. Like `ExponentialPH`, it identifies absolute hazard and survival objects.
+which nests increasing, decreasing, and constant baseline hazards depending on the shape parameter $\rho$. Like `ExponentialPH`, it identifies absolute hazard and survival objects.
 
 ## Likelihood and predictions
 
@@ -58,7 +58,7 @@ d_i\{\alpha+\gamma+x_i'\beta+(\rho-1)\log t_i\}
 \right].
 $$
 
-Newton optimization uses analytic derivatives, a $10^{-8}$ Hessian ridge, per-coordinate step clipping to $[-2,2]$, and backtracking. Initialization uses the exponential event-rate estimate for $\alpha$, zero slopes, and $\rho=1$. Default prediction is $\exp\{-H(t\mid x)\}$; the linear prediction is the time-specific log hazard.
+Newton optimization uses analytic derivatives, a $10^{-8}$ Hessian ridge, per-coordinate step clipping to $[-2,2]$, and backtracking. Initialization uses the exponential event-rate estimate for $\alpha$, zero slopes, and $\rho=1$. Convergence requires either $\|\nabla\ell\|_\infty<\tau$ or an accepted likelihood change below $\tau(1+|\ell|)$. Default prediction is $\exp\{-H(t\mid x)\}$; the linear prediction is the time-specific log hazard.
 
 ## Inference
 
@@ -68,7 +68,7 @@ $$
 (\alpha,\ \beta',\ \gamma)'.
 $$
 
-It is model-based under a correctly specified Weibull PH likelihood, independent observations, and noninformative right censoring. The summary exposes the full covariance and shape but does not split out standard errors. There is no robust, cluster, bootstrap, or Wald method. Maximum-iteration termination is not distinguished from convergence in the stored result; inspect the reported iteration count.
+It is model-based under a correctly specified Weibull PH likelihood, independent observations, and noninformative right censoring. The summary exposes the full covariance and shape but does not split out standard errors. There is no robust, cluster, bootstrap, or Wald method. Reaching `max_iterations` raises `ValueError` and leaves the estimator unfitted. A successful summary exposes `converged`, `iterations`, `termination_reason`, and `objective`, where `objective` is the negative log-likelihood.
 
 ## Performance and numerical behavior
 
@@ -78,7 +78,7 @@ Dense Hessian construction costs $O(np^2)$ and its Newton solve up to $O(p^3)$ p
 
 Constructor: `cm.WeibullPH`
 
-Use `fit(x, time, event)`. `predict_lin(x, time)` returns the log hazard at a specific horizon, while `predict_hazard`, `predict_cumulative_hazard`, and `predict_survival` expose the absolute prediction surface. The default `predict(x, time)` returns survival probabilities.
+Use `fit(x, time, event)`. `predict_lin(x, time)` returns the log hazard at a specific horizon, while `predict_hazard`, `predict_cumulative_hazard`, and `predict_survival` expose the absolute prediction surface. The default `predict(x, time)` returns survival probabilities. Times must be positive and finite, events must be binary, and `x` must be finite.
 
 ```{python}
 print(inspect.signature(cm.WeibullPH))
@@ -97,6 +97,7 @@ rng=np.random.default_rng(32)
 x=rng.normal(size=(300,2)); rho=1.4; lam=0.03; u=rng.uniform(size=300); t_event=(( -np.log(u)) /(lam*np.exp(x@np.array([0.45,-0.25]))))**(1.0/rho); c=rng.exponential(35,size=300)
 time=np.minimum(t_event,c); event=(t_event<=c).astype(float)
 model=cm.WeibullPH(); model.fit(x,time,event)
+fit=model.summary(); print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
 print(model.predict_lin(x[:3], time[:3]))
 print(model.predict_hazard(x[:3], time[:3]))
 print(model.predict_cumulative_hazard(x[:3], time[:3]))

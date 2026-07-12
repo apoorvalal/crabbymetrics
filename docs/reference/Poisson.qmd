@@ -52,7 +52,7 @@ $$
 +\operatorname{diag}(0,\lambda,\ldots,\lambda),
 $$
 
-with $10^{-8}$ added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at $\log\{\max(\bar y,10^{-12})\}$ and slopes start at zero. A fit is stored only after the optimizer reports convergence.
+with $10^{-8}$ added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at $\log\{\max(\bar y,10^{-12})\}$ and slopes start at zero. A fit is stored only after Argmin reports solver convergence or a target cost. Reaching `max_iterations` raises `ValueError` and clears any previous fitted state. Successful summaries include `converged`, `iterations`, `termination_reason`, and the final penalized `objective` $Q(\hat\alpha_0,\hat\beta)$.
 
 ::: {.callout-warning}
 The fit requires finite $y_i\geq0$, a finite nonnegative penalty, finite regressors, a positive tolerance, and a positive iteration budget. Outcomes need not be integers, which permits Poisson QMLE for nonnegative responses.
@@ -82,7 +82,7 @@ B^{-1},
 B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
 $$
 
-No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw.
+No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw, and any nonconverged replicate aborts the bootstrap.
 
 ## Performance and numerical behavior
 
@@ -92,7 +92,7 @@ Every Newton Hessian evaluation costs $O(np^2)$ and the dense Newton system is u
 
 Constructor: `cm.Poisson`
 
-Use `fit(x, y)` with nonnegative count-like outcomes. `predict(x)` returns fitted conditional means. The class also supports `bootstrap(B, seed=None)`.
+Use `fit(x, y)` with nonnegative count-like outcomes. `predict_lin(x)` returns the log mean, `predict(x)` returns fitted conditional means, and `summary()` includes fit diagnostics. The class also supports `bootstrap(B, seed=None)`.
 
 ```{python}
 print(inspect.signature(cm.Poisson))
@@ -113,7 +113,9 @@ mu = np.exp(0.2 + x @ np.array([0.4, -0.25]))
 y = rng.poisson(mu).astype(float)
 model = cm.Poisson(max_iterations=200, tolerance=1e-08)
 model.fit(x, y)
-print(model.summary(vcov='vanilla')['coef'])
+fit = model.summary(vcov='vanilla')
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['coef'])
 print(model.summary(vcov='sandwich')['coef_se'])
 print(model.predict(x[:3]))
 ```

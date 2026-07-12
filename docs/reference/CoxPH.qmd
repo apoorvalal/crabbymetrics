@@ -27,7 +27,7 @@ from _api_doc_utils import *
 `CoxPH` estimates log hazard ratios without parameterizing the baseline hazard:
 
 $$
-h_i(t \mid x_i) = h_0(t) \exp(x_i'eta).
+h_i(t \mid x_i) = h_0(t) \exp(x_i'\beta).
 $$
 
 That means the paved prediction target is relative risk rather than absolute survival. The latent linear index is still useful and is exposed as `predict_lin(x)`.
@@ -46,7 +46,7 @@ x_i'\beta
 \right].
 $$
 
-When several events share a time, the same full risk-set denominator is subtracted once per event. This is the Breslow partial-likelihood treatment of ties. Newton updates use the analytic score and information, a $10^{-8}$ ridge in the solve, coordinate-wise step clipping to $[-1,1]$, and backtracking.
+When several events share a time, the same full risk-set denominator is subtracted once per event. This is the Breslow partial-likelihood treatment of ties. Newton updates use the analytic score and information, a $10^{-8}$ ridge in the solve, coordinate-wise step clipping to $[-1,1]$, and backtracking. Convergence requires either $\|\nabla\ell_p\|_\infty<\tau$ or an accepted partial-likelihood change below $\tau(1+|\ell_p|)$.
 
 Risk-set exponentials are evaluated after clipping $x_r'\beta$ to $[-40,40]$ for stability, while the numerator uses the unclipped index. Outside that range the reported criterion, score, and Hessian are therefore no longer exact derivatives of one common clipped objective. Typical well-scaled fits stay inside the clipping region.
 
@@ -54,7 +54,7 @@ Risk-set exponentials are evaluated after clipping $x_r'\beta$ to $[-40,40]$ for
 
 The covariance is the inverse observed partial-likelihood information. Standard errors, normal $z$ statistics, and approximate two-sided chi-square-one $p$-values are derived from it. There is no robust sandwich, clustering, strata, weights, or bootstrap. The class does not estimate a baseline cumulative hazard, so it cannot return survival probabilities; default prediction is $\exp(x'\hat\beta)$ and the linear method returns $x'\hat\beta$.
 
-The iteration count is stored, but the optimizer does not expose a convergence flag and does not raise merely because it reached the configured maximum. Model-based inference assumes independent subjects and a correctly specified proportional-hazards relative-risk model.
+Reaching `max_iterations` raises `ValueError` before covariance or fitted state is stored. A successful summary exposes `converged`, `iterations`, `termination_reason`, and `objective`, where `objective=-\ell_p(\hat\beta)`. Model-based inference assumes independent subjects and a correctly specified proportional-hazards relative-risk model.
 
 ## Performance and numerical behavior
 
@@ -83,6 +83,7 @@ rng=np.random.default_rng(33)
 x=rng.normal(size=(260,2)); rate=0.05*np.exp(x@np.array([0.5,-0.25])); t_event=rng.exponential(1.0/rate); c=rng.exponential(25,size=260)
 time=np.minimum(t_event,c); event=(t_event<=c).astype(float)
 model=cm.CoxPH(); model.fit(x,time,event)
+fit=model.summary(); print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
 print(model.predict_lin(x[:5]))
 print(model.predict(x[:5]))
 ```

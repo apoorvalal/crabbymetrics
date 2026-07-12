@@ -48,7 +48,7 @@ x_i'\beta
 \right].
 $$
 
-Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a $10^{-8}$ solve ridge, step clipping, backtracking, and risk-score index clipping to $[-40,40]$ inside the risk sets.
+Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a $10^{-8}$ solve ridge, step clipping, backtracking, and risk-score index clipping to $[-40,40]$ inside the risk sets. Convergence requires either $\|\nabla\ell_p\|_\infty<\tau$ or an accepted partial-likelihood change below $\tau(1+|\ell_p|)$.
 
 ## Inference limitation
 
@@ -58,7 +58,7 @@ The returned covariance is only the inverse observed partial-likelihood informat
 For recurrent-event Andersen-Gill analysis, the usual robust covariance clusters intervals by subject. This class does not implement that covariance. Its reported standard errors and $p$-values treat interval rows through the model-based information and should not be presented as robust recurrent-event inference.
 :::
 
-The class also does not validate that a subject's intervals are nonoverlapping or consistently ordered because subject membership is unavailable. Default prediction is relative risk $\exp(x'\hat\beta)$; no baseline hazard or survival curve is estimated. The reported iteration count does not distinguish convergence from exhausting the maximum.
+The class also does not validate that a subject's intervals are nonoverlapping or consistently ordered because subject membership is unavailable. Default prediction is relative risk $\exp(x'\hat\beta)$; no baseline hazard or survival curve is estimated. Reaching `max_iterations` raises `ValueError` and leaves the estimator unfitted. A successful summary exposes `converged`, `iterations`, `termination_reason`, and `objective`, where `objective=-\ell_p(\hat\beta)`.
 
 ## Performance and numerical behavior
 
@@ -88,6 +88,7 @@ x=rng.normal(size=(180,1)); rate=0.05*np.exp(0.6*x[:,0]); t_event=rng.exponentia
 start=np.zeros_like(stop)
 start_long=np.concatenate([start, stop/2]); stop_long=np.concatenate([stop/2, stop]); x_long=np.vstack([x,x]); event_long=np.concatenate([np.zeros_like(event), event])
 model=cm.AndersenGill(); model.fit(x_long,start_long,stop_long,event_long)
+fit=model.summary(); print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
 print(model.predict_lin(x[:5]))
 print(model.predict(x[:5]))
 ```

@@ -166,14 +166,14 @@ n=100; x=rng.normal(size=(n,2)); g=rng.integers(0,10,size=n,dtype=np.uint32); h=
 fe=np.column_stack([g,h]).astype(np.uint32); y=x@np.array([.8,-.5])+rng.normal(size=10)[g]+rng.normal(size=n)*.2
 model=cm.FixedEffectsOLS(); model.fit(x, fe, y)"""),
 "ElasticNet": dict(group="Regression", subtitle="Coordinate-descent elastic net regression",
- math="""`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties:
+ math="""`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The delegated implementation centers the outcome but not the feature columns:
 
 $$
-\min_{\alpha,\beta}\; \frac{1}{2n}\sum_i (y_i-\alpha-x_i'\beta)^2 + \lambda\left(\rho\|\beta\|_1 + \frac{1-\rho}{2}\|\beta\|_2^2\right).
+\min_{\beta}\; \frac{1}{2n}\|y-\bar y\mathbf1-X\beta\|_2^2 + \lambda\left(\rho\|\beta\|_1 + \frac{1-\rho}{2}\|\beta\|_2^2\right).
 $$
 
-It is useful when the goal is prediction or sparse regularized coefficients rather than classical inference.""",
- api="""Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates and approximate HC-style standard errors.""",
+Prediction is $\bar y+X\hat\beta$. The wrapper recomputes the final duality gap and rejects budget-exhausted, nonconverged fits.""",
+ api="""Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates, convergence diagnostics, and the duality gap; analytic inference is unavailable.""",
  example="""rng = np.random.default_rng(4)
 x = rng.normal(size=(180, 8))
 y = 0.4 + x[:, :3] @ np.array([1.0, -0.8, 0.5]) + rng.normal(scale=0.5, size=180)
@@ -190,8 +190,8 @@ $$
 \Pr(Y_i=1\mid X_i=x_i)=\Lambda(\alpha+x_i'\beta),
 $$
 
-with optional L2 regularization controlled by `alpha`. `predict(x)` returns class labels, not probabilities.""",
- api="""Fit with integer labels using `fit(x, y_int32)`. `summary()` returns intercept/coefficient estimates and Fisher-information standard errors. `bootstrap()` resamples observations and refits the classifier.""",
+ with optional L2 regularization controlled by `alpha`. The native L-BFGS fit uses stable softplus evaluation and rejects nonconverged results. `predict(x)` returns probabilities for label 1.""",
+ api="""Fit with 0/1 integer labels using `fit(x, y_int32)`. `summary()` returns fit diagnostics and intercept/coefficient estimates. Fisher-information inference is available only at `alpha=0`; `bootstrap()` resamples observations and refits the classifier.""",
  example="""rng=np.random.default_rng(5)
 x=rng.normal(size=(220,3)); eta=-0.2+x@np.array([.7,-.4,.9]); p=1/(1+np.exp(-eta))
 y=rng.binomial(1,p,size=220).astype(np.int32)
@@ -207,8 +207,8 @@ $$
 \Pr(Y_i=k\mid X_i=x_i)=\frac{\exp(\alpha_k+x_i'\beta_k)}{\sum_\ell \exp(\alpha_\ell+x_i'\beta_\ell)}.
 $$
 
-The summary packs coefficients and standard errors by class.""",
- api="""Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns class labels. `summary()` returns `coef` and `se` matrices rather than the scalar-intercept/vector-coefficient schema used by binary GLMs.""",
+ The native L-BFGS fit uses stable log-sum-exp evaluation and rejects nonconverged results. The summary reports identifiable class-versus-last-class contrasts.""",
+ api="""Use integer class labels in `fit(x, y_int32)`. `predict(x)` returns class probabilities, `predict_lin(x)` returns logits, and `predict_label(x)` returns labels. Fisher-information inference is available only at `alpha=0`.""",
  example="""rng=np.random.default_rng(6)
 x=rng.normal(size=(240,2)); logits=x@np.array([[.6,-.3],[-.4,.5],[.2,.2]]).T + np.array([.1,-.2,0.])
 p=np.exp(logits-logits.max(axis=1,keepdims=True)); p=p/p.sum(axis=1,keepdims=True)
@@ -226,7 +226,7 @@ $$
 $$
 
 The `alpha` constructor argument is an L2 penalty, not the intercept. `summary(vcov='vanilla')` reports Fisher-information standard errors; `summary(vcov='sandwich')` reports robust QMLE-style standard errors.""",
- api="""Use `fit(x, y)` with nonnegative count-like outcomes. `predict(x)` returns fitted conditional means. The class also supports `bootstrap(B, seed=None)`.""",
+ api="""Use `fit(x, y)` with nonnegative count-like outcomes. `predict(x)` returns fitted conditional means. `summary()` reports optimizer diagnostics and inference is available only at `alpha=0`. The class also supports `bootstrap(B, seed=None)`.""",
  example="""rng=np.random.default_rng(7)
 x=rng.normal(size=(250,2)); mu=np.exp(.2+x@np.array([.4,-.25])); y=rng.poisson(mu).astype(float)
 model=cm.Poisson(max_iterations=200, tolerance=1e-8); model.fit(x,y)
@@ -260,7 +260,7 @@ $$
 $$
 
 The objective can be quadratic or entropy-like, with optional lower/upper bounds and ridge stabilization.""",
- api="""Use `fit(covariates, target_covariates, baseline_weights=None, target_weights=None)`. `get_weights()` returns the fitted source weights. `summary()` reports balance diagnostics, the dual coefficients, effective sample size, and solver status.""",
+ api="""Use `fit(covariates, target_covariates, baseline_weights=None, target_weights=None)`. `solver_converged` describes the scaled calibration solve; `success` additionally checks weight feasibility. `summary()` separates scaled solver diagnostics from original-unit balance diagnostics.""",
  example="""rng=np.random.default_rng(10)
 x0=rng.normal(size=(180,3)); x1=rng.normal(loc=np.array([.4,-.2,.1]), size=(80,3))
 model=cm.BalancingWeights(objective="quadratic", max_iterations=500)
@@ -367,7 +367,7 @@ model=cm.SyntheticDID(max_iterations=300); model.fit(y,w)"""),
  math="""`MatrixCompletion` treats untreated cells as observed entries and treated cells as missing counterfactuals. It estimates a low-rank untreated-outcome surface, optionally with unit and time effects, using nuclear-norm style shrinkage.
 
 The completed values in treated cells become counterfactual outcomes for ATT and event-study summaries.""",
- api="""Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values and `summary()` reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective history, and panel summaries.""",
+ api="""Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values. `summary()` reports ATT, low-rank components, histories, and explicit convergence diagnostics; a budget-exhausted final iterate is retained with `converged=False`.""",
  example="""rng=np.random.default_rng(18)
 load=rng.normal(size=(10,2)); fac=rng.normal(size=(2,14)); y=load@fac+rng.normal(scale=.1,size=(10,14)); w=np.zeros_like(y); w[7:,9:]=1; y[7:,9:]+=1
 model=cm.MatrixCompletion(max_iterations=100, tolerance=1e-5); model.fit(y,w)
@@ -417,11 +417,11 @@ model=cm.GMM(moments,jacobian_fn=jac,max_iterations=200); model.fit({'x':x,'y':y
  math="""`MEstimator` is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:
 
 $$
-\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = H^{-1}\widehat\Omega H^{-1}.
+\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = A^{-1} B A^{-T}/n.
 $$
 
-The class favors flexibility over guardrails.""",
- api="""Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.""",
+The bread is the numerical Jacobian of the mean score and the meat is the empirical score outer product. Nonconverged L-BFGS results are rejected.""",
+ api="""Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. `summary()` includes common fit diagnostics.""",
  example="""def obj(theta, data):
     X, y = data["X"], data["y"]
     idx = data.get("indices", np.arange(len(y)))

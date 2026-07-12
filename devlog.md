@@ -11,7 +11,23 @@
 
 Current release state: `v0.8.0` is published to PyPI and GitHub Releases. It contains the estimator-correctness remediation, complete estimator math/API audit, guarded `BaggedPolynomialRegressor`, and PCA/Poisson corrections merged in PR #16, in addition to the earlier anytime-valid OLS, likelihood, and survival work.
 
+Current development state: `api-hardening` is based on `origin/master` at `ce5ea3b` and is intentionally unreleased.
+
 This file is meant to record the current architecture and the design choices that matter for future work.
+
+## API Hardening And Solver Correctness (2026-07-12)
+
+The `api-hardening` branch completes the P0--P1 estimator stocktake without expanding the estimator catalog.
+
+- Removed `FTRL` from the Rust and Python public surface, deleted its API/example/navigation entries and dedicated tests, and removed `linfa-ftrl`. The wrapper performed one aggregate batch update with fresh state and did not justify an online-estimator API.
+- Removed unused `linfa-linear`. `argmin-math` now enables its ndarray adapter explicitly rather than receiving that feature transitively.
+- Replaced Linfa binary and multinomial logistic fitting with native stable-softplus/log-sum-exp objectives, analytic gradients, and L-BFGS. Existing prediction contracts and identified inference outputs are preserved.
+- Added shared `FitDiagnostics` and common validation helpers. Iterative summaries use `converged`, `iterations`, `termination_reason`, and `objective`; maximum-iteration termination is not success.
+- Hardened ExponentialPH, WeibullPH, CoxPH, AndersenGill, ElasticNet, MatrixCompletion, BalancingWeights, Poisson, and MEstimator around explicit nonconvergence behavior. ElasticNet exposes its final duality gap; MatrixCompletion retains a budget-exhausted iterate only with `converged=False`; BalancingWeights separates scaled solver convergence from original-scale balance.
+- Split estimator source ownership into `linear.rs`, `iv.rs`, `panel.rs`, and `synthetic.rs` while preserving the existing Python imports.
+- Added targeted nonconvergence, external-parity, scaled-balance, and public-surface tests. The implementation checkpoint passed 153 Python tests and 5 Rust tests before the documentation render gate.
+
+The API references now document the implemented loss or likelihood, inferential method, stopping rule, summary diagnostics, and performance characteristics for every affected estimator. The maintenance generator, `docs/llms.txt`, evaluation record, and worked examples were updated alongside those pages, with substantive example code visible.
 
 ## Refactor Correctness And Documentation Pass (2026-07-10 through 2026-07-11)
 
@@ -39,11 +55,16 @@ crabbymetrics/
     hyptests.rs
     lib.rs
     rla.rs
+    fit.rs
+    validation.rs
     utils.rs
     optimizers.rs
     estimators/
       mod.rs
       linear.rs
+      iv.rs
+      panel.rs
+      synthetic.rs
       regularized.rs  # includes BaggedPolynomialRegressor
       mle.rs
       gmm.rs
@@ -60,6 +81,8 @@ Key points:
 - `src/abc.rs` holds the abundance-based-constraints / weighted-effect-coding OLS estimator.
 - `src/hyptests.rs` holds module-level Wald, likelihood-ratio, and IV test helpers.
 - `src/rla.rs` holds randomized range/SVD/QR and CountSketch least-squares utilities.
+- `src/fit.rs` holds the shared iterative-fit diagnostics and optimizer-status contract.
+- `src/validation.rs` holds shared finite-value, positivity, binary-label, and sample-weight validation.
 - `src/utils.rs` holds shared array conversion, least-squares helpers, covariance helpers, weighting helpers, and bootstrap utilities.
 - `docs/` is a checked-in Quarto website, not just notebook scraps.
 - `docs/ding/` holds the translated Peng Ding chapter pages plus grouping pages for the `First Course Ding` section.
@@ -112,10 +135,9 @@ The current Python module exports:
   - `SyntheticDID`
   - `MatrixCompletion`
   - `InteractiveFixedEffects`
-- regularized / online:
+- regularized:
   - `Ridge`
   - `ElasticNet`
-  - `FTRL`
   - `BaggedPolynomialRegressor`
 - likelihood / generic:
   - `Logit`
@@ -482,9 +504,9 @@ It is useful as an escape hatch, but it still has limitations:
 - solver diagnostics are thin
 - it is best treated as a low-level custom hook, not as the flagship inference path
 
-### `FTRL` is not yet a coherent online estimator API
+### The former `FTRL` wrapper was removed
 
-The current wrapper initializes a fresh upstream state, computes one aggregate full-batch logistic gradient, applies one proximal update, and discards the optimizer state. There is no intercept, `partial_fit`, iteration control, or convergence target. It should remain experimental until it becomes a persistent online estimator or is removed from the first-tier public surface.
+The released `v0.8.0` wrapper initialized a fresh upstream state, computed one aggregate full-batch logistic gradient, applied one proximal update, and discarded the optimizer state. The `api-hardening` branch removes it from the public surface and dependency tree. Any future streaming estimator should begin from a new persistent-state and `partial_fit` design rather than restoring that class.
 
 ### `AndersenGill` lacks recurrent-event robust inference
 
@@ -492,14 +514,12 @@ The point estimator is the counting-process Cox partial likelihood with Breslow 
 
 ## Current Direction
 
-After the correctness and class-by-class API audit, the most plausible next branch directions are:
+After API hardening, the most plausible next branch directions are:
 
-1. decide whether to redesign `FTRL` around persistent `partial_fit` state or remove it from the first-tier estimator surface
-2. add a subject identifier and clustered score covariance to `AndersenGill`, then optimize Cox-family risk-set accumulation
-3. expose convergence status for iterative estimators that currently retain budget-exhausted results, especially `MatrixCompletion` and survival fits
-4. difference-in-differences / event-study support
-5. more likelihood methods, starting with negative binomial and grouped/binomial likelihoods
-6. weighted nonlinear estimators, weighted GMM, and richer IV / GMM diagnostics
+1. add a subject identifier and clustered score covariance to `AndersenGill`, then optimize Cox-family risk-set accumulation
+2. difference-in-differences / event-study support
+3. more likelihood methods, starting with negative binomial and grouped/binomial likelihoods
+4. weighted nonlinear estimators, weighted GMM, and richer IV / GMM diagnostics
 
 That is the current state the next extension branch should assume.
 

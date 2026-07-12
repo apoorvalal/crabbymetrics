@@ -1,13 +1,12 @@
 ---
 title: "Estimator Correctness and API Design Review"
-subtitle: "Baseline audit and refactor remediation record"
-date: "2026-07-11"
+subtitle: "Baseline audit, refactor remediation, and API-hardening record"
+date: "2026-07-12"
 format:
   html:
     embed-resources: true
     page-layout: full
-    code-fold: true
-    code-summary: "Show code"
+    code-fold: false
 execute:
   echo: true
   warning: false
@@ -15,16 +14,36 @@ execute:
 jupyter: python3
 ---
 
-## Refactor remediation status
+## API-hardening resolution status
 
-> The detailed findings below preserve the audit of the checkpointed 0.5.1 working tree. The repository is now on `refactor`, created from `origin/master` 0.7.0 and subsequently merged with current `master` 0.7.1. The original dirty tree is preserved on `pre-refactor-audit-snapshot`. This table records the current disposition of every P0 and P1 finding.
+> This document retains the original 0.5.1 audit below as a historical record. The current implementation is the `api-hardening` branch created from `origin/master` at `ce5ea3b`. Statements in the baseline sections describe the audited checkout at the time and are not claims about the current source.
+
+| P0--P1 hardening item | Current resolution | Verification |
+|---|---|---|
+| Public FTRL estimator | Removed the Python export, Rust implementation, tests, API/reference pages, navigation, and `linfa-ftrl` dependency. The one-update batch wrapper is not presented as an online estimator. | Public-surface regression test plus source/documentation scans. |
+| Unused linear dependency | Removed `linfa-linear`; the package's linear estimators remain native. | Cargo dependency resolution and Rust build. |
+| Binary and multinomial logit | Replaced Linfa fitting with native stable-softplus/log-sum-exp objectives, analytic gradients, and convergence-checked L-BFGS. Prediction contracts remain label-1 probability for binary logit and sorted-class probability matrices for multinomial logit. | Statsmodels coefficient/covariance parity and forced-nonconvergence tests. |
+| Common fit diagnostics | Added one internal result contract for `converged`, `iterations`, `termination_reason`, and `objective`; Argmin budget exhaustion is never classified as convergence. | Rust status regression test and Python summary-contract tests. |
+| Survival estimators | ExponentialPH, WeibullPH, CoxPH, and AndersenGill now accept only explicit gradient or objective convergence and raise before storing covariance or state on budget exhaustion. | One-iteration failure tests for every survival class. |
+| MatrixCompletion | Retains a budget-exhausted diagnostic iterate but reports `converged=False`, the termination reason, iteration count, and final objective. | Budget-exhaustion regression test. |
+| ElasticNet | Recomputes and exposes the final duality gap and threshold, reports iteration count, and rejects a nonconverged coordinate-descent result. | Converged-summary and forced-budget tests. |
+| BalancingWeights | Scaled calibration residuals determine solver convergence; normalized-weight feasibility determines overall success; original-unit balance is reported separately and cannot reverse solver status. | Extreme-feature-scale regression test. |
+| Validation and source layout | Consolidated common array/hyperparameter/weight checks and optimizer status handling. Split the former estimator monolith into linear, IV, panel, and synthetic modules without changing public imports. | Full Python and Rust suites plus a warning-free Cargo check. |
+
+The implementation checkpoint before this documentation pass was 153 passing Python tests and 5 passing Rust tests. The final branch gate reruns both suites, formatting, source checks, and the relevant Quarto site render.
+
+Remaining limitations are deliberately not hidden: Andersen--Gill still lacks subject-clustered recurrent-event covariance; Cox-style risk-set construction remains $O(Enp^2)$ per Newton iteration; randomized MatrixCompletion SVD is an approximate proximal update; and ElasticNet retains Linfa's outcome-centering-only intercept convention for compatibility.
+
+## Historical refactor remediation status
+
+> This table records the earlier `refactor` branch disposition before the API-hardening pass. The detailed findings below preserve the audit of the checkpointed 0.5.1 working tree.
 
 | Priority finding | Refactor resolution | Verification |
 |---|---|---|
 | P0 weighted TwoSLS | Complete regressor and instrument designs, including intercepts, are now square-root weighted before projection and estimation. | Statsmodels `IV2SLS` point estimates and independently constructed covariance. |
 | P0 generic M-estimator covariance | The bread is the numerical Jacobian of the mean score; the meat is the empirical score outer product; covariance uses $A^{-1} B A^{-T}/n$. Constructor tolerance reaches LBFGS and nonconvergence raises. | Statsmodels OLS HC0 coefficient and covariance parity. |
 | P0 multinomial inference | Summary coefficients are identified class-versus-reference contrasts and covariance is computed in the $(C-1)k$ reference-class basis. | Statsmodels `MNLogit` transformed parameter and covariance parity. |
-| P0 penalized inference mismatch | ElasticNet and FTRL explicitly report analytic inference unavailable. Penalized Logit and Poisson return point estimates without unpenalized covariance and reject Wald tests. Unpenalized Logit and Poisson retain tested inference. | Statsmodels binary Logit and Poisson parity plus negative contract tests. |
+| P0 penalized inference mismatch | ElasticNet was made prediction-only; the former FTRL wrapper was subsequently removed during API hardening. Penalized Logit and Poisson return point estimates without unpenalized covariance and reject Wald tests. Unpenalized Logit and Poisson retain tested inference. | Statsmodels binary Logit and Poisson parity plus negative contract tests. |
 | P1 local SyntheticDID scale | Resolved by the 0.7.0 upstream base: the pooled control pre-period first-difference sample standard deviation is used. | Direct formula regression test. |
 | P1 DML/AIPW folds | Fold membership is a deterministic seeded shuffle; AIPW assigns within treatment strata. | Manual cross-fit DML/AIPW formula tests use an independent implementation of the same documented split rule. |
 | P1 fixed-effect degrees of freedom | One-way rank is exact; two-way rank uses bipartite connected components; three-plus-way rank is explicitly labeled conservative. All covariance and Wald paths use the resulting residual degrees of freedom. | Statsmodels and full-dummy parity, including disconnected two-way graphs. |
@@ -34,7 +53,7 @@ jupyter: python3
 
 The ported `BaggedPolynomialRegressor` also adds the pre-merge guardrails identified later in this review: checked polynomial complexity, resolved fitted metadata, internal polynomial scaling, shared term definitions, OOB diagnostics, and scikit-learn parity tests.
 
-## Current branch verification
+## Prior refactor branch verification
 
 | Check | Current result |
 |---|---|
@@ -45,24 +64,24 @@ The ported `BaggedPolynomialRegressor` also adds the pre-merge guardrails identi
 | Full executing site render | Stopped at page 17 because the pre-existing Ding chapter expects absent `ding_w_source/repl/nhanes_bmi.csv`. No changed page depends on that file. |
 | `cargo clippy --all-targets -- -D warnings` | PyO3 deprecations and the unused ABC column field were removed; 30 pre-existing structural style lints remain, chiefly public econometric acronyms, Python-facing argument counts, range loops, and type complexity. |
 
-## Current implementation audit addendum
+## Pre-hardening implementation audit addendum
 
-The refactor remediation fixed the original wrong-result findings, but the 2026-07-11 class-by-class source audit found several remaining design and performance limitations in the current 0.7.1 implementation. The API reference pages now state the exact criterion or estimating equations, covariance method, inferential scope, and dense computational scaling for every public estimator.
+The refactor remediation fixed the original wrong-result findings, but the 2026-07-11 class-by-class source audit found several remaining design and performance limitations in the then-current 0.7.1 implementation. The first table in this document records which of these were resolved by API hardening.
 
 | Current class or family | Source-audit result | Disposition on this branch |
 |---|---|---|
-| **FTRL** | The Python fit initializes an upstream random FTRL state, evaluates one aggregate full-batch logistic gradient, applies one proximal update, and stops. It has no intercept, iteration, convergence target, partial-fit method, or persistent Python state. With a low L1 threshold, the random initial accumulator can affect the only update. | Reference and example pages label it experimental and derive the exact one-update equations. Recommended next action is a real persistent online API or removal from the first-tier estimator surface. |
+| **FTRL** | The Python fit initialized an upstream random FTRL state, evaluated one aggregate full-batch logistic gradient, applied one proximal update, and stopped. It had no intercept, iteration, convergence target, partial-fit method, or persistent Python state. | Resolved by removing the class and its dependency rather than preserving an incoherent public estimator. |
 | **AndersenGill** | The point estimate uses the counting-process Cox partial likelihood, but the API accepts no subject identifier and returns inverse-information covariance. It cannot compute the subject-clustered robust variance normally used for recurrent events. | The reference page carries an explicit warning. A subject-ID argument and clustered score covariance are required before treating it as production recurrent-event inference. |
 | **CoxPH / AndersenGill performance** | Every event scans every row and rebuilds a dense second moment, producing approximately $O(Enp^2)$ work per Newton iteration. Breslow ties are implemented. | Exact risk-set and tie behavior plus the scaling limitation are documented. Cumulative risk-set sufficient statistics are the natural optimization follow-up. |
-| **MatrixCompletion** | The nuclear-norm objective and proximal threshold are coherent. Reaching the iteration budget still stores a result without a convergence flag, and randomized truncated SVD only approximately follows the displayed proximal objective. | Objective history, missing convergence status, and randomized approximation are documented. |
-| **BalancingWeights** | The dual calibration system is coherent, but autoscaling solves balance in scaled units and the success flag additionally checks the original-scale L2 norm against the same tolerance. | The unit mismatch is documented; a later API pass should separate scaled solver tolerance from original-scale balance diagnostics. |
+| **MatrixCompletion** | The nuclear-norm objective and proximal threshold are coherent. Randomized truncated SVD only approximately follows the displayed proximal objective. | Budget exhaustion now retains an explicitly nonconverged result with common diagnostics; the randomized approximation remains documented. |
+| **BalancingWeights** | The dual calibration system is coherent, but autoscaling and original-unit balance require different diagnostics. | Scaled solver convergence is now separate from original-unit balance and weight-feasibility success. |
 | **Poisson** | Negative penalty previously made the objective inconsistent with its gradient and Hessian, and invalid outcomes were not rejected. | Fit now rejects nonfinite regressors, nonfinite or negative outcomes, negative/nonfinite penalty, nonpositive tolerance, and zero iteration budgets; direct tests were added. |
 | **PCA** | The delegated summary divided singular-value squares by retained-components minus one instead of observations minus one. Whitened inverse transformation reapplied rather than removed the whitening scale. | The wrapper now stores sample variance metadata, reports $s_j^2/(n-1)$ and full-variance ratios, correctly reverses whitening, and has direct SVD/reconstruction tests. |
 | **Public transforms** | NystromBasis, RandomFourierFeatures, and RandomizedPCA were exported but lacked grouped first-class API pages; the Gaussian bandwidth convention was misstated in the KernelBasis page. | Grouped PCA and kernel-transform pages now cover all five classes and use the implemented kernel $\exp(-\|x-z\|^2/h)$. |
 
-These findings change the next design priorities. FTRL and Andersen-Gill need API work before broader promotion; the remaining estimators are usable within the limitations now made explicit in their reference pages.
+The hardening pass removed FTRL rather than redesigning it. Andersen--Gill's missing subject-cluster covariance and the Cox risk-set implementation remain the most important limitations from this addendum.
 
-## Baseline executive verdict
+## Historical baseline executive verdict
 
 The audited 0.5.1 working tree had a coherent core, but it was not ready for a broad estimator refactor. The point-estimation paths for unweighted OLS, scalar-penalty ridge, unweighted 2SLS, fixed-effects OLS, Poisson with `alpha=0`, synthetic control, GMM, EPLM, average derivative, partially linear DML, and AIPW were internally coherent and were supported by useful formula-level tests. The strongest parts of the codebase are the QR-based linear algebra, the explicit covariance choices for the main linear estimators, and the small NumPy-facing API.
 
