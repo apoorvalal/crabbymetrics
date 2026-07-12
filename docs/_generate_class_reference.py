@@ -235,18 +235,6 @@ print(model.summary(vcov="sandwich")["coef_se"])
 print(model.predict(x[:3]))""",
  setup="""rng=np.random.default_rng(107); x=rng.normal(size=(100,2)); y=rng.poisson(np.exp(.2+x@np.array([.4,-.25]))).astype(float)
 model=cm.Poisson(max_iterations=200); model.fit(x,y)"""),
-"FTRL": dict(group="Regression", subtitle="Online-style follow-the-regularized-leader classifier",
- math="""`FTRL` is an online-style regularized classifier. The update combines adaptive learning rates with L1/L2 regularization, making it useful for sparse or streaming-style binary prediction problems.
-
-The exposed class is deliberately simple: fit once on a design matrix and binary labels, then predict scores for new rows.""",
- api="""Call `FTRL(alpha, beta, l1_ratio, l2_ratio)`, then `fit(x, y_int32)`. `predict(x)` returns scores in `[0, 1]`; `summary()` returns coefficient estimates and standard errors.""",
- example="""rng=np.random.default_rng(8)
-x=rng.normal(size=(220,4)); p=1/(1+np.exp(-(x@np.array([.7,-.4,.2,.3])))); y=rng.binomial(1,p,size=220).astype(np.int32)
-model=cm.FTRL(); model.fit(x,y)
-print(model.summary()["coef"])
-print(model.predict(x[:5]))""",
- setup="""rng=np.random.default_rng(108); x=rng.normal(size=(100,4)); y=rng.binomial(1,.5,size=100).astype(np.int32)
-model=cm.FTRL(); model.fit(x,y)"""),
 "TwoSLS": dict(group="Causal inference", subtitle="Closed-form linear IV / two-stage least squares",
  math="""`TwoSLS` estimates linear instrumental-variables models. With endogenous regressors $X_e$, exogenous controls $X_c$, instruments $Z$, and outcome $y$, it runs the projection of the second-stage design on the instrument span and then estimates
 

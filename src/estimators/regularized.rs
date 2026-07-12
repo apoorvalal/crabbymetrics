@@ -3,13 +3,12 @@ use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
     solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec, to_array1,
-    to_array1_i32, to_array1_i64, to_array2,
+    to_array1_i64, to_array2,
 };
 use crate::validation::validate_finite;
-use linfa::prelude::{Fit, FitWith, Predict};
+use linfa::prelude::{Fit, Predict};
 use linfa::Dataset;
 use linfa_elasticnet::ElasticNet as LinfaElasticNet;
-use linfa_ftrl::Ftrl as LinfaFtrl;
 use ndarray::{s, Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -1227,121 +1226,6 @@ impl ElasticNet {
             } else {
                 out.row_mut(i).assign(&model.hyperplane());
             }
-        }
-        Ok(pyarray2_from_f64(py, &out))
-    }
-}
-
-#[pyclass]
-pub struct FTRL {
-    alpha: f64,
-    beta: f64,
-    l1_ratio: f64,
-    l2_ratio: f64,
-    model: Option<LinfaFtrl<f64>>,
-    x: Option<Array2<f64>>,
-    y: Option<Array1<bool>>,
-}
-
-#[pymethods]
-impl FTRL {
-    #[new]
-    #[pyo3(signature = (alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0))]
-    fn new(alpha: f64, beta: f64, l1_ratio: f64, l2_ratio: f64) -> Self {
-        Self {
-            alpha,
-            beta,
-            l1_ratio,
-            l2_ratio,
-            model: None,
-            x: None,
-            y: None,
-        }
-    }
-
-    fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<i32>) -> PyResult<()> {
-        let x = to_array2(&x);
-        let y = to_array1_i32(&y).mapv(|v| v != 0);
-        let dataset = Dataset::new(x.clone(), y.clone());
-        let params = linfa_ftrl::Ftrl::params()
-            .alpha(self.alpha)
-            .beta(self.beta)
-            .l1_ratio(self.l1_ratio)
-            .l2_ratio(self.l2_ratio);
-        let model = params
-            .fit_with(None, &dataset)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        self.model = Some(model);
-        self.x = Some(x);
-        self.y = Some(y);
-        Ok(())
-    }
-
-    fn predict<'py>(
-        &self,
-        py: Python<'py>,
-        x: PyReadonlyArray2<f64>,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-        let x = to_array2(&x);
-        let probs = model.predict(&x).mapv(|v| f64::from(*v));
-        Ok(pyarray1_from_f64(py, &probs))
-    }
-
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-
-        let weights = model.get_weights();
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("coef", pyarray1_from_f64(py, &weights))?;
-        dict.set_item("alpha", self.alpha)?;
-        dict.set_item("beta", self.beta)?;
-        dict.set_item("l1_ratio", self.l1_ratio)?;
-        dict.set_item("l2_ratio", self.l2_ratio)?;
-        dict.set_item("inference_available", false)?;
-        dict.set_item("coef_se", py.None())?;
-        Ok(dict.into())
-    }
-
-    #[pyo3(signature = (n_bootstrap, seed=None))]
-    fn bootstrap<'py>(
-        &self,
-        py: Python<'py>,
-        n_bootstrap: usize,
-        seed: Option<u64>,
-    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
-        let mut out = Array2::<f64>::zeros((n_bootstrap, x.ncols()));
-        for (i, idx) in idxs.iter().enumerate() {
-            let xb = take_rows(x, idx);
-            let mut yb = Array1::from_elem(idx.len(), false);
-            for (j, &row) in idx.iter().enumerate() {
-                yb[j] = y[row];
-            }
-            let dataset = Dataset::new(xb, yb);
-            let params = linfa_ftrl::Ftrl::params()
-                .alpha(self.alpha)
-                .beta(self.beta)
-                .l1_ratio(self.l1_ratio)
-                .l2_ratio(self.l2_ratio);
-            let model = params
-                .fit_with(None, &dataset)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            out.row_mut(i).assign(&model.get_weights());
         }
         Ok(pyarray2_from_f64(py, &out))
     }

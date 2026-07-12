@@ -62,7 +62,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
 - Covariate balancing/calibration weights: `cm.BalancingWeights()`.
-- Binary classification: use `cm.Logit()` for a fitted likelihood estimator. `cm.FTRL()` currently performs one experimental batch update and is not a converged batch or persistent online estimator.
+- Binary classification: use `cm.Logit()` for a convergence-checked likelihood estimator.
 - Multiclass classification: `cm.MultinomialLogit()`.
 - Count regression: `cm.Poisson()`.
 - User-supplied moment conditions: `cm.GMM(moment_fn, jacobian_fn=None, ...)`.
@@ -215,16 +215,6 @@ bootstrap(n_bootstrap, seed=None)
 ```
 
 Use Poisson for nonnegative count-like outcomes. Model-based and QMLE/sandwich inference are available only at `alpha=0`; penalized fits are prediction-only.
-
-```python
-cm.FTRL(alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0)
-fit(x, y)
-predict(x)
-summary()
-bootstrap(n_bootstrap, seed=None)
-```
-
-FTRL currently initializes a fixed random FTRL state, evaluates one full-batch logistic gradient, performs one proximal update, and stops. It has no intercept, iteration, convergence criterion, `partial_fit`, or Python access to persistent state. Treat it as experimental; the summary marks analytic inference unavailable.
 
 ### Panel estimators and panel helpers
 
@@ -497,7 +487,7 @@ If you need to inspect or modify source, start here:
 
 - `src/lib.rs`: PyO3 module registration; exported Python classes and functions.
 - `src/estimators/linear.rs`: OLS, FixedEffectsOLS, TwoSLS, panel estimators, synthetic control, synthetic DID, matrix completion, interactive fixed effects, panel helpers.
-- `src/estimators/regularized.rs`: Ridge, ElasticNet, FTRL, BaggedPolynomialRegressor.
+- `src/estimators/regularized.rs`: Ridge, ElasticNet, BaggedPolynomialRegressor.
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
 - `src/estimators/balancing.rs`: BalancingWeights.
@@ -544,7 +534,6 @@ uv run quarto render docs
 - [Survival Models](https://apoorvalal.github.io/crabbymetrics/examples/survival-models.html): exponential PH, Weibull PH, Cox PH, Andersen--Gill counting-process models, and discrete-time hazard/logit connections.
 - [TwoSLS](https://apoorvalal.github.io/crabbymetrics/examples/twosls.html): instrumental variables regression.
 - [GMM](https://apoorvalal.github.io/crabbymetrics/examples/gmm.html): custom moment estimators.
-- [FTRL](https://apoorvalal.github.io/crabbymetrics/examples/ftrl.html): diagnostic example for the experimental one-update wrapper.
 - [MEstimator Poisson](https://apoorvalal.github.io/crabbymetrics/examples/mestimator-poisson.html): callback M-estimation matched against built-in Poisson.
 - [Balancing Weights](https://apoorvalal.github.io/crabbymetrics/examples/balancing-weights.html): entropy/quadratic calibration weights.
 - [EPLM](https://apoorvalal.github.io/crabbymetrics/examples/eplm.html): partially linear E-estimator.

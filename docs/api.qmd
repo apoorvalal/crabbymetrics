@@ -102,7 +102,6 @@ Reference pages:
 - [Logit](reference/Logit.qmd)
 - [MultinomialLogit](reference/MultinomialLogit.qmd)
 - [Poisson](reference/Poisson.qmd)
-- [FTRL](reference/FTRL.qmd)
 
 Worked docs:
 
@@ -127,7 +126,6 @@ display(HTML(html_table(
         cm.Logit,
         cm.MultinomialLogit,
         cm.Poisson,
-        cm.FTRL,
     ])
 )))
 ```

@@ -13,7 +13,7 @@ use crate::estimators::{
     ElasticNet, ExponentialPH, FixedEffectsOLS, HorizontalPanelRidge, InteractiveFixedEffects,
     KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit, NystromBasis,
     PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures, RandomizedPcaTransformer,
-    Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, FTRL, GMM, OLS,
+    Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -44,7 +44,6 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::estimators::av, m)?)?;
     m.add_function(wrap_pyfunction!(crate::estimators::optimal_g, m)?)?;
     m.add_class::<BalancingWeights>()?;
-    m.add_class::<FTRL>()?;
     m.add_class::<MEstimator>()?;
     m.add_class::<GMM>()?;
     m.add_class::<EPLM>()?;

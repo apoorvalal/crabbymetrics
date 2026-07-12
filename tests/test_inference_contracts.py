@@ -5,6 +5,10 @@ import statsmodels.api as sm
 import crabbymetrics as cm
 
 
+def test_ftrl_is_not_part_of_the_public_api():
+    assert not hasattr(cm, "FTRL")
+
+
 def test_logit_unpenalized_inference_matches_statsmodels():
     rng = np.random.default_rng(1201)
     x = rng.normal(size=(900, 2))
@@ -177,14 +181,6 @@ def test_predictive_regularized_models_mark_analytic_inference_unavailable():
     assert elastic_summary["iterations"] > 0
     assert elastic_summary["duality_gap"] <= elastic_summary["duality_gap_tolerance"]
     assert np.isfinite(elastic_summary["objective"])
-
-    binary_y = (y > np.median(y)).astype(np.int32)
-    ftrl = cm.FTRL()
-    ftrl.fit(x, binary_y)
-    ftrl_summary = ftrl.summary()
-    assert ftrl_summary["inference_available"] is False
-    assert ftrl_summary["coef_se"] is None
-
 
 def test_elastic_net_rejects_unsatisfied_duality_gap():
     rng = np.random.default_rng(1206)
