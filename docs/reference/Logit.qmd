@@ -50,6 +50,19 @@ where the constructor argument named `alpha` is $\lambda$ and the intercept is u
 
 Reaching `max_iterations` is not convergence. `fit()` raises `ValueError` and clears any previous fitted state if the budget is exhausted or optimization otherwise fails. A successful `summary()` records `converged`, `iterations`, `termination_reason`, and the final penalized `objective`. The linear index and probability always refer to label 1.
 
+## Implementation walkthrough
+
+This is a direct likelihood implementation, not a call to Linfa and not iteratively reweighted least squares (IRLS). The fit proceeds as follows.
+
+1. `fit()` first clears the stored model and training arrays, converts the NumPy inputs into owned Rust `ndarray` arrays, and checks finiteness, dimensions, the penalty, the iteration controls, and that both integer labels 0 and 1 occur. A failed refit therefore cannot leave a stale fitted model behind.
+2. The optimizer vector stores the $p$ slopes first and the intercept last. The objective callback walks over observations, computes $\eta_i=x_i'\beta+\alpha_0$, and accumulates `softplus(eta) - y * eta`. The softplus is evaluated as $\eta+\log(1+e^{-\eta})$ for positive $\eta$ and $\log(1+e^\eta)$ otherwise. The sigmoid likewise branches on the sign of $\eta$. These branches are what keep the likelihood and gradient finite when the linear index is large in magnitude.
+3. The analytic score callback accumulates $x_i(p_i-y_i)$ for the slopes and $p_i-y_i$ for the intercept, then adds $\lambda\beta$ only to the slopes. It does not construct an $n\times p$ working design or solve a weighted least-squares problem.
+4. Argmin's L-BFGS stores ten correction pairs and obtains its step length from a More-Thuente line search. The initial vector is exactly zero, so the initial fitted probability is $1/2$ for every row. `gradient_tolerance` is passed directly to the L-BFGS gradient stopping test.
+5. The wrapper accepts Argmin's best parameter only when its termination status is a genuine solver convergence or target-cost condition. Hitting the iteration budget is converted into an exception. Only then are the coefficients and original training arrays installed on the Python object.
+6. `predict_lin()` performs one dense matrix-vector product and adds the fitted intercept. `predict()` applies the same stable sigmoid elementwise. `predict_label()` compares those probabilities with the requested cutoff, including equality on the label-1 side.
+
+The deliberate tradeoff is simplicity and a low-memory first-order iteration. IRLS would exploit the exact Hessian through a weighted least-squares solve at every iteration; this implementation instead spends $O(np)$ per objective/gradient call and lets L-BFGS approximate curvature. That avoids repeatedly forming and factorizing a $p\times p$ matrix, but it can take more iterations and has no special separation detector.
+
 ## Inference
 
 Analytic inference is available only when $\lambda=0$. Let $\tilde X=[\mathbf1,X]$ and $W=\operatorname{diag}\{\hat p_i(1-\hat p_i)\}$. The returned model-based covariance is

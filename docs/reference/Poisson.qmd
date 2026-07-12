@@ -58,6 +58,19 @@ with $10^{-8}$ added to the Hessian diagonal for numerical stability and a More-
 The fit requires finite $y_i\geq0$, a finite nonnegative penalty, finite regressors, a positive tolerance, and a positive iteration budget. Outcomes need not be integers, which permits Poisson QMLE for nonnegative responses.
 :::
 
+## Implementation walkthrough
+
+Unlike `Logit`, this native GLM uses the exact Hessian. It is Newton-CG with line search, not the textbook IRLS presentation, although the Hessian $\tilde X'W\tilde X$ is the same weighted cross-product that IRLS uses.
+
+1. `fit()` clears all fitted state and validates finite regressors, finite nonnegative outcomes, a nonnegative penalty, and positive iteration and tolerance controls. Fractional $y_i$ pass intentionally because the score equations remain valid for Poisson QMLE.
+2. The optimizer vector is $(\alpha_0,\beta')$ when the intercept is enabled. Slopes start at zero and the intercept starts at $\log\{\max(\bar y,10^{-12})\}$, so the initial constant mean matches the sample mean except for the zero-mean floor.
+3. The cost callback computes the entire index vector, exponentiates it without clipping, and returns $\sum_i(e^{\eta_i}-y_i\eta_i)+\lambda\beta'\beta/2$. The gradient uses the residual vector $e^\eta-y$, with an unpenalized intercept score and $\lambda\beta$ added to the slope score.
+4. The Hessian callback multiplies every row of $X$ by $\mu_i$, forms $X'\operatorname{diag}(\mu)X$, fills the intercept cross-products from $X'\mu$, and adds $\lambda+10^{-8}$ to each slope diagonal and $10^{-8}$ to the intercept diagonal. The small ridge is used in every Newton system, including an otherwise unpenalized fit.
+5. Argmin's Newton-CG obtains a Newton direction using that dense Hessian and globalizes the update with a More-Thuente line search. `tolerance` is the Newton-CG stopping tolerance. The wrapper rejects an exhausted iteration budget and installs the best parameter, data, and diagnostics only after accepted convergence.
+6. `predict_lin()` evaluates $\alpha_0+X\beta$; `predict()` exponentiates it directly. The same absence of clipping that preserves the literal Poisson mean also means sufficiently extreme new rows can return infinity.
+
+IRLS would express each Newton step as weighted least squares on a working response. Newton-CG instead exposes the objective, gradient, and Hessian to a generic optimizer. Statistically the local quadratic step is the same; operationally the line search and conjugate-gradient machinery, rather than a dedicated GLM loop, control step acceptance.
+
 ## Inference
 
 Analytic inference is disabled for $\lambda>0$. For an unpenalized fit, the vanilla covariance is the inverse Fisher information

@@ -54,6 +54,20 @@ $$
 
 against the last sorted class $r$. Reaching `max_iterations` is a failed fit: `fit()` raises `ValueError` and clears any previous fitted state. Successful summaries include `converged`, `iterations`, `termination_reason`, and the final penalized `objective`.
 
+## Implementation walkthrough
+
+The package owns the complete softmax likelihood and optimization bridge. It does not call a Linfa multinomial model.
+
+1. `fit()` validates the dense input, sorts and deduplicates the original integer labels, and maps each response to its position in that sorted class vector. The original labels are retained so prediction can map an argmax back to the caller's label space.
+2. The optimizer uses one contiguous block per class. With an intercept, a block is $(\alpha_c,\beta_c')$; without one it is just $\beta_c$. All $C(p+1)$ entries start at zero. Consequently, the initial softmax is uniform and the initial vector lies in the centered representative of the redundant full-$C$ parameterization.
+3. For each row, the objective callback builds only a length-$C$ logit scratch vector. It subtracts the largest logit before exponentiating, computes the row log-sum-exp, and adds `log_denom - observed_logit`. It then adds the L2 norm of every class's slope block, leaving every intercept unpenalized.
+4. The gradient makes a second row-wise pass. It normalizes the shifted exponentials into probabilities and adds $(p_{ic}-1\{y_i=c\})$ to the class intercept score and $x_i(p_{ic}-1\{y_i=c\})$ to that class's slope score. The penalty contributes $\lambda\beta_c$. No $n\times C$ probability array is retained during fitting.
+5. Ten-pair L-BFGS with a More-Thuente line search updates the full vector. The wrapper treats the iteration cap as failure, takes Argmin's best vector only after accepted termination, reshapes it into a $p\times C$ coefficient matrix plus a length-$C$ intercept vector, and atomically installs the fitted state.
+6. Prediction computes the dense $n_{\mathrm{new}}\times C$ logit matrix. Probabilities are row-wise stable softmaxes. Labels use the largest raw logit, which is equivalent to the largest probability and avoids a needless normalization.
+7. `summary()` chooses the last sorted class as the reporting reference and subtracts its full block from each earlier class block. The estimator is therefore fit in a symmetric full-class coordinate system but exposed for inference in an identified reference-class coordinate system.
+
+The full-$C$ fit is pedagogically transparent and treats classes symmetrically, but it leaves a flat common-intercept direction. L-BFGS can still optimize probabilities and contrasts from the symmetric zero initialization; a production large-class solver would more often remove one block up front or impose an explicit sum-to-zero constraint.
+
 ## Inference
 
 Inference is available only at $\lambda=0$ and is computed directly in the $(C-1)$ reference-class contrast parameterization. For non-reference classes $a,b$ and $\tilde x_i=(1,x_i')'$, the information blocks are

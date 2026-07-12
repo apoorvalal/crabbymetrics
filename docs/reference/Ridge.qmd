@@ -47,6 +47,18 @@ The penalty is not divided by $n$, so its scale depends on the sample weights an
 
 When given a grid, the class fits every penalty and chooses the lowest mean validation MSE. Folds are deterministic, unshuffled assignments $i\bmod K$; weighted fits use weighted validation MSE. It then selects the corresponding full-sample path coefficient. The grid search does not standardize features, so penalty effects depend directly on column scale.
 
+## Implementation walkthrough
+
+The point estimate is implemented as augmented least squares rather than through $(X'X+P_\lambda)^{-1}X'y$.
+
+1. The wrapper validates the penalty array and data, prepends a column of ones, and, for a weighted fit, multiplies each design row and outcome by $\sqrt{w_i}$. Zero weights therefore contribute zero rows to the numerical problem.
+2. For $\lambda>0$, it appends one synthetic row for each penalized coefficient. The slope block of those rows is $\sqrt{\lambda}I$ and their synthetic outcomes are zero; the intercept column is omitted from this block. Ordinary QR least squares on the augmented system exactly minimizes the stated ridge criterion. At $\lambda=0$, it solves the original design directly.
+3. A penalty path is deliberately simple: it repeats that complete augmented-QR solve for every grid value and stores every intercept and slope vector. There is no shared eigendecomposition, warm start, or recursive update between penalties.
+4. Cross-validation assigns row $i$ to fold $i\bmod K$. For each penalty and fold it constructs owned training and test arrays, refits from scratch, predicts the held-out rows, and records ordinary or weight-normalized MSE. The first minimum in grid order wins ties. The already-computed full-sample path column for that penalty becomes the fitted model.
+5. Prediction is a dense $X\beta$ plus intercept. The training design, response, optional weights, selected penalty, and complete path are retained because `summary()`, robust covariance calculations, and the pairs bootstrap need them.
+
+This QR construction is more numerically defensible than explicitly solving the normal equations for coefficients, but the inferential code still forms dense cross-products and inverses. The deterministic interleaved folds make a run reproducible without a seed; they are inappropriate when row order itself encodes time, clusters, or another dependence structure.
+
 ## Inference
 
 Let $B=\tilde X'\tilde X+P_\lambda$ after any square-root weight transformation and define the effective degrees of freedom
