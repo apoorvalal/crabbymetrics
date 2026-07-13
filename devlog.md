@@ -13,6 +13,8 @@ Current release state: `v0.8.0` is published to PyPI and GitHub Releases. `maste
 
 Current development state: PR #17 squash-merged into `master` as `854a63b`. The release candidate removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
 
+Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
+
 This file is meant to record the current architecture and the design choices that matter for future work.
 
 ## API Hardening And Solver Correctness (2026-07-12)

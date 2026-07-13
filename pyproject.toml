@@ -41,7 +41,10 @@ cache-keys = [
 [tool.maturin]
 module-name = "crabbymetrics"
 features = ["pyo3/extension-module"]
-exclude = [{ path = "docs/**/*", format = "sdist" }]
+exclude = [
+    { path = "docs/**/*", format = "sdist" },
+    { path = "ding_ci/**/*", format = "sdist" },
+]
 
 [dependency-groups]
 dev = [

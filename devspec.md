@@ -31,6 +31,7 @@ PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, afte
 - separated scaled BalancingWeights solver convergence from original-unit balance diagnostics and weight feasibility
 - consolidated reusable validation helpers
 - split the old `linear.rs` monolith into linear, IV, panel, and synthetic modules without changing public imports
+- hardened source-distribution exclusions so the local untracked `ding_ci` symlink cannot be followed into release artifacts
 
 New estimator work must preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence. Common iterative summary keys are `converged`, `iterations`, `termination_reason`, and `objective`.
 
