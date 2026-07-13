@@ -18,20 +18,23 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
-## Refactor Branch Status (2026-07-10)
+## API-Hardening Branch Status (2026-07-12)
 
-The `refactor` branch starts from `origin/master` 0.7.1. The original dirty 0.5.1 audit tree is preserved on `pre-refactor-audit-snapshot`. The correctness pass has completed every P0 and P1 item from `evaluation-review.qmd`:
+The clean `api-hardening` branch starts from `origin/master` at `ce5ea3b`, after the `v0.8.0` refactor and estimator-audit release. It completes the remaining P0--P1 hardening items identified by the stocktake:
 
-- correct weighted TwoSLS design and covariance behavior
-- identified and objective-matched likelihood and M-estimator inference
-- explicit no-inference contracts for predictive regularized estimators
-- seeded shuffled DML folds and treatment-stratified AIPW folds
-- absorbed fixed-effect rank in residual degrees of freedom
-- strict covariance-diagonal validation
-- explicit convergence semantics across iterative estimators and optimizers
-- guarded, prediction-only `BaggedPolynomialRegressor` with OOB diagnostics
+- removed the incoherent one-update FTRL class, its public/docs/test surface, and `linfa-ftrl`
+- removed the unused `linfa-linear` dependency
+- replaced Linfa binary and multinomial logistic fitting with native stable objectives, analytic gradients, and convergence-checked L-BFGS
+- added shared internal `FitDiagnostics` and centralized Argmin status interpretation
+- made survival fits reject budget exhaustion and made MatrixCompletion retain it only as an explicitly nonconverged result
+- exposed and enforced ElasticNet iteration and duality-gap convergence
+- separated scaled BalancingWeights solver convergence from original-unit balance diagnostics and weight feasibility
+- consolidated reusable validation helpers
+- split the old `linear.rs` monolith into linear, IV, panel, and synthetic modules without changing public imports
 
-New estimator work should preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence.
+New estimator work must preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence. Common iterative summary keys are `converged`, `iterations`, `termination_reason`, and `objective`.
+
+The branch's public reference pages now also document estimator internals at source-code granularity. All 29 estimator, transform, and optimizer pages explain parameter layout, initialization, numerical steps, stopping and failure behavior, prediction reconstruction, and dominant allocations. They explicitly separate package-owned algorithms from narrow delegation boundaries in `FixedEffectsOLS`, `ElasticNet`, exact `PCA`, and exact `KernelBasis`. The class-page generator is scaffold-only and skips these audited pages unless explicitly forced.
 
 ### Estimator Math And API Audit (2026-07-11)
 
@@ -40,16 +43,16 @@ The follow-up audit traced every public estimator through its Rust implementatio
 - corrected Poisson validation so invalid outcomes, penalties, tolerances, iteration budgets, and nonfinite designs fail before optimization
 - corrected `PCA` explained variance, full-variance ratios, and whitened inverse transformation, with NumPy SVD parity tests
 - added grouped first-class reference coverage for all five public transform classes
-- labeled `FTRL` experimental because its current fit is one full-batch proximal update with fresh state rather than a persistent online algorithm
+- identified the former FTRL wrapper as one full-batch proximal update with fresh state rather than a persistent online algorithm; the API-hardening branch subsequently removed it
 - documented that `AndersenGill` cannot produce subject-clustered recurrent-event covariance without a subject identifier
 
-The next estimator branch should resolve those last two public-API questions before adding another broad estimator family.
+The FTRL question is resolved. Subject-clustered Andersen--Gill inference and Cox-family risk-set performance remain the leading public-API and performance follow-up.
 
 The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07-11. The release includes Linux and macOS wheels for Python 3.10 through 3.14, a small docs-excluded sdist, and the separately deployed full Quarto site.
 
 ## Current Extension Status
 
-### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
+### Recently landed: API hardening, randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
 
 The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
 
@@ -181,30 +184,7 @@ Implementation guardrails for sketching work:
 
 ## Highest-Value Next Extensions
 
-### 0. FTRL public API decision
-
-Status: design decision required before promotion
-
-Why it matters:
-
-- the current `fit` constructs a fresh optimizer, evaluates one full-batch logistic gradient, applies one proximal update, and returns those coefficients
-- there is no intercept, repeated optimization, convergence criterion, `partial_fit`, or persistent optimizer state
-- the class name and standard `fit` shape imply a trained estimator that the implementation does not provide
-
-Scope:
-
-- preferred path: retain optimizer accumulators in the Python object and expose `partial_fit` for streaming mini-batches
-- define intercept handling, feature-count checks, deterministic zero initialization, and explicit reset semantics
-- make `fit` either run a documented epoch/batch schedule or remove it in favor of the honest online method
-- alternative path: remove `FTRL` from the first-tier public surface if there is no streaming use case
-
-Success condition:
-
-- repeated calls have defined stateful semantics and match a hand-calculated FTRL-Proximal update sequence
-- `fit` no longer suggests convergence after one accidental update
-- the class has tests for sparsity, intercept behavior, reset/persistence, and online ordering
-
-### 1. Andersen--Gill subject-clustered inference and risk-set performance
+### 0. Andersen--Gill subject-clustered inference and risk-set performance
 
 Status: point estimator landed; recurrent-event inference incomplete
 
@@ -227,7 +207,7 @@ Success condition:
 - summaries distinguish naive and subject-clustered inference
 - benchmark coverage demonstrates the expected reduction in risk-set work
 
-### 2. Difference-in-differences and event-study estimators
+### 1. Difference-in-differences and event-study estimators
 
 Status: partially started through `SyntheticDID`
 
@@ -250,7 +230,7 @@ Success condition:
 - robust standard errors through the same `summary(vcov=...)` surface
 - one focused vignette with a clear coefficient table
 
-### 3. More likelihood methods
+### 2. More likelihood methods
 
 Status: foundation landed; new families not started
 
@@ -302,7 +282,7 @@ Success condition:
 
 - at least one new likelihood family, ideally NB2, lands with native Rust fitting, layered prediction, covariance summaries, parity/reference tests, and a docs page that explains why it belongs beside the existing Poisson/logit/survival surface.
 
-### 4. Abundance-based constraints beyond OLS
+### 3. Abundance-based constraints beyond OLS
 
 Status: OLS landed; broader families not started
 
@@ -321,7 +301,7 @@ Success condition:
 
 - one vertically complete extension with tests and a focused docs page, not a partial general formula system
 
-### 5. Weighted nonlinear estimators and weighted GMM
+### 4. Weighted nonlinear estimators and weighted GMM
 
 Status: partial foundation only
 
@@ -345,7 +325,7 @@ Success condition:
 - weighted fits and weighted sandwich inference for the nonlinear core estimators
 - tests against hand-coded references or a trusted external implementation
 
-### 6. More IV / GMM diagnostics
+### 5. More IV / GMM diagnostics
 
 Status: partial
 
@@ -366,7 +346,7 @@ Success condition:
 
 ## Medium-Priority Extensions
 
-### 7. Likelihood polish after NB2
+### 6. Likelihood polish after NB2
 
 Status: not started
 
@@ -375,7 +355,7 @@ Notes:
 - grouped binomial / trials, complementary-log-log discrete-time hazards, probit, and Cox baseline survival are all useful, but none should jump ahead of the first new count-family slice unless there is a concrete downstream need
 - keep each addition vertically complete rather than starting a broad unfinished GLM framework
 
-### 8. Transformer composition only when demanded by workflows
+### 7. Transformer composition only when demanded by workflows
 
 Status: documentation complete; composition not started
 
@@ -386,13 +366,13 @@ Notes:
 - add lightweight composition helpers only if real downstream workflows demonstrate repeated boilerplate
 - avoid sklearn-style pipeline sprawl
 
-### 9. MEstimator diagnostics cleanup
+### 8. MEstimator diagnostics cleanup
 
 Status: partial
 
 Notes:
 
-- current `MEstimator` uses a numerical score Jacobian for the sandwich bread and empirical score outer products for the meat, but its callback-heavy path and solver diagnostics remain thin
+- current `MEstimator` uses a numerical score Jacobian for the sandwich bread and empirical score outer products for the meat; common solver diagnostics are now exposed, but the callback-heavy path remains expensive and specialized
 - worth improving only if there is a concrete downstream use case
 
 ## Frisch Status
@@ -424,13 +404,11 @@ Operational note:
 
 ## Recommended Branch Order
 
-1. decide whether to rebuild `FTRL` as a persistent online estimator or remove it from the first-tier API
-2. add subject IDs and clustered robust inference to `AndersenGill`, then optimize Cox-family risk-set accumulation
-3. make convergence status explicit for iterative estimators that retain budget-exhausted results
-4. add DiD / event-study support on top of the fixed-effects foundation
-5. add the first new likelihood family, preferably NB2, under the likelihood-methods plan
-6. add weighted nonlinear estimators and weighted GMM
-7. add richer IV / GMM diagnostics, and consider ABC extensions only for a concrete use case
+1. add subject IDs and clustered robust inference to `AndersenGill`, then optimize Cox-family risk-set accumulation
+2. add DiD / event-study support on top of the fixed-effects foundation
+3. add the first new likelihood family, preferably NB2, under the likelihood-methods plan
+4. add weighted nonlinear estimators and weighted GMM
+5. add richer IV / GMM diagnostics, and consider ABC extensions only for a concrete use case
 
 ## Notes for Future Branches
 

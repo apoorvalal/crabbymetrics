@@ -45,6 +45,19 @@ $$
 
 With the exact method, $L$ is the rank-$r$ truncated SVD. Factors are normalized as $F=\sqrt{T}U_r$ and loadings as $\Lambda=V_r\operatorname{diag}(s_r)/\sqrt{T}$, so $L=F\Lambda'$. The randomized method substitutes a randomized range finder and truncated SVD controlled by oversampling and power iterations.
 
+## Implementation walkthrough
+
+The additive decomposition, exact factor normalization, and randomized alternative are package-owned dense linear algebra.
+
+1. `fit()` requires a finite nonempty balanced matrix. It always subtracts the grand mean. With `force` 1 or 3 it then subtracts column means from that centered matrix; with `force` 2 or 3 it subsequently subtracts row means. Under `force=3`, the second means are computed after the first removal, giving the usual two-way additive decomposition.
+2. Rank zero is a real model: it returns empty factor and loading matrices and a zero interactive component. The fitted surface then consists only of the requested additive pieces.
+3. Exact factor fitting chooses the smaller covariance matrix. If $T<N$, it decomposes $EE'/(NT)$, sets $F=\sqrt{T}U_r$, and obtains $\Lambda=E'F/T$. If $T\geq N$, it decomposes $E'E/(NT)$, sets $\Lambda=\sqrt{N}V_r$, and obtains $F=E\Lambda/N$. This avoids an SVD of the larger Gram matrix while enforcing the stated normalizations.
+4. The exact `vnt` diagonal stores the leading eigenvalues of that scaled Gram matrix. The reconstructed interaction is always the direct product $F\Lambda'$.
+5. Randomized mode instead calls the native randomized SVD of the demeaned $E$: a Rademacher range sketch, optional alternating power iterations with QR reorthogonalization, and a small projected SVD. It sets $F=\sqrt{T}U_r$, $\Lambda_{jk}=V_{jk}s_k/\sqrt{T}$, and stores $s_k^2/(NT)$ on the `vnt` diagonal.
+6. The final fitted matrix starts from the interactive product, adds the grand mean to every cell, then broadcasts column and row effects according to the decomposition. Residuals are the original matrix minus this in-sample reconstruction. `predict()` simply returns the stored fitted panel; there is no transform for new units or periods.
+
+Both exact branches and the randomized branch produce the same normalization target, though signs and rotations remain arbitrary. The exact smaller-Gram route squares the singular-value condition number; the randomized direct-SVD route trades exactness for fewer passes when rank is small.
+
 ## Inference and scope
 
 This class is a matrix decomposition, not a treatment-effect estimator. It returns the in-sample fitted matrix, residuals, additive effects, factors, loadings, and normalized singular-value matrix. It does not select rank, estimate coefficient covariance, provide standard errors, handle missing entries, or extrapolate to new rows or columns. Factor and loading rotations are not separately identified even though their product is.

@@ -88,6 +88,30 @@ $$
 
 Its feature inner products approximate the Gaussian kernel in expectation. An omitted seed still uses a fixed internal seed, so repeated fits are reproducible rather than independently randomized.
 
+## Implementation walkthrough
+
+These three classes share kernel conventions but have deliberately different implementation boundaries.
+
+### Exact `KernelBasis`
+
+1. `fit()` asks Linfa's kernel builder to materialize the square training Gram matrix and stores both that dense matrix and an owned copy of the training rows. This is the only delegated numerical primitive on this page.
+2. `transform()` is package-owned. It checks the incoming feature count and uses nested row loops to evaluate the selected Linfa kernel method between every new row and every stored training row. Thus training and out-of-sample transformations use the same kernel definition but not the same matrix-building path.
+3. `fit_transform()` returns the already materialized training Gram matrix. `summary()` reads its diagonal rather than recomputing self-similarities.
+
+### `NystromBasis`
+
+1. The landmark indices begin as `0..n`. With a seed they are shuffled once; without a seed they remain in data order. The vector is truncated to $m$ and then sorted, so `summary()` reports landmarks in original row order even when the subset was random.
+2. Native cross-kernel loops form $K_{mm}$. The implementation adds `ridge` to its diagonal, runs a symmetric eigendecomposition, floors each resulting eigenvalue at $10^{-14}$, and reconstructs $U\operatorname{diag}(\lambda_j^{-1/2})U'$. The floor is applied after the requested ridge shift.
+3. A transform forms $K(x,X_m)$ with the same nested kernel loops and right-multiplies by the stored inverse square root. It retains landmarks and the dense $m\times m$ factor, but not the original full training sample.
+
+### `RandomFourierFeatures`
+
+1. `fit()` seeds a Rust standard RNG from the supplied seed or the fixed hexadecimal constant `0xF0471E5`. It draws standard-normal pairs with a Box-Muller transform, fills the $p\times m$ frequency matrix in row-major logical order, and scales every draw by $\sqrt{2/h}$.
+2. It draws a separate length-$m$ phase vector uniformly on $[0,2\pi)$. Neither frequencies nor phases depend on the observed values of $X$; fitting uses the input only to validate a nonempty sample and record $p$.
+3. `transform()` computes one dense matrix product $X\Omega$, adds the stored phase columnwise, applies cosine, and multiplies by $\sqrt{2/m}$. The transform is reproducible and stateless after those random arrays have been stored.
+
+The exact basis makes sample size the feature dimension. Nystrom makes selected observations the basis and pays an $m^3$ eigendecomposition once. Random Fourier features make random spectral draws the basis and reduce transformation to matrix multiplication plus cosine. None centers or standardizes $X$, so distance scale remains the caller's responsibility.
+
 ## Inference and performance
 
 None of these transforms estimates a response model or supplies statistical inference. KernelBasis fitting and storage are $O(n^2p)$ time and $O(n^2+np)$ memory because it materializes the full Gram matrix. Transforming $r$ new rows costs $O(rnp)$ and returns $n$ features.

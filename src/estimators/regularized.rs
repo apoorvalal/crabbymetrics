@@ -1,13 +1,14 @@
+use crate::fit::FitDiagnostics;
 use crate::utils::{
     add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
     pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
     solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec, to_array1,
-    to_array1_i32, to_array1_i64, to_array2,
+    to_array1_i64, to_array2,
 };
-use linfa::prelude::{Fit, FitWith, Predict};
+use crate::validation::validate_finite;
+use linfa::prelude::{Fit, Predict};
 use linfa::Dataset;
 use linfa_elasticnet::ElasticNet as LinfaElasticNet;
-use linfa_ftrl::Ftrl as LinfaFtrl;
 use ndarray::{s, Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -285,20 +286,6 @@ fn ridge_covariance(
 
 const MAX_POLYNOMIAL_TERMS: usize = 100_000;
 const MAX_POLYNOMIAL_DESIGN_CELLS: usize = 50_000_000;
-
-fn validate_finite_array1(name: &str, values: &Array1<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
-
-fn validate_finite_array2(name: &str, values: &Array2<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
 
 fn polynomial_term_count(n_features: usize, degree: usize) -> Result<usize, String> {
     if n_features == 0 {
@@ -822,8 +809,8 @@ impl BaggedPolynomialRegressor {
         if x.ncols() == 0 {
             return Err(PyValueError::new_err("x must have at least one feature"));
         }
-        validate_finite_array2("x", &x).map_err(PyValueError::new_err)?;
-        validate_finite_array1("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
 
         let n = x.nrows();
         let p = x.ncols();
@@ -944,7 +931,7 @@ impl BaggedPolynomialRegressor {
                 expected_features
             )));
         }
-        validate_finite_array2("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
         validate_polynomial_design_size(x.nrows(), self.n_terms.unwrap_or(0))
             .map_err(PyValueError::new_err)?;
 
@@ -988,6 +975,113 @@ impl BaggedPolynomialRegressor {
     }
 }
 
+fn elastic_net_duality_gap(
+    x: &Array2<f64>,
+    y_centered: &Array1<f64>,
+    coef: &Array1<f64>,
+    l1_ratio: f64,
+    penalty: f64,
+) -> f64 {
+    let residual = y_centered - &x.dot(coef);
+    let n = x.nrows() as f64;
+    let l1_reg = l1_ratio * penalty * n;
+    let l2_reg = (1.0 - l1_ratio) * penalty * n;
+    let dual_vector = x.t().dot(&residual) - &(coef * l2_reg);
+    let dual_norm = dual_vector
+        .iter()
+        .fold(0.0_f64, |current, value| current.max(value.abs()));
+    let residual_norm_sq = residual.dot(&residual);
+    let coef_norm_sq = coef.dot(coef);
+    let (scale, mut gap) = if dual_norm > l1_reg {
+        let scale = l1_reg / dual_norm;
+        (scale, 0.5 * residual_norm_sq * (1.0 + scale * scale))
+    } else {
+        (1.0, residual_norm_sq)
+    };
+    gap += l1_reg * coef.iter().map(|value| value.abs()).sum::<f64>()
+        - scale * residual.dot(y_centered)
+        + 0.5 * l2_reg * (1.0 + scale * scale) * coef_norm_sq;
+    gap
+}
+
+fn elastic_net_objective(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    model: &linfa_elasticnet::ElasticNet<f64>,
+    penalty: f64,
+    l1_ratio: f64,
+) -> f64 {
+    let residual = y - &model.predict(x);
+    let coef = model.hyperplane();
+    0.5 * residual.dot(&residual) / x.nrows() as f64
+        + penalty * l1_ratio * coef.iter().map(|value| value.abs()).sum::<f64>()
+        + 0.5 * penalty * (1.0 - l1_ratio) * coef.dot(coef)
+}
+
+fn fit_elastic_net(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    penalty: f64,
+    l1_ratio: f64,
+    fit_intercept: bool,
+    tolerance: f64,
+    max_iterations: u32,
+) -> Result<(linfa_elasticnet::ElasticNet<f64>, FitDiagnostics, f64, f64), String> {
+    if x.nrows() != y.len() {
+        return Err("x rows must match y length".to_string());
+    }
+    if x.nrows() == 0 || x.ncols() == 0 {
+        return Err("x must contain at least one row and one column".to_string());
+    }
+    validate_finite("x", x)?;
+    validate_finite("y", y)?;
+    if !penalty.is_finite() || penalty < 0.0 {
+        return Err("penalty must be finite and nonnegative".to_string());
+    }
+    if !l1_ratio.is_finite() || !(0.0..=1.0).contains(&l1_ratio) {
+        return Err("l1_ratio must be finite and between 0 and 1".to_string());
+    }
+    if !tolerance.is_finite() || tolerance <= 0.0 {
+        return Err("tolerance must be positive and finite".to_string());
+    }
+    if max_iterations == 0 {
+        return Err("max_iterations must be positive".to_string());
+    }
+
+    let dataset = Dataset::new(x.clone(), y.clone());
+    let params = LinfaElasticNet::params()
+        .penalty(penalty)
+        .l1_ratio(l1_ratio)
+        .with_intercept(fit_intercept)
+        .tolerance(tolerance)
+        .max_iterations(max_iterations);
+    let model = params.fit(&dataset).map_err(|err| err.to_string())?;
+    let y_centered = if fit_intercept {
+        y - y.mean().unwrap_or(0.0)
+    } else {
+        y.clone()
+    };
+    let duality_gap =
+        elastic_net_duality_gap(x, &y_centered, model.hyperplane(), l1_ratio, penalty);
+    let duality_gap_tolerance = tolerance * y_centered.dot(&y_centered);
+    let converged = duality_gap.is_finite() && duality_gap <= duality_gap_tolerance;
+    let termination_reason = if converged {
+        "Duality gap tolerance reached".to_string()
+    } else {
+        format!(
+            "Maximum number of iterations reached (duality gap {duality_gap:.6e} exceeds {duality_gap_tolerance:.6e})"
+        )
+    };
+    let diagnostics = FitDiagnostics::new(
+        converged,
+        u64::from(model.n_steps()),
+        termination_reason,
+        Some(elastic_net_objective(x, y, &model, penalty, l1_ratio)),
+    );
+    diagnostics.require_converged("ElasticNet")?;
+    Ok((model, diagnostics, duality_gap_tolerance, duality_gap))
+}
+
 #[pyclass]
 pub struct ElasticNet {
     penalty: f64,
@@ -996,6 +1090,9 @@ pub struct ElasticNet {
     tolerance: f64,
     max_iterations: u32,
     model: Option<linfa_elasticnet::ElasticNet<f64>>,
+    diagnostics: Option<FitDiagnostics>,
+    duality_gap_tolerance: Option<f64>,
+    duality_gap: Option<f64>,
     x: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
 }
@@ -1012,28 +1109,37 @@ impl ElasticNet {
             tolerance,
             max_iterations,
             model: None,
+            diagnostics: None,
+            duality_gap_tolerance: None,
+            duality_gap: None,
             x: None,
             y: None,
         }
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+        self.model = None;
+        self.diagnostics = None;
+        self.duality_gap_tolerance = None;
+        self.duality_gap = None;
+        self.x = None;
+        self.y = None;
         let x = to_array2(&x);
         let y = to_array1(&y);
-        if x.nrows() != y.len() {
-            return Err(PyValueError::new_err("x rows must match y length"));
-        }
-        let dataset = Dataset::new(x.clone(), y.clone());
-        let params = LinfaElasticNet::params()
-            .penalty(self.penalty)
-            .l1_ratio(self.l1_ratio)
-            .with_intercept(self.fit_intercept)
-            .tolerance(self.tolerance)
-            .max_iterations(self.max_iterations);
-        let model = params
-            .fit(&dataset)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        let (model, diagnostics, duality_gap_tolerance, duality_gap) = fit_elastic_net(
+            &x,
+            &y,
+            self.penalty,
+            self.l1_ratio,
+            self.fit_intercept,
+            self.tolerance,
+            self.max_iterations,
+        )
+        .map_err(PyValueError::new_err)?;
         self.model = Some(model);
+        self.diagnostics = Some(diagnostics);
+        self.duality_gap_tolerance = Some(duality_gap_tolerance);
+        self.duality_gap = Some(duality_gap);
         self.x = Some(x);
         self.y = Some(y);
         Ok(())
@@ -1058,12 +1164,19 @@ impl ElasticNet {
             .model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("ElasticNet model is not fitted"))?;
+        let diagnostics = self
+            .diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("ElasticNet fit diagnostics are unavailable"))?;
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("intercept", model.intercept())?;
         dict.set_item("coef", pyarray1_from_f64(py, model.hyperplane()))?;
         dict.set_item("penalty", self.penalty)?;
         dict.set_item("l1_ratio", self.l1_ratio)?;
+        dict.set_item("duality_gap", self.duality_gap)?;
+        dict.set_item("duality_gap_tolerance", self.duality_gap_tolerance)?;
+        diagnostics.write_summary(&dict)?;
         dict.set_item("inference_available", false)?;
         dict.set_item("intercept_se", py.None())?;
         dict.set_item("coef_se", py.None())?;
@@ -1093,16 +1206,18 @@ impl ElasticNet {
         for (i, idx) in idxs.iter().enumerate() {
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
-            let dataset = Dataset::new(xb, yb);
-            let params = LinfaElasticNet::params()
-                .penalty(self.penalty)
-                .l1_ratio(self.l1_ratio)
-                .with_intercept(self.fit_intercept)
-                .tolerance(self.tolerance)
-                .max_iterations(self.max_iterations);
-            let model = params
-                .fit(&dataset)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
+            let (model, _, _, _) = fit_elastic_net(
+                &xb,
+                &yb,
+                self.penalty,
+                self.l1_ratio,
+                self.fit_intercept,
+                self.tolerance,
+                self.max_iterations,
+            )
+            .map_err(|err| {
+                PyValueError::new_err(format!("ElasticNet bootstrap replicate {i} failed: {err}"))
+            })?;
             if self.fit_intercept {
                 out[[i, 0]] = model.intercept();
                 out.row_mut(i)
@@ -1111,121 +1226,6 @@ impl ElasticNet {
             } else {
                 out.row_mut(i).assign(&model.hyperplane());
             }
-        }
-        Ok(pyarray2_from_f64(py, &out))
-    }
-}
-
-#[pyclass]
-pub struct FTRL {
-    alpha: f64,
-    beta: f64,
-    l1_ratio: f64,
-    l2_ratio: f64,
-    model: Option<LinfaFtrl<f64>>,
-    x: Option<Array2<f64>>,
-    y: Option<Array1<bool>>,
-}
-
-#[pymethods]
-impl FTRL {
-    #[new]
-    #[pyo3(signature = (alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0))]
-    fn new(alpha: f64, beta: f64, l1_ratio: f64, l2_ratio: f64) -> Self {
-        Self {
-            alpha,
-            beta,
-            l1_ratio,
-            l2_ratio,
-            model: None,
-            x: None,
-            y: None,
-        }
-    }
-
-    fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<i32>) -> PyResult<()> {
-        let x = to_array2(&x);
-        let y = to_array1_i32(&y).mapv(|v| v != 0);
-        let dataset = Dataset::new(x.clone(), y.clone());
-        let params = linfa_ftrl::Ftrl::params()
-            .alpha(self.alpha)
-            .beta(self.beta)
-            .l1_ratio(self.l1_ratio)
-            .l2_ratio(self.l2_ratio);
-        let model = params
-            .fit_with(None, &dataset)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        self.model = Some(model);
-        self.x = Some(x);
-        self.y = Some(y);
-        Ok(())
-    }
-
-    fn predict<'py>(
-        &self,
-        py: Python<'py>,
-        x: PyReadonlyArray2<f64>,
-    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-        let x = to_array2(&x);
-        let probs = model.predict(&x).mapv(|v| f64::from(*v));
-        Ok(pyarray1_from_f64(py, &probs))
-    }
-
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
-        let model = self
-            .model
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("FTRL model is not fitted"))?;
-
-        let weights = model.get_weights();
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("coef", pyarray1_from_f64(py, &weights))?;
-        dict.set_item("alpha", self.alpha)?;
-        dict.set_item("beta", self.beta)?;
-        dict.set_item("l1_ratio", self.l1_ratio)?;
-        dict.set_item("l2_ratio", self.l2_ratio)?;
-        dict.set_item("inference_available", false)?;
-        dict.set_item("coef_se", py.None())?;
-        Ok(dict.into())
-    }
-
-    #[pyo3(signature = (n_bootstrap, seed=None))]
-    fn bootstrap<'py>(
-        &self,
-        py: Python<'py>,
-        n_bootstrap: usize,
-        seed: Option<u64>,
-    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let x = self
-            .x
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let y = self
-            .y
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
-        let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
-        let mut out = Array2::<f64>::zeros((n_bootstrap, x.ncols()));
-        for (i, idx) in idxs.iter().enumerate() {
-            let xb = take_rows(x, idx);
-            let mut yb = Array1::from_elem(idx.len(), false);
-            for (j, &row) in idx.iter().enumerate() {
-                yb[j] = y[row];
-            }
-            let dataset = Dataset::new(xb, yb);
-            let params = linfa_ftrl::Ftrl::params()
-                .alpha(self.alpha)
-                .beta(self.beta)
-                .l1_ratio(self.l1_ratio)
-                .l2_ratio(self.l2_ratio);
-            let model = params
-                .fit_with(None, &dataset)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?;
-            out.row_mut(i).assign(&model.get_weights());
         }
         Ok(pyarray2_from_f64(py, &out))
     }

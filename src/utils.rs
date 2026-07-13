@@ -6,25 +6,11 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::BTreeMap;
 
+pub(crate) use crate::validation::validate_sample_weight;
+
 pub fn add_intercept(x: &Array2<f64>) -> Array2<f64> {
     let ones = Array2::ones((x.nrows(), 1));
     concatenate(Axis(1), &[ones.view(), x.view()]).expect("failed to add intercept")
-}
-
-pub fn validate_sample_weight(weights: &Array1<f64>, n: usize) -> Result<(), String> {
-    if weights.len() != n {
-        return Err("sample_weight length must match the number of observations".to_string());
-    }
-    if weights
-        .iter()
-        .any(|value| !value.is_finite() || *value < 0.0)
-    {
-        return Err("sample_weight values must be finite and nonnegative".to_string());
-    }
-    if weights.iter().all(|value| *value == 0.0) {
-        return Err("sample_weight must contain at least one positive value".to_string());
-    }
-    Ok(())
 }
 
 pub fn sqrt_sample_weight(

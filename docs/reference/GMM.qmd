@@ -70,6 +70,20 @@ and re-optimizes from $\tilde\theta$. This is iid two-step GMM; the fit-stage we
 
 If no Jacobian callback is supplied, $D$ is computed by central differences with step $h_j=\text{fd eps}\times\max\{|\theta_j|,1\}$. A supplied callback must return the Jacobian of the mean moments, with shape $m\times p$, not per-observation derivatives.
 
+## Implementation walkthrough
+
+The callback bridge, numerical differentiation, Gauss-Newton loop, two-step weighting, sketch, and covariance assembly are package-owned.
+
+1. The first callback evaluation at $\theta_0$ establishes $n$ and $m$ and must return a nonempty two-dimensional float array. The fit rejects $m<p$. Callback outputs are copied from NumPy into owned Rust arrays on every evaluation.
+2. Without a Jacobian callback, the solver first evaluates the base moment shape, then calls `moment_fn` at $\theta\pm h_je_j$ for every parameter and central-differences the column means. With a callback, the returned matrix is used directly and checked against $(m,p)$ after any sketch projection.
+3. One Gauss-Newton iteration evaluates moments and Jacobian, forms $D'WD$, adds `ridge` to its diagonal, explicitly inverts it, and computes $\Delta=(D'WD+\rho I)^{-1}D'W\bar g$. A step norm below tolerance returns before updating.
+4. Otherwise the solver tries $\theta-\alpha\Delta$ for $\alpha=1,1/2,1/4,\ldots$ down to $10^{-8}$. Every trial calls the Python moment function again. Only a strict criterion decrease is accepted; failure to find one raises rather than returning the current iterate.
+5. An accepted criterion improvement below tolerance counts as convergence. The iteration counter increments only after an accepted step. Reaching `max_iterations` raises and no partial fit is installed.
+6. Identity weighting runs this loop once. Two-step weighting computes the uncentered iid outer product of first-step moment rows, adds the numerical ridge before inversion, and starts a second complete Gauss-Newton solve at the first-step estimate. Reported iterations add both stages and `first_step_theta` is retained internally.
+7. Summary reevaluates moments and the Jacobian at the stored estimate. It reconstructs $A=D'WD$, applies the same diagonal ridge to its inverse, builds the requested moment covariance, and then forms either $A^{-1}/n$ or the full sandwich. Wald tests duplicate this covariance path rather than caching it.
+
+The line search makes the local quadratic method robust to a poor full step, but it also magnifies Python callback traffic. The diagonal ridge is a numerical device in fitting, weight inversion, and reported covariance; a successful inverse is not evidence of strong identification.
+
 ## Moment sketch
 
 The sketch does not reduce the number of observations. It draws a dense Rademacher projection $R\in\mathbb R^{m\times s}$ with entries $\pm1/\sqrt{s}$ and replaces

@@ -2,6 +2,7 @@ import numpy as np
 import crabbymetrics as cm
 from lifelines import CoxPHFitter, ExponentialFitter, WeibullAFTFitter, WeibullFitter
 import pandas as pd
+import pytest
 
 
 def simulate_exponential(n=600, beta=np.array([0.6, -0.35]), base=0.08, seed=123):
@@ -44,6 +45,9 @@ def test_exponential_ph_recovers_simulated_coefficients():
     assert np.allclose(out["coef"], beta, atol=0.18)
     assert out["baseline_hazard"] > 0
     assert out["vcov"].shape == (3, 3)
+    assert out["converged"] is True
+    assert out["iterations"] > 0
+    assert out["objective"] == pytest.approx(-out["log_likelihood"])
 
 
 def test_weibull_ph_recovers_shape_and_coefficients():
@@ -63,6 +67,7 @@ def test_weibull_ph_recovers_shape_and_coefficients():
     out = model.summary()
     assert np.allclose(out["coef"], beta, atol=0.18)
     assert abs(out["shape"] - shape) < 0.25
+    assert out["converged"] is True
 
 
 def test_cox_ph_and_andersen_gill_track_direction():
@@ -80,6 +85,32 @@ def test_cox_ph_and_andersen_gill_track_direction():
     ag = cm.AndersenGill()
     ag.fit(x_long, start, stop, event_long)
     assert abs(ag.summary()["coef"][0] - cox.summary()["coef"][0]) < 1e-6
+    assert cox.summary()["converged"] is True
+    assert ag.summary()["converged"] is True
+
+
+@pytest.mark.parametrize("estimator", [cm.ExponentialPH, cm.WeibullPH, cm.CoxPH])
+def test_survival_estimators_reject_iteration_budget_exhaustion(estimator):
+    x, time, event, _ = simulate_exponential(n=250, seed=790)
+    model = estimator()
+    with pytest.raises(ValueError, match="Maximum number of iterations reached"):
+        model.fit(x, time, event, max_iterations=1, tolerance=1e-12)
+    with pytest.raises(ValueError, match="not fitted"):
+        model.summary()
+
+
+def test_andersen_gill_rejects_iteration_budget_exhaustion():
+    x, time, event, _ = simulate_exponential(n=250, seed=791)
+    start = np.concatenate([np.zeros_like(time), time / 2.0])
+    stop = np.concatenate([time / 2.0, time])
+    x_long = np.vstack([x, x])
+    event_long = np.concatenate([np.zeros_like(event), event])
+
+    model = cm.AndersenGill()
+    with pytest.raises(ValueError, match="Maximum number of iterations reached"):
+        model.fit(x_long, start, stop, event_long, max_iterations=1, tolerance=1e-12)
+    with pytest.raises(ValueError, match="not fitted"):
+        model.summary()
 
 
 def test_cox_ph_matches_lifelines_coxph_fitter_on_same_data():

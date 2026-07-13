@@ -63,6 +63,19 @@ $$
 
 The default is a fixed penalty of one rather than automatic tuning.
 
+## Implementation walkthrough
+
+Cross-fitting, ridge tuning, orthogonalization, and covariance are all implemented inside the class.
+
+1. Outer folds are assigned by sorting row indices with a deterministic SplitMix64 hash of `seed ^ index`, then cycling the sorted positions across folds. This is reproducible without storing RNG state and changes if either row indices or seed change.
+2. In each outer complement, outcome and treatment nuisance models are tuned independently. Ridge prepends an intercept and appends $\sqrt\lambda I$ rows for slopes before a least-squares solve. With one penalty, or fewer than four training rows, inner CV is bypassed.
+3. Inner CV uses the current outer-training row order and assigns local row $i$ to fold $i\bmod F$ without shuffling. It performs a fresh augmented least-squares fit for every penalty-fold pair, chooses the first strict MSE minimum, and refits that nuisance on the complete outer-training sample.
+4. Only held-out predictions are written into `l_hat` and `m_hat`; no observation receives a nuisance prediction from a model trained on itself. The selected penalty for each of the two nuisances is retained by outer fold.
+5. After all folds, the code forms $\tilde D=D-\hat m$ and $\tilde Y=Y-\hat\ell$, rejects $\tilde D'\tilde D<10^{-12}$, and computes one scalar residual-on-residual ratio. There is no final full-sample nuisance refit because it would not enter the orthogonal estimate.
+6. Summary constructs the scalar score row $\tilde D_i(\tilde Y_i-\tilde D_i\hat\theta)$ and its analytic sample Jacobian $-\tilde D'\tilde D/n$. It then uses the common exactly identified score covariance code for iid, HC1, HAC, or clusters.
+
+This is deliberately a transparent ridge-only DML implementation. It demonstrates orthogonalization and out-of-fold bookkeeping without a generic learner protocol, repeated splits, fold-specific preprocessing, or tuning uncertainty propagation.
+
 ## Inference
 
 The score is

@@ -1,4 +1,5 @@
 use crate::utils::{invert_matrix, to_array1, to_array2};
+use crate::validation::validate_finite;
 use ndarray::{Array1, Array2, Axis};
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -8,24 +9,6 @@ use pyo3::types::PyDict;
 const ITMAX: usize = 10_000;
 const EPS: f64 = 3.0e-14;
 const FPMIN: f64 = 1.0e-300;
-
-fn validate_finite_vec(name: &str, x: &Array1<f64>) -> PyResult<()> {
-    if x.iter().any(|v| !v.is_finite()) {
-        return Err(PyValueError::new_err(format!(
-            "{name} must contain only finite values"
-        )));
-    }
-    Ok(())
-}
-
-fn validate_finite_mat(name: &str, x: &Array2<f64>) -> PyResult<()> {
-    if x.iter().any(|v| !v.is_finite()) {
-        return Err(PyValueError::new_err(format!(
-            "{name} must contain only finite values"
-        )));
-    }
-    Ok(())
-}
 
 fn ln_gamma(z: f64) -> f64 {
     // Lanczos approximation, coefficients from Numerical Recipes.
@@ -213,10 +196,10 @@ pub(crate) fn wald_test_arrays<'py>(
         }
     };
 
-    validate_finite_vec("coef", beta)?;
-    validate_finite_mat("vcov", cov)?;
-    validate_finite_mat("r", rmat)?;
-    validate_finite_vec("q", qvec)?;
+    validate_finite("coef", beta).map_err(PyValueError::new_err)?;
+    validate_finite("vcov", cov).map_err(PyValueError::new_err)?;
+    validate_finite("r", rmat).map_err(PyValueError::new_err)?;
+    validate_finite("q", qvec).map_err(PyValueError::new_err)?;
 
     let k = beta.len();
     let df = rmat.nrows();

@@ -52,6 +52,19 @@ $$
 
 This is an approximate point estimator. The fitted object still stores the full original design and computes residuals and covariance estimates on all $n$ observations at $\hat\theta_S$.
 
+## Implementation walkthrough
+
+The linear-estimator stack shares a small set of native array and covariance primitives.
+
+1. `fit()` converts NumPy inputs to owned dense arrays, validates dimensions and finiteness, and prepends an explicit column of ones. `fit_weighted()` additionally validates nonnegative weights and multiplies every design row and outcome by $\sqrt{w_i}$. The original unweighted arrays and weights are retained after fitting.
+2. The point estimate is obtained with `ndarray-linalg` least squares on the design itself. The code does not form $X'X$ or invert it to obtain coefficients. The returned parameter vector is split into its first intercept entry and remaining slope entries only after the solve succeeds.
+3. CountSketch assigns each original row independently to one of $s$ buckets and gives it a Rademacher sign $\pm1$. Signed rows of $X$ and signed outcomes are accumulated into the same buckets, using the supplied seed or fixed fallback seed `0xBAD5EED`. There is no $1/\sqrt{s}$ normalization; a common rescaling would not change the least-squares minimizer.
+4. `fit_sketch()` solves only the $s\times p$ sketched system for the point estimate, then stores the untouched full sample. Consequently, `predict()`, residuals, covariance, and all reported fit statistics are evaluated on the original observations at the approximate coefficients rather than on sketch residuals.
+5. `summary()` rebuilds the design, computes residuals, and dispatches to a shared covariance routine. That routine forms and inverts $X'X$, explicitly loops over leverage values for HC2/HC3, or first maps observation moments $x_i e_i$ through the bread to parameter-score rows for HAC and cluster aggregation.
+6. The pairs bootstrap draws integer row indices with replacement, copies matching $X$ and $y$ rows, and reruns the exact least-squares path. It does not reproduce a previous sketch. A weighted fit likewise resamples the corresponding weight entries.
+
+The split between QR-style least squares for coefficients and explicit cross-product inversion for inference is intentional but important: a rank-deficient fit can return a least-squares solution while covariance construction still fails or is unstable. CountSketch accelerates only the former.
+
 ## Inference
 
 Let $e_i=y_i-\tilde x_i'\hat\theta$, $H=\tilde X(\tilde X'\tilde X)^{-1}\tilde X'$, and $d_f=n-p$, where $p$ includes the intercept. The implemented covariance choices are:

@@ -3,24 +3,11 @@ use crate::utils::{
     scale_rows, score_cov_iid, solve_least_squares_mat, solve_least_squares_vec, take_rows,
     take_rows_vec, to_array1, to_array1_i64, to_array2,
 };
+use crate::validation::validate_finite;
 use ndarray::{concatenate, Array1, Array2, Axis};
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-
-fn validate_finite_1d(name: &str, values: &Array1<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
-
-fn validate_finite_2d(name: &str, values: &Array2<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
 
 fn parse_penalties(value: &Bound<'_, PyAny>) -> PyResult<Array1<f64>> {
     let penalties = if let Ok(scalar) = value.extract::<f64>() {
@@ -586,9 +573,9 @@ impl EPLM {
         if y.len() != d.len() || w.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("w", &w).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("w", &w).map_err(PyValueError::new_err)?;
         let theta = eplm_theta(&y, &d, &w).map_err(PyValueError::new_err)?;
         self.theta = Some(theta);
         self.y = Some(y);
@@ -696,9 +683,9 @@ impl AverageDerivative {
         if y.len() != d.len() || w.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("w", &w).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("w", &w).map_err(PyValueError::new_err)?;
 
         let theta = match self.method.as_str() {
             "ob" => ob_theta(&y, &d, &w),
@@ -859,9 +846,9 @@ impl PartiallyLinearDML {
         if y.len() != d.len() || x.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
 
         let splits = make_kfold_splits(y.len(), self.n_folds, self.seed, None)
             .map_err(PyValueError::new_err)?;
@@ -1043,9 +1030,9 @@ impl AIPW {
         if y.len() != d.len() || x.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
         validate_binary(&d).map_err(PyValueError::new_err)?;
 
         let splits = make_kfold_splits(y.len(), self.n_folds, self.seed, Some(&d))
