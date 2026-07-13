@@ -39,6 +39,8 @@ The branch's public reference pages now also document estimator internals at sou
 
 The release site was rebuilt as 92 Quarto pages after re-executing the four solver-sensitive ablations. It is deployed from clean `gh-pages` commit `c7a3ce4` at `https://apoorvalal.github.io/crabbymetrics/`; rendered outputs remain excluded from `master` and the PyPI sdist.
 
+The `BaggedPolynomialRegressor` reference is contract-first rather than a disguised vignette: it documents the exact constructor defaults and constraints, array contracts, return values, failure conditions, complete `summary()` schema, objective, OOB semantics, implementation, and computational limits. The separate worked comparison remains under `docs/examples/`.
+
 ### Estimator Math And API Audit (2026-07-11)
 
 The follow-up audit traced every public estimator through its Rust implementation and documented its implemented criterion or estimating equation, inference method, prediction contract, and performance characteristics in the API references. It also:
