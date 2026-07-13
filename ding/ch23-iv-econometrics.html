@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5245,7 +5241,7 @@ window.Quarto = {
 
 
 <p>Chapter 23 is where the design-based IV story becomes an econometrics workflow: controls, overidentification, and alternative representations of the same parameter.</p>
-<div id="9a0e0e27" class="cell" data-execution_count="1">
+<div id="7042e946" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -5278,7 +5274,7 @@ window.Quarto = {
 </div>
 <section id="cards-returns-to-schooling-data" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="cards-returns-to-schooling-data"><span class="header-section-number">1</span> Card’s Returns-To-Schooling Data</h2>
-<div id="f243670f" class="cell" data-execution_count="2">
+<div id="38a4728b" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>card <span class="op">=</span> pd.read_csv(repo_root() <span class="op">/</span> <span class="st">&quot;ding_w_source&quot;</span> <span class="op">/</span> <span class="st">&quot;repl&quot;</span> <span class="op">/</span> <span class="st">&quot;card1995.csv&quot;</span>)</span>
@@ -5314,7 +5310,7 @@ window.Quarto = {
 </section>
 <section id="closed-form-twosls-and-overidentified-gmm" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="closed-form-twosls-and-overidentified-gmm"><span class="header-section-number">2</span> Closed-Form TwoSLS And Overidentified GMM</h2>
-<div id="aeabcc06" class="cell" data-execution_count="3">
+<div id="c8bf684a" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ols <span class="op">=</span> cm.OLS()</span>
@@ -5353,7 +5349,7 @@ GMM J-statistic: 1.3567 with df = 1</code></pre>
 </section>
 <section id="control-function-view" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="control-function-view"><span class="header-section-number">3</span> Control-Function View</h2>
-<div id="e0e98b47" class="cell" data-execution_count="4">
+<div id="27d4035c" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>first_stage <span class="op">=</span> cm.OLS()</span>
@@ -5378,7 +5374,7 @@ Control-function coefficient on education: 0.1571</code></pre>
 <section id="anderson-rubin-grid" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="anderson-rubin-grid"><span class="header-section-number">4</span> Anderson-Rubin Grid</h2>
 <p>The source R script also inverts a reduced-form test over candidate education returns. For a candidate <span class="math inline">\(\beta\)</span>, regress <span class="math inline">\(Y - \beta D\)</span> on controls and the excluded instrument. If the excluded instrument is still predictive, that candidate <span class="math inline">\(\beta\)</span> is inconsistent with the IV moment. This grid uses <code>nearc4</code>, matching the script’s single-instrument Anderson-Rubin calculation.</p>
-<div id="e74565f8" class="cell" data-execution_count="5">
+<div id="2bf26c65" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> normal_pvalue(z_stat):</span>
@@ -5433,7 +5429,7 @@ Control-function coefficient on education: 0.1571</code></pre>
 </div>
 </div>
 </div>
-<div id="66ad42db" class="cell" data-execution_count="6">
+<div id="008173be" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>

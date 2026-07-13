@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#likelihood-and-solver" id="toc-likelihood-and-solver" class="nav-link" data-scroll-target="#likelihood-and-solver"><span class="header-section-number">2</span> Likelihood and solver</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="35ccde0a" class="cell" data-execution_count="1">
+<div id="0b32b9e7" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5275,7 +5272,7 @@ Q(\alpha_0,\beta)
 \tilde X&#39;\operatorname{diag}(\mu_i)\tilde X
 +\operatorname{diag}(0,\lambda,\ldots,\lambda),
 \]</span></p>
-<p>with <span class="math inline">\(10^{-8}\)</span> added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at <span class="math inline">\(\log\{\max(\bar y,10^{-12})\}\)</span> and slopes start at zero. A fit is stored only after the optimizer reports convergence.</p>
+<p>with <span class="math inline">\(10^{-8}\)</span> added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at <span class="math inline">\(\log\{\max(\bar y,10^{-12})\}\)</span> and slopes start at zero. A fit is stored only after Argmin reports solver convergence or a target cost. Reaching <code>max_iterations</code> raises <code>ValueError</code> and clears any previous fitted state. Successful summaries include <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final penalized <code>objective</code> <span class="math inline">\(Q(\hat\alpha_0,\hat\beta)\)</span>.</p>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -5290,8 +5287,21 @@ Warning
 </div>
 </div>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>Unlike <code>Logit</code>, this native GLM uses the exact Hessian. It is Newton-CG with line search, not the textbook IRLS presentation, although the Hessian <span class="math inline">\(\tilde X&#39;W\tilde X\)</span> is the same weighted cross-product that IRLS uses.</p>
+<ol type="1">
+<li><code>fit()</code> clears all fitted state and validates finite regressors, finite nonnegative outcomes, a nonnegative penalty, and positive iteration and tolerance controls. Fractional <span class="math inline">\(y_i\)</span> pass intentionally because the score equations remain valid for Poisson QMLE.</li>
+<li>The optimizer vector is <span class="math inline">\((\alpha_0,\beta&#39;)\)</span> when the intercept is enabled. Slopes start at zero and the intercept starts at <span class="math inline">\(\log\{\max(\bar y,10^{-12})\}\)</span>, so the initial constant mean matches the sample mean except for the zero-mean floor.</li>
+<li>The cost callback computes the entire index vector, exponentiates it without clipping, and returns <span class="math inline">\(\sum_i(e^{\eta_i}-y_i\eta_i)+\lambda\beta&#39;\beta/2\)</span>. The gradient uses the residual vector <span class="math inline">\(e^\eta-y\)</span>, with an unpenalized intercept score and <span class="math inline">\(\lambda\beta\)</span> added to the slope score.</li>
+<li>The Hessian callback multiplies every row of <span class="math inline">\(X\)</span> by <span class="math inline">\(\mu_i\)</span>, forms <span class="math inline">\(X&#39;\operatorname{diag}(\mu)X\)</span>, fills the intercept cross-products from <span class="math inline">\(X&#39;\mu\)</span>, and adds <span class="math inline">\(\lambda+10^{-8}\)</span> to each slope diagonal and <span class="math inline">\(10^{-8}\)</span> to the intercept diagonal. The small ridge is used in every Newton system, including an otherwise unpenalized fit.</li>
+<li>Argmin’s Newton-CG obtains a Newton direction using that dense Hessian and globalizes the update with a More-Thuente line search. <code>tolerance</code> is the Newton-CG stopping tolerance. The wrapper rejects an exhausted iteration budget and installs the best parameter, data, and diagnostics only after accepted convergence.</li>
+<li><code>predict_lin()</code> evaluates <span class="math inline">\(\alpha_0+X\beta\)</span>; <code>predict()</code> exponentiates it directly. The same absence of clipping that preserves the literal Poisson mean also means sufficiently extreme new rows can return infinity.</li>
+</ol>
+<p>IRLS would express each Newton step as weighted least squares on a working response. Newton-CG instead exposes the objective, gradient, and Hessian to a generic optimizer. Statistically the local quadratic step is the same; operationally the line search and conjugate-gradient machinery, rather than a dedicated GLM loop, control step acceptance.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>Analytic inference is disabled for <span class="math inline">\(\lambda&gt;0\)</span>. For an unpenalized fit, the vanilla covariance is the inverse Fisher information</p>
 <p><span class="math display">\[
 \widehat V_{\mathrm{vanilla}}
@@ -5310,23 +5320,23 @@ B^{-1},
 \qquad
 B=\tilde X&#39;\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
 \]</span></p>
-<p>No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw.</p>
+<p>No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw, and any nonconverged replicate aborts the bootstrap.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Every Newton Hessian evaluation costs <span class="math inline">\(O(np^2)\)</span> and the dense Newton system is up to <span class="math inline">\(O(p^3)\)</span>, so this is more expensive per iteration than first-order GLM solvers at large <span class="math inline">\(p\)</span>. The code evaluates <span class="math inline">\(\exp(\eta)\)</span> without clipping; extreme indices can overflow and abort optimization. There is no exposure or offset argument, so users must encode those effects in the supplied design only if estimating their coefficient is appropriate. Covariance and bootstrap add dense inversion and repeated-fit costs.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.Poisson</code></p>
-<p>Use <code>fit(x, y)</code> with nonnegative count-like outcomes. <code>predict(x)</code> returns fitted conditional means. The class also supports <code>bootstrap(B, seed=None)</code>.</p>
-<div id="98301a08" class="cell" data-execution_count="2">
+<p>Use <code>fit(x, y)</code> with nonnegative count-like outcomes. <code>predict_lin(x)</code> returns the log mean, <code>predict(x)</code> returns fitted conditional means, and <code>summary()</code> includes fit diagnostics. The class also supports <code>bootstrap(B, seed=None)</code>.</p>
+<div id="ea631e56" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Poisson))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(alpha=0.0, max_iterations=100, tolerance=0.0001)</code></pre>
 </div>
 </div>
-<div id="ac0fce6c" class="cell" data-execution_count="3">
+<div id="75f7d3ab" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Poisson</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5360,29 +5370,32 @@ B=\tilde X&#39;\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="8fee31cb" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="f49bd352" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">250</span>, <span class="dv">2</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(<span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.25</span>]))</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(mu).astype(<span class="bu">float</span>)</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.Poisson(max_iterations<span class="op">=</span><span class="dv">200</span>, tolerance<span class="op">=</span><span class="fl">1e-08</span>)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&#39;vanilla&#39;</span>)[<span class="st">&#39;coef&#39;</span>])</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&#39;sandwich&#39;</span>)[<span class="st">&#39;coef_se&#39;</span>])</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>fit <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&#39;vanilla&#39;</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;converged&#39;</span>, <span class="st">&#39;iterations&#39;</span>, <span class="st">&#39;termination_reason&#39;</span>, <span class="st">&#39;objective&#39;</span>]})</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(fit[<span class="st">&#39;coef&#39;</span>])</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">&#39;sandwich&#39;</span>)[<span class="st">&#39;coef_se&#39;</span>])</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[ 0.26320223 -0.29275249]
+<pre><code>{&#39;converged&#39;: True, &#39;iterations&#39;: 9, &#39;termination_reason&#39;: &#39;Solver converged&#39;, &#39;objective&#39;: 223.22902707069227}
+[ 0.26320223 -0.29275249]
 [0.0578437  0.05367217]
 [1.01940438 1.34302229 1.319153  ]</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="77b67e3a" class="cell" data-execution_count="5">
+<div id="e64261af" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">107</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">100</span>, <span class="dv">2</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.poisson(np.exp(<span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.25</span>]))).astype(<span class="bu">float</span>)</span>
@@ -5416,22 +5429,34 @@ B=\tilde X&#39;\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
+<td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>objective</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
 <td><code>inference_available</code></td>
 <td><code>()</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>intercept_se</code></td>
 <td><code>()</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>coef_se</code></td>
 <td><code>(2,)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>vcov</code></td>
 <td><code>(3, 3)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>vcov_type</code></td>
 <td><code>()</code></td>
 </tr>

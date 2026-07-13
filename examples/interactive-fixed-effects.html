@@ -4863,10 +4863,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5092,7 +5088,7 @@ vertical-align: -.125em;
 <p><code>InteractiveFixedEffects</code> is the no-covariate factor-model helper behind the panel tooling. It is not a full treatment-effect estimator by itself; it estimates a balanced-panel decomposition with additive unit/time structure and interactive latent factors. That makes it useful for inspecting whether a panel has low-rank structure before using matrix-completion or factor-style causal designs.</p>
 <section id="simulate-a-factor-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-factor-panel"><span class="header-section-number">1</span> Simulate A Factor Panel</h2>
-<div id="90c14b2f" class="cell" data-execution_count="1">
+<div id="d5de1b37" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5100,7 +5096,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="00de0362" class="cell" data-execution_count="2">
+<div id="fafdf856" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4403</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_units <span class="op">=</span> <span class="dv">40</span></span>
@@ -5133,7 +5129,7 @@ noise variance: 0.0106</code></pre>
 </section>
 <section id="fit-the-factor-model" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-the-factor-model"><span class="header-section-number">2</span> Fit The Factor Model</h2>
-<div id="783343a3" class="cell" data-execution_count="3">
+<div id="1159ff06" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> InteractiveFixedEffects(rank<span class="op">=</span><span class="dv">2</span>, force<span class="op">=</span><span class="dv">3</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>model.fit(Y)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
@@ -5150,7 +5146,7 @@ fit RMSE against latent signal: 0.0392
 summary keys: [&#39;alpha&#39;, &#39;factor&#39;, &#39;factor_method&#39;, &#39;factor_oversamples&#39;, &#39;factor_power_iter&#39;, &#39;fit&#39;, &#39;force&#39;, &#39;loading&#39;, &#39;mu&#39;, &#39;rank&#39;, &#39;residuals&#39;, &#39;vnt&#39;, &#39;xi&#39;]</code></pre>
 </div>
 </div>
-<div id="65a45e89" class="cell" data-execution_count="4">
+<div id="00856547" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">13</span>, <span class="fl">4.0</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, matrix, title <span class="kw">in</span> [</span>

@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#likelihood-parameterization-and-solver" id="toc-likelihood-parameterization-and-solver" class="nav-link" data-scroll-target="#likelihood-parameterization-and-solver"><span class="header-section-number">2</span> Likelihood, parameterization, and solver</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="42ebfb59" class="cell" data-execution_count="1">
+<div id="93553049" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5261,7 +5258,7 @@ window.Quarto = {
 </section>
 <section id="likelihood-parameterization-and-solver" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="likelihood-parameterization-and-solver"><span class="header-section-number">2</span> Likelihood, parameterization, and solver</h2>
-<p>For one-hot outcomes <span class="math inline">\(y_{ic}\)</span> and logits <span class="math inline">\(\eta_{ic}=\alpha_c+x_i&#39;\beta_c\)</span>, the delegated Linfa solver minimizes</p>
+<p>For one-hot outcomes <span class="math inline">\(y_{ic}\)</span> and logits <span class="math inline">\(\eta_{ic}=\alpha_c+x_i&#39;\beta_c\)</span>, the native solver minimizes</p>
 <p><span class="math display">\[
 Q(\alpha,\beta)
 =
@@ -5271,14 +5268,28 @@ y_{ic}\log p_{ic}
 \qquad
 p_{ic}=\frac{\exp(\eta_{ic})}{\sum_\ell\exp(\eta_{i\ell})}.
 \]</span></p>
-<p>Intercepts are unpenalized. L-BFGS with a More-Thuente line search operates on all <span class="math inline">\(C\)</span> coefficient columns. This full softmax parameterization is redundant because adding a common coefficient vector to every class leaves probabilities unchanged. The public summary removes that redundancy after fitting by reporting</p>
+<p>Intercepts are unpenalized. The implementation uses a row-wise log-sum-exp shift for the objective and softmax gradient, then runs ten-vector-memory L-BFGS with a More-Thuente line search from an all-zero parameter vector. L-BFGS operates on all <span class="math inline">\(C\)</span> coefficient columns. This full softmax parameterization is redundant because adding a common coefficient vector to every class leaves probabilities unchanged. With <span class="math inline">\(\lambda&gt;0\)</span>, the common slope direction is pinned down by the penalty, while the common intercept direction remains flat; fitted probabilities and reported contrasts are invariant to it. The public summary removes the redundancy by reporting</p>
 <p><span class="math display">\[
 \delta_c=(\alpha_c-\alpha_r,\ \beta_c-\beta_r&#39;),
 \]</span></p>
-<p>against the last sorted class <span class="math inline">\(r\)</span>. Prediction uses a row-wise max shift before exponentiation for stable softmax probabilities.</p>
+<p>against the last sorted class <span class="math inline">\(r\)</span>. Reaching <code>max_iterations</code> is a failed fit: <code>fit()</code> raises <code>ValueError</code> and clears any previous fitted state. Successful summaries include <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final penalized <code>objective</code>.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The package owns the complete softmax likelihood and optimization bridge. It does not call a Linfa multinomial model.</p>
+<ol type="1">
+<li><code>fit()</code> validates the dense input, sorts and deduplicates the original integer labels, and maps each response to its position in that sorted class vector. The original labels are retained so prediction can map an argmax back to the caller’s label space.</li>
+<li>The optimizer uses one contiguous block per class. With an intercept, a block is <span class="math inline">\((\alpha_c,\beta_c&#39;)\)</span>; without one it is just <span class="math inline">\(\beta_c\)</span>. All <span class="math inline">\(C(p+1)\)</span> entries start at zero. Consequently, the initial softmax is uniform and the initial vector lies in the centered representative of the redundant full-<span class="math inline">\(C\)</span> parameterization.</li>
+<li>For each row, the objective callback builds only a length-<span class="math inline">\(C\)</span> logit scratch vector. It subtracts the largest logit before exponentiating, computes the row log-sum-exp, and adds <code>log_denom - observed_logit</code>. It then adds the L2 norm of every class’s slope block, leaving every intercept unpenalized.</li>
+<li>The gradient makes a second row-wise pass. It normalizes the shifted exponentials into probabilities and adds <span class="math inline">\((p_{ic}-1\{y_i=c\})\)</span> to the class intercept score and <span class="math inline">\(x_i(p_{ic}-1\{y_i=c\})\)</span> to that class’s slope score. The penalty contributes <span class="math inline">\(\lambda\beta_c\)</span>. No <span class="math inline">\(n\times C\)</span> probability array is retained during fitting.</li>
+<li>Ten-pair L-BFGS with a More-Thuente line search updates the full vector. The wrapper treats the iteration cap as failure, takes Argmin’s best vector only after accepted termination, reshapes it into a <span class="math inline">\(p\times C\)</span> coefficient matrix plus a length-<span class="math inline">\(C\)</span> intercept vector, and atomically installs the fitted state.</li>
+<li>Prediction computes the dense <span class="math inline">\(n_{\mathrm{new}}\times C\)</span> logit matrix. Probabilities are row-wise stable softmaxes. Labels use the largest raw logit, which is equivalent to the largest probability and avoids a needless normalization.</li>
+<li><code>summary()</code> chooses the last sorted class as the reporting reference and subtracts its full block from each earlier class block. The estimator is therefore fit in a symmetric full-class coordinate system but exposed for inference in an identified reference-class coordinate system.</li>
+</ol>
+<p>The full-<span class="math inline">\(C\)</span> fit is pedagogically transparent and treats classes symmetrically, but it leaves a flat common-intercept direction. L-BFGS can still optimize probabilities and contrasts from the symmetric zero initialization; a production large-class solver would more often remove one block up front or impose an explicit sum-to-zero constraint.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>Inference is available only at <span class="math inline">\(\lambda=0\)</span> and is computed directly in the <span class="math inline">\((C-1)\)</span> reference-class contrast parameterization. For non-reference classes <span class="math inline">\(a,b\)</span> and <span class="math inline">\(\tilde x_i=(1,x_i&#39;)&#39;\)</span>, the information blocks are</p>
 <p><span class="math display">\[
 H_{ab}
@@ -5290,21 +5301,21 @@ H_{ab}
 \]</span></p>
 <p>The returned covariance is <span class="math inline">\((H+10^{-8}I)^{-1}\)</span>. It is model-based only; there is no robust sandwich or Wald-test method on this class. Penalized fits return no covariance. The pairs bootstrap reports class-versus-reference contrasts, but it raises an error if any resample omits an outcome class.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
-<p>An L-BFGS evaluation costs <span class="math inline">\(O(npC)\)</span> and stores the dense <span class="math inline">\(n\times C\)</span> probability matrix plus <span class="math inline">\((p+1)C\)</span> parameters. Fisher inference has dimension <span class="math inline">\((p+1)(C-1)\)</span>; constructing its blocks is costly for many classes and dense inversion is cubic in that total dimension. The full fitted parameterization can be weakly identified when <span class="math inline">\(\lambda=0\)</span> even though reported contrasts are identified. Rare classes also make both the Fisher matrix and pairs bootstrap fragile.</p>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
+<p>An L-BFGS objective or gradient evaluation costs <span class="math inline">\(O(npC)\)</span>. The optimizer stores <span class="math inline">\((p+1)C\)</span> parameters and limited-memory history; the native cost and gradient use <span class="math inline">\(O(C)\)</span> row scratch rather than materializing an <span class="math inline">\(n\times C\)</span> probability matrix. Public prediction does return a dense <span class="math inline">\(n\times C\)</span> array. Fisher inference has dimension <span class="math inline">\((p+1)(C-1)\)</span>; constructing its blocks is costly for many classes and dense inversion is cubic in that total dimension. The full fitted parameterization is unidentified in its common intercept direction, and is also unidentified in common slope directions when <span class="math inline">\(\lambda=0\)</span>, even though reported contrasts are identified. Rare classes make both the Fisher matrix and pairs bootstrap fragile.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.MultinomialLogit</code></p>
-<p>Use integer class labels in <code>fit(x, y_int32)</code>. <code>predict(x)</code> returns an <span class="math inline">\(n\times C\)</span> probability matrix, <code>predict_lin(x)</code> returns logits, and <code>predict_label(x)</code> returns class labels. <code>summary()</code> returns contrast rows aligned with <code>class_labels</code>; penalized fits mark inference unavailable and omit <code>se</code>/<code>vcov</code>.</p>
-<div id="6e2c84e3" class="cell" data-execution_count="2">
+<p>Use integer class labels in <code>fit(x, y_int32)</code>; at least two distinct classes are required and class order is sorted. <code>predict(x)</code> returns an <span class="math inline">\(n\times C\)</span> probability matrix, <code>predict_lin(x)</code> returns logits, and <code>predict_label(x)</code> returns original class labels. <code>summary()</code> returns fit diagnostics and contrast rows aligned with <code>class_labels</code>; penalized fits mark inference unavailable and omit <code>se</code>/<code>vcov</code>.</p>
+<div id="ad44c7e8" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MultinomialLogit))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(alpha=0.0, max_iterations=100, gradient_tolerance=0.0001)</code></pre>
 </div>
 </div>
-<div id="251c540c" class="cell" data-execution_count="3">
+<div id="89f9a752" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.MultinomialLogit</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5338,9 +5349,9 @@ H_{ab}
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="d39020e4" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="4ba8f6b3" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">240</span>, <span class="dv">2</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>logits <span class="op">=</span> x <span class="op">@</span> np.array([[<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.3</span>], [<span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.5</span>], [<span class="fl">0.2</span>, <span class="fl">0.2</span>]]).T <span class="op">+</span> np.array([<span class="fl">0.1</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.0</span>])</span>
@@ -5349,23 +5360,26 @@ H_{ab}
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.array([rng.choice(<span class="dv">3</span>, p<span class="op">=</span>row) <span class="cf">for</span> row <span class="kw">in</span> p], dtype<span class="op">=</span>np.int32)</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MultinomialLogit(max_iterations<span class="op">=</span><span class="dv">200</span>)</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>model.fit(x, y)</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary()[<span class="st">&#39;coef&#39;</span>])</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">5</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>fit <span class="op">=</span> model.summary()</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;converged&#39;</span>, <span class="st">&#39;iterations&#39;</span>, <span class="st">&#39;termination_reason&#39;</span>, <span class="st">&#39;objective&#39;</span>]})</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(fit[<span class="st">&#39;coef&#39;</span>])</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">5</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[[ 0.25831465  0.53237638 -0.55020945]
- [-0.15395855 -0.36374717  0.31279086]]
-[[0.29713333 0.35470927 0.3481574 ]
- [0.10437553 0.60469433 0.29093014]
- [0.35652526 0.30570265 0.33777209]
- [0.27898794 0.37429093 0.34672113]
- [0.36790269 0.30230945 0.32978787]]</code></pre>
+<pre><code>{&#39;converged&#39;: True, &#39;iterations&#39;: 9, &#39;termination_reason&#39;: &#39;Solver converged&#39;, &#39;objective&#39;: 237.44870578984387}
+[[ 0.25831439  0.53237632 -0.55020927]
+ [-0.15395916 -0.36374742  0.31279128]]
+[[0.29713335 0.35470924 0.34815742]
+ [0.10437552 0.60469433 0.29093015]
+ [0.35652528 0.30570259 0.33777213]
+ [0.27898795 0.37429089 0.34672116]
+ [0.3679027  0.30230937 0.32978794]]</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="05caee92" class="cell" data-execution_count="5">
+<div id="380f5920" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">106</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">100</span>, <span class="dv">2</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>logits <span class="op">=</span> x <span class="op">@</span> np.array([[<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.3</span>], [<span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.5</span>], [<span class="fl">0.2</span>, <span class="fl">0.2</span>]]).T</span>
@@ -5403,6 +5417,22 @@ H_{ab}
 </tr>
 <tr class="odd">
 <td><code>inference_available</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>objective</code></td>
 <td><code>()</code></td>
 </tr>
 <tr class="even">

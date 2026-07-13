@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#linear-average-derivative-estimators" id="toc-linear-average-derivative-estimators" class="nav-link" data-scroll-target="#linear-average-derivative-estimators"><span class="header-section-number">2</span> Linear average-derivative estimators</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="cc85c948" class="cell" data-execution_count="1">
+<div id="c8df807b" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5291,26 +5288,38 @@ Z_i=(1,\ {W_i^c}&#39;,\ D_i{W_i^c}&#39;,\ g_i)&#39;
 \]</span></p>
 <p>in a just-identified linear IV fit and reports the coefficient on <span class="math inline">\(D\)</span>. The full moment system jointly accounts for treatment-projection coefficients, <span class="math inline">\(\log\sigma^2\)</span>, control means, and outcome coefficients. These are linear-basis OB, IPW, and DR estimators; the class does not fit generic nonparametric derivatives.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The three methods share validation and exactly identified sandwich code, but construct their point estimates and nuisance vectors separately.</p>
+<ol type="1">
+<li>OB computes raw control means, centers <span class="math inline">\(W\)</span>, builds the dense columns <span class="math inline">\((1,W^c,DW^c,D)\)</span>, and solves one rectangular least-squares problem. Centering is performed before the interaction, so the last coefficient is the derivative averaged at the sample control mean.</li>
+<li>IPW solves <span class="math inline">\(D\sim(1,W)\)</span> by least squares, computes <span class="math inline">\(\hat\sigma^2=v&#39;v/n\)</span>, rejects values at or below <span class="math inline">\(10^{-12}\)</span>, and forms <span class="math inline">\(g=v/\hat\sigma^2\)</span>. It then evaluates the scalar ratio <span class="math inline">\(g&#39;Y/(g&#39;D)\)</span>. The nuisance vector stores <span class="math inline">\(\log\hat\sigma^2\)</span> so perturbed covariance calculations keep the variance positive.</li>
+<li>DR repeats that treatment projection, centers controls, and builds the OB outcome design. Its instrument matrix replaces the final raw treatment column by <span class="math inline">\(g\)</span>. The just-identified IV solve first projects the outcome design on those instruments and then regresses <span class="math inline">\(Y\)</span> on the projected design; the reported target is again the final outcome coefficient.</li>
+<li>Each method packs every nuisance component and the target into a fixed order and has a matching row-moment constructor. OB stacks control-centering moments with outcome normal equations. IPW stacks treatment normal equations, a variance moment, and the weighted outcome moment. DR stacks all four blocks.</li>
+<li><code>summary()</code> obtains the complete moment matrix, central-differences its mean once per packed parameter coordinate, verifies the Jacobian is square, and maps observation moments through its inverse. The requested iid, HC1, HAC, or cluster covariance is computed for the whole system before the final scalar block is selected.</li>
+</ol>
+<p>There is no iterative nonlinear fit in these estimators; all point estimates are closed-form least-squares or IV operations. Most of the computational complexity comes from faithfully propagating nuisance estimation through a numerically differentiated joint moment system.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>All three methods use the same exactly identified sandwich machinery. The Jacobian of the full stacked mean-moment vector is computed by central differences, and the empirical moment outer product supplies the meat. Vanilla is the uncorrected iid sandwich; HC1, Bartlett Newey-West, and cluster covariance add the same finite-sample corrections described on the EPLM page. Only the scalar average-derivative covariance block is returned.</p>
 <p>The method accepts continuous treatment values and does not enforce a binary treatment. No cross-fitting, bootstrap, or built-in Wald method is provided. Validity depends on the selected linear outcome and treatment structures and, for IPW/DR, nondegenerate residual treatment variance.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>OB is a dense least-squares fit; IPW adds a treatment projection; DR adds a just-identified IV system. Summary-time differentiation is the dominant risk: the DR nuisance vector has <span class="math inline">\(4p+4\)</span> elements for <span class="math inline">\(p\)</span> raw controls, requiring two full moment evaluations per element followed by a dense cubic inversion. Interactions also double the outcome-design width. Scaling and collinearity matter, and there is no regularization.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.AverageDerivative</code></p>
 <p>Call <code>fit(y, d, w)</code>. The summary reports <code>method</code>, <code>coef</code>, <code>se</code>, and <code>vcov</code>. There is no <code>predict()</code> method because the object is a semiparametric target rather than a full conditional mean model.</p>
-<div id="3c1dfc49" class="cell" data-execution_count="2">
+<div id="536cb53b" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.AverageDerivative))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(method=&#39;dr&#39;, fd_eps=1e-06)</code></pre>
 </div>
 </div>
-<div id="f5ae4796" class="cell" data-execution_count="3">
+<div id="724588ac" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.AverageDerivative</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5332,9 +5341,9 @@ Z_i=(1,\ {W_i^c}&#39;,\ D_i{W_i^c}&#39;,\ g_i)&#39;
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="765864a5" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="e02022da" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">320</span>, <span class="dv">2</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.2</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.7</span>, size<span class="op">=</span><span class="dv">320</span>)</span>
@@ -5347,10 +5356,10 @@ Z_i=(1,\ {W_i^c}&#39;,\ D_i{W_i^c}&#39;,\ g_i)&#39;
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="bc01ba0a" class="cell" data-execution_count="5">
+<div id="48f1bba7" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">112</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">120</span>, <span class="dv">2</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.2</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">120</span>) <span class="op">*</span> <span class="fl">0.7</span></span>

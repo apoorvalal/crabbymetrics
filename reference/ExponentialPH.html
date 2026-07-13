@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#likelihood-and-predictions" id="toc-likelihood-and-predictions" class="nav-link" data-scroll-target="#likelihood-and-predictions"><span class="header-section-number">2</span> Likelihood and predictions</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="418ad38a" class="cell" data-execution_count="1">
+<div id="bca431c7" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5255,7 +5252,7 @@ window.Quarto = {
 <p><strong>Group:</strong> Survival / event-time models</p>
 <p><code>ExponentialPH</code> is the smallest fully parametric proportional-hazards model in the module. It assumes</p>
 <p><span class="math display">\[
-h_i(t \mid x_i) = \lambda_0 \exp(x_i&#39;eta),
+h_i(t \mid x_i) = \lambda_0 \exp(x_i&#39;\beta),
 \]</span></p>
 <p>so the baseline hazard is constant over time. Because the full hazard is identified, the class can expose the whole prediction stack: log hazard, hazard, cumulative hazard, and survival.</p>
 </section>
@@ -5279,34 +5276,47 @@ d_i(\alpha+x_i&#39;\beta)
 -\exp(\alpha+x_i&#39;\beta)t_i
 \right].
 \]</span></p>
-<p>Newton iterations use the analytic score and Hessian, subtract <span class="math inline">\(10^{-8}\)</span> from the log-likelihood Hessian diagonal before solving, clamp each proposed parameter step to <span class="math inline">\([-2,2]\)</span>, and backtrack until log-likelihood does not decrease. The initial log baseline hazard is <span class="math inline">\(\log\{\sum_i d_i/\sum_i t_i\}\)</span> and slopes start at zero.</p>
+<p>Newton iterations use the analytic score and Hessian, subtract <span class="math inline">\(10^{-8}\)</span> from the log-likelihood Hessian diagonal before solving, clamp each proposed parameter step to <span class="math inline">\([-2,2]\)</span>, and backtrack until log-likelihood does not decrease. The initial log baseline hazard is <span class="math inline">\(\log\{\sum_i d_i/\sum_i t_i\}\)</span> and slopes start at zero. Convergence requires either <span class="math inline">\(\|\nabla\ell\|_\infty&lt;\tau\)</span> or an accepted likelihood change below <span class="math inline">\(\tau(1+|\ell|)\)</span>, where <span class="math inline">\(\tau\)</span> is <code>tolerance</code>.</p>
 <p>Prediction returns survival <span class="math inline">\(\exp\{-H(t\mid x)\}\)</span> by default. The linear prediction is the full log hazard <span class="math inline">\(\alpha+x&#39;\beta\)</span>, not only a relative-risk index.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The likelihood, derivatives, damped Newton loop, and prediction functions are native Rust code.</p>
+<ol type="1">
+<li><code>fit()</code> clears fitted state, validates finite <span class="math inline">\(X\)</span>, positive finite times, binary floating-point event indicators, and the solver controls. It initializes <span class="math inline">\((\alpha,\beta&#39;)\)</span> at <span class="math inline">\((\log\{\max(\sum d_i,1)/\max(\sum t_i,10^{-12})\},0&#39;)\)</span>; the event count is floored at one, so an all-censored sample still receives a finite starting hazard.</li>
+<li>One observation pass evaluates <span class="math inline">\(z_i=\exp(\alpha+x_i&#39;\beta)t_i\)</span>, adds <span class="math inline">\(d_i(\alpha+x_i&#39;\beta)-z_i\)</span> to the log likelihood, and accumulates the score <span class="math inline">\((d_i-z_i)(1,x_i&#39;)&#39;\)</span>. A nested loop adds <span class="math inline">\(-z_i(1,x_i&#39;)(1,x_i&#39;)\)</span> to the Hessian.</li>
+<li>The Newton helper subtracts <span class="math inline">\(10^{-8}\)</span> from every diagonal of the log-likelihood Hessian, explicitly inverts that dense matrix, and returns <span class="math inline">\(H^{-1}g\)</span>. Because the Hessian is negative definite near the optimum, the outer loop proposes <span class="math inline">\(\theta_{\mathrm{new}}=\theta-H^{-1}g\)</span>.</li>
+<li>Every coordinate of that raw step is clipped to <span class="math inline">\([-2,2]\)</span>. The line search tries scale one and then at most 29 successive halvings. It accepts the first finite candidate whose log likelihood is no worse than the current value minus <span class="math inline">\(10^{-10}\)</span>; otherwise the fit fails with a line-search error.</li>
+<li>The loop checks the maximum absolute score before solving and the relative likelihood change after an accepted step. Exhausting <code>max_iterations</code> is explicitly nonconvergence. The covariance is computed only afterward by reevaluating the Hessian and inverting its negative without the optimization ridge.</li>
+<li>Prediction stores no baseline grid because the baseline is a scalar. Log hazard is <span class="math inline">\(\alpha+X\beta\)</span>, hazard exponentiates it, cumulative hazard multiplies by each requested time, and survival exponentiates the negative cumulative hazard.</li>
+</ol>
+<p>The explicit Hessian makes this implementation easy to audit, but explicit inversion is less stable and more expensive than solving the Newton linear system by factorization. The event-count floor is only an initialization device; it does not make a no-event likelihood identify the hazard.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>The returned covariance is the inverse observed information</p>
 <p><span class="math display">\[
 \widehat V
 =
 \{-\nabla^2\ell(\hat\alpha,\hat\beta)\}^{-1}.
 \]</span></p>
-<p>It is model-based under independent observations, correct exponential proportional hazards, and noninformative right censoring. There is no robust, clustered, bootstrap, or Wald interface. The covariance includes the log baseline hazard first and slope coefficients afterward, although the summary does not separately report standard errors. The iteration count is reported, but reaching the maximum still stores a fit without an explicit convergence flag.</p>
+<p>It is model-based under independent observations, correct exponential proportional hazards, and noninformative right censoring. There is no robust, clustered, bootstrap, or Wald interface. The covariance includes the log baseline hazard first and slope coefficients afterward, although the summary does not separately report standard errors. Reaching <code>max_iterations</code> raises <code>ValueError</code> before covariance or fitted state is stored. A successful summary exposes <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and <code>objective</code>, where <code>objective</code> is <span class="math inline">\(-\ell(\hat\alpha,\hat\beta)\)</span>.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Each score evaluation is <span class="math inline">\(O(np)\)</span>; forming the dense Hessian is <span class="math inline">\(O(np^2)\)</span> and solving it is up to <span class="math inline">\(O(p^3)\)</span> per Newton iteration. The implementation stores the dense design but no risk sets. Exponential evaluations are not clipped, so extreme covariates or steps can overflow. The class supports only positive finite stop times, binary events, no delayed entry, no ties issue beyond ordinary parametric likelihood, and no observation weights.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.ExponentialPH</code></p>
-<p>Use <code>fit(x, time, event)</code>. The layered prediction surface is <code>predict_lin(x)</code> for log hazard, <code>predict_hazard(x)</code>, <code>predict_cumulative_hazard(x, time)</code>, and <code>predict_survival(x, time)</code>. The default <code>predict(x, time)</code> returns survival probabilities.</p>
-<div id="5c0b2144" class="cell" data-execution_count="2">
+<p>Use <code>fit(x, time, event)</code>. The layered prediction surface is <code>predict_lin(x)</code> for log hazard, <code>predict_hazard(x)</code>, <code>predict_cumulative_hazard(x, time)</code>, and <code>predict_survival(x, time)</code>. The default <code>predict(x, time)</code> returns survival probabilities. Times must be positive and finite, events must be binary, and <code>x</code> must be finite.</p>
+<div id="ada6d3c0" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.ExponentialPH))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="1cad9e05" class="cell" data-execution_count="3">
+<div id="8a54e26d" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.ExponentialPH</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5349,29 +5359,31 @@ d_i(\alpha+x_i&#39;\beta)
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="b68ebbc0" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="83d4a458" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">31</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">250</span>,<span class="dv">2</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.04</span><span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.5</span>,<span class="op">-</span><span class="fl">0.3</span>]))<span class="op">;</span> t_event<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">30</span>,size<span class="op">=</span><span class="dv">250</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>time<span class="op">=</span>np.minimum(t_event,c)<span class="op">;</span> event<span class="op">=</span>(t_event<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.ExponentialPH()<span class="op">;</span> model.fit(x,time,event)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">3</span>]))</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_hazard(x[:<span class="dv">3</span>]))</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_cumulative_hazard(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>fit<span class="op">=</span>model.summary()<span class="op">;</span> <span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;converged&#39;</span>, <span class="st">&#39;iterations&#39;</span>, <span class="st">&#39;termination_reason&#39;</span>, <span class="st">&#39;objective&#39;</span>]})</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">3</span>]))</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_hazard(x[:<span class="dv">3</span>]))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_cumulative_hazard(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[-3.63150107 -2.69355206 -2.87532579]
+<pre><code>{&#39;converged&#39;: True, &#39;iterations&#39;: 4, &#39;termination_reason&#39;: &#39;Relative objective tolerance reached&#39;, &#39;objective&#39;: 484.03927327282383}
+[-3.63150107 -2.69355206 -2.87532579]
 [0.02647641 0.06764025 0.05639776]
 [0.14886781 0.2138672  1.47682181]
 [0.86168302 0.80745561 0.22836231]</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="bc091d88" class="cell" data-execution_count="5">
+<div id="6238a8ce" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">131</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">120</span>,<span class="dv">2</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.05</span><span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.4</span>,<span class="op">-</span><span class="fl">0.2</span>]))<span class="op">;</span> te<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">20</span>,size<span class="op">=</span><span class="dv">120</span>)<span class="op">;</span> time<span class="op">=</span>np.minimum(te,c)<span class="op">;</span> event<span class="op">=</span>(te<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.ExponentialPH()<span class="op">;</span> model.fit(x,time,event)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
@@ -5410,7 +5422,19 @@ d_i(\alpha+x_i&#39;\beta)
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
+<td><code>converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
 <td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>objective</code></td>
 <td><code>()</code></td>
 </tr>
 </tbody>

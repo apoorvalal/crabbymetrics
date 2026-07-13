@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#cross-fitted-nuisance-models-and-ate" id="toc-cross-fitted-nuisance-models-and-ate" class="nav-link" data-scroll-target="#cross-fitted-nuisance-models-and-ate"><span class="header-section-number">2</span> Cross-fitted nuisance models and ATE</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="a7aa5f85" class="cell" data-execution_count="1">
+<div id="08a5befc" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5282,26 +5279,39 @@ window.Quarto = {
 \]</span></p>
 <p>and the estimate is <span class="math inline">\(\hat\tau=E_n[\phi_i]\)</span>.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The estimator owns the stratified split construction, three nuisance fits per fold, clipping, pseudo-outcome, and influence-score covariance.</p>
+<ol type="1">
+<li>Treatment must be exactly floating-point 0 or 1 with both arms represented. Within each arm, row indices are sorted by the deterministic SplitMix64 hash of <code>seed ^ index</code> and distributed round-robin over outer folds. This preserves treatment balance as far as arm size allows without a mutable RNG.</li>
+<li>For each outer complement, local treated and control indices are extracted. The two outcome regressions are fit only within their respective arms; the propensity regression uses the complete complement and treats <span class="math inline">\(D\)</span> as a continuous response.</li>
+<li>Every nuisance uses the same unstandardized, unpenalized-intercept augmented-QR ridge helper. A penalty grid triggers separate deterministic local inner CV for <span class="math inline">\(\mu_0\)</span>, <span class="math inline">\(\mu_1\)</span>, and <span class="math inline">\(\pi\)</span>; small arm-specific training sets below four rows use the first penalty directly.</li>
+<li>All three fitted models predict the held-out <span class="math inline">\(X\)</span>. Outcome predictions are stored unchanged. Propensity predictions from the linear-probability model are clipped immediately to <span class="math inline">\([c,1-c]\)</span> before storage; the unclipped values and the number of clipped predictions are not retained.</li>
+<li>Once every row has out-of-fold nuisances, the implementation constructs the augmented pseudo-outcome elementwise and takes its arithmetic mean. Selected penalties are retained as three fold-length arrays; nuisance coefficients themselves are discarded.</li>
+<li>Summary reconstructs the same pseudo-outcome from stored arrays, centers it by <span class="math inline">\(\hat\tau\)</span>, and treats those values as scalar influence scores. IID, HC1, Newey-West, or cluster aggregation operates on that fixed out-of-fold score vector and returns a <span class="math inline">\(1\times1\)</span> covariance.</li>
+</ol>
+<p>The linear propensity fit is an explicit teaching choice: it keeps every nuisance in the same ridge machinery and makes clipping visible. It is not a logistic likelihood, so frequent boundary clipping is evidence that this working model is extrapolating beyond the probability scale.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>The influence score used for covariance is <span class="math inline">\(\phi_i-\hat\tau\)</span>. Vanilla is its uncorrected iid empirical variance divided by <span class="math inline">\(n\)</span>; HC1, Bartlett Newey-West, and cluster options apply the common finite-sample corrections. The calculation is conditional on the realized cross-fit and selected nuisance penalties. There is no bootstrap, repeated sample splitting, or built-in Wald method.</p>
 <p>The usual double-robust interpretation requires at least one nuisance structure to be correctly specified and standard overlap and sampling assumptions. Clipping stabilizes denominators but changes the estimating equation and does not diagnose lack of overlap. Every outer training fold must contain treated and control observations.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Each outer fold fits separate treated and control outcome models plus a propensity model. With <span class="math inline">\(K\)</span> folds, <span class="math inline">\(L\)</span> candidate penalties, and <span class="math inline">\(F\)</span> inner folds, the workload is roughly <span class="math inline">\(3KLF\)</span> dense ridge solves, with smaller outcome samples inside treatment arms. No factorization is reused. The class stores all held-out nuisance predictions and selected penalties. Small treatment groups, many controls, raw feature scaling, and predictions frequently hitting the clipping bounds are the main stability concerns.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.AIPW</code></p>
 <p>Call <code>fit(y, d, x)</code> with binary treatment <code>d</code>. <code>summary()</code> reports <code>ate</code>, <code>se</code>, <code>vcov</code>, and selected penalties for the outcome and propensity nuisance models.</p>
-<div id="566b12c7" class="cell" data-execution_count="2">
+<div id="d12ed196" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.AIPW))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(penalty=None, cv=5, n_folds=5, propensity_clip=0.02, seed=42)</code></pre>
 </div>
 </div>
-<div id="22b3c68d" class="cell" data-execution_count="3">
+<div id="66f40cb8" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.AIPW</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5323,9 +5333,9 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="87da73cf" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="7fc4bf3a" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">14</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">420</span>, <span class="dv">3</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> (<span class="dv">1</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="fl">0.1</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.2</span>]))))</span>
@@ -5341,10 +5351,10 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="55aca218" class="cell" data-execution_count="5">
+<div id="e01e4e40" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">114</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">160</span>, <span class="dv">3</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>pi <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> (<span class="dv">1</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="fl">0.1</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.2</span>]))))</span>

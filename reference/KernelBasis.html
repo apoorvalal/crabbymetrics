@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5217,10 +5213,16 @@ window.Quarto = {
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#kernel-definitions" id="toc-kernel-definitions" class="nav-link" data-scroll-target="#kernel-definitions"><span class="header-section-number">2</span> Kernel definitions</a></li>
   <li><a href="#approximate-bases" id="toc-approximate-bases" class="nav-link" data-scroll-target="#approximate-bases"><span class="header-section-number">3</span> Approximate bases</a></li>
-  <li><a href="#inference-and-performance" id="toc-inference-and-performance" class="nav-link" data-scroll-target="#inference-and-performance"><span class="header-section-number">4</span> Inference and performance</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">4</span> Implementation walkthrough</a>
+  <ul class="collapse">
+  <li><a href="#exact-kernelbasis" id="toc-exact-kernelbasis" class="nav-link" data-scroll-target="#exact-kernelbasis"><span class="header-section-number">4.1</span> Exact <code>KernelBasis</code></a></li>
+  <li><a href="#nystrombasis" id="toc-nystrombasis" class="nav-link" data-scroll-target="#nystrombasis"><span class="header-section-number">4.2</span> <code>NystromBasis</code></a></li>
+  <li><a href="#randomfourierfeatures" id="toc-randomfourierfeatures" class="nav-link" data-scroll-target="#randomfourierfeatures"><span class="header-section-number">4.3</span> <code>RandomFourierFeatures</code></a></li>
+  </ul></li>
+  <li><a href="#inference-and-performance" id="toc-inference-and-performance" class="nav-link" data-scroll-target="#inference-and-performance"><span class="header-section-number">5</span> Inference and performance</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5249,7 @@ window.Quarto = {
 </header>
 
 
-<div id="7d53a2a5" class="cell" data-execution_count="1">
+<div id="b979152e" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5301,22 +5303,51 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 \]</span></p>
 <p>Its feature inner products approximate the Gaussian kernel in expectation. An omitted seed still uses a fixed internal seed, so repeated fits are reproducible rather than independently randomized.</p>
 </section>
-<section id="inference-and-performance" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="inference-and-performance"><span class="header-section-number">4</span> Inference and performance</h2>
+<section id="implementation-walkthrough" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">4</span> Implementation walkthrough</h2>
+<p>These three classes share kernel conventions but have deliberately different implementation boundaries.</p>
+<section id="exact-kernelbasis" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="exact-kernelbasis"><span class="header-section-number">4.1</span> Exact <code>KernelBasis</code></h3>
+<ol type="1">
+<li><code>fit()</code> asks Linfa’s kernel builder to materialize the square training Gram matrix and stores both that dense matrix and an owned copy of the training rows. This is the only delegated numerical primitive on this page.</li>
+<li><code>transform()</code> is package-owned. It checks the incoming feature count and uses nested row loops to evaluate the selected Linfa kernel method between every new row and every stored training row. Thus training and out-of-sample transformations use the same kernel definition but not the same matrix-building path.</li>
+<li><code>fit_transform()</code> returns the already materialized training Gram matrix. <code>summary()</code> reads its diagonal rather than recomputing self-similarities.</li>
+</ol>
+</section>
+<section id="nystrombasis" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="nystrombasis"><span class="header-section-number">4.2</span> <code>NystromBasis</code></h3>
+<ol type="1">
+<li>The landmark indices begin as <code>0..n</code>. With a seed they are shuffled once; without a seed they remain in data order. The vector is truncated to <span class="math inline">\(m\)</span> and then sorted, so <code>summary()</code> reports landmarks in original row order even when the subset was random.</li>
+<li>Native cross-kernel loops form <span class="math inline">\(K_{mm}\)</span>. The implementation adds <code>ridge</code> to its diagonal, runs a symmetric eigendecomposition, floors each resulting eigenvalue at <span class="math inline">\(10^{-14}\)</span>, and reconstructs <span class="math inline">\(U\operatorname{diag}(\lambda_j^{-1/2})U&#39;\)</span>. The floor is applied after the requested ridge shift.</li>
+<li>A transform forms <span class="math inline">\(K(x,X_m)\)</span> with the same nested kernel loops and right-multiplies by the stored inverse square root. It retains landmarks and the dense <span class="math inline">\(m\times m\)</span> factor, but not the original full training sample.</li>
+</ol>
+</section>
+<section id="randomfourierfeatures" class="level3" data-number="4.3">
+<h3 data-number="4.3" class="anchored" data-anchor-id="randomfourierfeatures"><span class="header-section-number">4.3</span> <code>RandomFourierFeatures</code></h3>
+<ol type="1">
+<li><code>fit()</code> seeds a Rust standard RNG from the supplied seed or the fixed hexadecimal constant <code>0xF0471E5</code>. It draws standard-normal pairs with a Box-Muller transform, fills the <span class="math inline">\(p\times m\)</span> frequency matrix in row-major logical order, and scales every draw by <span class="math inline">\(\sqrt{2/h}\)</span>.</li>
+<li>It draws a separate length-<span class="math inline">\(m\)</span> phase vector uniformly on <span class="math inline">\([0,2\pi)\)</span>. Neither frequencies nor phases depend on the observed values of <span class="math inline">\(X\)</span>; fitting uses the input only to validate a nonempty sample and record <span class="math inline">\(p\)</span>.</li>
+<li><code>transform()</code> computes one dense matrix product <span class="math inline">\(X\Omega\)</span>, adds the stored phase columnwise, applies cosine, and multiplies by <span class="math inline">\(\sqrt{2/m}\)</span>. The transform is reproducible and stateless after those random arrays have been stored.</li>
+</ol>
+<p>The exact basis makes sample size the feature dimension. Nystrom makes selected observations the basis and pays an <span class="math inline">\(m^3\)</span> eigendecomposition once. Random Fourier features make random spectral draws the basis and reduce transformation to matrix multiplication plus cosine. None centers or standardizes <span class="math inline">\(X\)</span>, so distance scale remains the caller’s responsibility.</p>
+</section>
+</section>
+<section id="inference-and-performance" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="inference-and-performance"><span class="header-section-number">5</span> Inference and performance</h2>
 <p>None of these transforms estimates a response model or supplies statistical inference. KernelBasis fitting and storage are <span class="math inline">\(O(n^2p)\)</span> time and <span class="math inline">\(O(n^2+np)\)</span> memory because it materializes the full Gram matrix. Transforming <span class="math inline">\(r\)</span> new rows costs <span class="math inline">\(O(rnp)\)</span> and returns <span class="math inline">\(n\)</span> features.</p>
 <p>NystromBasis costs <span class="math inline">\(O(m^2p+m^3)\)</span> to fit and approximately <span class="math inline">\(O(rmp+rm^2)\)</span> to transform, with <span class="math inline">\(O(mp+m^2)\)</span> fitted storage. RandomFourierFeatures stores <span class="math inline">\(O(pm)\)</span> random weights and transforms in <span class="math inline">\(O(rpm)\)</span>. Kernel and random-feature outputs are dense; downstream ridge or OLS can still become expensive when <span class="math inline">\(m\)</span> or the exact training-basis width is large.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructors: <code>cm.KernelBasis</code>, <code>cm.NystromBasis</code>, and <code>cm.RandomFourierFeatures</code></p>
 <p>All three classes expose <code>fit</code>, <code>transform</code>, <code>fit_transform</code>, and <code>summary</code>. <code>KernelBasis</code> uses the full training sample as its basis. <code>NystromBasis(n_components, ...)</code> selects landmark rows and takes a kernel ridge for its inverse square root. <code>RandomFourierFeatures(n_components, bandwidth, seed)</code> draws a fixed-width Gaussian-kernel approximation.</p>
-<div id="f9e4029c" class="cell" data-execution_count="2">
+<div id="a52b5b61" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.KernelBasis))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(kernel=&#39;gaussian&#39;, bandwidth=0.5, coef0=1.0, degree=2.0)</code></pre>
 </div>
 </div>
-<div id="20c8361b" class="cell" data-execution_count="3">
+<div id="179c5b28" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.KernelBasis</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5343,7 +5374,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </table>
 </div>
 </div>
-<div id="41d8ea3e" class="cell" data-execution_count="4">
+<div id="774a5cde" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> (cm.NystromBasis, cm.RandomFourierFeatures):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(cls.<span class="va">__name__</span>, inspect.signature(cls))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -5401,9 +5432,9 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="50248537" class="cell" data-execution_count="5">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="69e40ad2" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">23</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">2</span>))</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.sin(x[:, <span class="dv">0</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">80</span>)</span>
@@ -5430,10 +5461,10 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="d1250e4e" class="cell" data-execution_count="6">
+<div id="646c3614" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">50</span>, <span class="dv">2</span>))</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.KernelBasis(kernel<span class="op">=</span><span class="st">&#39;gaussian&#39;</span>, bandwidth<span class="op">=</span><span class="fl">0.8</span>)</span>
@@ -5481,7 +5512,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </table>
 </div>
 </div>
-<div id="b5fd15b0" class="cell" data-execution_count="7">
+<div id="8b7e5143" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>nystrom <span class="op">=</span> cm.NystromBasis(<span class="dv">10</span>, kernel<span class="op">=</span><span class="st">&#39;gaussian&#39;</span>, bandwidth<span class="op">=</span><span class="fl">0.8</span>, seed<span class="op">=</span><span class="dv">123</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>nystrom.fit(x)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>

@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#criterion-and-absorption" id="toc-criterion-and-absorption" class="nav-link" data-scroll-target="#criterion-and-absorption"><span class="header-section-number">2</span> Criterion and absorption</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="b9f35dea" class="cell" data-execution_count="1">
+<div id="67672939" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5275,8 +5272,22 @@ M_F y = M_F X\beta + M_F u.
 \]</span></p>
 <p>The iterative absorption must converge for the outcome and every regressor; otherwise the fit raises an error. Fixed-effect coefficients are not recovered or stored.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>This class has a narrow delegation boundary: the <code>within</code> Rust crate performs absorption, while crabbymetrics owns orchestration, the slope solve, degrees of freedom, covariance, and Python behavior.</p>
+<ol type="1">
+<li>The wrapper validates aligned rows, at least one regressor and fixed-effect dimension, and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to <code>within::Solver</code> using that crate’s default convergence parameters.</li>
+<li>Instead of invoking absorption separately, it creates one batch whose first right-hand side is <span class="math inline">\(y\)</span> and whose remaining right-hand sides are the columns of <span class="math inline">\(X\)</span>. One solver instance therefore uses the same encoded factors and numerical settings for every variable.</li>
+<li>The fit inspects the convergence flag for every right-hand side. If even one regressor has not converged, it raises an error containing the complete convergence and final-residual vectors. It never combines partially converged columns into a regression.</li>
+<li>The returned demeaned vectors are copied into <span class="math inline">\(y^*=M_Dy\)</span> and <span class="math inline">\(X^*=M_DX\)</span>. The package then applies optional square-root weights again in the slope least-squares solve. This matches the <code>within</code> solver’s weighted projection convention and the weighted Frisch-Waugh-Lovell objective.</li>
+<li>The slope vector and residualized arrays are retained; nuisance fixed-effect coefficients are never reconstructed. This is why the class can report slope inference but deliberately cannot predict level outcomes for new observations.</li>
+<li>For degrees of freedom, one factor contributes its observed level count. Two factors are represented as a bipartite graph and a union-find pass computes <span class="math inline">\(L_1+L_2-C\)</span> exactly. For three or more factors the code counts observed levels and subtracts <span class="math inline">\(J-1\)</span>, labeling the result as conservative rather than claiming exact graph rank.</li>
+<li>Covariance uses <span class="math inline">\(X^*\)</span> and residuals <span class="math inline">\(y^*-X^*\hat\beta\)</span> in the shared linear sandwich code. The bootstrap resamples <span class="math inline">\(X\)</span>, <span class="math inline">\(y\)</span>, every fixed-effect code, and optional weights together, then repeats absorption from scratch.</li>
+</ol>
+<p>The implementation is optimized for many levels and few reported slopes: it avoids dummy expansion but keeps a dense residualized copy of every regressor. Convergence quality belongs to the delegated absorber; inferential conventions and failure policy belong to this wrapper.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>All OLS covariance options are applied to the residualized design and outcome: homoskedastic, HC0-HC3, Newey-West, and cluster robust. The residual degrees of freedom are</p>
 <p><span class="math display">\[
 d_f=n-p-r_D,
@@ -5287,21 +5298,21 @@ r_D=L_1+L_2-C,
 \]</span></p>
 <p>where <span class="math inline">\(C\)</span> is the number of connected components in the bipartite level graph. With three or more factors it uses the conservative approximation <span class="math inline">\(\sum_jL_j-(J-1)\)</span>. Standard errors can therefore be conservative in disconnected multiway designs. Wald tests use the selected covariance, and the pairs bootstrap resamples rows, including all fixed-effect identifiers, before re-absorption and refitting.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Absorption avoids an <span class="math inline">\(n\times\sum_jL_j\)</span> dummy matrix. Each demeaning sweep is approximately <span class="math inline">\(O(n(p+1)J)\)</span> for <span class="math inline">\(J\)</span> fixed-effect dimensions, with total cost multiplied by the number of sweeps required for convergence. Memory is dominated by the residualized <span class="math inline">\(n\times p\)</span> design. Poorly connected factor graphs can converge slowly. Covariance construction remains dense in the slope dimension, and bootstrap cost is the cost of full absorption and regression times the number of draws. Prediction is intentionally unavailable because the nuisance effects are discarded.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.FixedEffectsOLS</code></p>
 <p>Call <code>fit(x, fe, y)</code> or <code>fit_weighted(x, fe, y, sample_weight)</code>. There is no <code>predict()</code> because the class is estimation-first and does not materialize fixed-effect coefficients. <code>summary()</code> supports the same covariance options as the other linear estimators and reports <code>absorbed_df</code>, <code>residual_df</code>, and <code>absorbed_df_method</code>. Rank is exact for one- and two-way fixed effects; three or more dimensions use a labeled conservative count.</p>
-<div id="f1816e59" class="cell" data-execution_count="2">
+<div id="c61b415a" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.FixedEffectsOLS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="0dd0121f" class="cell" data-execution_count="3">
+<div id="ee6615c2" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.FixedEffectsOLS</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5332,9 +5343,9 @@ r_D=L_1+L_2-C,
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="1e95c09e" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="72e23eb4" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">3</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">300</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -5351,10 +5362,10 @@ r_D=L_1+L_2-C,
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="e1daa8a8" class="cell" data-execution_count="5">
+<div id="f95431cb" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">103</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">100</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>

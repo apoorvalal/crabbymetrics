@@ -4863,10 +4863,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="./examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5094,7 +5090,7 @@ vertical-align: -.125em;
 <p>The Python module is assembled in <code>src/lib.rs</code>. <code>Poisson</code> becomes visible in Python because the module initializer explicitly registers it with PyO3:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode rust code-with-copy"><code class="sourceCode rust"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="kw">crate</span><span class="pp">::estimators::</span><span class="op">{</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    ElasticNet<span class="op">,</span> FixedEffectsOLS<span class="op">,</span> Logit<span class="op">,</span> MEstimator<span class="op">,</span> MultinomialLogit<span class="op">,</span> Poisson<span class="op">,</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    SyntheticControl<span class="op">,</span> TwoSLS<span class="op">,</span> FTRL<span class="op">,</span> KernelBasis<span class="op">,</span> OLS<span class="op">,</span> PcaTransformer<span class="op">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    SyntheticControl<span class="op">,</span> TwoSLS<span class="op">,</span> KernelBasis<span class="op">,</span> OLS<span class="op">,</span> PcaTransformer<span class="op">,</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>pymodule<span class="at">]</span></span>

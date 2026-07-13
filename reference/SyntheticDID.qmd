@@ -60,6 +60,21 @@ $$
 
 and the overall ATT averages cohort estimates with weights $N_gT_{\mathrm{post}}$. The displayed counterfactual path instead uses the unit-weight fit $a+Y_C'\omega$ at every time; its cell effects and event-study summaries are useful diagnostics but are not the same time-weighted decomposition used for $\hat\tau_g$.
 
+## Implementation walkthrough
+
+The implementation fits staggered adoption cohort by cohort and reuses one native softmax least-squares solver for both simplex problems.
+
+1. The shared panel parser enforces binary absorbing treatment, infers first-treatment periods, and requires never-treated controls plus at least one pre-period for every cohort. For cohort $g$, rows are reordered as all never-treated controls followed by units first treated at $g$.
+2. The default noise scale pools first differences $Y_{i,t}-Y_{i,t-1}$ over control units and cohort-specific pre-periods and uses their sample standard deviation. This one $\hat\sigma_g$ generates both default penalties. With fewer than two differences it is zero, so the defaults can become unregularized.
+3. Time weights use $Y_{C,\mathrm{pre}}$ as a $C\times T_0$ design and the control post-period mean by unit as its target. Unit weights use $Y_{C,\mathrm{pre}}'$ as a $T_0\times C$ design and the treated-cohort pre-period mean by time as its target.
+4. In either problem, softmax maps a zero-initialized unconstrained vector to a uniform simplex. The residual is demeaned internally, profiling out an intercept. The gradient adds $\zeta^2w$ in weight coordinates and applies the softmax Jacobian as $w\odot(g_w-w'g_w)$. Seven-pair L-BFGS uses More-Thuente search and fixed $10^{-8}$ gradient and $10^{-12}$ cost tolerances.
+5. After weights converge, the profiled intercept is recomputed as the mean target-minus-fit residual. The unit intercept and weights generate the displayed full cohort counterfactual $a_g+Y_C'\omega_g$. The fitted time intercept is retained for diagnostics but is not used in that path.
+6. Separately, signed unit weights $(-\omega,1/N_g)$ and signed time weights $(-\lambda,1/T_{\mathrm{post}})$ are multiplied through the reordered cohort panel to obtain $\hat\tau_g$. Cohort estimates are accumulated with $N_gT_{\mathrm{post}}$ weights. This is why ATT cannot generally be recovered by averaging the displayed diagnostic effect matrix.
+7. Weight matrices are stored in original panel coordinates: control-unit columns or pre-period columns receive fitted values and all irrelevant positions remain zero. Event summaries are computed later from displayed counterfactual cells.
+8. Bootstrap samples whole unit rows and silently skips invalid refits. Placebo shuffles never-treated units, assigns the observed treated timing rows to the last pseudo-treated subset, and also skips failed fits. Both return the sample standard deviation of successful estimates multiplied by $\sqrt{(R-1)/R}$ using the requested replication count $R$, even when fewer fits succeeded. Jackknife instead returns NaN at the first invalid leave-one-out panel and uses the usual $\sqrt{(N-1)\sum(\tau_{-i}-\bar\tau)^2/N}$ formula.
+
+The two fitted simplex problems and the final double difference are cleanly separated in code. That separation is didactically useful, but the permissive skipped-replication inference and its finite-replication multiplier should be treated as implementation conventions, not generic bootstrap theory.
+
 ## Inference
 
 There is no analytic covariance. Bootstrap resamples panel units with replacement, carrying each unit's entire outcome and treatment path, and refits the estimator. Jackknife drops each unit in turn. Placebo inference samples only never-treated units, assigns the observed treated timing patterns to a pseudo-treated subset, and requires more controls than treated units. Failed bootstrap and placebo fits are skipped; too few successful estimates return NaN. A jackknife failure returns NaN immediately. The returned covariance is the square of the resulting scalar standard error.

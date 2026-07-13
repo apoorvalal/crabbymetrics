@@ -76,6 +76,18 @@ $$
 
 in a just-identified linear IV fit and reports the coefficient on $D$. The full moment system jointly accounts for treatment-projection coefficients, $\log\sigma^2$, control means, and outcome coefficients. These are linear-basis OB, IPW, and DR estimators; the class does not fit generic nonparametric derivatives.
 
+## Implementation walkthrough
+
+The three methods share validation and exactly identified sandwich code, but construct their point estimates and nuisance vectors separately.
+
+1. OB computes raw control means, centers $W$, builds the dense columns $(1,W^c,DW^c,D)$, and solves one rectangular least-squares problem. Centering is performed before the interaction, so the last coefficient is the derivative averaged at the sample control mean.
+2. IPW solves $D\sim(1,W)$ by least squares, computes $\hat\sigma^2=v'v/n$, rejects values at or below $10^{-12}$, and forms $g=v/\hat\sigma^2$. It then evaluates the scalar ratio $g'Y/(g'D)$. The nuisance vector stores $\log\hat\sigma^2$ so perturbed covariance calculations keep the variance positive.
+3. DR repeats that treatment projection, centers controls, and builds the OB outcome design. Its instrument matrix replaces the final raw treatment column by $g$. The just-identified IV solve first projects the outcome design on those instruments and then regresses $Y$ on the projected design; the reported target is again the final outcome coefficient.
+4. Each method packs every nuisance component and the target into a fixed order and has a matching row-moment constructor. OB stacks control-centering moments with outcome normal equations. IPW stacks treatment normal equations, a variance moment, and the weighted outcome moment. DR stacks all four blocks.
+5. `summary()` obtains the complete moment matrix, central-differences its mean once per packed parameter coordinate, verifies the Jacobian is square, and maps observation moments through its inverse. The requested iid, HC1, HAC, or cluster covariance is computed for the whole system before the final scalar block is selected.
+
+There is no iterative nonlinear fit in these estimators; all point estimates are closed-form least-squares or IV operations. Most of the computational complexity comes from faithfully propagating nuisance estimation through a numerically differentiated joint moment system.
+
 ## Inference
 
 All three methods use the same exactly identified sandwich machinery. The Jacobian of the full stacked mean-moment vector is computed by central differences, and the empirical moment outer product supplies the meat. Vanilla is the uncorrected iid sandwich; HC1, Bartlett Newey-West, and cluster covariance add the same finite-sample corrections described on the EPLM page. Only the scalar average-derivative covariance block is returned.

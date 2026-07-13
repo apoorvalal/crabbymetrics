@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,10 +5212,15 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#objective-and-transforms" id="toc-objective-and-transforms" class="nav-link" data-scroll-target="#objective-and-transforms"><span class="header-section-number">2</span> Objective and transforms</a></li>
-  <li><a href="#inference-and-performance" id="toc-inference-and-performance" class="nav-link" data-scroll-target="#inference-and-performance"><span class="header-section-number">3</span> Inference and performance</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">4</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">5</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">6</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a>
+  <ul class="collapse">
+  <li><a href="#exact-pca-delegated-solve-package-owned-contract" id="toc-exact-pca-delegated-solve-package-owned-contract" class="nav-link" data-scroll-target="#exact-pca-delegated-solve-package-owned-contract"><span class="header-section-number">3.1</span> Exact <code>PCA</code>: delegated solve, package-owned contract</a></li>
+  <li><a href="#randomizedpca-native-randomized-svd" id="toc-randomizedpca-native-randomized-svd" class="nav-link" data-scroll-target="#randomizedpca-native-randomized-svd"><span class="header-section-number">3.2</span> <code>RandomizedPCA</code>: native randomized SVD</a></li>
+  </ul></li>
+  <li><a href="#inference-and-performance" id="toc-inference-and-performance" class="nav-link" data-scroll-target="#inference-and-performance"><span class="header-section-number">4</span> Inference and performance</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5246,7 +5247,7 @@ window.Quarto = {
 </header>
 
 
-<div id="06f94a8d" class="cell" data-execution_count="1">
+<div id="281c8df7" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5285,22 +5286,45 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 <p>where the ratio denominator includes variance in discarded components.</p>
 <p><strong>PCA</strong> delegates a truncated largest-singular-vector solve to Linfa. <strong>RandomizedPCA</strong> instead constructs a randomized range of width <span class="math inline">\(k+s\)</span>, performs the requested power iterations, and takes a small SVD in that range. It returns unwhitened scores only and exposes singular values but not explained-variance fields.</p>
 </section>
-<section id="inference-and-performance" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference-and-performance"><span class="header-section-number">3</span> Inference and performance</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<section id="exact-pca-delegated-solve-package-owned-contract" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="exact-pca-delegated-solve-package-owned-contract"><span class="header-section-number">3.1</span> Exact <code>PCA</code>: delegated solve, package-owned contract</h3>
+<ol type="1">
+<li>The wrapper validates that at least two rows are present and separately computes the total sample variance from the centered entries. That full-spectrum denominator is retained because a truncated solver alone cannot recover the variance discarded outside the requested components.</li>
+<li>Linfa’s PCA implementation owns centering and the truncated singular-vector solve. The wrapper retains the fitted Linfa object, training row and feature counts, and the independently computed total variance.</li>
+<li><code>transform()</code> delegates projection to the fitted object. <code>summary()</code> converts Linfa’s principal-component columns into public component rows, obtains singular values from the fitted principal values, computes <span class="math inline">\(s_j^2/(n-1)\)</span>, and divides by the separately retained total variance for explained-variance ratios.</li>
+<li>Whitening and inverse transformation are package-facing behavior around that fitted decomposition: score columns are scaled by <span class="math inline">\(\sqrt{n-1}/s_j\)</span> on the way out and unscaled before multiplying by component rows and restoring the training mean.</li>
+</ol>
+</section>
+<section id="randomizedpca-native-randomized-svd" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="randomizedpca-native-randomized-svd"><span class="header-section-number">3.2</span> <code>RandomizedPCA</code>: native randomized SVD</h3>
+<ol type="1">
+<li>The class computes and stores the column mean, centers an owned copy of <span class="math inline">\(X\)</span>, and calls the package’s randomized SVD with target rank <span class="math inline">\(k\)</span>, oversampling <span class="math inline">\(s\)</span>, and power count <span class="math inline">\(q\)</span>. The sketch width is <span class="math inline">\(\min(k+s,\min(n,p))\)</span>; ranks beyond the matrix dimensions and more than ten power iterations are rejected.</li>
+<li>The range finder draws a scaled Rademacher matrix whose entries are <span class="math inline">\(\pm1/\sqrt{k+s}\)</span> using the supplied seed or a fixed default. It forms <span class="math inline">\(Y=X_c\Omega\)</span> and obtains <span class="math inline">\(Q\)</span> from a dense QR factorization.</li>
+<li>Each power iteration forms <span class="math inline">\(X_c&#39;Q\)</span>, orthonormalizes it, multiplies back by <span class="math inline">\(X_c\)</span>, and orthonormalizes again. Reorthogonalizing on both sides limits loss of numerical rank when singular values have a wide spread.</li>
+<li>The code projects to the small matrix <span class="math inline">\(B=Q&#39;X_c\)</span>, computes a full dense SVD of <span class="math inline">\(B\)</span>, keeps its first <span class="math inline">\(k\)</span> triplets, and maps left vectors back as <span class="math inline">\(U=Q\tilde U\)</span>. <code>RandomizedPCA</code> stores the first <span class="math inline">\(k\)</span> right-singular-vector rows and singular values; it does not retain <span class="math inline">\(U\)</span>.</li>
+<li>Transform and inverse transform are direct <span class="math inline">\((X-\bar X)V_k\)</span> and <span class="math inline">\(ZV_k&#39;+\bar X\)</span> products. There is no whitening branch and no uncertainty calculation for the randomized subspace.</li>
+</ol>
+<p>The approximation error comes from the randomized range, not from the final small SVD. Oversampling gives the range finder room to capture directions near the rank cutoff; power iterations amplify spectral gaps but require two extra matrix passes apiece. The fixed fallback seed makes an omitted seed reproducible.</p>
+</section>
+</section>
+<section id="inference-and-performance" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-and-performance"><span class="header-section-number">4</span> Inference and performance</h2>
 <p>These are deterministic or randomized feature transforms, not statistical coefficient estimators; neither class provides standard errors or uncertainty for the learned subspace. Principal directions are sign-indeterminate, and repeated singular values identify only a subspace.</p>
 <p>A full centered design requires <span class="math inline">\(O(np)\)</span> storage. Truncated PCA cost depends on the iterative eigensolver and requested <span class="math inline">\(k\)</span>. RandomizedPCA costs roughly <span class="math inline">\(O(np(k+s)(q+1))\)</span> for oversampling <span class="math inline">\(s\)</span> and power count <span class="math inline">\(q\)</span>, plus a small decomposition, and is most useful when <span class="math inline">\(k+s\ll\min(n,p)\)</span>. More power iterations improve spectral separation at additional passes over <span class="math inline">\(X\)</span>. Both transforms densify their input.</p>
 </section>
-<section id="python-api" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="python-api"><span class="header-section-number">4</span> Python API</h2>
+<section id="python-api" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
 <p>Constructors: <code>cm.PCA</code> and <code>cm.RandomizedPCA</code></p>
 <p>Use <code>PCA(n_components, whiten=False)</code> for the Linfa truncated solver or <code>RandomizedPCA(n_components, oversamples=10, power_iter=1, seed=None)</code> for randomized SVD. Both expose <code>fit</code>, <code>transform</code>, <code>fit_transform</code>, <code>inverse_transform</code>, and <code>summary</code>. At least two rows are required for <code>PCA</code>; randomized rank cannot exceed <code>min(x.shape)</code>.</p>
-<div id="5a2f889a" class="cell" data-execution_count="2">
+<div id="18236ae1" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.PCA))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(n_components, whiten=False)</code></pre>
 </div>
 </div>
-<div id="ed1e7eb4" class="cell" data-execution_count="3">
+<div id="d3afd45b" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.PCA</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5330,7 +5354,7 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 </table>
 </div>
 </div>
-<div id="36fe1d71" class="cell" data-execution_count="4">
+<div id="3a38b9ea" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.RandomizedPCA</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5361,9 +5385,9 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">5</span> Minimal example</h2>
-<div id="34fb50d4" class="cell" data-execution_count="5">
+<section id="minimal-example" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
+<div id="f2830e74" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">22</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">150</span>, <span class="dv">5</span>)) <span class="op">@</span> np.array([[<span class="dv">1</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>, <span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">0</span>, <span class="fl">0.8</span>, <span class="fl">0.3</span>, <span class="fl">0.1</span>, <span class="dv">0</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.5</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.3</span>, <span class="fl">0.2</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.1</span>]])</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.PCA(n_components<span class="op">=</span><span class="dv">2</span>)</span>
@@ -5386,10 +5410,10 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">6</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="57cc81b4" class="cell" data-execution_count="6">
+<div id="889ade2d" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">122</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">5</span>))</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.PCA(n_components<span class="op">=</span><span class="dv">2</span>)</span>

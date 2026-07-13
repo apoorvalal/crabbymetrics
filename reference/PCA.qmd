@@ -68,6 +68,25 @@ where the ratio denominator includes variance in discarded components.
 
 **PCA** delegates a truncated largest-singular-vector solve to Linfa. **RandomizedPCA** instead constructs a randomized range of width $k+s$, performs the requested power iterations, and takes a small SVD in that range. It returns unwhitened scores only and exposes singular values but not explained-variance fields.
 
+## Implementation walkthrough
+
+### Exact `PCA`: delegated solve, package-owned contract
+
+1. The wrapper validates that at least two rows are present and separately computes the total sample variance from the centered entries. That full-spectrum denominator is retained because a truncated solver alone cannot recover the variance discarded outside the requested components.
+2. Linfa's PCA implementation owns centering and the truncated singular-vector solve. The wrapper retains the fitted Linfa object, training row and feature counts, and the independently computed total variance.
+3. `transform()` delegates projection to the fitted object. `summary()` converts Linfa's principal-component columns into public component rows, obtains singular values from the fitted principal values, computes $s_j^2/(n-1)$, and divides by the separately retained total variance for explained-variance ratios.
+4. Whitening and inverse transformation are package-facing behavior around that fitted decomposition: score columns are scaled by $\sqrt{n-1}/s_j$ on the way out and unscaled before multiplying by component rows and restoring the training mean.
+
+### `RandomizedPCA`: native randomized SVD
+
+1. The class computes and stores the column mean, centers an owned copy of $X$, and calls the package's randomized SVD with target rank $k$, oversampling $s$, and power count $q$. The sketch width is $\min(k+s,\min(n,p))$; ranks beyond the matrix dimensions and more than ten power iterations are rejected.
+2. The range finder draws a scaled Rademacher matrix whose entries are $\pm1/\sqrt{k+s}$ using the supplied seed or a fixed default. It forms $Y=X_c\Omega$ and obtains $Q$ from a dense QR factorization.
+3. Each power iteration forms $X_c'Q$, orthonormalizes it, multiplies back by $X_c$, and orthonormalizes again. Reorthogonalizing on both sides limits loss of numerical rank when singular values have a wide spread.
+4. The code projects to the small matrix $B=Q'X_c$, computes a full dense SVD of $B$, keeps its first $k$ triplets, and maps left vectors back as $U=Q\tilde U$. `RandomizedPCA` stores the first $k$ right-singular-vector rows and singular values; it does not retain $U$.
+5. Transform and inverse transform are direct $(X-\bar X)V_k$ and $ZV_k'+\bar X$ products. There is no whitening branch and no uncertainty calculation for the randomized subspace.
+
+The approximation error comes from the randomized range, not from the final small SVD. Oversampling gives the range finder room to capture directions near the rank cutoff; power iterations amplify spectral gaps but require two extra matrix passes apiece. The fixed fallback seed makes an omitted seed reproducible.
+
 ## Inference and performance
 
 These are deterministic or randomized feature transforms, not statistical coefficient estimators; neither class provides standard errors or uncertainty for the learned subspace. Principal directions are sign-indeterminate, and repeated singular values identify only a subspace.

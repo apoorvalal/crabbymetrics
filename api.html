@@ -4868,10 +4868,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="./examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5121,7 +5117,7 @@ vertical-align: -.125em;
 <li>it shows the live constructor and method surface from the installed module;</li>
 <li>it groups the growing class list into a navigable left-TOC landing page instead of relying on an oversized navbar dropdown.</li>
 </ul>
-<div id="19c44dac" class="cell" data-execution_count="1">
+<div id="e0861538" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5197,7 +5193,6 @@ vertical-align: -.125em;
 <li><a href="./reference/Logit.html">Logit</a></li>
 <li><a href="./reference/MultinomialLogit.html">MultinomialLogit</a></li>
 <li><a href="./reference/Poisson.html">Poisson</a></li>
-<li><a href="./reference/FTRL.html">FTRL</a></li>
 </ul>
 <p>Worked docs:</p>
 <ul>
@@ -5209,7 +5204,7 @@ vertical-align: -.125em;
 <li><a href="./examples/multinomial-logit.html">Multinomial Logit</a></li>
 <li><a href="./examples/poisson.html">Poisson</a></li>
 </ul>
-<div id="5103ac01" class="cell" data-execution_count="2">
+<div id="bf280215" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
@@ -5222,9 +5217,8 @@ vertical-align: -.125em;
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        cm.Logit,</span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        cm.MultinomialLogit,</span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        cm.Poisson,</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        cm.FTRL,</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
 <colgroup>
@@ -5316,13 +5310,6 @@ vertical-align: -.125em;
 <code>summary(self, /, vcov=&#39;vanilla&#39;)</code><br>
 <code>wald_test(self, /, r, q=None, vcov=&#39;vanilla&#39;)</code></td>
 </tr>
-<tr class="even">
-<td><code>FTRL(alpha=0.1, beta=1.0, l1_ratio=1.0, l2_ratio=1.0)</code></td>
-<td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
-<code>fit(self, /, x, y)</code><br>
-<code>predict(self, /, x)</code><br>
-<code>summary(self, /)</code></td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -5342,7 +5329,7 @@ vertical-align: -.125em;
 <li><a href="./examples/survival-time-to-event-and-recurrent-events.html">Survival / Time-to-Event / Recurrent Events</a></li>
 <li><a href="./examples/survival-models.html">Survival Models (compact worked example)</a></li>
 </ul>
-<div id="4a0243a9" class="cell" data-execution_count="3">
+<div id="bb006983" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
@@ -5440,7 +5427,7 @@ vertical-align: -.125em;
 <li><a href="./reference/PCA.html">PCA and RandomizedPCA</a></li>
 <li><a href="./reference/KernelBasis.html">KernelBasis, NystromBasis, and RandomFourierFeatures</a></li>
 </ul>
-<div id="56e01591" class="cell" data-execution_count="4">
+<div id="9a7d5a60" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>

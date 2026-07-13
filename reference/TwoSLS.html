@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#criterion-and-first-stage-projection" id="toc-criterion-and-first-stage-projection" class="nav-link" data-scroll-target="#criterion-and-first-stage-projection"><span class="header-section-number">2</span> Criterion and first-stage projection</a></li>
-  <li><a href="#inference-and-weak-instrument-test" id="toc-inference-and-weak-instrument-test" class="nav-link" data-scroll-target="#inference-and-weak-instrument-test"><span class="header-section-number">3</span> Inference and weak-instrument test</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference-and-weak-instrument-test" id="toc-inference-and-weak-instrument-test" class="nav-link" data-scroll-target="#inference-and-weak-instrument-test"><span class="header-section-number">4</span> Inference and weak-instrument test</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="9bf999a1" class="cell" data-execution_count="1">
+<div id="36714369" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5275,8 +5272,22 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 \]</span></p>
 <p>Weighted fitting applies <span class="math inline">\(\sqrt{w_i}\)</span> to <span class="math inline">\(y_i\)</span>, every regressor, and every instrument before constructing the projection. The sketched method applies one joint CountSketch to <span class="math inline">\(y\)</span>, <span class="math inline">\(\tilde X\)</span>, and <span class="math inline">\(\tilde Z\)</span> and performs both stages in the sketched sample; it is an approximate point estimate.</p>
 </section>
-<section id="inference-and-weak-instrument-test" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference-and-weak-instrument-test"><span class="header-section-number">3</span> Inference and weak-instrument test</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The estimator implements 2SLS as two rectangular least-squares problems, avoiding an explicit <span class="math inline">\(n\times n\)</span> projection matrix.</p>
+<ol type="1">
+<li>The package concatenates endogenous regressors before exogenous controls for the reported second-stage design. The instrument design contains exogenous controls before excluded instruments. A common intercept column is prepended to both. It rejects fewer excluded instruments than endogenous regressors and any total instrument width smaller than the regressor width.</li>
+<li>A weighted fit scales <span class="math inline">\(\tilde X\)</span>, <span class="math inline">\(\tilde Z\)</span>, and <span class="math inline">\(y\)</span> rowwise by the same <span class="math inline">\(\sqrt{w_i}\)</span>. It then solves the multi-response least-squares problem <span class="math inline">\(\tilde Z\Pi\approx\tilde X\)</span> and forms <span class="math inline">\(\hat X=\tilde Z\hat\Pi\)</span>. No projection matrix <span class="math inline">\(P_Z\)</span> is materialized.</li>
+<li>The second rectangular solve is <span class="math inline">\(\hat X\theta\approx y\)</span>. Algebraically it is the usual 2SLS estimator, but numerically both stages use the shared least-squares primitive rather than inverses of <span class="math inline">\(Z&#39;Z\)</span> and <span class="math inline">\(X&#39;P_ZX\)</span>.</li>
+<li>The CountSketch path first constructs the full aligned designs, then hashes every observation once to a bucket and sign. That same draw is accumulated jointly into <span class="math inline">\(S\tilde X\)</span>, <span class="math inline">\(S\tilde Z\)</span>, and <span class="math inline">\(Sy\)</span>, preserving their row alignment. Both least-squares stages occur entirely in the sketched sample. The sketch width must be at least the larger design width.</li>
+<li>After either fit, the wrapper splits the intercept and slopes but stores the original endogenous, exogenous, instrument, outcome, and optional weight arrays. Full-sample structural residuals <span class="math inline">\(y-\tilde X\hat\theta\)</span> drive every covariance and diagnostic, including after a sketched point estimate.</li>
+<li>Robust covariance is implemented through GMM-style parameter scores. It forms <span class="math inline">\(W=(Z&#39;Z/n)^{-1}\)</span>, <span class="math inline">\(G=-Z&#39;X/n\)</span>, transforms observation moments <span class="math inline">\(z_i\hat u_i\)</span> by <span class="math inline">\(WG(G&#39;WG)^{-1}/n\)</span>, and passes those parameter-score rows to the shared HC1, HAC, or cluster aggregator.</li>
+<li>The Anderson-Rubin method for one endogenous regressor constructs <span class="math inline">\(y_0=y-\beta_0x_e\)</span>, residualizes the null regression against included exogenous variables, and tests the excluded-instrument block jointly. This test is recomputed for the supplied null rather than inferred from the 2SLS Wald covariance.</li>
+</ol>
+<p>The explicit fitted-regressor route is easy to inspect and stable relative to normal equations, but it materializes another dense <span class="math inline">\(n\times p\)</span> matrix. The implementation checks order conditions, not statistical rank or instrument strength; near-collinearity is left to the numerical solve and diagnostics.</p>
+</section>
+<section id="inference-and-weak-instrument-test" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-and-weak-instrument-test"><span class="header-section-number">4</span> Inference and weak-instrument test</h2>
 <p>Define <span class="math inline">\(g_i=z_i\hat u_i\)</span>, <span class="math inline">\(G=-\tilde Z&#39;\tilde X/n\)</span>, <span class="math inline">\(W=(\tilde Z&#39;\tilde Z/n)^{-1}\)</span>, and <span class="math inline">\(A=G&#39;WG\)</span>. The homoskedastic covariance is</p>
 <p><span class="math display">\[
 \widehat V_{\mathrm{vanilla}}
@@ -5294,21 +5305,21 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 <p>The implemented <span class="math inline">\(\hat\Omega\)</span> choices are HC1 iid scores, Bartlett Newey-West scores, and cluster sums with the same finite-sample corrections used by OLS. Wald tests use this covariance. The pairs bootstrap resamples all outcome, regressor, instrument, and weight rows together.</p>
 <p>For one endogenous regressor, the Anderson-Rubin method tests <span class="math inline">\(H_0:\beta=\beta_0\)</span> by regressing <span class="math inline">\(y-\beta_0x_{\mathrm{endog}}\)</span> on the included exogenous variables and excluded instruments and jointly testing the excluded-instrument coefficients. It is unavailable with multiple endogenous regressors.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>The two least-squares stages scale with the instrument width as well as the regressor width, and inference forms dense instrument and parameter cross-products. Weak instruments do not necessarily cause a numerical error; they instead make <span class="math inline">\(\tilde X&#39;P_Z\tilde X\)</span> poorly conditioned and conventional Wald inference unreliable, which is why the scalar Anderson-Rubin test is exposed. CountSketch reduces the rows used in both point-estimation stages, but the fitted object retains the full sample and evaluates residuals and covariance there. Large instrument sets still incur quadratic storage and cubic dense-factorization costs in their width.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.TwoSLS</code></p>
 <p>Call <code>fit(x_endog, x_exog, z, y)</code>. The <code>predict(x)</code> method expects a second-stage design matrix matching the fitted endogenous+exogenous columns. The robust linear covariance options match <code>OLS</code>: <code>vanilla</code>, <code>hc1</code>, <code>newey_west</code>, and <code>cluster</code>.</p>
-<div id="d63ea119" class="cell" data-execution_count="2">
+<div id="26cbb505" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.TwoSLS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="62f6d1ad" class="cell" data-execution_count="3">
+<div id="ce985c79" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.TwoSLS</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5348,9 +5359,9 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="5d3c88b7" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="07b7cff3" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">9</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -5369,10 +5380,10 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="72ef00f2" class="cell" data-execution_count="5">
+<div id="a211992f" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">109</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">120</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>

@@ -4863,10 +4863,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5093,7 +5089,7 @@ vertical-align: -.125em;
 <p>This example uses a genuinely low-rank untreated panel, adds unit and time effects, masks treated cells through <code>W</code>, and asks <code>MatrixCompletion</code> to fill the counterfactual surface.</p>
 <section id="simulate-a-low-rank-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-low-rank-panel"><span class="header-section-number">1</span> Simulate A Low-Rank Panel</h2>
-<div id="0f88a9bd" class="cell" data-execution_count="1">
+<div id="5a2719ad" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -5101,7 +5097,7 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="6d7e28ab" class="cell" data-execution_count="2">
+<div id="8b719d4f" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4402</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_units <span class="op">=</span> <span class="dv">52</span></span>
@@ -5142,7 +5138,7 @@ true ATT: 1.085</code></pre>
 </section>
 <section id="fit-matrix-completion" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-matrix-completion"><span class="header-section-number">2</span> Fit Matrix Completion</h2>
-<div id="553622f6" class="cell" data-execution_count="3">
+<div id="cdbc6200" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> MatrixCompletion(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    lambda_fraction<span class="op">=</span><span class="fl">0.20</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    fit_unit_effects<span class="op">=</span><span class="va">True</span>,</span>
@@ -5155,16 +5151,19 @@ true ATT: 1.085</code></pre>
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;estimated ATT:&quot;</span>, <span class="bu">round</span>(<span class="bu">float</span>(summary[<span class="st">&quot;att&quot;</span>]), <span class="dv">4</span>))</span>
 <span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;lambda_l:&quot;</span>, <span class="bu">round</span>(<span class="bu">float</span>(summary[<span class="st">&quot;lambda_l&quot;</span>]), <span class="dv">4</span>))</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;iterations:&quot;</span>, summary[<span class="st">&quot;iterations&quot;</span>])</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;final observed-cell RMSE:&quot;</span>, <span class="bu">round</span>(<span class="bu">float</span>(summary[<span class="st">&quot;history_rmse&quot;</span>][<span class="op">-</span><span class="dv">1</span>]), <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;fit diagnostics:&quot;</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    {key: summary[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&quot;converged&quot;</span>, <span class="st">&quot;iterations&quot;</span>, <span class="st">&quot;termination_reason&quot;</span>, <span class="st">&quot;objective&quot;</span>]},</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;final observed-cell RMSE:&quot;</span>, <span class="bu">round</span>(<span class="bu">float</span>(summary[<span class="st">&quot;history_rmse&quot;</span>][<span class="op">-</span><span class="dv">1</span>]), <span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>estimated ATT: 1.1784
 lambda_l: 0.0088
-iterations: 7
+fit diagnostics: {&#39;converged&#39;: True, &#39;iterations&#39;: 7, &#39;termination_reason&#39;: &#39;Relative objective tolerance reached&#39;, &#39;objective&#39;: 0.3626818528165212}
 final observed-cell RMSE: 0.2593</code></pre>
 </div>
 </div>
-<div id="89f39315" class="cell" data-execution_count="4">
+<div id="7df592d4" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>completed <span class="op">=</span> np.asarray(summary[<span class="st">&quot;completed&quot;</span>])</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>counterfactual <span class="op">=</span> np.asarray(summary[<span class="st">&quot;counterfactual&quot;</span>])</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>treatment_effect <span class="op">=</span> np.asarray(summary[<span class="st">&quot;treatment_effect&quot;</span>])</span>

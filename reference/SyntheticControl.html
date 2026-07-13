@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#weight-objective" id="toc-weight-objective" class="nav-link" data-scroll-target="#weight-objective"><span class="header-section-number">2</span> Weight objective</a></li>
-  <li><a href="#inference-and-diagnostics" id="toc-inference-and-diagnostics" class="nav-link" data-scroll-target="#inference-and-diagnostics"><span class="header-section-number">3</span> Inference and diagnostics</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference-and-diagnostics" id="toc-inference-and-diagnostics" class="nav-link" data-scroll-target="#inference-and-diagnostics"><span class="header-section-number">4</span> Inference and diagnostics</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="27a9a341" class="cell" data-execution_count="1">
+<div id="b31f0a77" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5272,25 +5269,41 @@ window.Quarto = {
 \]</span></p>
 <p>It parameterizes <span class="math inline">\(w=\operatorname{softmax}(\theta)\)</span> and uses seven-vector-memory L-BFGS with fixed gradient and cost tolerances. This guarantees an interior simplex vector at every finite <span class="math inline">\(\theta\)</span>; exact zero donor weights are not attainable except through numerical underflow. There is no intercept, predictor weighting, or pre-period weighting.</p>
 </section>
-<section id="inference-and-diagnostics" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference-and-diagnostics"><span class="header-section-number">3</span> Inference and diagnostics</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The simplex objective and softmax gradient are native; Argmin supplies only the generic L-BFGS state machine and line search.</p>
+<ol type="1">
+<li><p><code>fit()</code> validates finite donor and treated arrays, aligned pre-period rows, at least one period and donor, and a positive iteration budget. A single donor is an explicit shortcut returning weight one without optimization.</p></li>
+<li><p>With multiple donors, the unconstrained vector <span class="math inline">\(\theta\)</span> starts at zero, so the first weight vector is uniform. Stable softmax subtracts <span class="math inline">\(\max_j\theta_j\)</span> before exponentiating and normalizing.</p></li>
+<li><p>The cost callback forms <span class="math inline">\(r=Dw-y\)</span> and returns <span class="math inline">\(r&#39;r/(2T_0)\)</span>. The derivative with respect to simplex weights is <span class="math inline">\(g_w=D&#39;r/T_0\)</span>. Rather than materializing a <span class="math inline">\(J\times J\)</span> softmax Jacobian, the code applies it as</p>
+<p><span class="math display">\[
+\nabla_\theta Q=w\odot\{g_w-(w&#39;g_w)\mathbf1\}.
+\]</span></p></li>
+<li><p>Seven-pair L-BFGS uses a More-Thuente line search, gradient tolerance <span class="math inline">\(10^{-8}\)</span>, and cost tolerance <span class="math inline">\(10^{-12}\)</span>. The wrapper rejects any termination status other than solver convergence or target cost; reaching <code>max_iterations</code> does not return the current weights.</p></li>
+<li><p>The accepted best <span class="math inline">\(\theta\)</span> is transformed to weights once more and stored with owned fitting data. <code>predict()</code> checks only the donor-column count and performs a dense matrix-vector product, so the same weights can be applied to post-period donor rows.</p></li>
+<li><p><code>summary()</code> recomputes pre-period RMSE from stored data. The bootstrap samples pre-period row indices with replacement, copies donor and treated rows together, and reruns the complete simplex fit; it returns raw weight draws and aborts on a failed replicate.</p></li>
+</ol>
+<p>Softmax makes feasibility automatic and the chain-rule gradient concise. Its common-shift redundancy and inability to represent exact boundary weights are the price; a projected or active-set simplex solver would expose sparse donor solutions more directly.</p>
+</section>
+<section id="inference-and-diagnostics" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-and-diagnostics"><span class="header-section-number">4</span> Inference and diagnostics</h2>
 <p>The summary reports the weights and in-sample pre-treatment RMSE. The class itself receives only donor and treated fitting paths, so it does not calculate a post-treatment effect or ATT. The bootstrap resamples time rows as iid pairs and refits the weights. Those draws are useful as a sensitivity diagnostic, but they do not preserve time-series dependence and are not converted into a formal covariance or confidence interval.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Each objective and gradient evaluation is <span class="math inline">\(O(T_0J)\)</span> and stores the dense donor matrix. Runtime depends on L-BFGS iterations and is multiplied by the number of bootstrap draws. A single donor bypasses optimization with weight one. Collinear donors make weights weakly identified even when the synthetic path is stable; softmax parameter redundancy also leaves <span class="math inline">\(\theta\)</span> unidentified up to a common shift, though the weights remain identified by the optimization target.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.SyntheticControl</code></p>
 <p>Call <code>fit(donors, treated)</code> where <code>donors</code> is <code>(n_periods, n_donors)</code> and <code>treated</code> is the treated pre-period vector. <code>predict(donors)</code> applies the learned weights to a donor matrix. <code>summary()</code> reports weights and pre-fit RMSE.</p>
-<div id="aa2709de" class="cell" data-execution_count="2">
+<div id="2764ed55" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.SyntheticControl))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(max_iterations=500)</code></pre>
 </div>
 </div>
-<div id="af68885a" class="cell" data-execution_count="3">
+<div id="f71c500a" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.SyntheticControl</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5318,9 +5331,9 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="057f4b74" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="eac71d39" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">15</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>donors <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">40</span>, <span class="dv">4</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>w_true <span class="op">=</span> np.array([<span class="fl">0.45</span>, <span class="fl">0.25</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>])</span>
@@ -5335,10 +5348,10 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="8991ec2d" class="cell" data-execution_count="5">
+<div id="2061a8d8" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">115</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>donors <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">30</span>, <span class="dv">4</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>treated <span class="op">=</span> donors <span class="op">@</span> np.array([<span class="fl">0.45</span>, <span class="fl">0.25</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>])</span>

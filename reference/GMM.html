@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,12 +5212,13 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#criterion-and-weighting" id="toc-criterion-and-weighting" class="nav-link" data-scroll-target="#criterion-and-weighting"><span class="header-section-number">2</span> Criterion and weighting</a></li>
-  <li><a href="#moment-sketch" id="toc-moment-sketch" class="nav-link" data-scroll-target="#moment-sketch"><span class="header-section-number">3</span> Moment sketch</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#moment-sketch" id="toc-moment-sketch" class="nav-link" data-scroll-target="#moment-sketch"><span class="header-section-number">4</span> Moment sketch</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">5</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">6</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">7</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">8</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">9</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5248,7 +5245,7 @@ window.Quarto = {
 </header>
 
 
-<div id="724420a2" class="cell" data-execution_count="1">
+<div id="5afd7f81" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5288,8 +5285,22 @@ W=(\hat\Omega_1+\rho I)^{-1},
 <p>and re-optimizes from <span class="math inline">\(\tilde\theta\)</span>. This is iid two-step GMM; the fit-stage weight cannot be HAC or clustered.</p>
 <p>If no Jacobian callback is supplied, <span class="math inline">\(D\)</span> is computed by central differences with step <span class="math inline">\(h_j=\text{fd eps}\times\max\{|\theta_j|,1\}\)</span>. A supplied callback must return the Jacobian of the mean moments, with shape <span class="math inline">\(m\times p\)</span>, not per-observation derivatives.</p>
 </section>
-<section id="moment-sketch" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="moment-sketch"><span class="header-section-number">3</span> Moment sketch</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The callback bridge, numerical differentiation, Gauss-Newton loop, two-step weighting, sketch, and covariance assembly are package-owned.</p>
+<ol type="1">
+<li>The first callback evaluation at <span class="math inline">\(\theta_0\)</span> establishes <span class="math inline">\(n\)</span> and <span class="math inline">\(m\)</span> and must return a nonempty two-dimensional float array. The fit rejects <span class="math inline">\(m&lt;p\)</span>. Callback outputs are copied from NumPy into owned Rust arrays on every evaluation.</li>
+<li>Without a Jacobian callback, the solver first evaluates the base moment shape, then calls <code>moment_fn</code> at <span class="math inline">\(\theta\pm h_je_j\)</span> for every parameter and central-differences the column means. With a callback, the returned matrix is used directly and checked against <span class="math inline">\((m,p)\)</span> after any sketch projection.</li>
+<li>One Gauss-Newton iteration evaluates moments and Jacobian, forms <span class="math inline">\(D&#39;WD\)</span>, adds <code>ridge</code> to its diagonal, explicitly inverts it, and computes <span class="math inline">\(\Delta=(D&#39;WD+\rho I)^{-1}D&#39;W\bar g\)</span>. A step norm below tolerance returns before updating.</li>
+<li>Otherwise the solver tries <span class="math inline">\(\theta-\alpha\Delta\)</span> for <span class="math inline">\(\alpha=1,1/2,1/4,\ldots\)</span> down to <span class="math inline">\(10^{-8}\)</span>. Every trial calls the Python moment function again. Only a strict criterion decrease is accepted; failure to find one raises rather than returning the current iterate.</li>
+<li>An accepted criterion improvement below tolerance counts as convergence. The iteration counter increments only after an accepted step. Reaching <code>max_iterations</code> raises and no partial fit is installed.</li>
+<li>Identity weighting runs this loop once. Two-step weighting computes the uncentered iid outer product of first-step moment rows, adds the numerical ridge before inversion, and starts a second complete Gauss-Newton solve at the first-step estimate. Reported iterations add both stages and <code>first_step_theta</code> is retained internally.</li>
+<li>Summary reevaluates moments and the Jacobian at the stored estimate. It reconstructs <span class="math inline">\(A=D&#39;WD\)</span>, applies the same diagonal ridge to its inverse, builds the requested moment covariance, and then forms either <span class="math inline">\(A^{-1}/n\)</span> or the full sandwich. Wald tests duplicate this covariance path rather than caching it.</li>
+</ol>
+<p>The line search makes the local quadratic method robust to a poor full step, but it also magnifies Python callback traffic. The diagonal ridge is a numerical device in fitting, weight inversion, and reported covariance; a successful inverse is not evidence of strong identification.</p>
+</section>
+<section id="moment-sketch" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="moment-sketch"><span class="header-section-number">4</span> Moment sketch</h2>
 <p>The sketch does not reduce the number of observations. It draws a dense Rademacher projection <span class="math inline">\(R\in\mathbb R^{m\times s}\)</span> with entries <span class="math inline">\(\pm1/\sqrt{s}\)</span> and replaces</p>
 <p><span class="math display">\[
 g_i(\theta)\ \text{by}\ R&#39;g_i(\theta),
@@ -5298,8 +5309,8 @@ D\ \text{by}\ R&#39;D.
 \]</span></p>
 <p>The sketch size must satisfy <span class="math inline">\(p\leq s\leq m\)</span>. The Python callback still constructs the full <span class="math inline">\(n\times m\)</span> moment matrix on every evaluation before projection, so sketching reduces weight-matrix and Jacobian linear algebra but not callback cost or full-moment allocation. Inference and the overidentification statistic apply to the projected moments.</p>
 </section>
-<section id="inference" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
+<section id="inference" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="inference"><span class="header-section-number">5</span> Inference</h2>
 <p>Let <span class="math inline">\(A=D&#39;WD\)</span> and let <span class="math inline">\(\hat\Omega\)</span> be the selected covariance of <span class="math inline">\(g_i(\hat\theta)\)</span>. The vanilla option returns</p>
 <p><span class="math display">\[
 \widehat V_{\mathrm{vanilla}}=\frac1nA^{-1},
@@ -5318,21 +5329,21 @@ J=n\,\bar g(\hat\theta)&#39;W\bar g(\hat\theta)
 \]</span></p>
 <p>with <span class="math inline">\(m-p\)</span> degrees of freedom, but does not compute a <span class="math inline">\(p\)</span>-value. Wald tests use the requested covariance.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">6</span> Performance and numerical behavior</h2>
 <p>Each numerical-Jacobian evaluation calls the Python moment function at least <span class="math inline">\(2p+1\)</span> times, and each line-search trial calls it again. With dense moments, weight construction and fitting use <span class="math inline">\(m\times m\)</span> matrices and parameter systems of size <span class="math inline">\(p\)</span>. Two-step fitting roughly doubles optimization work. A callback Jacobian is therefore important when moments are expensive. Weak identification appears as an ill-conditioned <span class="math inline">\(D&#39;WD\)</span>; the ridge may permit a numerical answer without establishing statistical identification.</p>
 </section>
-<section id="python-api" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
+<section id="python-api" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="python-api"><span class="header-section-number">7</span> Python API</h2>
 <p>Constructor: <code>cm.GMM</code></p>
 <p>Construct with <code>GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-6, ridge=1e-8, fd_eps=1e-6)</code>. <code>fit(data, theta0, weighting=&#39;auto&#39;)</code> stores the fitted parameters and raises when the iteration budget is exhausted without meeting the convergence tolerance. <code>fit_sketch(...)</code> projects the moment columns to a smaller dimension. <code>summary(vcov=&#39;sandwich&#39;, omega=&#39;iid&#39;, lags=None, clusters=None)</code> controls inference.</p>
-<div id="9a2c181c" class="cell" data-execution_count="2">
+<div id="07968375" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.GMM))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-06, ridge=1e-08, fd_eps=1e-06)</code></pre>
 </div>
 </div>
-<div id="25d57b5f" class="cell" data-execution_count="3">
+<div id="b2333860" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.GMM</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5360,9 +5371,9 @@ J=n\,\bar g(\hat\theta)&#39;W\bar g(\hat\theta)
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="8e231db1" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">8</span> Minimal example</h2>
+<div id="7ad6f8c2" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> moments(theta, data):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> data[<span class="st">&#39;y&#39;</span>] <span class="op">-</span> data[<span class="st">&#39;x&#39;</span>] <span class="op">*</span> theta[<span class="dv">0</span>]</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> data[<span class="st">&#39;z&#39;</span>] <span class="op">*</span> resid[:, <span class="va">None</span>]</span>
@@ -5384,10 +5395,10 @@ J=n\,\bar g(\hat\theta)&#39;W\bar g(\hat\theta)
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">9</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="6395d394" class="cell" data-execution_count="5">
+<div id="4ed8b74d" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> moments(theta, data):</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> data[<span class="st">&#39;y&#39;</span>] <span class="op">-</span> data[<span class="st">&#39;x&#39;</span>] <span class="op">*</span> theta[<span class="dv">0</span>]</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> data[<span class="st">&#39;z&#39;</span>] <span class="op">*</span> resid[:, <span class="va">None</span>]</span>

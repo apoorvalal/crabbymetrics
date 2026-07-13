@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#calibration-system-and-numerical-objective" id="toc-calibration-system-and-numerical-objective" class="nav-link" data-scroll-target="#calibration-system-and-numerical-objective"><span class="header-section-number">2</span> Calibration system and numerical objective</a></li>
-  <li><a href="#diagnostics-and-inference" id="toc-diagnostics-and-inference" class="nav-link" data-scroll-target="#diagnostics-and-inference"><span class="header-section-number">3</span> Diagnostics and inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#diagnostics-and-inference" id="toc-diagnostics-and-inference" class="nav-link" data-scroll-target="#diagnostics-and-inference"><span class="header-section-number">4</span> Diagnostics and inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="16123248" class="cell" data-execution_count="1">
+<div id="9d583c02" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5299,30 +5296,45 @@ r(\beta)=Z&#39;w(\beta)-e_1+(0,s(\beta_{-0})&#39;)&#39;.
 \]</span></p>
 <p>Gauss-Newton uses the analytic residual Jacobian with a small <span class="math inline">\(10^{-8}\)</span> normal-equation ridge and backtracking. Automatic mode tries Gauss-Newton first and falls back to BFGS only when needed. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.</p>
 </section>
-<section id="diagnostics-and-inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="diagnostics-and-inference"><span class="header-section-number">3</span> Diagnostics and inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The class solves a package-owned nonlinear calibration system; the named objective determines the primal-to-dual weight map, while both solver choices minimize squared calibration residuals.</p>
+<ol type="1">
+<li>Optional baseline and target weights are validated and normalized to sum one. With autoscaling, each source column is mapped by its source minimum and range and the identical affine map is applied to target rows. A source range at or below <span class="math inline">\(10^{-12}\)</span> maps both samples to zero in that column; target values are allowed outside <span class="math inline">\([0,1]\)</span>.</li>
+<li>The target mean is computed in fitting coordinates and the dense design <span class="math inline">\(Z=[\mathbf1,X-\bar x_T]\)</span> is built. Entropy starts its dual vector at zero. Quadratic calibration instead solves a linearized calibration system for its starting vector, with a baseline-weight adjustment when supplied.</li>
+<li>Given <span class="math inline">\(\beta\)</span>, one pass computes <span class="math inline">\(Z\beta\)</span>, the entropy or quadratic weight map, and the derivative of each weight with respect to its scalar index. Clipped weights receive derivative zero. The residual is <span class="math inline">\(Z&#39;w-e_1\)</span> plus the radial L2 slack, and the analytic Jacobian is <span class="math inline">\(Z&#39;\operatorname{diag}(w&#39;)Z\)</span> plus the slack Jacobian.</li>
+<li>Native Gauss-Newton forms <span class="math inline">\(J&#39;J+10^{-8}I\)</span>, solves its least-squares system for the step, and halves the step until the residual sum of squares strictly decreases or the scale falls below <span class="math inline">\(10^{-8}\)</span>. Only the scaled residual norm reaching tolerance counts as convergence; small steps or small objective changes alone are explicitly labeled nonconverged.</li>
+<li>The BFGS alternative exposes <span class="math inline">\(\|r(\beta)\|^2/2\)</span> and <span class="math inline">\(J&#39;r\)</span> to Argmin, initializes the inverse Hessian at identity, and uses More-Thuente search. It is accepted as converged only when both Argmin’s status and the package’s residual-norm check pass.</li>
+<li>In <code>solver=&#39;auto&#39;</code>, a nonconverged Gauss-Newton result seeds BFGS. BFGS replaces it only if the BFGS objective is no larger; otherwise the better Gauss-Newton iterate is retained. A finite nonconverged fit is therefore reportable for diagnostics.</li>
+<li>Entropy first permits weights up to <span class="math inline">\(10^8\)</span> and no lower clipping to preserve a smooth solve. If that result violates the requested box, the same solver sequence is rerun from its dual vector with bounded exponential clipping. Quadratic calibration uses the requested box from the start.</li>
+<li>Final <code>success</code> separately requires solver convergence, unit weight sum within <span class="math inline">\(10^{-6}\)</span>, finite weights, and box feasibility. Original-scale weighted means are recomputed from the unscaled covariates, so diagnostic balance is not inferred from the scaled residual.</li>
+</ol>
+<p>This design makes infeasibility observable rather than exceptional: the object can retain the best finite weights with <code>solver_converged=False</code> or <code>success=False</code>. The zero derivative at active clipping bounds also explains why tight boxes can stall either local solver.</p>
+</section>
+<section id="diagnostics-and-inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="diagnostics-and-inference"><span class="header-section-number">4</span> Diagnostics and inference</h2>
 <p>There is no outcome model, treatment-effect estimand, standard error, or covariance calculation. The fitted object returns normalized weights, original-scale mean differences, effective sample size</p>
 <p><span class="math display">\[
 \mathrm{ESS}=\frac{1}{\sum_i w_i^2},
 \]</span></p>
-<p>the dual coefficient, and solver diagnostics. A successful fit must satisfy calibration residual tolerance, weight sum and bounds, and the L2 mean-difference tolerance.</p>
-<p>With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. The final success check also compares the unscaled mean-difference norm to the same L2 tolerance. Consequently, success can be false even when the scaled calibration system converged; the reported original-scale mean differences should be inspected directly.</p>
+<p>the dual coefficient, and solver diagnostics. <code>solver_converged</code> means that the scaled calibration residual satisfies the requested tolerance and, for BFGS, that the optimizer also reports a converged status. The generic <code>converged</code>, <code>iterations</code>, and <code>termination_reason</code> keys describe that same scaled-coordinate solve. <code>success</code> additionally requires finite normalized weights whose sum and box constraints are feasible.</p>
+<p>With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. Solver convergence is intentionally not reclassified by applying that scaled tolerance to unscaled covariates. <code>scaled_residual_norm</code> and <code>solver_objective</code> report the numerical problem; <code>original_balance_l2</code> and <code>original_balance_max_abs</code> report balance in the units supplied by the user. The legacy aliases <code>residual_norm</code>, <code>criterion</code>, <code>l2_diff</code>, and <code>max_abs_diff</code> remain available. Large original-unit imbalance can therefore coexist with solver convergence when feature scales are large, and should be judged substantively rather than against a dimensionless solver tolerance.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
-<p>For <span class="math inline">\(n\)</span> source rows and <span class="math inline">\(p\)</span> covariates, each residual/Jacobian construction forms dense weighted cross-products with about <span class="math inline">\(O(np^2)\)</span> work and <span class="math inline">\(O(np+p^2)\)</span> storage; the Gauss-Newton system costs up to <span class="math inline">\(O(p^3)\)</span>. BFGS fallback adds repeated residual and Jacobian evaluations. Tight box constraints or an infeasible balance tolerance can leave a finite set of weights with success false rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped.</p>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
+<p>For <span class="math inline">\(n\)</span> source rows and <span class="math inline">\(p\)</span> covariates, each residual/Jacobian construction forms dense weighted cross-products with about <span class="math inline">\(O(np^2)\)</span> work and <span class="math inline">\(O(np+p^2)\)</span> storage; the Gauss-Newton system costs up to <span class="math inline">\(O(p^3)\)</span>. BFGS fallback adds repeated residual and Jacobian evaluations. Tight box constraints or an infeasible balance tolerance can leave a finite set of weights with <code>success=False</code> rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped. Very disparate original feature scales favor <code>autoscale=True</code>, but original-unit diagnostics must still be interpreted feature by feature.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.BalancingWeights</code></p>
-<p>Use <code>fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code>. <code>get_weights()</code> returns the fitted source weights. <code>summary()</code> reports balance diagnostics, the dual coefficients, effective sample size, and solver status.</p>
-<div id="09c2dbdd" class="cell" data-execution_count="2">
+<p>Use <code>fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code>. <code>get_weights()</code> returns the fitted source weights. The read-only <code>solver_converged</code> property reports scaled solver convergence, while <code>success</code> also checks weight feasibility. <code>summary()</code> reports both statuses, scaled numerical diagnostics, original-scale balance, the dual coefficients, and effective sample size.</p>
+<div id="3b7b5b88" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.BalancingWeights))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(objective=&#39;quadratic&#39;, solver=&#39;auto&#39;, autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-08)</code></pre>
 </div>
 </div>
-<div id="a2268bc1" class="cell" data-execution_count="3">
+<div id="af4caf24" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.BalancingWeights</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5347,28 +5359,31 @@ r(\beta)=Z&#39;w(\beta)-e_1+(0,s(\beta_{-0})&#39;)&#39;.
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="86e10674" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="91f048e2" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">10</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x0 <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">180</span>, <span class="dv">3</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> rng.normal(loc<span class="op">=</span>np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.1</span>]), size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">3</span>))</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.BalancingWeights(objective<span class="op">=</span><span class="st">&#39;quadratic&#39;</span>, max_iterations<span class="op">=</span><span class="dv">500</span>)</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>model.fit(x0, x1)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary()[<span class="st">&#39;mean_diff&#39;</span>])</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary()[<span class="st">&#39;effective_sample_size&#39;</span>])</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.get_weights()[:<span class="dv">5</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>fit <span class="op">=</span> model.summary()</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;solver_converged&#39;</span>, <span class="st">&#39;success&#39;</span>, <span class="st">&#39;scaled_residual_norm&#39;</span>, <span class="st">&#39;original_balance_l2&#39;</span>]})</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(fit[<span class="st">&#39;mean_diff&#39;</span>])</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(fit[<span class="st">&#39;effective_sample_size&#39;</span>])</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.get_weights()[:<span class="dv">5</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1.11022302e-16 5.55111512e-17 1.17961196e-16]
+<pre><code>{&#39;solver_converged&#39;: True, &#39;success&#39;: True, &#39;scaled_residual_norm&#39;: 2.4007203514854626e-16, &#39;original_balance_l2&#39;: 1.712375058312158e-16}
+[1.11022302e-16 5.55111512e-17 1.17961196e-16]
 155.1166258737379
 [0.00415802 0.00646452 0.00614945 0.00537598 0.00450626]</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="47dd4efb" class="cell" data-execution_count="5">
+<div id="e3e70e5c" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">110</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x0 <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">3</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> rng.normal(loc<span class="op">=</span>np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.1</span>]), size<span class="op">=</span>(<span class="dv">40</span>, <span class="dv">3</span>))</span>
@@ -5418,6 +5433,30 @@ r(\beta)=Z&#39;w(\beta)-e_1+(0,s(\beta_{-0})&#39;)&#39;.
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
+<td><code>solver_converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>scaled_residual_norm</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>solver_objective</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
 <td><code>weight_sum</code></td>
 <td><code>()</code></td>
 </tr>
@@ -5438,7 +5477,15 @@ r(\beta)=Z&#39;w(\beta)-e_1+(0,s(\beta_{-0})&#39;)&#39;.
 <td><code>()</code></td>
 </tr>
 <tr class="even">
+<td><code>original_balance_l2</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
 <td><code>max_abs_diff</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>original_balance_max_abs</code></td>
 <td><code>()</code></td>
 </tr>
 <tr class="odd">

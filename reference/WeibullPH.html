@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#likelihood-and-predictions" id="toc-likelihood-and-predictions" class="nav-link" data-scroll-target="#likelihood-and-predictions"><span class="header-section-number">2</span> Likelihood and predictions</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="c48e5d24" class="cell" data-execution_count="1">
+<div id="d42e18b4" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5255,9 +5252,9 @@ window.Quarto = {
 <p><strong>Group:</strong> Survival / event-time models</p>
 <p><code>WeibullPH</code> generalizes the exponential PH model to</p>
 <p><span class="math display">\[
-h_i(t \mid x_i) = \lambda_0 ho t^{ho-1} \exp(x_i&#39;eta),
+h_i(t \mid x_i) = \lambda_0 \rho t^{\rho-1} \exp(x_i&#39;\beta),
 \]</span></p>
-<p>which nests increasing, decreasing, and constant baseline hazards depending on the shape parameter <span class="math inline">\(ho\)</span>. Like <code>ExponentialPH</code>, it identifies absolute hazard and survival objects.</p>
+<p>which nests increasing, decreasing, and constant baseline hazards depending on the shape parameter <span class="math inline">\(\rho\)</span>. Like <code>ExponentialPH</code>, it identifies absolute hazard and survival objects.</p>
 </section>
 <section id="likelihood-and-predictions" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="likelihood-and-predictions"><span class="header-section-number">2</span> Likelihood and predictions</h2>
@@ -5281,31 +5278,51 @@ d_i\{\alpha+\gamma+x_i&#39;\beta+(\rho-1)\log t_i\}
 -\exp(\alpha+x_i&#39;\beta+\rho\log t_i)
 \right].
 \]</span></p>
-<p>Newton optimization uses analytic derivatives, a <span class="math inline">\(10^{-8}\)</span> Hessian ridge, per-coordinate step clipping to <span class="math inline">\([-2,2]\)</span>, and backtracking. Initialization uses the exponential event-rate estimate for <span class="math inline">\(\alpha\)</span>, zero slopes, and <span class="math inline">\(\rho=1\)</span>. Default prediction is <span class="math inline">\(\exp\{-H(t\mid x)\}\)</span>; the linear prediction is the time-specific log hazard.</p>
+<p>Newton optimization uses analytic derivatives, a <span class="math inline">\(10^{-8}\)</span> Hessian ridge, per-coordinate step clipping to <span class="math inline">\([-2,2]\)</span>, and backtracking. Initialization uses the exponential event-rate estimate for <span class="math inline">\(\alpha\)</span>, zero slopes, and <span class="math inline">\(\rho=1\)</span>. Convergence requires either <span class="math inline">\(\|\nabla\ell\|_\infty&lt;\tau\)</span> or an accepted likelihood change below <span class="math inline">\(\tau(1+|\ell|)\)</span>. Default prediction is <span class="math inline">\(\exp\{-H(t\mid x)\}\)</span>; the linear prediction is the time-specific log hazard.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p><code>WeibullPH</code> reuses the exponential model’s native Newton driver but adds the log-shape coordinate analytically.</p>
+<ol type="1">
+<li><p>The parameter vector is <span class="math inline">\((\alpha,\beta&#39;,\gamma)&#39;\)</span> with <span class="math inline">\(\rho=e^\gamma\)</span>, which enforces a positive shape without constrained optimization. Initialization uses the exponential event-rate log hazard, zero slopes, and <span class="math inline">\(\gamma=0\)</span> so <span class="math inline">\(\rho=1\)</span>.</p></li>
+<li><p>For every row the derivative kernel computes <span class="math inline">\(L_i=\log t_i\)</span>, <span class="math inline">\(z_i=\exp(\alpha+x_i&#39;\beta+\rho L_i)\)</span>, and the full censored likelihood contribution. The <span class="math inline">\((\alpha,\beta)\)</span> score is <span class="math inline">\((d_i-z_i)(1,x_i&#39;)&#39;\)</span>; the shape score is</p>
+<p><span class="math display">\[
+d_i(1+\rho L_i)-z_i\rho L_i.
+\]</span></p></li>
+<li><p>The Hessian’s <span class="math inline">\((\alpha,\beta)\)</span> block is the negative weighted outer product from the exponential model. Cross-derivatives with <span class="math inline">\(\gamma\)</span> use <span class="math inline">\(-z_i(1,x_i&#39;)&#39;\rho L_i\)</span>, and the shape diagonal adds</p>
+<p><span class="math display">\[
+d_i\rho L_i-z_i\{(\rho L_i)^2+\rho L_i\}.
+\]</span></p>
+<p>These are evaluated directly rather than by automatic or finite differentiation.</p></li>
+<li><p>The optimizer subtracts <span class="math inline">\(10^{-8}\)</span> from the log-likelihood Hessian diagonal, explicitly inverts it, clips every coordinate of <span class="math inline">\(H^{-1}g\)</span> to <span class="math inline">\([-2,2]\)</span>, and tries up to 30 step halvings in <span class="math inline">\(\theta-H^{-1}g\)</span>. It accepts a finite nondecreasing likelihood and otherwise aborts.</p></li>
+<li><p>Maximum-score and relative-objective stopping are checked exactly as in <code>ExponentialPH</code>; the iteration cap is not accepted as convergence. The final observed-information covariance is recomputed without the solve ridge.</p></li>
+<li><p>Prediction reconstructs <span class="math inline">\(\rho=e^{\hat\gamma}\)</span>. The time-specific log hazard includes <span class="math inline">\(\log\rho+(\rho-1)\log t\)</span>, while cumulative hazard uses <span class="math inline">\(\exp(\alpha+X\beta)t^\rho\)</span>. Survival is its negative exponential.</p></li>
+</ol>
+<p>Optimizing log shape avoids boundary handling, but large <span class="math inline">\(|\gamma|\)</span> or <span class="math inline">\(|\log t|\)</span> can magnify both <span class="math inline">\(z_i\)</span> and its shape derivatives. Step clipping is the main safeguard; there is no exponential clipping or rescaling inside the implementation.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>The covariance is inverse observed information for the parameter order</p>
 <p><span class="math display">\[
 (\alpha,\ \beta&#39;,\ \gamma)&#39;.
 \]</span></p>
-<p>It is model-based under a correctly specified Weibull PH likelihood, independent observations, and noninformative right censoring. The summary exposes the full covariance and shape but does not split out standard errors. There is no robust, cluster, bootstrap, or Wald method. Maximum-iteration termination is not distinguished from convergence in the stored result; inspect the reported iteration count.</p>
+<p>It is model-based under a correctly specified Weibull PH likelihood, independent observations, and noninformative right censoring. The summary exposes the full covariance and shape but does not split out standard errors. There is no robust, cluster, bootstrap, or Wald method. Reaching <code>max_iterations</code> raises <code>ValueError</code> and leaves the estimator unfitted. A successful summary exposes <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and <code>objective</code>, where <code>objective</code> is the negative log-likelihood.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Dense Hessian construction costs <span class="math inline">\(O(np^2)\)</span> and its Newton solve up to <span class="math inline">\(O(p^3)\)</span> per iteration. Terms involving <span class="math inline">\(\exp(\gamma)\log t\)</span> make the model more sensitive than ExponentialPH to extreme time scales; rescaling time can materially improve conditioning while changing the scale parameter in the expected way. Exponentials are not clipped. The implementation accepts only positive finite stop times and binary event indicators, with no delayed entry, weights, strata, or time-varying covariates.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.WeibullPH</code></p>
-<p>Use <code>fit(x, time, event)</code>. <code>predict_lin(x, time)</code> returns the log hazard at a specific horizon, while <code>predict_hazard</code>, <code>predict_cumulative_hazard</code>, and <code>predict_survival</code> expose the absolute prediction surface. The default <code>predict(x, time)</code> returns survival probabilities.</p>
-<div id="7e1ab7ab" class="cell" data-execution_count="2">
+<p>Use <code>fit(x, time, event)</code>. <code>predict_lin(x, time)</code> returns the log hazard at a specific horizon, while <code>predict_hazard</code>, <code>predict_cumulative_hazard</code>, and <code>predict_survival</code> expose the absolute prediction surface. The default <code>predict(x, time)</code> returns survival probabilities. Times must be positive and finite, events must be binary, and <code>x</code> must be finite.</p>
+<div id="a817f079" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.WeibullPH))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="254ffc8e" class="cell" data-execution_count="3">
+<div id="1d16f179" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.WeibullPH</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5348,29 +5365,31 @@ d_i\{\alpha+\gamma+x_i&#39;\beta+(\rho-1)\log t_i\}
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="ec4b5204" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="b42b7709" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">32</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">300</span>,<span class="dv">2</span>))<span class="op">;</span> rho<span class="op">=</span><span class="fl">1.4</span><span class="op">;</span> lam<span class="op">=</span><span class="fl">0.03</span><span class="op">;</span> u<span class="op">=</span>rng.uniform(size<span class="op">=</span><span class="dv">300</span>)<span class="op">;</span> t_event<span class="op">=</span>(( <span class="op">-</span>np.log(u)) <span class="op">/</span>(lam<span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.45</span>,<span class="op">-</span><span class="fl">0.25</span>]))))<span class="op">**</span>(<span class="fl">1.0</span><span class="op">/</span>rho)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">35</span>,size<span class="op">=</span><span class="dv">300</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>time<span class="op">=</span>np.minimum(t_event,c)<span class="op">;</span> event<span class="op">=</span>(t_event<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.WeibullPH()<span class="op">;</span> model.fit(x,time,event)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_hazard(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_cumulative_hazard(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>fit<span class="op">=</span>model.summary()<span class="op">;</span> <span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;converged&#39;</span>, <span class="st">&#39;iterations&#39;</span>, <span class="st">&#39;termination_reason&#39;</span>, <span class="st">&#39;objective&#39;</span>]})</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_hazard(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_cumulative_hazard(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">3</span>], time[:<span class="dv">3</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[-1.9818025  -2.48230672 -2.03104686]
+<pre><code>{&#39;converged&#39;: True, &#39;iterations&#39;: 5, &#39;termination_reason&#39;: &#39;Relative objective tolerance reached&#39;, &#39;objective&#39;: 768.4966389774979}
+[-1.9818025  -2.48230672 -2.03104686]
 [0.13782059 0.08355028 0.1311981 ]
 [0.94552302 0.49164741 1.19831413]
 [0.38847634 0.61161798 0.30170242]</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="ead1970e" class="cell" data-execution_count="5">
+<div id="89ad1724" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">132</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">140</span>,<span class="dv">2</span>))<span class="op">;</span> rho<span class="op">=</span><span class="fl">1.3</span><span class="op">;</span> lam<span class="op">=</span><span class="fl">0.04</span><span class="op">;</span> u<span class="op">=</span>rng.uniform(size<span class="op">=</span><span class="dv">140</span>)<span class="op">;</span> te<span class="op">=</span>(( <span class="op">-</span>np.log(u)) <span class="op">/</span>(lam<span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.35</span>,<span class="op">-</span><span class="fl">0.15</span>]))))<span class="op">**</span>(<span class="fl">1.0</span><span class="op">/</span>rho)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">25</span>,size<span class="op">=</span><span class="dv">140</span>)<span class="op">;</span> time<span class="op">=</span>np.minimum(te,c)<span class="op">;</span> event<span class="op">=</span>(te<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.WeibullPH()<span class="op">;</span> model.fit(x,time,event)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
@@ -5409,7 +5428,19 @@ d_i\{\alpha+\gamma+x_i&#39;\beta+(\rho-1)\log t_i\}
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
+<td><code>converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
 <td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>objective</code></td>
 <td><code>()</code></td>
 </tr>
 </tbody>

@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#counting-process-partial-likelihood" id="toc-counting-process-partial-likelihood" class="nav-link" data-scroll-target="#counting-process-partial-likelihood"><span class="header-section-number">2</span> Counting-process partial likelihood</a></li>
-  <li><a href="#inference-limitation" id="toc-inference-limitation" class="nav-link" data-scroll-target="#inference-limitation"><span class="header-section-number">3</span> Inference limitation</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference-limitation" id="toc-inference-limitation" class="nav-link" data-scroll-target="#inference-limitation"><span class="header-section-number">4</span> Inference limitation</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="c7d66cc7" class="cell" data-execution_count="1">
+<div id="f8f6c8b3" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5272,10 +5269,23 @@ x_i&#39;\beta
 -\log\left\{\sum_{r\in R(t_i)}\exp(x_r&#39;\beta)\right\}
 \right].
 \]</span></p>
-<p>Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a <span class="math inline">\(10^{-8}\)</span> solve ridge, step clipping, backtracking, and risk-score index clipping to <span class="math inline">\([-40,40]\)</span> inside the risk sets.</p>
+<p>Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a <span class="math inline">\(10^{-8}\)</span> solve ridge, step clipping, backtracking, and risk-score index clipping to <span class="math inline">\([-40,40]\)</span> inside the risk sets. Convergence requires either <span class="math inline">\(\|\nabla\ell_p\|_\infty&lt;\tau\)</span> or an accepted partial-likelihood change below <span class="math inline">\(\tau(1+|\ell_p|)\)</span>.</p>
 </section>
-<section id="inference-limitation" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference-limitation"><span class="header-section-number">3</span> Inference limitation</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p><code>AndersenGill</code> calls the same native partial-likelihood kernel and Newton loop as <code>CoxPH</code>, with one additional entry-time predicate.</p>
+<ol type="1">
+<li>The wrapper validates aligned arrays, finite covariates, binary events, and every interval condition <span class="math inline">\(0\leq s_i&lt;t_i\)</span>. It has no subject identifier and therefore cannot validate interval ordering or overlap within a subject.</li>
+<li>Slopes start at zero. At each candidate, raw indices are computed once and risk scores use <span class="math inline">\(\exp\{\operatorname{clip}(x_i&#39;\beta,-40,40)\}\)</span>. For every event record <span class="math inline">\(i\)</span>, the inner scan includes record <span class="math inline">\(r\)</span> precisely when <span class="math inline">\(s_r&lt;t_i\leq t_r\)</span>, matching the open-left, closed-right counting-process interval.</li>
+<li>That scan accumulates the same scalar denominator and weighted first and second covariate moments as <code>CoxPH</code>. It adds one raw event index to the numerator and one log denominator per event, so equal stop-time events receive Breslow handling.</li>
+<li>The shared Newton step explicitly inverts a Hessian with <span class="math inline">\(10^{-8}\)</span> subtracted from its diagonal, clips step coordinates to <span class="math inline">\([-1,1]\)</span>, and backtracks through at most 30 halvings. Maximum-score or relative-objective convergence is required; the iteration cap is failure.</li>
+<li>Final covariance is the inverse observed information across interval rows. The code has no cluster-score accumulation stage, so repeated records from one subject are treated as separate contributions to this model-based information.</li>
+<li>Prediction ignores interval endpoints because the fitted object is only a relative-risk model: it returns <span class="math inline">\(X\hat\beta\)</span> or <span class="math inline">\(\exp(X\hat\beta)\)</span>. It does not estimate a baseline hazard or a subject-specific event process.</li>
+</ol>
+<p>The source-level difference from <code>CoxPH</code> is deliberately small, which makes the counting-process risk-set rule clear. It also makes the API limitation clear: without subject IDs, the implementation cannot supply the robust sandwich that usually makes Andersen-Gill inference useful.</p>
+</section>
+<section id="inference-limitation" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-limitation"><span class="header-section-number">4</span> Inference limitation</h2>
 <p>The returned covariance is only the inverse observed partial-likelihood information. The API has no subject identifier and cannot aggregate score residuals across multiple intervals belonging to the same subject.</p>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -5290,23 +5300,23 @@ Warning
 <p>For recurrent-event Andersen-Gill analysis, the usual robust covariance clusters intervals by subject. This class does not implement that covariance. Its reported standard errors and <span class="math inline">\(p\)</span>-values treat interval rows through the model-based information and should not be presented as robust recurrent-event inference.</p>
 </div>
 </div>
-<p>The class also does not validate that a subject’s intervals are nonoverlapping or consistently ordered because subject membership is unavailable. Default prediction is relative risk <span class="math inline">\(\exp(x&#39;\hat\beta)\)</span>; no baseline hazard or survival curve is estimated. The reported iteration count does not distinguish convergence from exhausting the maximum.</p>
+<p>The class also does not validate that a subject’s intervals are nonoverlapping or consistently ordered because subject membership is unavailable. Default prediction is relative risk <span class="math inline">\(\exp(x&#39;\hat\beta)\)</span>; no baseline hazard or survival curve is estimated. Reaching <code>max_iterations</code> raises <code>ValueError</code> and leaves the estimator unfitted. A successful summary exposes <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and <code>objective</code>, where <code>objective=-\ell_p(\hat\beta)</code>.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Every event scans every interval to reconstruct its delayed-entry risk set and accumulates dense second moments, for about <span class="math inline">\(O(Enp^2)\)</span> work per Newton iteration plus an <span class="math inline">\(O(p^3)\)</span> solve. Splitting subjects into more intervals therefore increases both <span class="math inline">\(n\)</span> and often <span class="math inline">\(E\)</span>. Risk-set exponentials are clipped but new-data relative-risk predictions are not. This implementation is usable for small counting-process designs and point estimates, but its naive risk-set algorithm and missing subject-cluster covariance are material limitations for production recurrent-event work.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.AndersenGill</code></p>
 <p>Use <code>fit(x, start, stop, event)</code>. <code>predict_lin(x)</code> returns the log hazard ratio and <code>predict_relative_risk(x)</code> returns the exponentiated risk multiplier. The default <code>predict(x)</code> is relative risk.</p>
-<div id="dc7477f3" class="cell" data-execution_count="2">
+<div id="c9b57e77" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.AndersenGill))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="35cf23da" class="cell" data-execution_count="3">
+<div id="d2d1572a" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.AndersenGill</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5340,26 +5350,28 @@ Warning
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="34931005" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="cd83fa4d" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">34</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">180</span>,<span class="dv">1</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.05</span><span class="op">*</span>np.exp(<span class="fl">0.6</span><span class="op">*</span>x[:,<span class="dv">0</span>])<span class="op">;</span> t_event<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">18</span>,size<span class="op">=</span><span class="dv">180</span>)<span class="op">;</span> stop<span class="op">=</span>np.minimum(t_event,c)<span class="op">;</span> event<span class="op">=</span>(t_event<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>start<span class="op">=</span>np.zeros_like(stop)</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>start_long<span class="op">=</span>np.concatenate([start, stop<span class="op">/</span><span class="dv">2</span>])<span class="op">;</span> stop_long<span class="op">=</span>np.concatenate([stop<span class="op">/</span><span class="dv">2</span>, stop])<span class="op">;</span> x_long<span class="op">=</span>np.vstack([x,x])<span class="op">;</span> event_long<span class="op">=</span>np.concatenate([np.zeros_like(event), event])</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.AndersenGill()<span class="op">;</span> model.fit(x_long,start_long,stop_long,event_long)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">5</span>]))</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">5</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>fit<span class="op">=</span>model.summary()<span class="op">;</span> <span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;converged&#39;</span>, <span class="st">&#39;iterations&#39;</span>, <span class="st">&#39;termination_reason&#39;</span>, <span class="st">&#39;objective&#39;</span>]})</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict_lin(x[:<span class="dv">5</span>]))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict(x[:<span class="dv">5</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[-0.03003575 -0.94620885  1.93646531  0.3624618   0.48414704]
+<pre><code>{&#39;converged&#39;: True, &#39;iterations&#39;: 3, &#39;termination_reason&#39;: &#39;Relative objective tolerance reached&#39;, &#39;objective&#39;: 335.9145580407113}
+[-0.03003575 -0.94620885  1.93646531  0.3624618   0.48414704]
 [0.97041084 0.38821    6.93419737 1.43686233 1.62279025]</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="3919eb30" class="cell" data-execution_count="5">
+<div id="310b2881" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">134</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">90</span>,<span class="dv">1</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.05</span><span class="op">*</span>np.exp(<span class="fl">0.5</span><span class="op">*</span>x[:,<span class="dv">0</span>])<span class="op">;</span> te<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">15</span>,size<span class="op">=</span><span class="dv">90</span>)<span class="op">;</span> stop<span class="op">=</span>np.minimum(te,c)<span class="op">;</span> event<span class="op">=</span>(te<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>start<span class="op">=</span>np.zeros_like(stop)<span class="op">;</span> start_long<span class="op">=</span>np.concatenate([start, stop<span class="op">/</span><span class="dv">2</span>])<span class="op">;</span> stop_long<span class="op">=</span>np.concatenate([stop<span class="op">/</span><span class="dv">2</span>, stop])<span class="op">;</span> x_long<span class="op">=</span>np.vstack([x,x])<span class="op">;</span> event_long<span class="op">=</span>np.concatenate([np.zeros_like(event), event])</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.AndersenGill()<span class="op">;</span> model.fit(x_long,start_long,stop_long,event_long)</span>
@@ -5407,7 +5419,19 @@ Warning
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
+<td><code>converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
 <td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>objective</code></td>
 <td><code>()</code></td>
 </tr>
 </tbody>

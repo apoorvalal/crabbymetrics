@@ -4868,10 +4868,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5105,7 +5101,7 @@ vertical-align: -.125em;
 
 
 <p>Matched-pairs experiments replace unrestricted treatment permutations with sign flips inside pairs. The Darwin maize data in the source folder make that logic transparent.</p>
-<div id="20de2da1" class="cell" data-execution_count="1">
+<div id="bc68bb9c" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -5129,7 +5125,7 @@ vertical-align: -.125em;
 </div>
 <section id="exact-sign-flip-distribution" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="exact-sign-flip-distribution"><span class="header-section-number">1</span> Exact Sign-Flip Distribution</h2>
-<div id="9baa2cb4" class="cell" data-execution_count="2">
+<div id="d42cd2eb" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>zea <span class="op">=</span> pd.read_csv(data_dir <span class="op">/</span> <span class="st">&quot;ZeaMays.csv&quot;</span>)</span>
@@ -5183,7 +5179,7 @@ vertical-align: -.125em;
 </div>
 </div>
 </div>
-<div id="85bbb1f8" class="cell" data-execution_count="3">
+<div id="42bc1ac1" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -5206,7 +5202,7 @@ vertical-align: -.125em;
 <section id="matched-pairs-with-a-pair-level-covariate" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="matched-pairs-with-a-pair-level-covariate"><span class="header-section-number">2</span> Matched Pairs With A Pair-Level Covariate</h2>
 <p>The second worked example in the R script is the Imbens-Rubin television data. Each row is a matched pair. The outcome contrast is <code>diffy</code>, and <code>diffx</code> is a pre-treatment pair difference. The unadjusted paired estimator is the intercept-only regression of <code>diffy</code>; the adjusted estimator is the intercept in a pair-level regression of <code>diffy</code> on <code>diffx</code>.</p>
-<div id="a85d0537" class="cell" data-execution_count="4">
+<div id="ba1089da" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>tv <span class="op">=</span> np.array(</span>
@@ -5294,7 +5290,7 @@ vertical-align: -.125em;
 </div>
 </div>
 </div>
-<div id="9261cd3f" class="cell" data-execution_count="5">
+<div id="08d53a18" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>

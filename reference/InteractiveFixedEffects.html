@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#objective-and-decomposition" id="toc-objective-and-decomposition" class="nav-link" data-scroll-target="#objective-and-decomposition"><span class="header-section-number">2</span> Objective and decomposition</a></li>
-  <li><a href="#inference-and-scope" id="toc-inference-and-scope" class="nav-link" data-scroll-target="#inference-and-scope"><span class="header-section-number">3</span> Inference and scope</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference-and-scope" id="toc-inference-and-scope" class="nav-link" data-scroll-target="#inference-and-scope"><span class="header-section-number">4</span> Inference and scope</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="7101a670" class="cell" data-execution_count="1">
+<div id="fd9e4735" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5270,25 +5267,38 @@ Y_{ti}
 \]</span></p>
 <p>With the exact method, <span class="math inline">\(L\)</span> is the rank-<span class="math inline">\(r\)</span> truncated SVD. Factors are normalized as <span class="math inline">\(F=\sqrt{T}U_r\)</span> and loadings as <span class="math inline">\(\Lambda=V_r\operatorname{diag}(s_r)/\sqrt{T}\)</span>, so <span class="math inline">\(L=F\Lambda&#39;\)</span>. The randomized method substitutes a randomized range finder and truncated SVD controlled by oversampling and power iterations.</p>
 </section>
-<section id="inference-and-scope" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference-and-scope"><span class="header-section-number">3</span> Inference and scope</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The additive decomposition, exact factor normalization, and randomized alternative are package-owned dense linear algebra.</p>
+<ol type="1">
+<li><code>fit()</code> requires a finite nonempty balanced matrix. It always subtracts the grand mean. With <code>force</code> 1 or 3 it then subtracts column means from that centered matrix; with <code>force</code> 2 or 3 it subsequently subtracts row means. Under <code>force=3</code>, the second means are computed after the first removal, giving the usual two-way additive decomposition.</li>
+<li>Rank zero is a real model: it returns empty factor and loading matrices and a zero interactive component. The fitted surface then consists only of the requested additive pieces.</li>
+<li>Exact factor fitting chooses the smaller covariance matrix. If <span class="math inline">\(T&lt;N\)</span>, it decomposes <span class="math inline">\(EE&#39;/(NT)\)</span>, sets <span class="math inline">\(F=\sqrt{T}U_r\)</span>, and obtains <span class="math inline">\(\Lambda=E&#39;F/T\)</span>. If <span class="math inline">\(T\geq N\)</span>, it decomposes <span class="math inline">\(E&#39;E/(NT)\)</span>, sets <span class="math inline">\(\Lambda=\sqrt{N}V_r\)</span>, and obtains <span class="math inline">\(F=E\Lambda/N\)</span>. This avoids an SVD of the larger Gram matrix while enforcing the stated normalizations.</li>
+<li>The exact <code>vnt</code> diagonal stores the leading eigenvalues of that scaled Gram matrix. The reconstructed interaction is always the direct product <span class="math inline">\(F\Lambda&#39;\)</span>.</li>
+<li>Randomized mode instead calls the native randomized SVD of the demeaned <span class="math inline">\(E\)</span>: a Rademacher range sketch, optional alternating power iterations with QR reorthogonalization, and a small projected SVD. It sets <span class="math inline">\(F=\sqrt{T}U_r\)</span>, <span class="math inline">\(\Lambda_{jk}=V_{jk}s_k/\sqrt{T}\)</span>, and stores <span class="math inline">\(s_k^2/(NT)\)</span> on the <code>vnt</code> diagonal.</li>
+<li>The final fitted matrix starts from the interactive product, adds the grand mean to every cell, then broadcasts column and row effects according to the decomposition. Residuals are the original matrix minus this in-sample reconstruction. <code>predict()</code> simply returns the stored fitted panel; there is no transform for new units or periods.</li>
+</ol>
+<p>Both exact branches and the randomized branch produce the same normalization target, though signs and rotations remain arbitrary. The exact smaller-Gram route squares the singular-value condition number; the randomized direct-SVD route trades exactness for fewer passes when rank is small.</p>
+</section>
+<section id="inference-and-scope" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-and-scope"><span class="header-section-number">4</span> Inference and scope</h2>
 <p>This class is a matrix decomposition, not a treatment-effect estimator. It returns the in-sample fitted matrix, residuals, additive effects, factors, loadings, and normalized singular-value matrix. It does not select rank, estimate coefficient covariance, provide standard errors, handle missing entries, or extrapolate to new rows or columns. Factor and loading rotations are not separately identified even though their product is.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Exact dense SVD costs approximately <span class="math inline">\(O(\min\{TN^2,T^2N\})\)</span> and stores the full panel. Randomized SVD reduces the leading work to roughly <span class="math inline">\(O(TN(r+s)(q+1))\)</span> for rank <span class="math inline">\(r\)</span>, oversampling <span class="math inline">\(s\)</span>, and power count <span class="math inline">\(q\)</span>, but is approximate and still stores dense matrices. Rank must not exceed <span class="math inline">\(\min(T,N)\)</span>. Because only complete balanced panels are accepted, use MatrixCompletion when treated or otherwise missing cells must be excluded from fitting.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.InteractiveFixedEffects</code></p>
 <p>Use <code>InteractiveFixedEffects(rank=0, force=3, ...)</code>, then <code>fit(y)</code>. <code>predict()</code> reconstructs the fitted panel. <code>summary()</code> reports low-rank pieces, additive effects, singular values, chosen rank, and diagnostics.</p>
-<div id="8eb3dd11" class="cell" data-execution_count="2">
+<div id="92c0345c" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.InteractiveFixedEffects))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(rank=0, force=3, factor_method=Ellipsis, factor_oversamples=10, factor_power_iter=1, factor_seed=None)</code></pre>
 </div>
 </div>
-<div id="23cd4b8a" class="cell" data-execution_count="3">
+<div id="c061a33b" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.InteractiveFixedEffects</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5313,9 +5323,9 @@ Y_{ti}
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="f9ebf94f" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="23898a77" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">19</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">16</span>)) <span class="op">+</span> rng.normal(size<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">1</span>)) <span class="op">+</span> rng.normal(size<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">16</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.InteractiveFixedEffects(rank<span class="op">=</span><span class="dv">2</span>)</span>
@@ -5328,10 +5338,10 @@ Y_{ti}
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="6be38ef1" class="cell" data-execution_count="5">
+<div id="82e3bbef" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">119</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">12</span>)) <span class="op">+</span> rng.normal(size<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">1</span>)) <span class="op">+</span> rng.normal(size<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">12</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.InteractiveFixedEffects(rank<span class="op">=</span><span class="dv">2</span>)</span>

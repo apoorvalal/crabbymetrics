@@ -4868,10 +4868,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5109,7 +5105,7 @@ vertical-align: -.125em;
 <li>Lin-style regression adjustment in randomized experiments</li>
 <li>rerandomization as a design-stage way to reject badly imbalanced assignments</li>
 </ul>
-<div id="6288b73a" class="cell" data-execution_count="1">
+<div id="d9558b1d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -5135,7 +5131,7 @@ vertical-align: -.125em;
 </div>
 <section id="regression-adjustment-in-the-star-data" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="regression-adjustment-in-the-star-data"><span class="header-section-number">1</span> Regression Adjustment In The STAR Data</h2>
-<div id="44d2654b" class="cell" data-execution_count="2">
+<div id="cc29a4f1" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>star <span class="op">=</span> pd.read_stata(data_dir <span class="op">/</span> <span class="st">&quot;star.dta&quot;</span>)</span>
@@ -5200,7 +5196,7 @@ vertical-align: -.125em;
 </section>
 <section id="a-small-rerandomization-simulation" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="a-small-rerandomization-simulation"><span class="header-section-number">2</span> A Small Rerandomization Simulation</h2>
-<div id="0fc7ba2b" class="cell" data-execution_count="3">
+<div id="a67c47de" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">6</span>)</span>
@@ -5315,7 +5311,7 @@ vertical-align: -.125em;
 </div>
 </div>
 </div>
-<div id="2adb7bbd" class="cell" data-execution_count="4">
+<div id="e2b9df53" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>

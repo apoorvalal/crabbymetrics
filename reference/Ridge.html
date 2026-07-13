@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#criterion-and-tuning" id="toc-criterion-and-tuning" class="nav-link" data-scroll-target="#criterion-and-tuning"><span class="header-section-number">2</span> Criterion and tuning</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="510c8353" class="cell" data-execution_count="1">
+<div id="bd15b329" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5271,8 +5268,20 @@ window.Quarto = {
 <p>The penalty is not divided by <span class="math inline">\(n\)</span>, so its scale depends on the sample weights and sample size. The intercept is never penalized. The implementation solves an augmented least-squares problem with <span class="math inline">\(\sqrt{\lambda}I\)</span> rows, avoiding an explicit normal-equation inverse for the point estimate.</p>
 <p>When given a grid, the class fits every penalty and chooses the lowest mean validation MSE. Folds are deterministic, unshuffled assignments <span class="math inline">\(i\bmod K\)</span>; weighted fits use weighted validation MSE. It then selects the corresponding full-sample path coefficient. The grid search does not standardize features, so penalty effects depend directly on column scale.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The point estimate is implemented as augmented least squares rather than through <span class="math inline">\((X&#39;X+P_\lambda)^{-1}X&#39;y\)</span>.</p>
+<ol type="1">
+<li>The wrapper validates the penalty array and data, prepends a column of ones, and, for a weighted fit, multiplies each design row and outcome by <span class="math inline">\(\sqrt{w_i}\)</span>. Zero weights therefore contribute zero rows to the numerical problem.</li>
+<li>For <span class="math inline">\(\lambda&gt;0\)</span>, it appends one synthetic row for each penalized coefficient. The slope block of those rows is <span class="math inline">\(\sqrt{\lambda}I\)</span> and their synthetic outcomes are zero; the intercept column is omitted from this block. Ordinary QR least squares on the augmented system exactly minimizes the stated ridge criterion. At <span class="math inline">\(\lambda=0\)</span>, it solves the original design directly.</li>
+<li>A penalty path is deliberately simple: it repeats that complete augmented-QR solve for every grid value and stores every intercept and slope vector. There is no shared eigendecomposition, warm start, or recursive update between penalties.</li>
+<li>Cross-validation assigns row <span class="math inline">\(i\)</span> to fold <span class="math inline">\(i\bmod K\)</span>. For each penalty and fold it constructs owned training and test arrays, refits from scratch, predicts the held-out rows, and records ordinary or weight-normalized MSE. The first minimum in grid order wins ties. The already-computed full-sample path column for that penalty becomes the fitted model.</li>
+<li>Prediction is a dense <span class="math inline">\(X\beta\)</span> plus intercept. The training design, response, optional weights, selected penalty, and complete path are retained because <code>summary()</code>, robust covariance calculations, and the pairs bootstrap need them.</li>
+</ol>
+<p>This QR construction is more numerically defensible than explicitly solving the normal equations for coefficients, but the inferential code still forms dense cross-products and inverses. The deterministic interleaved folds make a run reproducible without a seed; they are inappropriate when row order itself encodes time, clusters, or another dependence structure.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>Let <span class="math inline">\(B=\tilde X&#39;\tilde X+P_\lambda\)</span> after any square-root weight transformation and define the effective degrees of freedom</p>
 <p><span class="math display">\[
 d_{\mathrm{eff}}
@@ -5289,21 +5298,21 @@ d_{\mathrm{eff}}
 \]</span></p>
 <p>HC1, Newey-West, and cluster options use parameter scores <span class="math inline">\(e_i\tilde x_i&#39;B^{-1}\)</span> and the same finite-sample corrections as OLS, replacing <span class="math inline">\(n-p\)</span> by <span class="math inline">\(n-d_{\mathrm{eff}}\)</span>. These are conditional linearization variances around the penalized estimator. They do not remove ridge shrinkage bias or account for selecting <span class="math inline">\(\lambda\)</span> by cross-validation. The pairs bootstrap refits at the already selected penalty; it does not rerun the grid search.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>A single dense fit has the usual <span class="math inline">\(O(np^2+p^3)\)</span> least-squares cost and <span class="math inline">\(O(np+p^2)\)</span> storage. A path of <span class="math inline">\(K\)</span> penalties repeats that work <span class="math inline">\(K\)</span> times, and <span class="math inline">\(K\)</span>-penalty, <span class="math inline">\(F\)</span>-fold validation performs about <span class="math inline">\(KF\)</span> additional fits. The implementation does not reuse decompositions across penalties. Dense covariance construction is quadratic in the number of coefficients. Ridge improves conditioning for penalized slopes, but the unpenalized intercept and badly scaled columns can still create numerical problems.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.Ridge</code></p>
 <p>The main methods mirror <code>OLS</code>: <code>fit</code>, <code>fit_weighted</code>, <code>predict</code>, <code>summary</code>, and <code>bootstrap</code>. <code>summary()</code> includes the selected penalty and, for grid fits, cross-validation diagnostics and coefficient paths.</p>
-<div id="117818c4" class="cell" data-execution_count="2">
+<div id="09ee6614" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Ridge))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(penalty=None, cv=5)</code></pre>
 </div>
 </div>
-<div id="634b0110" class="cell" data-execution_count="3">
+<div id="52f3c8f6" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Ridge</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5334,9 +5343,9 @@ d_{\mathrm{eff}}
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="81396053" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="e04554eb" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">240</span>, <span class="dv">5</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.3</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.8</span>, <span class="fl">0.0</span>, <span class="fl">0.25</span>, <span class="fl">0.1</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.6</span>, size<span class="op">=</span><span class="dv">240</span>)</span>
@@ -5352,10 +5361,10 @@ d_{\mathrm{eff}}
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="32c76654" class="cell" data-execution_count="5">
+<div id="936a509b" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">102</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">90</span>, <span class="dv">4</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.3</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="dv">1</span>, <span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>, <span class="dv">0</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">90</span>)</span>

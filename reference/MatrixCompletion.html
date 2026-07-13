@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#objective-and-algorithm" id="toc-objective-and-algorithm" class="nav-link" data-scroll-target="#objective-and-algorithm"><span class="header-section-number">2</span> Objective and algorithm</a></li>
-  <li><a href="#estimand-and-inference" id="toc-estimand-and-inference" class="nav-link" data-scroll-target="#estimand-and-inference"><span class="header-section-number">3</span> Estimand and inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#estimand-and-inference" id="toc-estimand-and-inference" class="nav-link" data-scroll-target="#estimand-and-inference"><span class="header-section-number">4</span> Estimand and inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="35f2edb2" class="cell" data-execution_count="1">
+<div id="63963f4e" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5279,26 +5276,44 @@ window.Quarto = {
 \]</span></p>
 <p>Exact SVD applies the full proximal map. Randomized SVD with an explicit rank is a truncated approximation to that map and therefore need not minimize exactly the displayed nuclear-norm objective.</p>
 </section>
-<section id="estimand-and-inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="estimand-and-inference"><span class="header-section-number">3</span> Estimand and inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The class implements a masked soft-impute-style loop with explicit additive-effect coordinate updates.</p>
+<ol type="1">
+<li>The common panel parser validates treatment paths, then the fitting mask is set to <span class="math inline">\(M_{it}=1\{W_{it}&lt;0.5\}\)</span>. Only masked-in outcomes must be finite. Treated outcomes are copied as zero into the working matrix and never enter the objective or update residuals.</li>
+<li>When <span class="math inline">\(\lambda_L\)</span> is automatic, the code initializes <span class="math inline">\(L=0\)</span>, runs exactly 20 alternating observed-cell mean sweeps for requested unit and time effects, forms the masked residual matrix with zeros elsewhere, computes its largest exact singular value, and returns <span class="math inline">\(2s_{\max}/|\Omega|\)</span>. <code>lambda_fraction</code> multiplies this value.</li>
+<li>Every outer iteration first runs <code>effect_iterations</code> coordinate sweeps. A unit effect is the mean of <span class="math inline">\(Y_{it}-L_{it}-b_t\)</span> over that unit’s observed cells; a time effect is the analogous mean of <span class="math inline">\(Y_{it}-L_{it}-a_i\)</span>. After each sweep, a centering routine shifts constants between the two vectors without changing <span class="math inline">\(a_i+b_t\)</span> and leaves the time effects mean-zero.</li>
+<li>The projection matrix begins as the current <span class="math inline">\(L\)</span>. On observed cells only, the current residual <span class="math inline">\(Y-a-b-L\)</span> is added, producing <span class="math inline">\(L+P_\Omega(Y-a-b-L)\)</span>. Missing treated cells therefore retain their current low-rank value before thresholding.</li>
+<li>Exact mode computes a dense SVD, replaces every singular value <span class="math inline">\(s_j\)</span> by <span class="math inline">\((s_j-\lambda_L|\Omega|/2)_+\)</span>, and reconstructs <span class="math inline">\(L\)</span>. Randomized mode first obtains only the requested approximate singular triplets, applies the same threshold to them, and reconstructs inside that truncated range. Its seed, when supplied, is incremented by the outer-iteration number.</li>
+<li>The displayed objective is evaluated after the new low-rank matrix. The RMSE history, however, is based on residuals measured immediately before the singular-value update. Relative objective change is checked from the second iteration onward.</li>
+<li>Completion adds stored unit and time effects to the final <span class="math inline">\(L\)</span> everywhere. The treatment-effect matrix is filled for every ever-treated unit and every period, including pre-periods, while ATT selects only cells where <span class="math inline">\(W=1\)</span>. A budget-exhausted iterate is retained with <code>converged=False</code> rather than discarded.</li>
+</ol>
+<p>Exact mode is a recognizable proximal update for the displayed convex objective conditional on the effect block. Randomized truncation changes that update, and changing its seed each iteration means the approximate map itself varies over the optimization path.</p>
+</section>
+<section id="estimand-and-inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="estimand-and-inference"><span class="header-section-number">4</span> Estimand and inference</h2>
 <p>The completed counterfactual surface is <span class="math inline">\(\hat Y_{it}(0)=\hat a_i+\hat b_t+\hat L_{it}\)</span>. Reported treated-cell effects are <span class="math inline">\(Y_{it}-\hat Y_{it}(0)\)</span>, and ATT is their simple mean over cells marked treated. Event-study and group summaries aggregate the same cell differences.</p>
-<p>There is no analytic or resampling inference, rank selection, or penalty cross-validation. Iteration stops when the relative objective change falls below tolerance. Reaching the iteration budget still stores a result, and the summary reports iterations and histories but no convergence flag, so users should inspect the objective history. Identification requires untreated observations to reveal the relevant low-rank and additive structure; the optimizer cannot diagnose failure of that causal assumption.</p>
+<p>There is no analytic or resampling inference, rank selection, or penalty cross-validation. If <span class="math inline">\(Q_k\)</span> denotes the displayed objective after iteration <span class="math inline">\(k\)</span>, convergence requires</p>
+<p><span class="math display">\[
+\frac{|Q_{k-1}-Q_k|}{|Q_{k-1}|+10^{-12}}&lt;\text{tolerance}.
+\]</span></p>
+<p>Unlike likelihood estimators in this package, <code>MatrixCompletion</code> retains the final iterate when the budget is exhausted because a partial completion can still be diagnostically useful. It does not call that outcome convergence: <code>summary()</code> reports <code>converged=False</code>, <code>iterations</code>, <code>termination_reason=&#39;Maximum number of iterations reached&#39;</code>, and the final <code>objective</code>, together with both histories. Identification requires untreated observations to reveal the relevant low-rank and additive structure; optimizer convergence cannot diagnose failure of that causal assumption.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
-<p>Each exact iteration performs a dense SVD with roughly <span class="math inline">\(O(\min\{NT^2,N^2T\})\)</span> time and <span class="math inline">\(O(NT)\)</span> matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite.</p>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
+<p>Each exact iteration performs a dense SVD with roughly <span class="math inline">\(O(\min\{NT^2,N^2T\})\)</span> time and <span class="math inline">\(O(NT)\)</span> matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite. Iteration budgets, effect-update counts, and tolerances must be positive; invalid settings fail before fitting.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.MatrixCompletion</code></p>
-<p>Call <code>MatrixCompletion(...).fit(y, w)</code>. <code>predict()</code> returns completed/counterfactual values and <code>summary()</code> reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective history, and panel summaries.</p>
-<div id="3aadd5d2" class="cell" data-execution_count="2">
+<p>Call <code>MatrixCompletion(...).fit(y, w)</code>. <code>predict()</code> returns completed/counterfactual values and <code>summary()</code> reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective and RMSE histories, fit diagnostics, and panel summaries. Check <code>converged</code> before treating the retained solution as numerically settled.</p>
+<div id="04ea7743" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MatrixCompletion))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-06, svd_method=Ellipsis, svd_rank=None, svd_oversamples=10, svd_power_iter=1, svd_seed=None)</code></pre>
 </div>
 </div>
-<div id="2af396c4" class="cell" data-execution_count="3">
+<div id="f163a626" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.MatrixCompletion</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5323,9 +5338,9 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="51d924a8" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="8e3e7583" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">18</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>load <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">2</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>fac <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">2</span>, <span class="dv">14</span>))</span>
@@ -5335,18 +5350,21 @@ window.Quarto = {
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>y[<span class="dv">7</span>:, <span class="dv">9</span>:] <span class="op">+=</span> <span class="dv">1</span></span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MatrixCompletion(max_iterations<span class="op">=</span><span class="dv">100</span>, tolerance<span class="op">=</span><span class="fl">1e-05</span>)</span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>model.fit(y, w)</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary()[<span class="st">&#39;att&#39;</span>])</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict().shape)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>fit <span class="op">=</span> model.summary()</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>({key: fit[key] <span class="cf">for</span> key <span class="kw">in</span> [<span class="st">&#39;converged&#39;</span>, <span class="st">&#39;iterations&#39;</span>, <span class="st">&#39;termination_reason&#39;</span>, <span class="st">&#39;objective&#39;</span>]})</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(fit[<span class="st">&#39;att&#39;</span>])</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.predict().shape)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>1.2016133829540447
+<pre><code>{&#39;converged&#39;: True, &#39;iterations&#39;: 6, &#39;termination_reason&#39;: &#39;Relative objective tolerance reached&#39;, &#39;objective&#39;: 0.78117030291554}
+1.2016133829540447
 (10, 14)</code></pre>
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="ab413650" class="cell" data-execution_count="5">
+<div id="4f0d62ca" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">118</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">10</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> np.zeros_like(y)</span>
@@ -5390,11 +5408,19 @@ window.Quarto = {
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
-<td><code>objective</code></td>
+<td><code>converged</code></td>
 <td><code>()</code></td>
 </tr>
 <tr class="even">
 <td><code>iterations</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>termination_reason</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>objective</code></td>
 <td><code>()</code></td>
 </tr>
 <tr class="odd">

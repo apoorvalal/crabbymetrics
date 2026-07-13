@@ -4868,10 +4868,6 @@ vertical-align: -.125em;
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5106,7 +5102,7 @@ vertical-align: -.125em;
 
 
 <p>Chapter 2 is the basic potential-outcomes setup: treatment effects are individual-level objects, while observed outcomes depend on both the potential outcomes and the treatment rule.</p>
-<div id="f00ebb80" class="cell" data-execution_count="1">
+<div id="4ee68a3c" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -5118,7 +5114,7 @@ vertical-align: -.125em;
 </div>
 <section id="build-a-population-with-heterogeneous-effects" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="build-a-population-with-heterogeneous-effects"><span class="header-section-number">1</span> Build A Population With Heterogeneous Effects</h2>
-<div id="5ce3b9bf" class="cell" data-execution_count="2">
+<div id="01b287c7" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
@@ -5171,7 +5167,7 @@ vertical-align: -.125em;
 </div>
 </div>
 </div>
-<div id="c1a5bf10" class="cell" data-execution_count="3">
+<div id="6f94c219" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -5194,7 +5190,7 @@ vertical-align: -.125em;
 <section id="a-perfect-doctor-and-a-coin-flip-doctor" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="a-perfect-doctor-and-a-coin-flip-doctor"><span class="header-section-number">2</span> A Perfect Doctor And A Coin-Flip Doctor</h2>
 <p>The perfect doctor treats exactly when the individual treatment effect is nonnegative. The coin-flip doctor ignores the potential outcomes entirely.</p>
-<div id="93e1274d" class="cell" data-execution_count="4">
+<div id="4790222f" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>z_perfect <span class="op">=</span> (tau <span class="op">&gt;=</span> <span class="fl">0.0</span>).astype(<span class="bu">float</span>)</span>
@@ -5263,7 +5259,7 @@ vertical-align: -.125em;
 <section id="selection-bias-is-not-the-same-as-the-effect" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="selection-bias-is-not-the-same-as-the-effect"><span class="header-section-number">3</span> Selection Bias Is Not The Same As The Effect</h2>
 <p>Under coin-flip treatment, the observed difference is estimating the ATE. Under targeted treatment, the observed difference mixes causal effects with positive selection on untreated potential outcomes.</p>
-<div id="f8df1f4f" class="cell" data-execution_count="5">
+<div id="aef57115" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>selection_bias <span class="op">=</span> y0[z_perfect <span class="op">==</span> <span class="fl">1.0</span>].mean() <span class="op">-</span> y0[z_perfect <span class="op">==</span> <span class="fl">0.0</span>].mean()</span>

@@ -5002,10 +5002,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5237,7 +5233,7 @@ window.Quarto = {
 
 
 <p>The full chapter studies several studentized statistics. This translation keeps the core contrast: when treatment effects are heterogeneous, the Neyman average-null and the Fisher sharp-null need not lead to the same finite-sample p-values.</p>
-<div id="2ef4392b" class="cell" data-execution_count="1">
+<div id="dcab570c" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -5250,7 +5246,7 @@ window.Quarto = {
 </div>
 <section id="a-simulation-with-zero-average-effect-but-heterogeneous-individual-effects" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="a-simulation-with-zero-average-effect-but-heterogeneous-individual-effects"><span class="header-section-number">1</span> A Simulation With Zero Average Effect But Heterogeneous Individual Effects</h2>
-<div id="6d27a0ea" class="cell" data-execution_count="2">
+<div id="dbc3cb8d" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">8</span>)</span>
@@ -5311,7 +5307,7 @@ Share Neyman &lt;= 0.05: 0.0
 Share Fisher &lt;= 0.05: 0.0</code></pre>
 </div>
 </div>
-<div id="70c765ca" class="cell" data-execution_count="3">
+<div id="e80c0b31" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>

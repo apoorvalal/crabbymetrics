@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#cohort-objective-and-estimand" id="toc-cohort-objective-and-estimand" class="nav-link" data-scroll-target="#cohort-objective-and-estimand"><span class="header-section-number">2</span> Cohort objective and estimand</a></li>
-  <li><a href="#inference-and-scope" id="toc-inference-and-scope" class="nav-link" data-scroll-target="#inference-and-scope"><span class="header-section-number">3</span> Inference and scope</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference-and-scope" id="toc-inference-and-scope" class="nav-link" data-scroll-target="#inference-and-scope"><span class="header-section-number">4</span> Inference and scope</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="b0799e6e" class="cell" data-execution_count="1">
+<div id="9cdd177b" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5273,25 +5270,39 @@ window.Quarto = {
 \]</span></p>
 <p>and that same path is assigned to every treated unit in cohort <span class="math inline">\(g\)</span>. The overall ATT is the simple average of <span class="math inline">\(Y_{it}-\hat Y_{g,t}(0)\)</span> over all treated unit-period cells, so cohorts receive weight proportional to treated units times post-treatment periods.</p>
 </section>
-<section id="inference-and-scope" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference-and-scope"><span class="header-section-number">3</span> Inference and scope</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>This estimator is a direct panel-specific construction rather than a wrapper around the public <code>Ridge</code> class.</p>
+<ol type="1">
+<li>A shared panel validator checks equal nonempty shapes, finite <span class="math inline">\(Y\)</span> and <span class="math inline">\(W\)</span>, binary treatment within <span class="math inline">\(10^{-10}\)</span>, and absorbing treatment paths. It records each unit’s first treated period, the sorted adoption cohorts, and ever- versus never-treated unit indices.</li>
+<li>For cohort <span class="math inline">\(g\)</span>, the code selects all cohort units and all never-treated controls. It averages cohort outcomes across units first, yielding one length-<span class="math inline">\(T\)</span> target path. The donor panel remains one row per control unit.</li>
+<li>The pre-period design is the transpose of the donor panel restricted to columns <span class="math inline">\(0,\ldots,g-1\)</span>: periods are observations and donor units are regressors. An intercept column is prepended, <span class="math inline">\(X&#39;X\)</span> is formed, <span class="math inline">\(\lambda\)</span> is added only to donor diagonals, and the code explicitly computes <span class="math inline">\((X&#39;X+P_\lambda)^{-1}X&#39;y\)</span>.</li>
+<li>The resulting donor coefficients are applied to the transpose of the full control panel, including post-treatment periods, and the intercept is added. This produces one cohort-level counterfactual path; no treated unit’s own pre-period outcomes enter as features after the cohort average has been formed.</li>
+<li>That identical path is copied into every treated unit in the cohort. The coefficient matrix is stored with one row per cohort and one column per original panel unit; non-control entries remain zero so indices line up with the input panel.</li>
+<li>ATT scans cells with <span class="math inline">\(W_{it}=1\)</span> and averages finite observed-minus-counterfactual effects. Pre-RMSE first averages effects within each cohort-period before treatment and then takes the root mean square across those cohort-period means.</li>
+<li>Event-study output is derived after fitting. The unweighted version gives each cohort-event cell equal weight; the weighted version uses the number of finite treated-unit effects in that cell. These summaries do not refit the horizontal regression.</li>
+</ol>
+<p>The cohort averaging is the defining modeling choice: it estimates a common untreated path for a cohort, not unit-specific paths. The small-system normal-equation inverse is compact but less stable than the augmented-QR implementation used by <code>Ridge</code>.</p>
+</section>
+<section id="inference-and-scope" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference-and-scope"><span class="header-section-number">4</span> Inference and scope</h2>
 <p>The summary reports fitted cohort coefficients, counterfactuals, treatment-effect cells, ATT, pre-period RMSE, and event-time aggregates. It has no standard errors, covariance estimator, bootstrap, placebo procedure, or penalty tuning. All causal interpretation relies on never-treated outcomes spanning the untreated cohort path and on post-treatment donor outcomes remaining valid controls. Each treated cohort must have at least one pre-period, and at least one never-treated unit is required.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>With <span class="math inline">\(C\)</span> never-treated donors, each cohort forms and explicitly inverts a dense <span class="math inline">\((C+1)\times(C+1)\)</span> ridge system. Approximate work is <span class="math inline">\(O(gC^2+C^3+TC)\)</span> per cohort, and coefficient storage includes a row across all panel units for every cohort. A positive penalty stabilizes donor collinearity but does not penalize the intercept. When <span class="math inline">\(C\)</span> is large relative to the number of pre-periods, estimates can remain sensitive to scaling and the chosen penalty despite numerical invertibility.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.HorizontalPanelRidge</code></p>
 <p>After <code>fit(y, w)</code>, <code>predict()</code> returns treated-unit counterfactuals, <code>treatment_effect()</code> returns observed-minus-counterfactual effects, and <code>summary()</code> returns ATT, event-study, group means, fitted coefficients, cohorts, and diagnostics.</p>
-<div id="c7370e7f" class="cell" data-execution_count="2">
+<div id="5e5bcec2" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.HorizontalPanelRidge))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(penalty=1.0)</code></pre>
 </div>
 </div>
-<div id="12a2ffdd" class="cell" data-execution_count="3">
+<div id="5bb527d6" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.HorizontalPanelRidge</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5319,9 +5330,9 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="95cadc04" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="f1e38421" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">16</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">14</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> np.zeros_like(y)</span>
@@ -5343,10 +5354,10 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="037da5b5" class="cell" data-execution_count="5">
+<div id="e7391c5c" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">116</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">12</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> np.zeros_like(y)</span>

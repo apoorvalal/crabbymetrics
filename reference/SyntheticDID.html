@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#cohort-weights-and-att" id="toc-cohort-weights-and-att" class="nav-link" data-scroll-target="#cohort-weights-and-att"><span class="header-section-number">2</span> Cohort weights and ATT</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="665c5969" class="cell" data-execution_count="1">
+<div id="45d88460" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5282,26 +5279,41 @@ window.Quarto = {
 \]</span></p>
 <p>and the overall ATT averages cohort estimates with weights <span class="math inline">\(N_gT_{\mathrm{post}}\)</span>. The displayed counterfactual path instead uses the unit-weight fit <span class="math inline">\(a+Y_C&#39;\omega\)</span> at every time; its cell effects and event-study summaries are useful diagnostics but are not the same time-weighted decomposition used for <span class="math inline">\(\hat\tau_g\)</span>.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The implementation fits staggered adoption cohort by cohort and reuses one native softmax least-squares solver for both simplex problems.</p>
+<ol type="1">
+<li>The shared panel parser enforces binary absorbing treatment, infers first-treatment periods, and requires never-treated controls plus at least one pre-period for every cohort. For cohort <span class="math inline">\(g\)</span>, rows are reordered as all never-treated controls followed by units first treated at <span class="math inline">\(g\)</span>.</li>
+<li>The default noise scale pools first differences <span class="math inline">\(Y_{i,t}-Y_{i,t-1}\)</span> over control units and cohort-specific pre-periods and uses their sample standard deviation. This one <span class="math inline">\(\hat\sigma_g\)</span> generates both default penalties. With fewer than two differences it is zero, so the defaults can become unregularized.</li>
+<li>Time weights use <span class="math inline">\(Y_{C,\mathrm{pre}}\)</span> as a <span class="math inline">\(C\times T_0\)</span> design and the control post-period mean by unit as its target. Unit weights use <span class="math inline">\(Y_{C,\mathrm{pre}}&#39;\)</span> as a <span class="math inline">\(T_0\times C\)</span> design and the treated-cohort pre-period mean by time as its target.</li>
+<li>In either problem, softmax maps a zero-initialized unconstrained vector to a uniform simplex. The residual is demeaned internally, profiling out an intercept. The gradient adds <span class="math inline">\(\zeta^2w\)</span> in weight coordinates and applies the softmax Jacobian as <span class="math inline">\(w\odot(g_w-w&#39;g_w)\)</span>. Seven-pair L-BFGS uses More-Thuente search and fixed <span class="math inline">\(10^{-8}\)</span> gradient and <span class="math inline">\(10^{-12}\)</span> cost tolerances.</li>
+<li>After weights converge, the profiled intercept is recomputed as the mean target-minus-fit residual. The unit intercept and weights generate the displayed full cohort counterfactual <span class="math inline">\(a_g+Y_C&#39;\omega_g\)</span>. The fitted time intercept is retained for diagnostics but is not used in that path.</li>
+<li>Separately, signed unit weights <span class="math inline">\((-\omega,1/N_g)\)</span> and signed time weights <span class="math inline">\((-\lambda,1/T_{\mathrm{post}})\)</span> are multiplied through the reordered cohort panel to obtain <span class="math inline">\(\hat\tau_g\)</span>. Cohort estimates are accumulated with <span class="math inline">\(N_gT_{\mathrm{post}}\)</span> weights. This is why ATT cannot generally be recovered by averaging the displayed diagnostic effect matrix.</li>
+<li>Weight matrices are stored in original panel coordinates: control-unit columns or pre-period columns receive fitted values and all irrelevant positions remain zero. Event summaries are computed later from displayed counterfactual cells.</li>
+<li>Bootstrap samples whole unit rows and silently skips invalid refits. Placebo shuffles never-treated units, assigns the observed treated timing rows to the last pseudo-treated subset, and also skips failed fits. Both return the sample standard deviation of successful estimates multiplied by <span class="math inline">\(\sqrt{(R-1)/R}\)</span> using the requested replication count <span class="math inline">\(R\)</span>, even when fewer fits succeeded. Jackknife instead returns NaN at the first invalid leave-one-out panel and uses the usual <span class="math inline">\(\sqrt{(N-1)\sum(\tau_{-i}-\bar\tau)^2/N}\)</span> formula.</li>
+</ol>
+<p>The two fitted simplex problems and the final double difference are cleanly separated in code. That separation is didactically useful, but the permissive skipped-replication inference and its finite-replication multiplier should be treated as implementation conventions, not generic bootstrap theory.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>There is no analytic covariance. Bootstrap resamples panel units with replacement, carrying each unit’s entire outcome and treatment path, and refits the estimator. Jackknife drops each unit in turn. Placebo inference samples only never-treated units, assigns the observed treated timing patterns to a pseudo-treated subset, and requires more controls than treated units. Failed bootstrap and placebo fits are skipped; too few successful estimates return NaN. A jackknife failure returns NaN immediately. The returned covariance is the square of the resulting scalar standard error.</p>
 <p>These procedures address sampling variability under different resampling stories, but none repairs a poor pre-treatment match or violations of the never-treated comparison design. With one treated unit, bootstrap and jackknife standard errors are returned as NaN.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Every cohort requires two simplex L-BFGS fits, each with dense panel multiplications. Resampling multiplies the entire cohort-fitting cost by the requested replications; jackknife performs one full fit per unit. The class stores cohort-by-unit and cohort-by-time weight matrices plus panel-sized counterfactual and effect matrices. Softmax can represent very small but not exact zero weights, and weakly identified weight vectors may vary substantially even when ATT is stable.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.SyntheticDID</code></p>
 <p>Use <code>SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)</code>. <code>fit(y, w)</code> infers cohorts and donors. <code>predict()</code>, <code>treatment_effect()</code>, <code>summary()</code>, <code>vcov()</code>, and <code>se()</code> expose fitted counterfactuals and uncertainty helpers.</p>
-<div id="eb11fe70" class="cell" data-execution_count="2">
+<div id="2ce9cc72" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.SyntheticDID))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(zeta_omega=None, zeta_lambda=None, max_iterations=1000)</code></pre>
 </div>
 </div>
-<div id="eaf33cce" class="cell" data-execution_count="3">
+<div id="972d5017" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.SyntheticDID</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5335,9 +5347,9 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="53143777" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="7b07ac26" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">17</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">13</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> np.zeros_like(y)</span>
@@ -5353,10 +5365,10 @@ window.Quarto = {
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="0ba4992d" class="cell" data-execution_count="5">
+<div id="7cfb8738" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">117</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">12</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> np.zeros_like(y)</span>

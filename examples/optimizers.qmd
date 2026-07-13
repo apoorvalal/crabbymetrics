@@ -30,9 +30,9 @@ np.set_printoptions(precision=4, suppress=True)
 
 ## BFGS On A Bernoulli Logit Likelihood
 
-The built-in `Logit` class reports coefficients for the lower-coded class. To line up with that convention exactly, the synthetic data below are generated from the class-0 probability
+The built-in `Logit` class reports the linear index and probability for label 1. The synthetic data below are therefore generated from
 
-`Pr(y = 0 | x) = sigmoid(theta_0 + x @ theta)`.
+`Pr(y = 1 | x) = sigmoid(theta_0 + x @ theta)`.
 
 We then minimize the negative Bernoulli log-likelihood directly with `Optimizers.minimize_bfgs` and compare the optimizer output with the built-in regression.
 
@@ -48,17 +48,16 @@ X = np.column_stack([np.ones(n), x])
 def sigmoid(z):
     return 1.0 / (1.0 + np.exp(-z))
 
-prob_zero = sigmoid(X @ theta_true)
-y = rng.binomial(1, 1.0 - prob_zero).astype(np.int32)
-y_zero = 1.0 - y.astype(np.float64)
+prob_one = sigmoid(X @ theta_true)
+y = rng.binomial(1, prob_one).astype(np.int32)
 
 def bernoulli_nll(theta):
     eta = X @ theta
-    return float(np.sum(np.logaddexp(0.0, eta) - y_zero * eta))
+    return float(np.sum(np.logaddexp(0.0, eta) - y * eta))
 
 def bernoulli_grad(theta):
     eta = X @ theta
-    return X.T @ (sigmoid(eta) - y_zero)
+    return X.T @ (sigmoid(eta) - y)
 
 bfgs_result = Optimizers.minimize_bfgs(
     bernoulli_nll,
@@ -82,8 +81,8 @@ print("BFGS objective:", round(float(bfgs_result["fun"]), 6))
 ```
 
 ```{python}
-prob_zero_bfgs = sigmoid(X @ bfgs_result["x"])
-prob_zero_logit = sigmoid(X @ logit_theta)
+prob_one_bfgs = sigmoid(X @ bfgs_result["x"])
+prob_one_logit = sigmoid(X @ logit_theta)
 
 labels = ["intercept", "x1", "x2", "x3"]
 positions = np.arange(len(labels))
@@ -100,9 +99,9 @@ axes[0].set_title("Same Bernoulli likelihood, same coefficients")
 axes[0].set_ylabel("coefficient")
 axes[0].legend()
 
-axes[1].scatter(prob_zero_bfgs, prob_zero_logit, s=12, alpha=0.55)
+axes[1].scatter(prob_one_bfgs, prob_one_logit, s=12, alpha=0.55)
 axes[1].plot([0, 1], [0, 1], color="black", linewidth=1.0)
-axes[1].set_title("Class-0 fitted probabilities")
+axes[1].set_title("Class-1 fitted probabilities")
 axes[1].set_xlabel("BFGS")
 axes[1].set_ylabel("Logit")
 

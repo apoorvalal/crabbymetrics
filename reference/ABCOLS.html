@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#criterion-and-identification" id="toc-criterion-and-identification" class="nav-link" data-scroll-target="#criterion-and-identification"><span class="header-section-number">2</span> Criterion and identification</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="96aaf7b9" class="cell" data-execution_count="1">
+<div id="ab83427f" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5273,8 +5270,26 @@ A\theta=0.
 \]</span></p>
 <p>This identifies one empirically centered representative from the otherwise non-unique full-indicator coefficient system. The constraints depend on the estimation sample, so coefficients need not be invariant to changing the sample’s category proportions.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The abundance-based parameterization is constructed explicitly; it is not implemented by choosing omitted levels and recoding coefficients afterward.</p>
+<ol type="1">
+<li><p>Continuous columns are optionally centered by their estimation-sample means, which are retained for prediction. Each categorical column must use contiguous observed codes <span class="math inline">\(0,\ldots,L_k-1\)</span>; a gap is rejected rather than silently treated as an empty level.</p></li>
+<li><p>The code computes empirical marginal level shares and, for every requested category-by-category interaction, empirical cell shares. Every requested interaction cell must occur. These sample shares become coefficients in the restrictions, so the constraints and the coefficient interpretation are data-dependent.</p></li>
+<li><p>The full design is materialized in a deterministic order: intercept, continuous main effects, all indicator columns for each category, requested continuous-by-category products, and requested category-by-category cell indicators. Metadata for every column is stored alongside human-readable names.</p></li>
+<li><p>Constraint rows are assembled against those column metadata. Main categorical effects and continuous-by-category blocks receive abundance-weighted zero-sum rows. A two-category table receives weighted margin restrictions in both directions, with one redundant margin omitted before numerical null-space construction.</p></li>
+<li><p>The code forms <span class="math inline">\(A&#39;A\)</span>, performs a symmetric eigendecomposition, and defines a numerical null direction when its eigenvalue is no larger than</p>
+<p><span class="math display">\[
+100\max(m,p)\epsilon\max\{\lambda_{\max}(A&#39;A),1\}.
+\]</span></p>
+<p>The selected eigenvectors are the orthonormal columns of <span class="math inline">\(Q\)</span>. This avoids choosing an arbitrary reference cell but squares the condition number of <span class="math inline">\(A\)</span>.</p></li>
+<li><p>It materializes <span class="math inline">\(Z=X_fQ\)</span>, checks that at least one free coordinate and positive residual degrees of freedom remain, solves <span class="math inline">\(Z\phi\approx y\)</span> by least squares, and maps back with <span class="math inline">\(\theta=Q\phi\)</span>. Fitted values use the original full design and constrained coefficients.</p></li>
+<li><p>Prediction centers new continuous values with the stored training means, rejects unseen categorical codes, rebuilds the same full column layout, and multiplies by <span class="math inline">\(\hat\theta\)</span>. The reported maximum violation is <span class="math inline">\(\|A\hat\theta\|_\infty\)</span> and is a direct numerical audit of the reparameterization.</p></li>
+</ol>
+<p>The null-space route makes the estimand transparent and keeps the least-squares solve unconstrained. Its cost is dense expansion plus a tolerance-sensitive eigendecomposition; a sparse QR of <span class="math inline">\(A&#39;\)</span> would be a more scalable construction for high-cardinality systems.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>Inference is homoskedastic and conditional on the constructed design and empirical constraints. With <span class="math inline">\(Z=X_fQ\)</span>, <span class="math inline">\(r=\operatorname{rank}(Z)\)</span>, and <span class="math inline">\(e=y-Z\hat\phi\)</span>,</p>
 <p><span class="math display">\[
 \hat\sigma^2=\frac{e&#39;e}{n-r},
@@ -5289,21 +5304,21 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q&#39;.
 \]</span></p>
 <p>The reported standard errors are the square roots of the final diagonal. The class does not implement heteroskedastic, clustered, serial-correlation-robust, or bootstrap covariance. It also treats the abundance constraints as fixed rather than accounting for their sampling variation.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>The main risk is feature expansion. If <span class="math inline">\(p_f\)</span> is the width of the full design, the constraint eigendecomposition and covariance are dense <span class="math inline">\(p_f\times p_f\)</span> operations with roughly cubic factorization cost and quadratic storage. Category-by-category interactions can make <span class="math inline">\(p_f\)</span> grow as the product of level counts, and the fit requires every requested interaction cell to be represented. Prediction rebuilds the same dense full design and rejects unseen or inconsistently ordered category levels. This estimator is appropriate for moderate categorical systems where the centered coefficient parameterization is substantively useful, not high-cardinality sparse designs.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.ABCOLS</code></p>
 <p>Call <code>fit(y, x, categories, cont_cat_interactions=None, cat_cat_interactions=None, center_continuous=True)</code>. Categorical inputs are zero-based dense <code>uint32</code> codes. <code>predict(x, categories)</code> returns fitted means for new rows under the same coding scheme. <code>summary()</code> reports constrained coefficients, standard errors, column names, constraint names, residual variance, residual degrees of freedom, rank, and a maximum-constraint-violation diagnostic.</p>
-<div id="5af3bc78" class="cell" data-execution_count="2">
+<div id="bf33802f" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.ABCOLS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="72d84ce4" class="cell" data-execution_count="3">
+<div id="f306dcae" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.ABCOLS</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5343,9 +5358,9 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q&#39;.
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="965ea95e" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="cad40f04" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2026</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>group <span class="op">=</span> np.repeat(np.array([<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>], dtype<span class="op">=</span>np.uint32), [<span class="dv">36</span>, <span class="dv">54</span>, <span class="dv">30</span>])</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>sex <span class="op">=</span> np.tile(np.array([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>np.uint32), <span class="bu">len</span>(group) <span class="op">//</span> <span class="dv">2</span>)</span>
@@ -5366,10 +5381,10 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q&#39;.
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="6ad29370" class="cell" data-execution_count="5">
+<div id="f964d9f4" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2126</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>group <span class="op">=</span> np.repeat(np.array([<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>], dtype<span class="op">=</span>np.uint32), [<span class="dv">24</span>, <span class="dv">30</span>, <span class="dv">18</span>])</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>sex <span class="op">=</span> np.tile(np.array([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>np.uint32), <span class="bu">len</span>(group) <span class="op">//</span> <span class="dv">2</span>)</span>

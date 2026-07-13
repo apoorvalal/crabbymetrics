@@ -70,8 +70,6 @@ website:
             text: Survival / Recurrent Events
           - href: examples/gmm.qmd
             text: GMM
-          - href: examples/ftrl.qmd
-            text: FTRL
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
       - text: Causal Inference

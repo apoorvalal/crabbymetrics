@@ -61,6 +61,20 @@ $$
 
 Rows are sampled with replacement when bootstrap sampling is enabled. Otherwise the learner uses a shuffled subset without replacement. Feature subsets are always sampled without replacement.
 
+## Implementation walkthrough
+
+The ensemble, polynomial expansion, standardization, ridge solve, and OOB accounting are all implemented in the package.
+
+1. Before drawing anything, the fit resolves `max_features` and `max_samples`, computes $q=\binom{k+d}{d}-1$ with checked 128-bit arithmetic, and checks both the term limit and the proposed dense design size. It then generates the term specification once for a $k$-variable local coordinate system and shares that immutable list across all learners.
+2. Terms are generated degree by degree by a recursion over nondecreasing feature indices. Repeated indices create powers and distinct indices create interactions: for two local variables and degree two, the order is $x_0,x_1,x_0^2,x_0x_1,x_1^2$. The implementation evaluates each term by starting from ones and multiplying the referenced columns; it does not use a symbolic polynomial library.
+3. One seeded Rust RNG drives the entire ensemble. A bootstrap learner draws `max_samples` row indices independently with replacement; a nonbootstrap learner shuffles all row indices, truncates, and sorts them. Features are independently shuffled, truncated without replacement, and sorted. Sorting makes stored subspaces deterministic to inspect but does not change the draw.
+4. The learner selects its raw columns, materializes the full in-bag polynomial matrix, and standardizes each term with its in-bag population variance (denominator $m$, not $m-1$). A standard deviation at or below $10^{-12}$ is replaced by one, so a constant term becomes a centered zero column rather than producing division by zero.
+5. An intercept is prepended and ridge is fit with the same augmented-QR primitive as `Ridge`: $\sqrt{\lambda}I$ rows are appended for polynomial slopes, while the intercept is unpenalized. The learner stores its selected original-column indices, shared term list, in-bag means and scales, coefficient vector, and in-bag MSE.
+6. For bootstrap fits, each completed learner immediately predicts all training rows. Its prediction is accumulated only for rows never drawn by that learner. At the end, each covered row's accumulated prediction is divided by its OOB learner count; MSE and coverage are computed on that covered subset. Duplicate in-bag draws are tracked as one Boolean membership for this purpose.
+7. At prediction time every learner repeats raw-column selection and monomial construction, applies that learner's own stored centering and scaling, and multiplies by its coefficient vector. The public result is the unweighted arithmetic mean across learners. There is no pruning or coefficient pooling across repeated subspaces.
+
+Two design choices matter statistically. Standardizing inside each bootstrap sample makes the ridge penalty comparable across terms within a learner, but it also makes each learner's coordinate system sample-dependent. Sharing a term specification is valid because every learner selects exactly $k$ features and the term indices are local positions; it saves metadata, not polynomial computation.
+
 ## Diagnostics and inference
 
 This is a prediction estimator and has no coefficient-level analytic inference. With bootstrap row sampling, an observation's out-of-bag prediction averages only learners for which that observation was absent from $I_b$; the reported OOB MSE is computed over covered observations and the coverage fraction is reported separately. No OOB statistic is produced for sampling without replacement, even if a learner uses fewer than all rows. The OOB MSE is a prediction diagnostic, not a standard error or confidence interval.

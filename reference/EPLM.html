@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#estimating-equations" id="toc-estimating-equations" class="nav-link" data-scroll-target="#estimating-equations"><span class="header-section-number">2</span> Estimating equations</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="e68fe7bb" class="cell" data-execution_count="1">
+<div id="0150a944" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5286,8 +5283,20 @@ Y=\beta D+g(W)+U
 \]</span></p>
 <p>The treatment is not required to be binary; it may be continuous.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The point estimate and stacked-moment inference are both native dense linear algebra.</p>
+<ol type="1">
+<li><code>fit()</code> validates aligned finite arrays and prepends an explicit intercept to <span class="math inline">\(W\)</span>. It solves the treatment projection by rectangular least squares, then stores <span class="math inline">\(v=D-\tilde W\hat\pi\)</span>.</li>
+<li>The scalar coefficient is computed directly as <span class="math inline">\(v&#39;Y/(v&#39;D)\)</span> rather than by a second regression object. A denominator below <span class="math inline">\(10^{-12}\)</span> in absolute value is treated as lack of residual treatment variation and raises.</li>
+<li>The stored parameter vector is ordered $(‘,)’`. At summary time, the code reconstructs every observation’s full moment row by scaling <span class="math inline">\(\tilde W_i\)</span> with <span class="math inline">\(v_i\)</span> and appending <span class="math inline">\(v_i(Y_i-D_i\beta)\)</span>.</li>
+<li>For each parameter coordinate it perturbs by <span class="math inline">\(h_j=\text{fd eps}\max(|\theta_j|,1)\)</span>, reevaluates the complete moment matrix at plus and minus perturbations, averages columns, and fills one central-difference Jacobian column. No closed-form Jacobian is used even though this particular system is analytic.</li>
+<li>The square Jacobian is inverted once. Moment rows are mapped to parameter-score rows as <span class="math inline">\(\psi_iA^{-T}/n\)</span>; the shared iid, HC1, Newey-West, or cluster aggregator then supplies the covariance. Only the final scalar row and column are exposed publicly.</li>
+</ol>
+<p>The implementation deliberately treats nuisance estimation and target inference as one exactly identified system. This accounts for the linear treatment projection algebraically, at the cost of repeated moment construction during numerical differentiation.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>The mean-moment Jacobian <span class="math inline">\(A=\partial\bar\psi/\partial\theta&#39;\)</span> is evaluated by central differences. The uncorrected iid option, named vanilla, is already an empirical sandwich:</p>
 <p><span class="math display">\[
 \widehat V
@@ -5298,21 +5307,21 @@ Y=\beta D+g(W)+U
 \]</span></p>
 <p>HC1 multiplies the corresponding parameter-score covariance by <span class="math inline">\(n/(n-k)\)</span>, where <span class="math inline">\(k\)</span> includes nuisance parameters. Newey-West applies Bartlett lag weights and that same correction; cluster covariance sums parameter scores by cluster and applies the package’s <span class="math inline">\(G/(G-1)\times(n-1)/(n-k)\)</span> correction. The summary returns only the <span class="math inline">\(\beta\)</span> variance block and nuisance point estimates. There is no bootstrap or built-in Wald method.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>Point estimation is a pair of dense least-squares calculations with approximately <span class="math inline">\(O(np^2+p^3)\)</span> work for <span class="math inline">\(p\)</span> control columns. Summary-time numerical differentiation evaluates the full moment system twice per element of <span class="math inline">\((\pi,\beta)\)</span> and then inverts its dense Jacobian, so inference can cost more than fitting. Near-zero residual treatment variation raises. There is no sample splitting, nonlinear nuisance learner, or regularization, and collinear controls can make both projection and covariance unstable.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.EPLM</code></p>
 <p>Call <code>fit(y, d, w)</code> with scalar treatment <code>d</code> and 2D controls <code>w</code>. <code>summary(vcov=None, lags=None, clusters=None)</code> returns the coefficient, standard error, covariance matrix, and nuisance coefficients. There is no <code>predict()</code> method.</p>
-<div id="0943fe56" class="cell" data-execution_count="2">
+<div id="1168845d" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.EPLM))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(fd_eps=1e-06)</code></pre>
 </div>
 </div>
-<div id="49c24100" class="cell" data-execution_count="3">
+<div id="0b493ea7" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.EPLM</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5334,9 +5343,9 @@ Y=\beta D+g(W)+U
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="054471d2" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="1fc83060" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">3</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">300</span>)</span>
@@ -5351,10 +5360,10 @@ Y=\beta D+g(W)+U
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="d2e65b92" class="cell" data-execution_count="5">
+<div id="71676f59" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">111</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">120</span>, <span class="dv">3</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">120</span>)</span>

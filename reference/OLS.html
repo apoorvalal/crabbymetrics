@@ -5007,10 +5007,6 @@ window.Quarto = {
  <span class="dropdown-text">GMM</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../examples/ftrl.html">
- <span class="dropdown-text">FTRL</span></a>
-  </li>  
-        <li>
     <a class="dropdown-item" href="../examples/mestimator-poisson.html">
  <span class="dropdown-text">MEstimator Poisson</span></a>
   </li>  
@@ -5216,11 +5212,12 @@ window.Quarto = {
   <ul>
   <li><a href="#where-it-fits" id="toc-where-it-fits" class="nav-link active" data-scroll-target="#where-it-fits"><span class="header-section-number">1</span> Where it fits</a></li>
   <li><a href="#criterion-and-computation" id="toc-criterion-and-computation" class="nav-link" data-scroll-target="#criterion-and-computation"><span class="header-section-number">2</span> Criterion and computation</a></li>
-  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">3</span> Inference</a></li>
-  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</a></li>
-  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">5</span> Python API</a></li>
-  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">6</span> Minimal example</a></li>
-  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</a></li>
+  <li><a href="#implementation-walkthrough" id="toc-implementation-walkthrough" class="nav-link" data-scroll-target="#implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</a></li>
+  <li><a href="#inference" id="toc-inference" class="nav-link" data-scroll-target="#inference"><span class="header-section-number">4</span> Inference</a></li>
+  <li><a href="#performance-and-numerical-behavior" id="toc-performance-and-numerical-behavior" class="nav-link" data-scroll-target="#performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</a></li>
+  <li><a href="#python-api" id="toc-python-api" class="nav-link" data-scroll-target="#python-api"><span class="header-section-number">6</span> Python API</a></li>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example"><span class="header-section-number">7</span> Minimal example</a></li>
+  <li><a href="#summary-contract" id="toc-summary-contract" class="nav-link" data-scroll-target="#summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</a></li>
   </ul>
 </nav>
     </div>
@@ -5247,7 +5244,7 @@ window.Quarto = {
 </header>
 
 
-<div id="c32db0b4" class="cell" data-execution_count="1">
+<div id="d1446bec" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -5274,8 +5271,21 @@ y_i = \alpha + x_i&#39;\beta + u_i
 \]</span></p>
 <p>This is an approximate point estimator. The fitted object still stores the full original design and computes residuals and covariance estimates on all <span class="math inline">\(n\)</span> observations at <span class="math inline">\(\hat\theta_S\)</span>.</p>
 </section>
-<section id="inference" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="inference"><span class="header-section-number">3</span> Inference</h2>
+<section id="implementation-walkthrough" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
+<p>The linear-estimator stack shares a small set of native array and covariance primitives.</p>
+<ol type="1">
+<li><code>fit()</code> converts NumPy inputs to owned dense arrays, validates dimensions and finiteness, and prepends an explicit column of ones. <code>fit_weighted()</code> additionally validates nonnegative weights and multiplies every design row and outcome by <span class="math inline">\(\sqrt{w_i}\)</span>. The original unweighted arrays and weights are retained after fitting.</li>
+<li>The point estimate is obtained with <code>ndarray-linalg</code> least squares on the design itself. The code does not form <span class="math inline">\(X&#39;X\)</span> or invert it to obtain coefficients. The returned parameter vector is split into its first intercept entry and remaining slope entries only after the solve succeeds.</li>
+<li>CountSketch assigns each original row independently to one of <span class="math inline">\(s\)</span> buckets and gives it a Rademacher sign <span class="math inline">\(\pm1\)</span>. Signed rows of <span class="math inline">\(X\)</span> and signed outcomes are accumulated into the same buckets, using the supplied seed or fixed fallback seed <code>0xBAD5EED</code>. There is no <span class="math inline">\(1/\sqrt{s}\)</span> normalization; a common rescaling would not change the least-squares minimizer.</li>
+<li><code>fit_sketch()</code> solves only the <span class="math inline">\(s\times p\)</span> sketched system for the point estimate, then stores the untouched full sample. Consequently, <code>predict()</code>, residuals, covariance, and all reported fit statistics are evaluated on the original observations at the approximate coefficients rather than on sketch residuals.</li>
+<li><code>summary()</code> rebuilds the design, computes residuals, and dispatches to a shared covariance routine. That routine forms and inverts <span class="math inline">\(X&#39;X\)</span>, explicitly loops over leverage values for HC2/HC3, or first maps observation moments <span class="math inline">\(x_i e_i\)</span> through the bread to parameter-score rows for HAC and cluster aggregation.</li>
+<li>The pairs bootstrap draws integer row indices with replacement, copies matching <span class="math inline">\(X\)</span> and <span class="math inline">\(y\)</span> rows, and reruns the exact least-squares path. It does not reproduce a previous sketch. A weighted fit likewise resamples the corresponding weight entries.</li>
+</ol>
+<p>The split between QR-style least squares for coefficients and explicit cross-product inversion for inference is intentional but important: a rank-deficient fit can return a least-squares solution while covariance construction still fails or is unstable. CountSketch accelerates only the former.</p>
+</section>
+<section id="inference" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>Let <span class="math inline">\(e_i=y_i-\tilde x_i&#39;\hat\theta\)</span>, <span class="math inline">\(H=\tilde X(\tilde X&#39;\tilde X)^{-1}\tilde X&#39;\)</span>, and <span class="math inline">\(d_f=n-p\)</span>, where <span class="math inline">\(p\)</span> includes the intercept. The implemented covariance choices are:</p>
 <p><span class="math display">\[
 \widehat V_{\mathrm{vanilla}}
@@ -5317,21 +5327,21 @@ q=(r\alpha^2)^{1/(\nu+1)}.
 \]</span></p>
 <p>This sequential calculation reuses the requested fixed-sample covariance; it does not change the coefficient fit.</p>
 </section>
-<section id="performance-and-numerical-behavior" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">4</span> Performance and numerical behavior</h2>
+<section id="performance-and-numerical-behavior" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
 <p>For a dense <span class="math inline">\(n\times p\)</span> design, fitting costs about <span class="math inline">\(O(np^2+p^3)\)</span> and stores <span class="math inline">\(O(np+p^2)\)</span> values. HC2/HC3 explicitly evaluate every leverage and therefore also cost <span class="math inline">\(O(np^2)\)</span>. Newey-West adds <span class="math inline">\(O(Lnp)\)</span> score work for <span class="math inline">\(L\)</span> lags; cluster aggregation is linear in <span class="math inline">\(n\)</span> after the scores are formed. A CountSketch reduces the least-squares row dimension to <span class="math inline">\(s\)</span>, but full-data prediction, residual construction, and inference remain; it is most useful when the point-estimation solve dominates. Ill-conditioned or rank-deficient designs may produce unstable covariance inversions even when the least-squares point estimate succeeds.</p>
 </section>
-<section id="python-api" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
+<section id="python-api" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.OLS</code></p>
 <p>Use <code>fit(x, y)</code> for the standard estimator, <code>fit_weighted(x, y, sample_weight)</code> for weighted least squares, and <code>fit_sketch(x, y, sketch_size, seed=None)</code> when a randomized row sketch is acceptable for a large tall design. <code>predict(x)</code> returns fitted values. <code>bootstrap(B, seed=None)</code> returns bootstrap draws with the intercept in the first column.</p>
-<div id="4bcd00f9" class="cell" data-execution_count="2">
+<div id="4da13938" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.OLS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="b6f9e50c" class="cell" data-execution_count="3">
+<div id="2176dc66" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.OLS</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -5368,9 +5378,9 @@ q=(r\alpha^2)^{1/(\nu+1)}.
 </div>
 </div>
 </section>
-<section id="minimal-example" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="eae9ebf3" class="cell" data-execution_count="4">
+<section id="minimal-example" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
+<div id="b1a82608" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">1</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">200</span>, <span class="dv">3</span>))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.25</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.3</span>, size<span class="op">=</span><span class="dv">200</span>)</span>
@@ -5387,10 +5397,10 @@ q=(r\alpha^2)^{1/(\nu+1)}.
 </div>
 </div>
 </section>
-<section id="summary-contract" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
+<section id="summary-contract" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="afa7b978" class="cell" data-execution_count="5">
+<div id="df1908f8" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">101</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">3</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.7</span>, <span class="fl">0.25</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.3</span>, size<span class="op">=</span><span class="dv">80</span>)</span>
