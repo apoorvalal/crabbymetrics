@@ -9,9 +9,9 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.8.0` is published to PyPI and GitHub Releases. It contains the estimator-correctness remediation, complete estimator math/API audit, guarded `BaggedPolynomialRegressor`, and PCA/Poisson corrections merged in PR #16, in addition to the earlier anytime-valid OLS, likelihood, and survival work.
+Current release state: `v0.8.0` is published to PyPI and GitHub Releases. `master` is prepared at source version `0.8.1` for the API-hardening release from merged PR #17.
 
-Current development state: `api-hardening` is based on `origin/master` at `ce5ea3b` and is intentionally unreleased.
+Current development state: PR #17 squash-merged into `master` as `854a63b`. The release candidate removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 

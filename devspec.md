@@ -18,9 +18,9 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
-## API-Hardening Branch Status (2026-07-12)
+## v0.8.1 API-Hardening Release Status (2026-07-12)
 
-The clean `api-hardening` branch starts from `origin/master` at `ce5ea3b`, after the `v0.8.0` refactor and estimator-audit release. It completes the remaining P0--P1 hardening items identified by the stocktake:
+PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, after the `v0.8.0` refactor and estimator-audit release. The `v0.8.1` release packages the remaining P0--P1 hardening items identified by the stocktake:
 
 - removed the incoherent one-update FTRL class, its public/docs/test surface, and `linfa-ftrl`
 - removed the unused `linfa-linear` dependency
