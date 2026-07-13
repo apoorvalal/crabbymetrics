@@ -20,7 +20,7 @@ Any new work here should usually satisfy most of the following:
 
 ## v0.8.1 API-Hardening Release Status (2026-07-12)
 
-PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, after the `v0.8.0` refactor and estimator-audit release. The `v0.8.1` release packages the remaining P0--P1 hardening items identified by the stocktake:
+PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, after the `v0.8.0` refactor and estimator-audit release. Release `v0.8.1` now packages the remaining P0--P1 hardening items identified by the stocktake:
 
 - removed the incoherent one-update FTRL class, its public/docs/test surface, and `linfa-ftrl`
 - removed the unused `linfa-linear` dependency
@@ -36,6 +36,8 @@ PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, afte
 New estimator work must preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence. Common iterative summary keys are `converged`, `iterations`, `termination_reason`, and `objective`.
 
 The branch's public reference pages now also document estimator internals at source-code granularity. All 29 estimator, transform, and optimizer pages explain parameter layout, initialization, numerical steps, stopping and failure behavior, prediction reconstruction, and dominant allocations. They explicitly separate package-owned algorithms from narrow delegation boundaries in `FixedEffectsOLS`, `ElasticNet`, exact `PCA`, and exact `KernelBasis`. The class-page generator is scaffold-only and skips these audited pages unless explicitly forced.
+
+The release site was rebuilt as 92 Quarto pages after re-executing the four solver-sensitive ablations. It is deployed from clean `gh-pages` commit `c7a3ce4` at `https://apoorvalal.github.io/crabbymetrics/`; rendered outputs remain excluded from `master` and the PyPI sdist.
 
 ### Estimator Math And API Audit (2026-07-11)
 

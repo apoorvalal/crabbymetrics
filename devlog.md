@@ -9,9 +9,9 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.8.0` is published to PyPI and GitHub Releases. `master` is prepared at source version `0.8.1` for the API-hardening release from merged PR #17.
+Current release state: `v0.8.1` is published to PyPI and GitHub Releases. The matching 92-page documentation site is live from `gh-pages`.
 
-Current development state: PR #17 squash-merged into `master` as `854a63b`. The release candidate removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
+Current development state: PR #17 squash-merged into `master` as `854a63b`. The released code removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
@@ -629,3 +629,12 @@ That is the current state the next extension branch should assume.
 - Local release gates passed with 143 Python tests, 3 Rust tests, Rust formatting, and a clean-checkout 404 KiB sdist containing neither `docs/` nor the untracked local `ding_ci` notebooks.
 - Rebuilt all 94 public Quarto pages from the `v0.8.0` tag. The stale local `ding_w_source` symlink had pointed one directory too deep; pointing it at the parent `Ding_CausalInference` directory restored every external replication-data path.
 - Release links: PyPI version `0.8.0`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.0`; public docs `https://apoorvalal.github.io/crabbymetrics/`.
+
+## 2026-07-12 v0.8.1 API-Hardening Release
+
+- Tagged release commit `ebf2fc4` as `v0.8.1` after PR #17 and the source-distribution exclusion guard landed on `master`.
+- Release workflow `https://github.com/apoorvalal/crabbymetrics/actions/runs/29215539245` passed Python 3.10 and 3.12 test jobs, built Linux and macOS wheels for Python 3.10 through 3.14, published 10 wheels plus a 416,776-byte sdist, created the GitHub Release, and published to PyPI.
+- Local release gates passed with 153 Python tests, 5 Rust tests, Rust formatting, an editable 0.8.1 build, and a 418,119-byte dirty-checkout sdist containing neither rendered `docs/` content nor the local `ding_ci` symlink tree.
+- Re-executed the solver-sensitive panel DGP, same-root panel, semiparametric estimator, and variance estimator ablations, then rendered all 92 Quarto pages successfully against the 0.8.1 extension.
+- Published the rendered site to `gh-pages` and removed two generated Python bytecode files before the final Pages deployment. Pages workflow `https://github.com/apoorvalal/crabbymetrics/actions/runs/29215956872` deployed clean commit `c7a3ce4`; live checks confirmed visible API code, folded ablation code, and the new estimator implementation walkthroughs.
+- Release links: PyPI version `0.8.1` at `https://pypi.org/project/crabbymetrics/0.8.1/`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.1`; public docs `https://apoorvalal.github.io/crabbymetrics/`.
