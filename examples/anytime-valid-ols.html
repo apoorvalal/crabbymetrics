@@ -5120,7 +5120,7 @@ vertical-align: -.125em;
 <section id="data-generating-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="data-generating-example"><span class="header-section-number">3</span> Data-Generating Example</h2>
 <p>This mirrors the structure of the <code>avlm</code> README example: three centered covariates, a binary treatment, and treatment-by-covariate interactions. The coefficient on <code>trt</code> is a baseline treatment effect, while the interaction coefficients allow that effect to vary with the covariates.</p>
-<div id="d170f3e5" class="cell" data-execution_count="1">
+<div id="e0093a0b" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -5169,7 +5169,7 @@ vertical-align: -.125em;
 <h2 data-number="4" class="anchored" data-anchor-id="fit-ols-once"><span class="header-section-number">4</span> Fit OLS Once</h2>
 <p>The fitted model is just <code>cm.OLS()</code>. The <code>optimal_g(...)</code> helper chooses the mixture precision parameter that minimizes the anytime-valid confidence-interval width at this target sample size and significance level.</p>
 <p>The second argument to <code>optimal_g</code> is the total coefficient count, including the intercept fitted internally by <code>OLS</code>.</p>
-<div id="7d94d194" class="cell" data-execution_count="2">
+<div id="7d181ae0" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.OLS()</span>
@@ -5188,7 +5188,7 @@ vertical-align: -.125em;
 </div>
 </div>
 <p>The usual summary fields remain available. For example, the first three slope coefficients are unchanged when anytime-valid inference is requested:</p>
-<div id="f94f43fb" class="cell" data-execution_count="3">
+<div id="a72e94fd" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;plain slope estimates:&quot;</span>, np.<span class="bu">round</span>(plain[<span class="st">&quot;coef&quot;</span>][:<span class="dv">3</span>], <span class="dv">4</span>))</span>
@@ -5211,7 +5211,7 @@ AV slope estimates:    [0.0257 0.1183 1.4786]</code></pre>
 <li><code>confint</code>: anytime-valid confidence intervals</li>
 <li><code>f_statistic</code> and <code>f_p_value</code>: omnibus test for all non-intercept coefficients</li>
 </ul>
-<div id="0b6f76f4" class="cell" data-execution_count="4">
+<div id="7d34fb17" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
@@ -5308,7 +5308,7 @@ AV slope estimates:    [0.0257 0.1183 1.4786]</code></pre>
 </div>
 </div>
 <p>The omnibus anytime-valid F-test is reported in the same dictionary:</p>
-<div id="38fbe6ec" class="cell" data-execution_count="5">
+<div id="b145a47c" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;AV F-statistic:&quot;</span>, <span class="bu">round</span>(av[<span class="st">&quot;f_statistic&quot;</span>], <span class="dv">4</span>))</span>
@@ -5323,7 +5323,7 @@ AV F-test p-value: 1.467e-33</code></pre>
 <section id="robust-variant" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="robust-variant"><span class="header-section-number">6</span> Robust Variant</h2>
 <p>The anytime-valid option composes with the ordinary <code>summary(vcov=...)</code> covariance interface. Here is the same fit with HC1 standard errors:</p>
-<div id="9e5533d7" class="cell" data-execution_count="6">
+<div id="0be6bb9d" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>av_hc1 <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">&quot;hc1&quot;</span>, anytime_valid<span class="op">=</span><span class="va">True</span>, g<span class="op">=</span>g_star, level<span class="op">=</span><span class="fl">0.95</span>)</span>
@@ -5425,7 +5425,7 @@ AV F-test p-value: 1.467e-33</code></pre>
 <section id="compact-helper" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="compact-helper"><span class="header-section-number">7</span> Compact Helper</h2>
 <p><code>cm.av(...)</code> is a small convenience wrapper around the same <code>OLS.summary(...)</code> call. It returns the summary dictionary directly, not a new model object.</p>
-<div id="4ff8b454" class="cell" data-execution_count="7">
+<div id="7d5fd6f8" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>helper <span class="op">=</span> cm.av(model, g<span class="op">=</span>g_star, vcov<span class="op">=</span><span class="st">&quot;vanilla&quot;</span>)</span>

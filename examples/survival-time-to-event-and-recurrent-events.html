@@ -451,7 +451,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>This vignette is the richer worked companion to the class reference pages for the survival submodule.</p>
-<div id="082e00cd" class="cell" data-execution_count="1">
+<div id="aa4de5b3" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -476,7 +476,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="simulate-a-weibull-ph-design" class="level2">
 <h2 class="anchored" data-anchor-id="simulate-a-weibull-ph-design">Simulate a Weibull PH design</h2>
-<div id="d9f6078f" class="cell" data-execution_count="2">
+<div id="13dc9107" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260524</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">0.55</span>, <span class="op">-</span><span class="fl">0.35</span>])</span>
@@ -498,7 +498,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="fit-the-parametric-ph-models" class="level2">
 <h2 class="anchored" data-anchor-id="fit-the-parametric-ph-models">Fit the parametric PH models</h2>
-<div id="3bfab990" class="cell" data-execution_count="3">
+<div id="ee8b7862" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>exp_ph <span class="op">=</span> cm.ExponentialPH()</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>exp_ph.fit(x, time, event)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -565,7 +565,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </section>
 <section id="parametric-prediction-surfaces" class="level2">
 <h2 class="anchored" data-anchor-id="parametric-prediction-surfaces">Parametric prediction surfaces</h2>
-<div id="66129cdc" class="cell" data-execution_count="4">
+<div id="80b510e3" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>check_x <span class="op">=</span> x[:<span class="dv">5</span>]</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>check_t <span class="op">=</span> np.linspace(<span class="fl">2.0</span>, <span class="fl">12.0</span>, <span class="dv">5</span>)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -641,7 +641,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 </div>
-<div id="e097594d" class="cell" data-execution_count="5">
+<div id="4a783d8a" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>weibull_preds <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"time"</span>: check_t,</span>
@@ -715,7 +715,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 <p>The internal identities line up exactly:</p>
-<div id="5ad7fba5" class="cell" data-execution_count="6">
+<div id="1fba3dd7" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"exp hazard = exp(lin)"</span>: np.allclose(exp_preds[<span class="st">"hazard"</span>], np.exp(exp_preds[<span class="st">"lin"</span>])),</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"exp survival = exp(-cumhaz)"</span>: np.allclose(exp_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>exp_preds[<span class="st">"cumhaz"</span>])),</span>
@@ -732,7 +732,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </section>
 <section id="cox-proportional-hazards" class="level2">
 <h2 class="anchored" data-anchor-id="cox-proportional-hazards">Cox proportional hazards</h2>
-<div id="a5276251" class="cell" data-execution_count="7">
+<div id="3af8a43b" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>cox <span class="op">=</span> cm.CoxPH()</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>cox.fit(x, time, event)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -787,7 +787,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 <p>Since the baseline hazard is left unspecified, the default prediction is relative risk rather than absolute survival:</p>
-<div id="d8bb6dd4" class="cell" data-execution_count="8">
+<div id="fa57d7ae" class="cell" data-execution_count="8">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>cox_preds <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"log_hazard_ratio"</span>: cox.predict_lin(check_x),</span>
@@ -843,7 +843,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 <section id="andersengill-for-recurrent-events-or-split-intervals" class="level2">
 <h2 class="anchored" data-anchor-id="andersengill-for-recurrent-events-or-split-intervals">Andersen–Gill for recurrent events or split intervals</h2>
 <p>A convenient smoke test is to split each subject into two rows with the event, if any, carried only by the final interval.</p>
-<div id="b0b907f3" class="cell" data-execution_count="9">
+<div id="24d9c321" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>start_long <span class="op">=</span> np.concatenate([np.zeros_like(time), time <span class="op">/</span> <span class="dv">2</span>])</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>stop_long <span class="op">=</span> np.concatenate([time <span class="op">/</span> <span class="dv">2</span>, time])</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>x_long <span class="op">=</span> np.vstack([x, x])</span>
@@ -893,7 +893,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 </div>
-<div id="a338260f" class="cell" data-execution_count="10">
+<div id="fa7eb90a" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>ag_preds <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"log_hazard_ratio"</span>: ag.predict_lin(check_x),</span>
@@ -948,7 +948,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </section>
 <section id="visualizing-survival-curves-from-the-parametric-fit" class="level2">
 <h2 class="anchored" data-anchor-id="visualizing-survival-curves-from-the-parametric-fit">Visualizing survival curves from the parametric fit</h2>
-<div id="7e9c47f7" class="cell" data-execution_count="11">
+<div id="fb65bf04" class="cell" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(<span class="fl">0.1</span>, np.quantile(time, <span class="fl">0.9</span>), <span class="dv">100</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>profiles <span class="op">=</span> np.array([</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">0.0</span>, <span class="fl">0.0</span>],</span>
