@@ -348,13 +348,13 @@ Binary-treatment augmented inverse probability weighting estimator for the ATE. 
 ### Bagged polynomial regression
 
 ```python
-cm.BaggedPolynomialRegressor(n_estimators=100, degree=2, max_features=None, max_samples=None, bootstrap=True, penalty=1.0, seed=None)
-fit(x, y)
-predict(x)
-summary()
+cm.BaggedPolynomialRegressor(n_estimators=50, degree=2, max_features=None, max_samples=None, bootstrap=True, penalty=1.0, seed=42)
+fit(x, y)       # returns None
+predict(x)      # float64 array with shape (n_new,)
+summary()       # fitted configuration, subspaces, train MSE, and OOB diagnostics
 ```
 
-Prediction-only ensemble with guarded polynomial expansion, internal column scaling, row bagging, random feature subspaces, and out-of-bag diagnostics when bootstrap sampling is enabled.
+Prediction-only ensemble with guarded polynomial expansion, per-learner internal column scaling, row bagging, random feature subspaces, and out-of-bag diagnostics when bootstrap sampling is enabled. `max_features=None` and `max_samples=None` resolve to all training columns and rows. `summary()` returns `n_estimators`, `degree`, resolved `max_features` and `max_samples`, `bootstrap`, `penalty`, `seed`, `n_features_in`, `n_terms`, `feature_indices`, `term_counts`, per-learner `train_mse`, `oob_mse`, `oob_coverage`, and `inference_available=False`.
 
 ### Moment and callback-driven estimators
 
