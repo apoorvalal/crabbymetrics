@@ -59,3 +59,53 @@ def test_quadratic_balancing_detects_infeasible_exact_balance_and_relaxes_with_l
     np.testing.assert_allclose(relaxed_summary["weight_sum"], 1.0, atol=1e-8, rtol=0.0)
     assert np.all(np.asarray(relaxed_summary["weights"]) >= -1e-10)
     assert np.all(np.asarray(relaxed_summary["weights"]) <= 0.25 + 1e-8)
+
+
+def test_cressie_read_entropy_limit_balances_with_lbfgs():
+    rng = np.random.default_rng(789)
+    x = rng.normal(size=(240, 3))
+    target = x[:70] + np.array([0.05, -0.03, 0.02])
+    baseline = np.full(x.shape[0], 1.0 / x.shape[0])
+
+    model = cm.BalancingWeights(
+        objective="cressie_read",
+        solver="lbfgs",
+        divergence_power=0.0,
+        dual_ridge=1e-10,
+        max_iterations=500,
+        tolerance=1e-8,
+    )
+    model.fit(x, target, baseline_weights=baseline.tolist())
+    summary = model.summary()
+
+    assert model.success
+    assert summary["solver"] == "lbfgs"
+    assert summary["objective"] == "cressie_read"
+    np.testing.assert_allclose(summary["divergence_power"], 0.0, atol=0.0, rtol=0.0)
+    np.testing.assert_allclose(summary["weight_sum"], 1.0, atol=1e-8, rtol=0.0)
+    np.testing.assert_allclose(summary["weighted_mean"], summary["target_mean"], atol=1e-6, rtol=1e-6)
+    assert np.all(np.asarray(summary["weights"]) > 0.0)
+
+
+def test_cressie_read_power_one_matches_first_moments_and_reports_ridge():
+    rng = np.random.default_rng(321)
+    x = rng.normal(size=(220, 2))
+    target = x[30:100] + np.array([0.04, -0.02])
+
+    model = cm.BalancingWeights(
+        objective="cressie_read",
+        solver="auto",
+        divergence_power=1.0,
+        dual_ridge=1e-8,
+        max_iterations=500,
+        tolerance=1e-8,
+    )
+    model.fit(x, target)
+    summary = model.summary()
+
+    assert model.success
+    assert summary["effective_sample_size"] > 1.0
+    np.testing.assert_allclose(summary["weight_sum"], 1.0, atol=1e-8, rtol=0.0)
+    np.testing.assert_allclose(summary["weighted_mean"], summary["target_mean"], atol=1e-6, rtol=1e-6)
+    np.testing.assert_allclose(summary["divergence_power"], 1.0, atol=0.0, rtol=0.0)
+    np.testing.assert_allclose(summary["dual_ridge"], 1e-8, rtol=0.0, atol=0.0)

@@ -49,6 +49,22 @@ The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07
 
 ## Current Extension Status
 
+### Active branch: Cressie-Read balancing
+
+The `feature/cressie-read-balancing` branch extends the existing `BalancingWeights`
+primitive with Cressie-Read / power-divergence calibration. The branch adds
+`objective="cressie_read"` with alias `objective="power_divergence"`,
+`divergence_power` for the Cressie-Read index, `dual_ridge` for optional
+dual-side stabilization, and `solver="lbfgs"` as an explicit solver path used by
+automatic fallback.
+
+The source docs live in `docs/reference/BalancingWeights.qmd` and
+`docs/examples/cressie-read-balancing.qmd`. The example treats Renyi divergence
+as a diagnostic mapping through the shared power moment with
+`lambda = alpha - 1`; it does not claim a separate `objective="renyi"` optimizer.
+Rendered review output belongs on the Hetzner draft preview or `gh-pages`, not
+on the source branch.
+
 ### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
 
 The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
@@ -123,6 +139,7 @@ Implementation guardrails for sketching work:
   - `docs/examples/anytime-valid-ols.qmd` is present in source, and tests match `avlm` reference calculations
 - balancing / calibration weights
   - `BalancingWeights` supports entropy and quadratic objectives, baseline weights, autoscaling, and approximate balance
+  - active branch extension: Cressie-Read / power-divergence calibration through `objective="cressie_read"`, with `divergence_power`, `dual_ridge`, and `solver="lbfgs"`
 - panel causal estimators
   - `HorizontalPanelRidge`, `SyntheticDID`, and `MatrixCompletion` now share the matrix panel contract `fit(Y, W)`, where `Y` is `(n_units, n_periods)` and `W` is a same-shaped binary absorbing treatment matrix
   - fitted panel estimators infer ever-treated units, first-treatment cohorts, never-treated donors, and pre/post/event-time structure internally

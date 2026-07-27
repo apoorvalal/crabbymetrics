@@ -3,7 +3,10 @@ use argmin::core::{
     CostFunction, Error as ArgminError, Executor, Gradient, State, TerminationReason,
     TerminationStatus,
 };
-use argmin::solver::{linesearch::MoreThuenteLineSearch, quasinewton::BFGS};
+use argmin::solver::{
+    linesearch::MoreThuenteLineSearch,
+    quasinewton::{BFGS, LBFGS},
+};
 use ndarray::{s, Array1, Array2, Axis};
 use numpy::{PyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -13,6 +16,7 @@ use pyo3::prelude::*;
 enum BalanceObjective {
     Entropy,
     Quadratic,
+    CressieRead,
 }
 
 impl BalanceObjective {
@@ -20,7 +24,10 @@ impl BalanceObjective {
         match value {
             "entropy" => Ok(Self::Entropy),
             "quadratic" => Ok(Self::Quadratic),
-            _ => Err("objective must be one of {'entropy', 'quadratic'}".to_string()),
+            "cressie_read" | "power_divergence" => Ok(Self::CressieRead),
+            _ => {
+                Err("objective must be one of {'entropy', 'quadratic', 'cressie_read'}".to_string())
+            }
         }
     }
 }
@@ -29,6 +36,7 @@ impl BalanceObjective {
 enum SolveMode {
     Auto,
     GaussNewton,
+    Lbfgs,
     Bfgs,
 }
 
@@ -37,8 +45,9 @@ impl SolveMode {
         match value {
             "auto" => Ok(Self::Auto),
             "gauss_newton" => Ok(Self::GaussNewton),
+            "lbfgs" => Ok(Self::Lbfgs),
             "bfgs" => Ok(Self::Bfgs),
-            _ => Err("solver must be one of {'auto', 'gauss_newton', 'bfgs'}".to_string()),
+            _ => Err("solver must be one of {'auto', 'gauss_newton', 'lbfgs', 'bfgs'}".to_string()),
         }
     }
 }
@@ -167,6 +176,7 @@ fn initial_beta(
 
     match objective {
         BalanceObjective::Entropy => Ok(Array1::<f64>::zeros(z.ncols())),
+        BalanceObjective::CressieRead => Ok(Array1::<f64>::zeros(z.ncols())),
         BalanceObjective::Quadratic => match baseline_weights {
             Some(baseline_weights) => {
                 let weighted_z = scale_rows(z, baseline_weights)?;
@@ -223,10 +233,36 @@ struct CalibrationSystem {
     min_weight: f64,
     max_weight: f64,
     l2_norm: f64,
+    divergence_power: f64,
+    dual_ridge: f64,
     entropy_phase: EntropyPhase,
 }
 
 impl CalibrationSystem {
+    fn baseline_value(&self, idx: usize) -> f64 {
+        self.baseline_weights
+            .as_ref()
+            .map(|weights| weights[idx])
+            .unwrap_or(1.0 / self.z.nrows() as f64)
+    }
+
+    fn cressie_read_link(&self, linear: f64) -> (f64, f64) {
+        let lambda = self.divergence_power;
+        if lambda.abs() <= 1e-10 {
+            let exponent = linear.clamp(-745.0, 700.0);
+            let value = exponent.exp();
+            return (value, value);
+        }
+
+        let base = 1.0 + lambda * linear;
+        if base <= 0.0 || !base.is_finite() {
+            return (0.0, 0.0);
+        }
+        let value = base.powf(1.0 / lambda);
+        let slope = value / base;
+        (value, slope)
+    }
+
     fn weights_and_slope(&self, beta: &Array1<f64>) -> Result<(Array1<f64>, Array1<f64>), String> {
         let linear = self.z.dot(beta);
         let mut weights = Array1::<f64>::zeros(linear.len());
@@ -259,6 +295,18 @@ impl CalibrationSystem {
                     weights[i] = weight;
                     if raw_log > lower_log && raw_log < upper_log {
                         slope[i] = weight;
+                    }
+                }
+            }
+            BalanceObjective::CressieRead => {
+                for i in 0..linear.len() {
+                    let baseline = self.baseline_value(i);
+                    let (link, link_slope) = self.cressie_read_link(linear[i]);
+                    let raw = baseline * link;
+                    let clipped = raw.clamp(self.min_weight, self.max_weight);
+                    weights[i] = clipped;
+                    if raw > self.min_weight && raw < self.max_weight {
+                        slope[i] = baseline * link_slope;
                     }
                 }
             }
@@ -312,7 +360,11 @@ impl CalibrationSystem {
 
     fn objective(&self, beta: &Array1<f64>) -> Result<f64, String> {
         let (residual, _, _) = self.residual_and_jacobian(beta)?;
-        Ok(0.5 * residual.dot(&residual))
+        let mut value = 0.5 * residual.dot(&residual);
+        if self.dual_ridge > 0.0 && beta.len() > 1 {
+            value += 0.5 * self.dual_ridge * beta.slice(s![1..]).dot(&beta.slice(s![1..]));
+        }
+        Ok(value)
     }
 
     fn residual_norm(&self, beta: &Array1<f64>) -> Result<f64, String> {
@@ -345,7 +397,13 @@ impl Gradient for CalibrationObjective<'_> {
             .system
             .residual_and_jacobian(param)
             .map_err(|err| ArgminError::msg(err.to_string()))?;
-        Ok(jacobian.t().dot(&residual))
+        let mut gradient = jacobian.t().dot(&residual);
+        if self.system.dual_ridge > 0.0 && gradient.len() > 1 {
+            for j in 1..gradient.len() {
+                gradient[j] += self.system.dual_ridge * param[j];
+            }
+        }
+        Ok(gradient)
     }
 }
 
@@ -369,13 +427,19 @@ fn solve_gauss_newton(
 
     loop {
         let (residual, jacobian, weights) = system.residual_and_jacobian(&beta)?;
-        let current_criterion = 0.5 * residual.dot(&residual);
+        let current_criterion = system.objective(&beta)?;
         let residual_norm = residual.dot(&residual).sqrt();
         let mut normal = jacobian.t().dot(&jacobian);
         for i in 0..normal.nrows() {
             normal[[i, i]] += 1e-8;
         }
-        let rhs = jacobian.t().dot(&residual);
+        let mut rhs = jacobian.t().dot(&residual);
+        if system.dual_ridge > 0.0 {
+            for j in 1..normal.nrows() {
+                normal[[j, j]] += system.dual_ridge;
+                rhs[j] += system.dual_ridge * beta[j];
+            }
+        }
         let step = solve_least_squares_vec(&normal, &rhs)?;
         let step_norm = step.dot(&step).sqrt();
 
@@ -411,7 +475,7 @@ fn solve_gauss_newton(
             let candidate = &beta - &(step.mapv(|value| alpha * value));
             let (candidate_residual, _, candidate_weights) =
                 system.residual_and_jacobian(&candidate)?;
-            let candidate_criterion = 0.5 * candidate_residual.dot(&candidate_residual);
+            let candidate_criterion = system.objective(&candidate)?;
             if candidate_criterion < current_criterion {
                 accepted_residual_norm = candidate_residual.dot(&candidate_residual).sqrt();
                 accepted_beta = Some(candidate);
@@ -497,6 +561,45 @@ fn solve_bfgs(
     })
 }
 
+fn solve_lbfgs(
+    system: &CalibrationSystem,
+    beta0: &Array1<f64>,
+    max_iterations: usize,
+    tolerance: f64,
+) -> Result<CalibrationFit, String> {
+    let problem = CalibrationObjective { system };
+    let linesearch = MoreThuenteLineSearch::new();
+    let solver = LBFGS::new(linesearch, 10)
+        .with_tolerance_grad(tolerance)
+        .map_err(|err| err.to_string())?
+        .with_tolerance_cost((tolerance * tolerance).max(f64::EPSILON))
+        .map_err(|err| err.to_string())?;
+
+    let mut result = Executor::new(problem, solver)
+        .configure(|state| state.param(beta0.clone()).max_iters(max_iterations as u64))
+        .run()
+        .map_err(|err| err.to_string())?;
+
+    let nit = result.state.get_iter() as usize;
+    let converged_by_status = optimization_success(result.state.get_termination_status());
+    let beta = result
+        .state
+        .take_best_param()
+        .unwrap_or_else(|| beta0.clone());
+    let (_, _, weights) = system.residual_and_jacobian(&beta)?;
+    let criterion = system.objective(&beta)?;
+    let residual_norm = system.residual_norm(&beta)?;
+
+    Ok(CalibrationFit {
+        beta,
+        weights,
+        criterion,
+        residual_norm,
+        nit,
+        converged: converged_by_status && residual_norm <= tolerance,
+    })
+}
+
 fn solve_system(
     system: &CalibrationSystem,
     solver: SolveMode,
@@ -509,6 +612,10 @@ fn solve_system(
             solve_gauss_newton(system, beta0, max_iterations, tolerance)?,
             "gauss_newton".to_string(),
         )),
+        SolveMode::Lbfgs => Ok((
+            solve_lbfgs(system, beta0, max_iterations, tolerance)?,
+            "lbfgs".to_string(),
+        )),
         SolveMode::Bfgs => Ok((
             solve_bfgs(system, beta0, max_iterations, tolerance)?,
             "bfgs".to_string(),
@@ -517,6 +624,12 @@ fn solve_system(
             let gauss_newton = solve_gauss_newton(system, beta0, max_iterations, tolerance)?;
             if gauss_newton.converged {
                 return Ok((gauss_newton, "gauss_newton".to_string()));
+            }
+
+            if let Ok(lbfgs) = solve_lbfgs(system, &gauss_newton.beta, max_iterations, tolerance) {
+                if lbfgs.criterion <= gauss_newton.criterion {
+                    return Ok((lbfgs, "lbfgs".to_string()));
+                }
             }
 
             match solve_bfgs(system, &gauss_newton.beta, max_iterations, tolerance) {
@@ -556,6 +669,8 @@ pub struct BalancingWeights {
     l2_norm: f64,
     max_iterations: usize,
     tolerance: f64,
+    divergence_power: f64,
+    dual_ridge: f64,
     weights: Option<Array1<f64>>,
     beta: Option<Array1<f64>>,
     covariates: Option<Array2<f64>>,
@@ -572,7 +687,7 @@ pub struct BalancingWeights {
 #[pymethods]
 impl BalancingWeights {
     #[new]
-    #[pyo3(signature = (objective="quadratic", solver="auto", autoscale=false, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8))]
+    #[pyo3(signature = (objective="quadratic", solver="auto", autoscale=false, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8, divergence_power=0.0, dual_ridge=0.0))]
     fn new(
         objective: &str,
         solver: &str,
@@ -582,9 +697,21 @@ impl BalancingWeights {
         l2_norm: f64,
         max_iterations: usize,
         tolerance: f64,
+        divergence_power: f64,
+        dual_ridge: f64,
     ) -> PyResult<Self> {
         BalanceObjective::parse(objective).map_err(PyValueError::new_err)?;
         SolveMode::parse(solver).map_err(PyValueError::new_err)?;
+        if !divergence_power.is_finite() {
+            return Err(PyValueError::new_err(
+                "divergence_power must be a finite float",
+            ));
+        }
+        if !dual_ridge.is_finite() || dual_ridge < 0.0 {
+            return Err(PyValueError::new_err(
+                "dual_ridge must be finite and nonnegative",
+            ));
+        }
 
         Ok(Self {
             objective: objective.to_string(),
@@ -595,6 +722,8 @@ impl BalancingWeights {
             l2_norm,
             max_iterations,
             tolerance,
+            divergence_power,
+            dual_ridge,
             weights: None,
             beta: None,
             covariates: None,
@@ -631,6 +760,11 @@ impl BalancingWeights {
         }
         if self.l2_norm < 0.0 {
             return Err(PyValueError::new_err("l2_norm must be nonnegative"));
+        }
+        if !self.dual_ridge.is_finite() || self.dual_ridge < 0.0 {
+            return Err(PyValueError::new_err(
+                "dual_ridge must be finite and nonnegative",
+            ));
         }
 
         let objective = BalanceObjective::parse(&self.objective).map_err(PyValueError::new_err)?;
@@ -711,6 +845,8 @@ impl BalancingWeights {
             min_weight: self.min_weight,
             max_weight: self.max_weight,
             l2_norm: self.l2_norm,
+            divergence_power: self.divergence_power,
+            dual_ridge: self.dual_ridge,
             entropy_phase: if objective == BalanceObjective::Entropy {
                 EntropyPhase::Relaxed
             } else {
@@ -744,6 +880,8 @@ impl BalancingWeights {
                 min_weight: self.min_weight,
                 max_weight: self.max_weight,
                 l2_norm: self.l2_norm,
+                divergence_power: self.divergence_power,
+                dual_ridge: self.dual_ridge,
                 entropy_phase: EntropyPhase::Bounded,
             };
             let bounded = solve_system(
@@ -842,6 +980,8 @@ impl BalancingWeights {
         dict.set_item("min_weight", self.min_weight)?;
         dict.set_item("max_weight", self.max_weight)?;
         dict.set_item("l2_norm", self.l2_norm)?;
+        dict.set_item("divergence_power", self.divergence_power)?;
+        dict.set_item("dual_ridge", self.dual_ridge)?;
         Ok(dict.into())
     }
 

@@ -30,7 +30,7 @@ $$
 \sum_i w_i x_i / \sum_i w_i \approx \sum_j q_j x_j / \sum_j q_j.
 $$
 
-The objective can be quadratic or entropy-like, with optional lower/upper bounds and ridge stabilization.
+The objective can be quadratic, entropy-like, or Cressie-Read power-divergence-like, with optional lower/upper bounds, approximate balance, and dual ridge stabilization.
 
 ## Calibration system and numerical objective
 
@@ -62,6 +62,35 @@ $$
 
 again clipped to the weight box. Thus the objective name selects the primal calibration geometry and corresponding dual weight map; it is not the literal function passed to the optimizer.
 
+For Cressie-Read calibration, missing baseline weights default to uniform source weights $q_i=1/n$. The dual map is
+
+$$
+w_i(\beta)=q_i h_\lambda(z_i'\beta),
+\qquad
+h_\lambda(u)=
+\begin{cases}
+\exp(u), & |\lambda|\approx 0,\\
+(1+\lambda u)_+^{1/\lambda}, & \text{otherwise},
+\end{cases}
+$$
+
+where $\lambda$ is `divergence_power`. Thus `divergence_power=0` is the entropy/KL limit, while `divergence_power=1` is the Pearson chi-square member of the Cressie-Read family.
+
+Rényi divergence for two normalized weight vectors $p$ and $q$ is
+
+$$
+D_\alpha(p\|q)=\frac{1}{\alpha-1}\log\sum_i p_i^\alpha q_i^{1-\alpha}.
+$$
+
+It shares the same power moment as Cressie-Read after setting $\lambda=\alpha-1$. In the usual Cressie-Read statistic,
+
+$$
+CR_\lambda(p,q)=\frac{2}{\lambda(\lambda+1)}
+\left\{\sum_i p_i^{\lambda+1}q_i^{-\lambda}-1\right\},
+$$
+
+so $D_\alpha$ and $CR_{\alpha-1}$ are monotone transformations of the same scalar moment, with the usual KL limit at $\alpha=1,\lambda=0$. `BalancingWeights` currently implements the Cressie-Read calibration map; it does not yet expose a separate `objective="renyi"` optimizer.
+
 For allowed L2 imbalance $\delta$, define
 
 $$
@@ -76,12 +105,12 @@ $$
 The numerical solver minimizes
 
 $$
-\frac12\|r(\beta)\|_2^2,
+\frac12\|r(\beta)\|_2^2+\frac{\eta}{2}\|\beta_{-0}\|_2^2,
 \qquad
 r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
 $$
 
-Gauss-Newton uses the analytic residual Jacobian with a small $10^{-8}$ normal-equation ridge and backtracking. Automatic mode tries Gauss-Newton first and falls back to BFGS only when needed. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.
+Here $\eta$ is `dual_ridge`, which defaults to zero. Gauss-Newton uses the analytic residual Jacobian with a small $10^{-8}$ normal-equation ridge and backtracking. `solver="lbfgs"` uses argmin's L-BFGS with the same analytic gradient. Automatic mode tries Gauss-Newton first, then L-BFGS, and falls back to BFGS only when needed. These are generic smooth optimizers for the residual criterion above. They are not the Bregman proximal-gradient algorithm from the Rényi paper, where the update itself is defined by a Bregman geometry and the gradient has a moment-gap form. A future Bregman solver would be a new solver path rather than a relabeling of BFGS/L-BFGS. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.
 
 ## Diagnostics and inference
 
@@ -97,7 +126,7 @@ With autoscaling, covariates are min-max scaled using source-sample minima and r
 
 ## Performance and numerical behavior
 
-For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. BFGS fallback adds repeated residual and Jacobian evaluations. Tight box constraints or an infeasible balance tolerance can leave a finite set of weights with success false rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped.
+For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. L-BFGS/BFGS add repeated residual and gradient evaluations. Tight box constraints, a Cressie-Read dual index outside its natural domain, or an infeasible balance tolerance can leave a finite set of weights with success false rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped.
 
 ## Python API
 

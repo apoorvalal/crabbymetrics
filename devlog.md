@@ -13,6 +13,25 @@ Current release state: `v0.8.0` is published to PyPI and GitHub Releases. It con
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## Current Branch: Cressie-Read Balancing (2026-07-27)
+
+The `feature/cressie-read-balancing` branch extends `BalancingWeights` in
+`src/estimators/balancing.rs` with a Cressie-Read / power-divergence calibration
+map:
+
+- `objective="cressie_read"` and alias `objective="power_divergence"`
+- `divergence_power` for the Cressie-Read index lambda
+- `dual_ridge` for optional ridge stabilization on non-intercept dual
+  coefficients
+- `solver="lbfgs"` plus automatic fallback from Gauss-Newton to L-BFGS to BFGS
+
+The public docs are updated in `docs/reference/BalancingWeights.qmd`, with a
+worked ATT reweighting example in `docs/examples/cressie-read-balancing.qmd` and
+navigation links in `docs/_quarto.yml` / `docs/index.qmd`. The Renyi material in
+the example is a diagnostic mapping through the shared power moment
+`lambda = alpha - 1`, not a separate `objective="renyi"` optimizer. Regression
+coverage lives in `tests/test_balancing_weights.py`.
+
 ## Refactor Correctness And Documentation Pass (2026-07-10 through 2026-07-11)
 
 The `refactor` branch was created from `origin/master` 0.7.0 after preserving the audited dirty 0.5.1 tree on `pre-refactor-audit-snapshot`, then merged with current `master` 0.7.1. It fixes the review P0/P1 set: weighted TwoSLS, generic M-estimator covariance, identified multinomial inference, penalized-estimator inference contracts, shuffled/stratified cross-fitting, absorbed fixed-effect degrees of freedom, covariance-diagonal validation, and convergence semantics.
@@ -313,7 +332,12 @@ Defaults are conservative:
 - effective sample size
 - optimization diagnostics
 
-The estimator is currently best viewed as a weighting primitive with strong diagnostics rather than a one-stop causal-inference summary object.
+The estimator supports quadratic, entropy, and active-branch Cressie-Read
+calibration geometries. Cressie-Read uses the dual map controlled by
+`divergence_power`; Renyi divergence is documented as a fitted-weight diagnostic,
+not as its own optimizer. The estimator is currently best viewed as a weighting
+primitive with strong diagnostics rather than a one-stop causal-inference summary
+object.
 
 ## Key Implementation Decisions
 

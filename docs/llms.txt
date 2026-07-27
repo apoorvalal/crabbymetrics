@@ -61,7 +61,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Binary treatment ATE with nuisance models: `cm.AIPW()`.
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
-- Covariate balancing/calibration weights: `cm.BalancingWeights()`.
+- Covariate balancing/calibration weights: `cm.BalancingWeights()`; use `objective="cressie_read"` for Cressie-Read / power-divergence calibration.
 - Binary classification: use `cm.Logit()` for a fitted likelihood estimator. `cm.FTRL()` currently performs one experimental batch update and is not a converged batch or persistent online estimator.
 - Multiclass classification: `cm.MultinomialLogit()`.
 - Count regression: `cm.Poisson()`.
@@ -279,13 +279,13 @@ No-covariate fect-style principal-components factor model helper for balanced pa
 ### Balancing and semiparametric estimators
 
 ```python
-cm.BalancingWeights(objective="quadratic", solver="auto", autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8)
+cm.BalancingWeights(objective="quadratic", solver="auto", autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8, divergence_power=0.0, dual_ridge=0.0)
 fit(covariates, target_covariates, baseline_weights=None, target_weights=None)
 get_weights()
 summary()
 ```
 
-Low-level calibration/reweighting API. Summary keys include `weights`, `beta`, `weighted_mean`, `target_mean`, `mean_diff`, `l2_diff`, `effective_sample_size`, and `success`.
+Low-level calibration/reweighting API. `objective` can be `"quadratic"`, `"entropy"`, `"cressie_read"`, or alias `"power_divergence"`. `solver` can be `"auto"`, `"gauss_newton"`, `"lbfgs"`, or `"bfgs"`. For Cressie-Read, `divergence_power` is the index lambda; `divergence_power=0.0` is the entropy/KL limit and `divergence_power=1.0` is the Pearson chi-square member. `dual_ridge` adds optional ridge stabilization on non-intercept dual coefficients. Summary keys include `weights`, `beta`, `weighted_mean`, `target_mean`, `mean_diff`, `l2_diff`, `effective_sample_size`, `divergence_power`, `dual_ridge`, and `success`.
 
 ```python
 cm.EPLM(fd_eps=1e-6)
@@ -472,6 +472,15 @@ bw = cm.BalancingWeights(objective="quadratic", autoscale=True)
 bw.fit(source_x, target_x)
 weights = bw.get_weights()
 print(bw.summary()["effective_sample_size"])
+
+cr = cm.BalancingWeights(
+    objective="cressie_read",
+    solver="lbfgs",
+    divergence_power=0.5,
+    dual_ridge=1e-10,
+)
+cr.fit(source_x, target_x)
+print(cr.summary()["weighted_mean"])
 ```
 
 ### Custom GMM
@@ -547,6 +556,7 @@ uv run quarto render docs
 - [FTRL](https://apoorvalal.github.io/crabbymetrics/examples/ftrl.html): diagnostic example for the experimental one-update wrapper.
 - [MEstimator Poisson](https://apoorvalal.github.io/crabbymetrics/examples/mestimator-poisson.html): callback M-estimation matched against built-in Poisson.
 - [Balancing Weights](https://apoorvalal.github.io/crabbymetrics/examples/balancing-weights.html): entropy/quadratic calibration weights.
+- [Cressie-Read And Renyi Balancing](https://apoorvalal.github.io/crabbymetrics/examples/cressie-read-balancing.html): power-divergence calibration weights, Renyi alpha-grid diagnostics, and ATT overlap examples.
 - [EPLM](https://apoorvalal.github.io/crabbymetrics/examples/eplm.html): partially linear E-estimator.
 - [Average Derivative](https://apoorvalal.github.io/crabbymetrics/examples/average-derivative.html): Oaxaca-Blinder, IPW, and doubly robust average derivative.
 - [Double ML And AIPW](https://apoorvalal.github.io/crabbymetrics/examples/double-ml.html): cross-fit nuisance models for DML and binary AIPW.
