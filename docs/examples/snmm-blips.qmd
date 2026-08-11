@@ -359,7 +359,7 @@ pd.Series({
 The three estimators target different primitive objects. A common scalar comparison is possible in a linear distributed-lag design. There are four treatment decisions, $t=0,1,2,3$, and the target contrasts are
 
 $$
-d^0=(0,0,0,0),qquad d^1=(0,1,1,1).
+d^0=(0,0,0,0),\qquad d^1=(0,1,1,1).
 $$
 
 Because the final outcome is $Y_4$, switching from $d^0$ to $d^1$ changes the treatments entering at horizons one, two, and three. The common target is therefore
