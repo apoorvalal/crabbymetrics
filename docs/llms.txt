@@ -362,6 +362,15 @@ summary()
 
 Additive cross-fitted doubly robust SNMM under time-varying conditional parallel trends. `y` has shape `(n_units, n_treatment_periods + 1)` and treatment has one fewer column. `treatment_mode="initiation"` accepts binary absorbing treatment status and internally constructs first-treatment pulses and not-yet-treated risk sets. Cross-fitting is over units, never unit-period rows. The shared mathematical and numerical page is `docs/examples/snmm-blips.qmd`.
 
+```python
+cm.DynamicCovariateBalance(nuisance_penalty=1e-6, autoscale=True, max_weight=1.0, max_iterations=300, tolerance=1e-6)
+fit(outcome, treatment, history, target_path)
+get_weights()
+summary()
+```
+
+Viviano--Bradic dynamic covariate-balancing estimator for the final mean potential outcome under one binary treatment path. `outcome` has shape `(n_units,)`, `treatment` has shape `(n_units, n_periods)`, and `history` has shape `(n_units, n_periods, n_features)`. It recursively fits ridge potential projections and obtains exact sequential quadratic calibration weights from the same engine as `BalancingWeights`. Fit two objects and difference `potential_outcome` to estimate a path contrast. The initial implementation exposes calibration diagnostics but no analytic standard error.
+
 ### Bagged polynomial regression
 
 ```python
@@ -556,8 +565,8 @@ If you need to inspect or modify source, start here:
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/survival.rs`: ExponentialPH, WeibullPH, CoxPH, AndersenGill.
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
-- `src/estimators/dynamic.rs`: RegressionBlip and ParallelTrendsSNMM.
-- `src/estimators/balancing.rs`: BalancingWeights.
+- `src/estimators/dynamic.rs`: RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance.
+- `src/estimators/balancing.rs`: BalancingWeights and the shared internal quadratic-calibration engine used by DynamicCovariateBalance.
 - `src/estimators/gmm.rs`: GMM.
 - `src/estimators/transforms.rs`: PCA, RandomizedPCA, KernelBasis, NystromBasis, and RandomFourierFeatures.
 - `src/fit.rs`: shared convergence status and fit diagnostics.

@@ -1,9 +1,10 @@
+use super::balancing::fit_quadratic_calibration;
 use crate::utils::{
     add_intercept, diag_sqrt, invert_matrix, pyarray1_from_f64, pyarray2_from_f64,
     sandwich_cov_from_parameter_scores, solve_least_squares_mat, solve_least_squares_vec,
 };
 use ndarray::{Array1, Array2, Array3};
-use numpy::{PyReadonlyArray2, PyReadonlyArray3, PyUntypedArrayMethods};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -189,6 +190,329 @@ struct OrthogonalRow {
     treatment_residual: f64,
     outcome_residual: f64,
     design_residual: Array1<f64>,
+}
+
+/// Dynamic covariate-balancing estimator for a target treatment path.
+///
+/// The estimator implements the full-interaction recursive potential-projection
+/// construction of Viviano and Bradic. At each treatment time it calls the same
+/// exact quadratic-calibration engine as `BalancingWeights`, restricting source
+/// weights to units whose realized treatment prefix matches `target_path`.
+#[pyclass]
+pub struct DynamicCovariateBalance {
+    nuisance_penalty: f64,
+    autoscale: bool,
+    max_weight: f64,
+    max_iterations: usize,
+    tolerance: f64,
+    estimate: Option<f64>,
+    target_path: Option<Array1<f64>>,
+    weights: Option<Array2<f64>>,
+    predictions: Option<Array2<f64>>,
+    path_support: Option<Array1<f64>>,
+    effective_sample_size: Option<Array1<f64>>,
+    max_abs_balance: Option<Array1<f64>>,
+    iterations: Option<Array1<f64>>,
+    solver_converged: Option<Vec<bool>>,
+    n_units: Option<usize>,
+    n_periods: Option<usize>,
+}
+
+#[pymethods]
+impl DynamicCovariateBalance {
+    #[new]
+    #[pyo3(signature = (nuisance_penalty=1e-6, autoscale=true, max_weight=1.0, max_iterations=300, tolerance=1e-6))]
+    fn new(
+        nuisance_penalty: f64,
+        autoscale: bool,
+        max_weight: f64,
+        max_iterations: usize,
+        tolerance: f64,
+    ) -> PyResult<Self> {
+        if !nuisance_penalty.is_finite() || nuisance_penalty < 0.0 {
+            return Err(PyValueError::new_err(
+                "nuisance_penalty must be finite and nonnegative",
+            ));
+        }
+        if !max_weight.is_finite() || max_weight <= 0.0 || max_weight > 1.0 {
+            return Err(PyValueError::new_err("max_weight must lie in (0, 1]"));
+        }
+        if max_iterations == 0 {
+            return Err(PyValueError::new_err("max_iterations must be positive"));
+        }
+        if !tolerance.is_finite() || tolerance <= 0.0 {
+            return Err(PyValueError::new_err(
+                "tolerance must be positive and finite",
+            ));
+        }
+        Ok(Self {
+            nuisance_penalty,
+            autoscale,
+            max_weight,
+            max_iterations,
+            tolerance,
+            estimate: None,
+            target_path: None,
+            weights: None,
+            predictions: None,
+            path_support: None,
+            effective_sample_size: None,
+            max_abs_balance: None,
+            iterations: None,
+            solver_converged: None,
+            n_units: None,
+            n_periods: None,
+        })
+    }
+
+    /// Estimate the mean final potential outcome under `target_path`.
+    ///
+    /// `outcome` contains the final-period outcome and has shape `(n_units,)`.
+    /// `treatment` is a binary `(n_units, n_periods)` panel. `history[i, t, :]`
+    /// contains variables observed before treatment at time `t`; it may include
+    /// baseline covariates, prior treatment, time-varying covariates, and prior
+    /// outcomes. `target_path` is a binary vector of length `n_periods`.
+    fn fit(
+        &mut self,
+        outcome: PyReadonlyArray1<f64>,
+        treatment: PyReadonlyArray2<f64>,
+        history: PyReadonlyArray3<f64>,
+        target_path: Vec<f64>,
+    ) -> PyResult<()> {
+        self.estimate = None;
+        self.target_path = None;
+        self.weights = None;
+        self.predictions = None;
+        self.path_support = None;
+        self.effective_sample_size = None;
+        self.max_abs_balance = None;
+        self.iterations = None;
+        self.solver_converged = None;
+        self.n_units = None;
+        self.n_periods = None;
+
+        let outcome = Array1::from_iter(outcome.as_array().iter().copied());
+        let treatment = Array2::from_shape_vec(
+            (treatment.shape()[0], treatment.shape()[1]),
+            treatment.as_array().iter().copied().collect(),
+        )
+        .expect("invalid treatment shape");
+        let history = to_array3(&history);
+        let target_path = Array1::from_vec(target_path);
+
+        if outcome.iter().any(|value| !value.is_finite()) {
+            return Err(PyValueError::new_err(
+                "outcome must contain only finite values",
+            ));
+        }
+        validate_finite_matrix("treatment", &treatment).map_err(PyValueError::new_err)?;
+        validate_finite_cube("history", &history).map_err(PyValueError::new_err)?;
+        if !is_binary(&treatment) {
+            return Err(PyValueError::new_err("treatment must be binary"));
+        }
+        if target_path
+            .iter()
+            .any(|value| *value != 0.0 && *value != 1.0)
+        {
+            return Err(PyValueError::new_err("target_path must be binary"));
+        }
+
+        let (n_units, n_periods) = treatment.dim();
+        if n_units < 2 || n_periods == 0 {
+            return Err(PyValueError::new_err(
+                "need at least two units and one treatment period",
+            ));
+        }
+        if outcome.len() != n_units {
+            return Err(PyValueError::new_err(
+                "outcome length must equal treatment.shape[0]",
+            ));
+        }
+        if history.dim().0 != n_units || history.dim().1 != n_periods {
+            return Err(PyValueError::new_err(
+                "history must have shape (n_units, n_periods, n_features)",
+            ));
+        }
+        if target_path.len() != n_periods {
+            return Err(PyValueError::new_err(
+                "target_path length must equal treatment.shape[1]",
+            ));
+        }
+
+        let mut prefix_match = Array2::from_elem((n_units, n_periods), false);
+        let mut path_support = Array1::<f64>::zeros(n_periods);
+        for unit in 0..n_units {
+            let mut matches = true;
+            for time in 0..n_periods {
+                matches &= treatment[[unit, time]] == target_path[time];
+                prefix_match[[unit, time]] = matches;
+                if matches {
+                    path_support[time] += 1.0;
+                }
+            }
+        }
+        for time in 0..n_periods {
+            if path_support[time] < 2.0 {
+                return Err(PyValueError::new_err(format!(
+                    "target_path has fewer than two matching units through period {time}"
+                )));
+            }
+        }
+
+        let all_units = (0..n_units).collect::<Vec<_>>();
+        let mut predictions = Array2::<f64>::zeros((n_units, n_periods));
+        let mut pseudo_outcome = outcome.clone();
+        for time in (0..n_periods).rev() {
+            let eligible = (0..n_units)
+                .filter(|unit| prefix_match[[*unit, time]])
+                .collect::<Vec<_>>();
+            let x_train = history_matrix(Some(&history), &eligible, time);
+            let y_train = Array1::from_iter(eligible.iter().map(|unit| pseudo_outcome[*unit]));
+            let coefficient =
+                ridge_fit_vec(&x_train, &y_train, self.nuisance_penalty).map_err(|error| {
+                    PyValueError::new_err(format!(
+                        "period {time} potential projection failed: {error}"
+                    ))
+                })?;
+            let x_all = history_matrix(Some(&history), &all_units, time);
+            let fitted = ridge_predict_vec(&x_all, &coefficient).map_err(PyValueError::new_err)?;
+            predictions.column_mut(time).assign(&fitted);
+            pseudo_outcome = fitted;
+        }
+
+        let mut weights = Array2::<f64>::zeros((n_units, n_periods));
+        let mut previous_weights = Array1::from_elem(n_units, 1.0 / n_units as f64);
+        let mut effective_sample_size = Array1::<f64>::zeros(n_periods);
+        let mut max_abs_balance = Array1::<f64>::zeros(n_periods);
+        let mut iterations = Array1::<f64>::zeros(n_periods);
+        let mut solver_converged = Vec::<bool>::with_capacity(n_periods);
+
+        for time in 0..n_periods {
+            let source_units = (0..n_units)
+                .filter(|unit| prefix_match[[*unit, time]])
+                .collect::<Vec<_>>();
+            let target_units = if time == 0 {
+                all_units.clone()
+            } else {
+                (0..n_units)
+                    .filter(|unit| prefix_match[[*unit, time - 1]])
+                    .collect::<Vec<_>>()
+            };
+            let source_history = history_matrix(Some(&history), &source_units, time);
+            let target_history = history_matrix(Some(&history), &target_units, time);
+            let target_weights =
+                Array1::from_iter(target_units.iter().map(|unit| previous_weights[*unit]));
+            let fit = fit_quadratic_calibration(
+                &source_history,
+                &target_history,
+                Some(&target_weights),
+                self.autoscale,
+                self.max_weight,
+                self.max_iterations,
+                self.tolerance,
+            )
+            .map_err(|error| {
+                PyValueError::new_err(format!("period {time} balancing failed: {error}"))
+            })?;
+            let mut current_weights = Array1::<f64>::zeros(n_units);
+            for (row, unit) in source_units.iter().enumerate() {
+                current_weights[*unit] = fit.weights[row];
+            }
+            weights.column_mut(time).assign(&current_weights);
+            effective_sample_size[time] = fit.effective_sample_size;
+            max_abs_balance[time] = fit.max_abs_balance;
+            iterations[time] = fit.iterations as f64;
+            solver_converged.push(fit.converged);
+            previous_weights = current_weights;
+        }
+
+        let uniform = Array1::from_elem(n_units, 1.0 / n_units as f64);
+        let mut contribution = weights.column(n_periods - 1).to_owned() * &outcome;
+        for time in 1..n_periods {
+            let weight_difference =
+                weights.column(time).to_owned() - weights.column(time - 1).to_owned();
+            contribution -= &(weight_difference * predictions.column(time));
+        }
+        contribution -= &((weights.column(0).to_owned() - uniform) * predictions.column(0));
+        let estimate = contribution.sum();
+        if !estimate.is_finite() {
+            return Err(PyValueError::new_err(
+                "dynamic covariate-balance estimate is not finite",
+            ));
+        }
+
+        self.estimate = Some(estimate);
+        self.target_path = Some(target_path);
+        self.weights = Some(weights);
+        self.predictions = Some(predictions);
+        self.path_support = Some(path_support);
+        self.effective_sample_size = Some(effective_sample_size);
+        self.max_abs_balance = Some(max_abs_balance);
+        self.iterations = Some(iterations);
+        self.solver_converged = Some(solver_converged);
+        self.n_units = Some(n_units);
+        self.n_periods = Some(n_periods);
+        Ok(())
+    }
+
+    #[getter]
+    fn potential_outcome(&self) -> PyResult<f64> {
+        self.estimate
+            .ok_or_else(|| PyValueError::new_err("DynamicCovariateBalance is not fitted"))
+    }
+
+    fn get_weights<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, numpy::PyArray2<f64>>> {
+        let weights = self
+            .weights
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("DynamicCovariateBalance is not fitted"))?;
+        Ok(pyarray2_from_f64(py, weights))
+    }
+
+    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+        let estimate = self
+            .estimate
+            .ok_or_else(|| PyValueError::new_err("DynamicCovariateBalance is not fitted"))?;
+        let target_path = self
+            .target_path
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("DynamicCovariateBalance is not fitted"))?;
+        let path_support = self
+            .path_support
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("DynamicCovariateBalance is not fitted"))?;
+        let effective_sample_size = self.effective_sample_size.as_ref().ok_or_else(|| {
+            PyValueError::new_err("DynamicCovariateBalance diagnostics are unavailable")
+        })?;
+        let max_abs_balance = self.max_abs_balance.as_ref().ok_or_else(|| {
+            PyValueError::new_err("DynamicCovariateBalance diagnostics are unavailable")
+        })?;
+        let iterations = self.iterations.as_ref().ok_or_else(|| {
+            PyValueError::new_err("DynamicCovariateBalance diagnostics are unavailable")
+        })?;
+        let solver_converged = self.solver_converged.as_ref().ok_or_else(|| {
+            PyValueError::new_err("DynamicCovariateBalance diagnostics are unavailable")
+        })?;
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("estimator", "dynamic_covariate_balance")?;
+        dict.set_item("potential_outcome", estimate)?;
+        dict.set_item("target_path", pyarray1_from_f64(py, target_path))?;
+        dict.set_item("path_support", pyarray1_from_f64(py, path_support))?;
+        dict.set_item(
+            "effective_sample_size",
+            pyarray1_from_f64(py, effective_sample_size),
+        )?;
+        dict.set_item("max_abs_balance", pyarray1_from_f64(py, max_abs_balance))?;
+        dict.set_item("iterations", pyarray1_from_f64(py, iterations))?;
+        dict.set_item("solver_converged", solver_converged.clone())?;
+        dict.set_item("success", solver_converged.iter().all(|value| *value))?;
+        dict.set_item("n_units", self.n_units)?;
+        dict.set_item("n_periods", self.n_periods)?;
+        dict.set_item("nuisance_penalty", self.nuisance_penalty)?;
+        dict.set_item("autoscale", self.autoscale)?;
+        dict.set_item("max_weight", self.max_weight)?;
+        Ok(dict.into())
+    }
 }
 
 /// Additive structural nested mean model identified by time-varying parallel trends.

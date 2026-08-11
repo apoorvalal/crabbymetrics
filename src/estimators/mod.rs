@@ -12,7 +12,7 @@ mod synthetic;
 mod transforms;
 
 pub use balancing::BalancingWeights;
-pub use dynamic::{ParallelTrendsSNMM, RegressionBlip};
+pub use dynamic::{DynamicCovariateBalance, ParallelTrendsSNMM, RegressionBlip};
 pub use gmm::GMM;
 pub use iv::TwoSLS;
 pub use linear::{av, optimal_g, FixedEffectsOLS, OLS};

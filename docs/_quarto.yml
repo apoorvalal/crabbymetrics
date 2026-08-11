@@ -103,7 +103,7 @@ website:
           - href: examples/joint-hypothesis-tests-causal.qmd
             text: Joint Hypothesis Tests
           - href: examples/snmm-blips.qmd
-            text: Dynamic Treatment Blips
+            text: Dynamic Treatment Effects
       - text: Transforms
         menu:
           - href: examples/pca-and-kernel-basis.qmd

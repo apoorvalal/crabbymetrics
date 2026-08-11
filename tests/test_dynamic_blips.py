@@ -102,6 +102,70 @@ def test_parallel_trends_snmm_recovers_initiation_response_with_level_confoundin
     assert np.all(result["se"] > 0)
 
 
+def test_dynamic_covariate_balance_recovers_treatment_path_contrast():
+    rng = np.random.default_rng(45)
+    n_units = 5_000
+    baseline = rng.normal(size=n_units)
+    first_propensity = 1.0 / (1.0 + np.exp(-(-0.1 + 0.7 * baseline)))
+    first_treatment = rng.binomial(1, first_propensity)
+    second_covariate = (
+        0.5 * baseline + 0.4 * first_treatment + rng.normal(size=n_units)
+    )
+    intermediate_outcome = (
+        0.3 * baseline + 0.8 * first_treatment + rng.normal(size=n_units)
+    )
+    second_propensity = 1.0 / (
+        1.0
+        + np.exp(
+            -(
+                -0.2
+                + 0.4 * baseline
+                + 0.4 * second_covariate
+                + 0.3 * intermediate_outcome
+                + 0.2 * first_treatment
+            )
+        )
+    )
+    second_treatment = rng.binomial(1, second_propensity)
+    final_outcome = (
+        1.0
+        + 0.5 * baseline
+        + 0.6 * second_covariate
+        + 0.5 * intermediate_outcome
+        + first_treatment
+        + 1.5 * second_treatment
+        + rng.normal(scale=0.7, size=n_units)
+    )
+
+    treatment = np.column_stack([first_treatment, second_treatment]).astype(float)
+    history = np.zeros((n_units, 2, 4))
+    history[:, 0, 0] = baseline
+    history[:, 1, :] = np.column_stack(
+        [baseline, second_covariate, intermediate_outcome, first_treatment]
+    )
+
+    estimates = []
+    for path in ([0.0, 0.0], [1.0, 1.0]):
+        model = cm.DynamicCovariateBalance()
+        model.fit(final_outcome, treatment, history, path)
+        result = model.summary()
+        weights = model.get_weights()
+        estimates.append(model.potential_outcome)
+
+        np.testing.assert_allclose(weights.sum(axis=0), 1.0, atol=1e-6)
+        assert np.all(result["effective_sample_size"] > 0)
+        assert np.max(result["max_abs_balance"]) < 1e-5
+        for time in range(treatment.shape[1]):
+            matches = np.all(
+                treatment[:, : time + 1] == np.asarray(path[: time + 1]), axis=1
+            )
+            assert np.all(weights[~matches, time] == 0.0)
+
+    # The path contrast includes direct effects 1.0 + 1.5 and the two mediated
+    # first-period paths 0.6 * 0.4 + 0.5 * 0.8.
+    np.testing.assert_allclose(estimates[1] - estimates[0], 3.14, atol=0.15)
+
+
 def test_dynamic_blip_shape_and_treatment_validation():
     outcome = np.zeros((4, 4))
     treatment = np.zeros((4, 3))
@@ -118,3 +182,8 @@ def test_dynamic_blip_shape_and_treatment_validation():
 
     with pytest.raises(ValueError, match="same shape"):
         cm.RegressionBlip().fit(outcome, treatment)
+
+    with pytest.raises(ValueError, match="target_path length"):
+        cm.DynamicCovariateBalance().fit(
+            np.zeros(4), treatment, np.zeros((4, 3, 1)), [0.0, 0.0]
+        )

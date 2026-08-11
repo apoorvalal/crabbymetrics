@@ -169,7 +169,7 @@ display(HTML(html_table(
 - [SyntheticDID](reference/SyntheticDID.qmd)
 - [MatrixCompletion](reference/MatrixCompletion.qmd)
 - [InteractiveFixedEffects](reference/InteractiveFixedEffects.qmd)
-- [RegressionBlip and ParallelTrendsSNMM](examples/snmm-blips.qmd)
+- [RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance](examples/snmm-blips.qmd)
 
 ## Hypothesis testing and utilities
 

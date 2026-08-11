@@ -13,20 +13,21 @@ Current release state: `v0.8.1` is published to PyPI and GitHub Releases. The ma
 
 Current development state: PR #17 squash-merged into `master` as `854a63b`. The released code removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
 
-The `feature/snmm-blips` branch adds two experimental dynamic-treatment estimators for review: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability, and `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction. Both use wide NumPy panel contracts and preserve cross-sectional unit boundaries during regression and cross-fitting. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
+The `feature/snmm-blips` branch adds three experimental dynamic-treatment estimators for review: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
-## Dynamic Treatment Blips (2026-08-10)
+## Dynamic Treatment Effects (2026-08-10)
 
-The branch adds `src/estimators/dynamic.rs` and exports two public classes:
+The branch adds `src/estimators/dynamic.rs` and exports three public classes:
 
 - `RegressionBlip(max_lag, time_effects)` recursively estimates contemporaneous and lagged additive impulse responses. At each lag, it subtracts shorter fitted blips and uses only treatment, outcome, and optional history variables available at the assignment time. Its reported unit-clustered standard errors are conditional on earlier recursive estimates; the docs explicitly require a unit block bootstrap for joint recursive inference.
 - `ParallelTrendsSNMM(max_horizon, treatment_mode, n_folds, nuisance_penalty, propensity_clip, seed)` implements the linear orthogonal estimating equation from Shahn et al. It residualizes outcome increments and blip-design differences on assignment-time histories, residualizes treatment on the same history, cross-fits over units, and solves the resulting exactly identified linear moments. `treatment_mode="initiation"` validates binary absorbing treatment status, converts it to first-treatment pulses, and constructs not-yet-treated risk sets.
+- `DynamicCovariateBalance(nuisance_penalty, autoscale, max_weight, max_iterations, tolerance)` implements Viviano and Bradic's full-interaction recursive potential projections and augmented treatment-path mean. At period $t$, units following the target prefix are calibrated to the previous prefix's weighted history through the same bounded quadratic engine as `BalancingWeights`. The first implementation uses ridge and exact balance, retains explicit per-period solver status, and does not claim analytic inference.
 
-Tests use two causal DGPs rather than only API smoke checks. The regression-blip DGP contains a time-varying covariate affected by lagged treatment and recovers the total mediated lag response. The parallel-trends DGP contains unobserved confounding of treatment and outcome levels but not untreated trends and recovers a three-horizon staggered-initiation response. The review page derives both estimators, states their incompatible timing and identification assumptions, shows their numerical results, and documents the current linear/ridge scope.
+Tests use three causal DGPs rather than only API smoke checks. The regression-blip DGP contains a time-varying covariate affected by lagged treatment and recovers the total mediated lag response. The parallel-trends DGP contains unobserved confounding of treatment and outcome levels but not untreated trends and recovers a three-horizon staggered-initiation response. The dynamic-balancing DGP verifies recursive path support, sequential weights, exact mean balance, and a known two-period path contrast. The review page derives all three estimators and includes a 100-replication comparison under observed selection and hidden time-invariant level confounding, with Mermaid DAGs and Matplotlib sampling-distribution and bias/variance figures.
 
 ## Cressie-Read Balancing (2026-07-27)
 
@@ -199,6 +200,7 @@ The current Python module exports:
 - dynamic treatment:
   - `RegressionBlip`
   - `ParallelTrendsSNMM`
+  - `DynamicCovariateBalance`
 - transforms:
   - `PCA` (Rust type `PcaTransformer`)
   - `KernelBasis`
