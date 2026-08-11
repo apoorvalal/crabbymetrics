@@ -21,7 +21,7 @@ The Python module is assembled in `src/lib.rs`. `Poisson` becomes visible in Pyt
 ```rust
 use crate::estimators::{
     ElasticNet, FixedEffectsOLS, Logit, MEstimator, MultinomialLogit, Poisson,
-    SyntheticControl, TwoSLS, FTRL, KernelBasis, OLS, PcaTransformer,
+    SyntheticControl, TwoSLS, KernelBasis, OLS, PcaTransformer,
 };
 
 #[pymodule]

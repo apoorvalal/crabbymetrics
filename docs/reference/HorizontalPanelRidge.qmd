@@ -28,6 +28,49 @@ from _api_doc_utils import *
 
 The public panel contract is `fit(Y, W)`: balanced outcomes plus a same-shaped absorbing treatment matrix.
 
+## Cohort objective and estimand
+
+For adoption cohort $g$, let $\bar Y_{g,t}$ be the mean outcome among units first treated at $g$, and let $Y_{C,t}$ be the vector of outcomes for never-treated units. The class fits the pre-treatment horizontal regression
+
+$$
+(\hat a_g,\hat\beta_g)
+=
+\arg\min_{a,\beta}
+\sum_{t<g}
+(\bar Y_{g,t}-a-Y_{C,t}'\beta)^2
++\lambda\|\beta\|_2^2.
+$$
+
+The intercept is unpenalized and donor coefficients are unconstrained: they need not be positive or sum to one. The cohort counterfactual path is
+
+$$
+\hat Y_{g,t}(0)=\hat a_g+Y_{C,t}'\hat\beta_g,
+$$
+
+and that same path is assigned to every treated unit in cohort $g$. The overall ATT is the simple average of $Y_{it}-\hat Y_{g,t}(0)$ over all treated unit-period cells, so cohorts receive weight proportional to treated units times post-treatment periods.
+
+## Implementation walkthrough
+
+This estimator is a direct panel-specific construction rather than a wrapper around the public `Ridge` class.
+
+1. A shared panel validator checks equal nonempty shapes, finite $Y$ and $W$, binary treatment within $10^{-10}$, and absorbing treatment paths. It records each unit's first treated period, the sorted adoption cohorts, and ever- versus never-treated unit indices.
+2. For cohort $g$, the code selects all cohort units and all never-treated controls. It averages cohort outcomes across units first, yielding one length-$T$ target path. The donor panel remains one row per control unit.
+3. The pre-period design is the transpose of the donor panel restricted to columns $0,\ldots,g-1$: periods are observations and donor units are regressors. An intercept column is prepended, $X'X$ is formed, $\lambda$ is added only to donor diagonals, and the code explicitly computes $(X'X+P_\lambda)^{-1}X'y$.
+4. The resulting donor coefficients are applied to the transpose of the full control panel, including post-treatment periods, and the intercept is added. This produces one cohort-level counterfactual path; no treated unit's own pre-period outcomes enter as features after the cohort average has been formed.
+5. That identical path is copied into every treated unit in the cohort. The coefficient matrix is stored with one row per cohort and one column per original panel unit; non-control entries remain zero so indices line up with the input panel.
+6. ATT scans cells with $W_{it}=1$ and averages finite observed-minus-counterfactual effects. Pre-RMSE first averages effects within each cohort-period before treatment and then takes the root mean square across those cohort-period means.
+7. Event-study output is derived after fitting. The unweighted version gives each cohort-event cell equal weight; the weighted version uses the number of finite treated-unit effects in that cell. These summaries do not refit the horizontal regression.
+
+The cohort averaging is the defining modeling choice: it estimates a common untreated path for a cohort, not unit-specific paths. The small-system normal-equation inverse is compact but less stable than the augmented-QR implementation used by `Ridge`.
+
+## Inference and scope
+
+The summary reports fitted cohort coefficients, counterfactuals, treatment-effect cells, ATT, pre-period RMSE, and event-time aggregates. It has no standard errors, covariance estimator, bootstrap, placebo procedure, or penalty tuning. All causal interpretation relies on never-treated outcomes spanning the untreated cohort path and on post-treatment donor outcomes remaining valid controls. Each treated cohort must have at least one pre-period, and at least one never-treated unit is required.
+
+## Performance and numerical behavior
+
+With $C$ never-treated donors, each cohort forms and explicitly inverts a dense $(C+1)\times(C+1)$ ridge system. Approximate work is $O(gC^2+C^3+TC)$ per cohort, and coefficient storage includes a row across all panel units for every cohort. A positive penalty stabilizes donor collinearity but does not penalize the intercept. When $C$ is large relative to the number of pre-periods, estimates can remain sensitive to scaling and the chosen penalty despite numerical invertibility.
+
 ## Python API
 
 Constructor: `cm.HorizontalPanelRidge`

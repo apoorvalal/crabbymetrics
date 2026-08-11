@@ -28,11 +28,70 @@ from _api_doc_utils import *
 
 The completed values in treated cells become counterfactual outcomes for ATT and event-study summaries.
 
+## Objective and algorithm
+
+Entries with treatment indicator below $0.5$ form the observed set $\Omega$; treated entries are excluded from fitting. With optional unit effects $a_i$, time effects $b_t$, and low-rank matrix $L$, the implemented objective is
+
+$$
+\min_{L,a,b}
+\frac{1}{|\Omega|}
+\sum_{(i,t)\in\Omega}
+(Y_{it}-a_i-b_t-L_{it})^2
++\lambda_L\|L\|_*.
+$$
+
+The algorithm alternates observed-cell mean updates for $a$ and $b$ with singular-value thresholding. Its proximal step fills observed residuals into the current $L$ and shrinks singular values by
+
+$$
+\tau=\frac{\lambda_L|\Omega|}{2}.
+$$
+
+If $\lambda_L$ is omitted, the class first fits the requested additive effects with $L=0$ and sets
+
+$$
+\lambda_L
+=
+\text{lambda fraction}\times
+\frac{2s_{\max}\{P_\Omega(Y-a-b)\}}{|\Omega|}.
+$$
+
+Exact SVD applies the full proximal map. Randomized SVD with an explicit rank is a truncated approximation to that map and therefore need not minimize exactly the displayed nuclear-norm objective.
+
+## Implementation walkthrough
+
+The class implements a masked soft-impute-style loop with explicit additive-effect coordinate updates.
+
+1. The common panel parser validates treatment paths, then the fitting mask is set to $M_{it}=1\{W_{it}<0.5\}$. Only masked-in outcomes must be finite. Treated outcomes are copied as zero into the working matrix and never enter the objective or update residuals.
+2. When $\lambda_L$ is automatic, the code initializes $L=0$, runs exactly 20 alternating observed-cell mean sweeps for requested unit and time effects, forms the masked residual matrix with zeros elsewhere, computes its largest exact singular value, and returns $2s_{\max}/|\Omega|$. `lambda_fraction` multiplies this value.
+3. Every outer iteration first runs `effect_iterations` coordinate sweeps. A unit effect is the mean of $Y_{it}-L_{it}-b_t$ over that unit's observed cells; a time effect is the analogous mean of $Y_{it}-L_{it}-a_i$. After each sweep, a centering routine shifts constants between the two vectors without changing $a_i+b_t$ and leaves the time effects mean-zero.
+4. The projection matrix begins as the current $L$. On observed cells only, the current residual $Y-a-b-L$ is added, producing $L+P_\Omega(Y-a-b-L)$. Missing treated cells therefore retain their current low-rank value before thresholding.
+5. Exact mode computes a dense SVD, replaces every singular value $s_j$ by $(s_j-\lambda_L|\Omega|/2)_+$, and reconstructs $L$. Randomized mode first obtains only the requested approximate singular triplets, applies the same threshold to them, and reconstructs inside that truncated range. Its seed, when supplied, is incremented by the outer-iteration number.
+6. The displayed objective is evaluated after the new low-rank matrix. The RMSE history, however, is based on residuals measured immediately before the singular-value update. Relative objective change is checked from the second iteration onward.
+7. Completion adds stored unit and time effects to the final $L$ everywhere. The treatment-effect matrix is filled for every ever-treated unit and every period, including pre-periods, while ATT selects only cells where $W=1$. A budget-exhausted iterate is retained with `converged=False` rather than discarded.
+
+Exact mode is a recognizable proximal update for the displayed convex objective conditional on the effect block. Randomized truncation changes that update, and changing its seed each iteration means the approximate map itself varies over the optimization path.
+
+## Estimand and inference
+
+The completed counterfactual surface is $\hat Y_{it}(0)=\hat a_i+\hat b_t+\hat L_{it}$. Reported treated-cell effects are $Y_{it}-\hat Y_{it}(0)$, and ATT is their simple mean over cells marked treated. Event-study and group summaries aggregate the same cell differences.
+
+There is no analytic or resampling inference, rank selection, or penalty cross-validation. If $Q_k$ denotes the displayed objective after iteration $k$, convergence requires
+
+$$
+\frac{|Q_{k-1}-Q_k|}{|Q_{k-1}|+10^{-12}}<\text{tolerance}.
+$$
+
+Unlike likelihood estimators in this package, `MatrixCompletion` retains the final iterate when the budget is exhausted because a partial completion can still be diagnostically useful. It does not call that outcome convergence: `summary()` reports `converged=False`, `iterations`, `termination_reason='Maximum number of iterations reached'`, and the final `objective`, together with both histories. Identification requires untreated observations to reveal the relevant low-rank and additive structure; optimizer convergence cannot diagnose failure of that causal assumption.
+
+## Performance and numerical behavior
+
+Each exact iteration performs a dense SVD with roughly $O(\min\{NT^2,N^2T\})$ time and $O(NT)$ matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite. Iteration budgets, effect-update counts, and tolerances must be positive; invalid settings fail before fitting.
+
 ## Python API
 
 Constructor: `cm.MatrixCompletion`
 
-Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values and `summary()` reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective history, and panel summaries.
+Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values and `summary()` reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective and RMSE histories, fit diagnostics, and panel summaries. Check `converged` before treating the retained solution as numerically settled.
 
 ```{python}
 print(inspect.signature(cm.MatrixCompletion))
@@ -56,7 +115,9 @@ w[7:, 9:] = 1
 y[7:, 9:] += 1
 model = cm.MatrixCompletion(max_iterations=100, tolerance=1e-05)
 model.fit(y, w)
-print(model.summary()['att'])
+fit = model.summary()
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['att'])
 print(model.predict().shape)
 ```
 

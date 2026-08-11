@@ -13,7 +13,7 @@ Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focu
 ## Features
 - Linear, IV, and panel causal estimators: OLS, Ridge, FixedEffectsOLS, TwoSLS, HorizontalPanelRidge, SyntheticControl, SyntheticDID, MatrixCompletion, InteractiveFixedEffects
 - Common panel causal API: `HorizontalPanelRidge`, `SyntheticDID`, and `MatrixCompletion` use `fit(Y, W)` with balanced outcome and absorbing treatment matrices, then expose ATT, counterfactuals, treatment effects, event-study summaries, and group means through `summary()`
-- Regularized and likelihood estimators: ElasticNet, Logit, Multinomial Logit, Poisson, FTRL
+- Regularized and likelihood estimators: ElasticNet, Logit, Multinomial Logit, Poisson
 - Moment and semiparametric estimators: GMM, BalancingWeights, EPLM, AverageDerivative, PartiallyLinearDML, AIPW
 - Shared robust covariance options for the main linear estimators: vanilla, HC1, Newey-West, and cluster
 - Weighted fits for OLS, Ridge, FixedEffectsOLS, and TwoSLS

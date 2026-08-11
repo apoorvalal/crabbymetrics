@@ -3,24 +3,11 @@ use crate::utils::{
     scale_rows, score_cov_iid, solve_least_squares_mat, solve_least_squares_vec, take_rows,
     take_rows_vec, to_array1, to_array1_i64, to_array2,
 };
+use crate::validation::validate_finite;
 use ndarray::{concatenate, Array1, Array2, Axis};
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-
-fn validate_finite_1d(name: &str, values: &Array1<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
-
-fn validate_finite_2d(name: &str, values: &Array2<f64>) -> Result<(), String> {
-    if values.iter().any(|value| !value.is_finite()) {
-        return Err(format!("{} must contain only finite values", name));
-    }
-    Ok(())
-}
 
 fn parse_penalties(value: &Bound<'_, PyAny>) -> PyResult<Array1<f64>> {
     let penalties = if let Ok(scalar) = value.extract::<f64>() {
@@ -157,10 +144,18 @@ fn select_ridge_penalty(
     Ok((params, penalty, Some(best_idx)))
 }
 
+fn splitmix64(mut value: u64) -> u64 {
+    value = value.wrapping_add(0x9e3779b97f4a7c15);
+    value = (value ^ (value >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+    value = (value ^ (value >> 27)).wrapping_mul(0x94d049bb133111eb);
+    value ^ (value >> 31)
+}
+
 fn make_kfold_splits(
     n: usize,
     n_folds: usize,
     seed: u64,
+    strata: Option<&Array1<f64>>,
 ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, String> {
     if n_folds < 2 {
         return Err("n_folds must be at least 2".to_string());
@@ -172,11 +167,27 @@ fn make_kfold_splits(
     if k < 2 {
         return Err("n_folds must be at least 2".to_string());
     }
+    if let Some(values) = strata {
+        if values.len() != n {
+            return Err("strata length must match the number of observations".to_string());
+        }
+    }
+
+    let mut groups = if let Some(values) = strata {
+        vec![
+            (0..n).filter(|idx| values[*idx] == 0.0).collect::<Vec<_>>(),
+            (0..n).filter(|idx| values[*idx] == 1.0).collect::<Vec<_>>(),
+        ]
+    } else {
+        vec![(0..n).collect::<Vec<_>>()]
+    };
 
     let mut fold_id = vec![0usize; n];
-    let offset = (seed as usize) % k;
-    for (idx, slot) in fold_id.iter_mut().enumerate() {
-        *slot = (idx + offset) % k;
+    for group in &mut groups {
+        group.sort_by_key(|idx| splitmix64(seed ^ (*idx as u64)));
+        for (position, idx) in group.iter().enumerate() {
+            fold_id[*idx] = position % k;
+        }
     }
 
     let mut out = Vec::with_capacity(k);
@@ -562,9 +573,9 @@ impl EPLM {
         if y.len() != d.len() || w.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("w", &w).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("w", &w).map_err(PyValueError::new_err)?;
         let theta = eplm_theta(&y, &d, &w).map_err(PyValueError::new_err)?;
         self.theta = Some(theta);
         self.y = Some(y);
@@ -672,9 +683,9 @@ impl AverageDerivative {
         if y.len() != d.len() || w.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("w", &w).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("w", &w).map_err(PyValueError::new_err)?;
 
         let theta = match self.method.as_str() {
             "ob" => ob_theta(&y, &d, &w),
@@ -835,12 +846,12 @@ impl PartiallyLinearDML {
         if y.len() != d.len() || x.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
 
-        let splits =
-            make_kfold_splits(y.len(), self.n_folds, self.seed).map_err(PyValueError::new_err)?;
+        let splits = make_kfold_splits(y.len(), self.n_folds, self.seed, None)
+            .map_err(PyValueError::new_err)?;
         let mut l_hat = Array1::<f64>::zeros(y.len());
         let mut m_hat = Array1::<f64>::zeros(y.len());
         let mut outcome_penalties = Array1::<f64>::zeros(splits.len());
@@ -1019,13 +1030,13 @@ impl AIPW {
         if y.len() != d.len() || x.nrows() != y.len() {
             return Err(PyValueError::new_err("row count mismatch"));
         }
-        validate_finite_1d("y", &y).map_err(PyValueError::new_err)?;
-        validate_finite_1d("d", &d).map_err(PyValueError::new_err)?;
-        validate_finite_2d("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
+        validate_finite("d", &d).map_err(PyValueError::new_err)?;
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
         validate_binary(&d).map_err(PyValueError::new_err)?;
 
-        let splits =
-            make_kfold_splits(y.len(), self.n_folds, self.seed).map_err(PyValueError::new_err)?;
+        let splits = make_kfold_splits(y.len(), self.n_folds, self.seed, Some(&d))
+            .map_err(PyValueError::new_err)?;
         let mut mu0_hat = Array1::<f64>::zeros(y.len());
         let mut mu1_hat = Array1::<f64>::zeros(y.len());
         let mut pi_hat = Array1::<f64>::zeros(y.len());

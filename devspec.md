@@ -18,19 +18,57 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
+## v0.8.1 API-Hardening Release Status (2026-07-12)
+
+PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, after the `v0.8.0` refactor and estimator-audit release. Release `v0.8.1` now packages the remaining P0--P1 hardening items identified by the stocktake:
+
+- removed the incoherent one-update FTRL class, its public/docs/test surface, and `linfa-ftrl`
+- removed the unused `linfa-linear` dependency
+- replaced Linfa binary and multinomial logistic fitting with native stable objectives, analytic gradients, and convergence-checked L-BFGS
+- added shared internal `FitDiagnostics` and centralized Argmin status interpretation
+- made survival fits reject budget exhaustion and made MatrixCompletion retain it only as an explicitly nonconverged result
+- exposed and enforced ElasticNet iteration and duality-gap convergence
+- separated scaled BalancingWeights solver convergence from original-unit balance diagnostics and weight feasibility
+- consolidated reusable validation helpers
+- split the old `linear.rs` monolith into linear, IV, panel, and synthetic modules without changing public imports
+- hardened source-distribution exclusions so the local untracked `ding_ci` symlink cannot be followed into release artifacts
+
+New estimator work must preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence. Common iterative summary keys are `converged`, `iterations`, `termination_reason`, and `objective`.
+
+The branch's public reference pages now also document estimator internals at source-code granularity. All 29 estimator, transform, and optimizer pages explain parameter layout, initialization, numerical steps, stopping and failure behavior, prediction reconstruction, and dominant allocations. They explicitly separate package-owned algorithms from narrow delegation boundaries in `FixedEffectsOLS`, `ElasticNet`, exact `PCA`, and exact `KernelBasis`. The class-page generator is scaffold-only and skips these audited pages unless explicitly forced.
+
+The release site was rebuilt as 92 Quarto pages after re-executing the four solver-sensitive ablations. It is deployed from clean `gh-pages` commit `c7a3ce4` at `https://apoorvalal.github.io/crabbymetrics/`; rendered outputs remain excluded from `master` and the PyPI sdist.
+
+The `BaggedPolynomialRegressor` reference is contract-first rather than a disguised vignette: it documents the exact constructor defaults and constraints, array contracts, return values, failure conditions, complete `summary()` schema, objective, OOB semantics, implementation, and computational limits. The separate worked comparison remains under `docs/examples/`.
+
+### Estimator Math And API Audit (2026-07-11)
+
+The follow-up audit traced every public estimator through its Rust implementation and documented its implemented criterion or estimating equation, inference method, prediction contract, and performance characteristics in the API references. It also:
+
+- corrected Poisson validation so invalid outcomes, penalties, tolerances, iteration budgets, and nonfinite designs fail before optimization
+- corrected `PCA` explained variance, full-variance ratios, and whitened inverse transformation, with NumPy SVD parity tests
+- added grouped first-class reference coverage for all five public transform classes
+- identified the former FTRL wrapper as one full-batch proximal update with fresh state rather than a persistent online algorithm; the API-hardening branch subsequently removed it
+- documented that `AndersenGill` cannot produce subject-clustered recurrent-event covariance without a subject identifier
+
+The FTRL question is resolved. Subject-clustered Andersen--Gill inference and Cox-family risk-set performance remain the leading public-API and performance follow-up.
+
+The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07-11. The release includes Linux and macOS wheels for Python 3.10 through 3.14, a small docs-excluded sdist, and the separately deployed full Quarto site.
+
 ## Current Extension Status
 
-### Recently landed: randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.7.1
+### Recently landed: API hardening, sparse rotations, randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
 
 The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
 
 - Randomized linear algebra / PR #8 is no longer an active PR. It added native randomized range finding, SVD, QR, QR solve, CountSketch OLS, `OLS.fit_sketch(...)`, `TwoSLS.fit_sketch(...)`, `GMM.fit_sketch(...)`, randomized SVD paths in `MatrixCompletion` / `InteractiveFixedEffects`, and the reusable `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` transformers.
+- Sparse factor rotations are implemented as low-level functions rather than estimator wrappers. The public surface includes Varimax, a seeded multi-start L1 sparse rotation, small-loading/local-factor diagnostics, and inverse/cumulative participation summaries. The implementation preserves explicit non-convexity caveats, seed control, and function-level diagnostics; the worked and design pages live at `docs/examples/sparse-rotations.qmd` and `docs/specs/sparse-rotations.qmd`.
 - Hypothesis-test helpers are landed. Estimator-level `wald_test(...)` methods exist for the main covariance-bearing estimators, module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` exist, and `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests.
 - `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed worked example at `docs/examples/abc-ols.qmd` and a class reference page at `docs/reference/ABCOLS.qmd`.
 - Anytime-valid OLS is landed and released in `v0.7.1`. `OLS.summary(...)` now accepts `anytime_valid=True`, `g=...`, and `level=...`, while module-level `optimal_g(...)` and `av(...)` cover the convenience path. Tests compare against `avlm` reference values.
 - The v0.7.0 MLE prediction overhaul is landed. `Logit`, `MultinomialLogit`, and `Poisson` now follow the layered `predict_lin(...)` / `predict(...)` / classifier-only `predict_label(...)` contract, documented in `docs/examples/mle-prediction-interface.qmd`.
 - The first survival/event-time module is landed. `ExponentialPH`, `WeibullPH`, `CoxPH`, and `AndersenGill` are exported, tested against simulated DGPs and `lifelines`, and documented through reference pages plus survival vignettes.
-- Release automation for the current shape is working: `v0.7.1` built Linux/macOS wheels for Python 3.10 through 3.14, published a small sdist, created the GitHub Release, and published to PyPI.
+- Release automation for the current shape is working: `v0.8.0` built Linux/macOS wheels for Python 3.10 through 3.14, published a 410,390-byte sdist, created the GitHub Release, and published to PyPI.
 
 
 ### Sketching / randomized linear algebra follow-on plan
@@ -142,8 +180,9 @@ Implementation guardrails for sketching work:
   - `Logit`, `MultinomialLogit`, `Poisson`, and the first survival models are in place
   - no negative binomial, grouped/binomial count model, probit, complementary-log-log discrete-time hazard, or baseline survival estimator for Cox-style models yet
 - docs surface depth
-  - the source docs include the new anytime-valid OLS page, but the public site still needs a separate `gh-pages` deployment after the `v0.7.1` source changes
-  - `PCA` and `KernelBasis` have the strongest transform docs; `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` are exported and tested but still need deeper first-class docs if they are meant to be prominent user-facing tools
+  - all public estimator references now document implemented mathematics, inference, and performance behavior
+  - grouped transform references cover `PCA`, `RandomizedPCA`, `KernelBasis`, `NystromBasis`, and `RandomFourierFeatures`
+  - all 94 pages render from the `v0.8.0` tag and are deployed separately through `gh-pages`
 - IV / GMM diagnostics
   - core fitting and covariance support are there, but richer reporting is still thin
 - `MEstimator`
@@ -151,64 +190,28 @@ Implementation guardrails for sketching work:
 
 ## Highest-Value Next Extensions
 
-### 0. Sparse rotations / local factors / Vintage Sparse PCA
+### 0. Andersen--Gill subject-clustered inference and risk-set performance
 
-Status: spec branch opened; no public API committed
-
-Why it matters:
-
-- Sparse factor rotations fit the library's econometrics-and-numerics lane better than generic ML breadth.
-- Freyaldenhoven's $\ell_1$ rotation criterion is a natural local-factor estimator for interpretable factor models.
-- Rohe--Zeng's Vintage Sparse PCA / Varimax story gives a complementary large-matrix path for sparse/leptokurtic latent factors.
-- The existing `PCA`, randomized SVD, and transform machinery already provide most of the subspace-estimation substrate.
-
-Scope for the prototype:
-
-- Keep the first PR as a design/spec PR rather than committing to a Python API.
-- Use `docs/specs/sparse-rotations.qmd` as the review target for the proposed numerical scope, wrappers, diagnostics, tests, and API questions.
-- Local source references live under `~/hdd/the_krust_krab`: `l1rotation/`, `vsp/`, and `arxiv-2004.05387/`.
-
-Likely implementation sequence after API review:
-
-1. Low-level dense rotation functions:
-   - `varimax_rotation(...)`
-   - `l1_sparse_rotation(...)`
-   - small-loading / local-factor diagnostics
-   - inverse participation ratio helpers
-2. Synthetic tests against local-factor DGPs and hand-built Varimax examples.
-3. Thin wrappers only after the function-level API feels right:
-   - possible `SparseRotation`
-   - possible `LocalFactors`
-   - possible `VintageSparsePCA`
-
-Guardrails:
-
-- Do not add sparse matrix dependencies in the first pass.
-- Do not claim global optimality for the non-convex $\ell_1$ search.
-- Keep all randomness seedable and surface convergence diagnostics.
-- Keep docs precise about identifying assumptions: local sparse loadings for Freyaldenhoven; independent leptokurtic latent coordinates for Rohe--Zeng.
-
-### 0. Docs release housekeeping
-
-Status: immediate follow-up, not numerical work
+Status: point estimator landed; recurrent-event inference incomplete
 
 Why it matters:
 
-- `v0.7.1` is live on PyPI, but package release does not publish the Quarto docs site
-- source `master` contains the anytime-valid OLS page and nav/API links
-- the public docs URL is served from `gh-pages`, so a separate render/publish pass is needed for users to see the new page
-- the transform docs are now behind the public Python surface
+- recurrent event rows from the same subject are dependent
+- the current API has no subject identifier and therefore cannot form a subject-clustered score sandwich
+- `CoxPH` and `AndersenGill` currently scan all rows and rebuild dense second moments for every event, costing approximately $O(Enp^2)$ per Newton iteration
 
 Scope:
 
-- render enough of `docs/` to include `docs/examples/anytime-valid-ols.qmd`, `docs/api.qmd`, `docs/_quarto.yml`, and search/navigation outputs
-- publish rendered docs through the existing `gh-pages` clone workflow, not by committing rendered artifacts to `master`
-- add compact reference/example coverage for `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`, or explicitly decide they remain advanced utilities documented by the RLA ablation for now
+- add an explicit subject-ID argument for `AndersenGill`
+- accumulate subject-level score contributions and expose clustered robust covariance as the primary recurrent-event inference path
+- retain inverse-information covariance only as an explicitly naive option
+- replace repeated risk-set scans with cumulative sufficient statistics after sorting by stop time, while preserving Breslow tie handling
 
 Success condition:
 
-- public docs show the `Anytime-Valid OLS` page and the API overview matches the released `v0.7.1` surface
-- transform docs either cover the exported classes directly or clearly state where those advanced transforms are documented
+- robust covariance matches a trusted counting-process Cox reference on repeated-event data
+- summaries distinguish naive and subject-clustered inference
+- benchmark coverage demonstrates the expected reduction in risk-set work
 
 ### 1. Difference-in-differences and event-study estimators
 
@@ -358,14 +361,15 @@ Notes:
 - grouped binomial / trials, complementary-log-log discrete-time hazards, probit, and Cox baseline survival are all useful, but none should jump ahead of the first new count-family slice unless there is a concrete downstream need
 - keep each addition vertically complete rather than starting a broad unfinished GLM framework
 
-### 7. Better transformer docs and composition
+### 7. Transformer composition only when demanded by workflows
 
-Status: partial
+Status: documentation complete; composition not started
 
 Notes:
 
 - public Python transform classes are `PCA`, `KernelBasis`, `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA`
-- the next useful step is richer transform docs/examples first, then lightweight composition helpers if real downstream workflows need them
+- grouped reference pages now document the objective, transform, numerical method, output shape, and scaling of all five classes
+- add lightweight composition helpers only if real downstream workflows demonstrate repeated boilerplate
 - avoid sklearn-style pipeline sprawl
 
 ### 8. MEstimator diagnostics cleanup
@@ -374,7 +378,7 @@ Status: partial
 
 Notes:
 
-- current `MEstimator` is useful for custom objectives, but its variance path is still score-outer-product based and its solver diagnostics are thin
+- current `MEstimator` uses a numerical score Jacobian for the sandwich bread and empirical score outer products for the meat; common solver diagnostics are now exposed, but the callback-heavy path remains expensive and specialized
 - worth improving only if there is a concrete downstream use case
 
 ## Frisch Status
@@ -406,13 +410,11 @@ Operational note:
 
 ## Recommended Branch Order
 
-1. publish the `v0.7.1` docs site and close the transform-docs gap, if public docs freshness matters before new numerical work
+1. add subject IDs and clustered robust inference to `AndersenGill`, then optimize Cox-family risk-set accumulation
 2. add DiD / event-study support on top of the fixed-effects foundation
 3. add the first new likelihood family, preferably NB2, under the likelihood-methods plan
 4. add weighted nonlinear estimators and weighted GMM
-5. add grouped-binomial / discrete-time-hazard likelihoods or Cox baseline-survival follow-ons, depending on the next concrete use case
-6. add richer IV / GMM diagnostics
-7. consider ABC extensions beyond OLS only if a concrete use case appears
+5. add richer IV / GMM diagnostics, and consider ABC extensions only for a concrete use case
 
 ## Notes for Future Branches
 

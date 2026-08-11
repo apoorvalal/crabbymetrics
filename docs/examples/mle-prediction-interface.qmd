@@ -7,7 +7,7 @@ execute:
   message: false
 format:
   html:
-    code-fold: true
+    code-fold: false
 jupyter: python3
 ---
 
@@ -43,6 +43,7 @@ y = rng.binomial(1, p_true).astype(np.int32)
 
 logit = cm.Logit(max_iterations=300, gradient_tolerance=1e-8)
 logit.fit(x, y)
+print({key: logit.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]})
 
 check = x[:8]
 logit_table = pd.DataFrame(
@@ -87,6 +88,7 @@ y = np.array([rng.choice(coef.shape[0], p=probs[i]) for i in range(n)], dtype=np
 
 mlogit = cm.MultinomialLogit(max_iterations=300, gradient_tolerance=1e-8)
 mlogit.fit(x, y)
+print({key: mlogit.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]})
 
 check = x[:6]
 eta_hat = mlogit.predict_lin(check)
@@ -117,6 +119,7 @@ y = rng.poisson(mu_true).astype(float)
 
 poisson = cm.Poisson(max_iterations=250, tolerance=1e-8)
 poisson.fit(x, y)
+print({key: poisson.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]})
 
 check = x[:8]
 poisson_table = pd.DataFrame(

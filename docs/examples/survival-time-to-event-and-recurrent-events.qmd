@@ -7,7 +7,7 @@ execute:
   message: false
 format:
   html:
-    code-fold: true
+    code-fold: false
 jupyter: python3
 ---
 
@@ -63,6 +63,15 @@ exp_ph.fit(x, time, event)
 
 weibull = cm.WeibullPH()
 weibull.fit(x, time, event)
+
+print(
+    "ExponentialPH diagnostics:",
+    {key: exp_ph.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]},
+)
+print(
+    "WeibullPH diagnostics:",
+    {key: weibull.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]},
+)
 
 pd.DataFrame(
     {
@@ -123,6 +132,8 @@ The internal identities line up exactly:
 cox = cm.CoxPH()
 cox.fit(x, time, event)
 
+print({key: cox.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]})
+
 cox_table = pd.DataFrame(
     {
         "truth": beta_true,
@@ -159,6 +170,8 @@ event_long = np.concatenate([np.zeros_like(event), event])
 
 ag = cm.AndersenGill()
 ag.fit(x_long, start_long, stop_long, event_long)
+
+print({key: ag.summary()[key] for key in ["converged", "iterations", "termination_reason", "objective"]})
 
 pd.DataFrame(
     {

@@ -1,6 +1,6 @@
 ---
-title: "PCA"
-subtitle: "Principal-components transformer"
+title: "PCA transforms"
+subtitle: "Deterministic and randomized principal-components bases"
 format:
   html:
     toc: true
@@ -32,11 +32,72 @@ $$
 
 With `whiten=True`, scores are rescaled by the singular values.
 
+## Objective and transforms
+
+Let $X_c=X-\mathbf1\bar x'$ and let $X_c=U\operatorname{diag}(s)V'$ be its singular value decomposition. Ordinary scores are
+
+$$
+Z=X_cV_k,
+$$
+
+and the rank-$k$ reconstruction minimizes
+
+$$
+\min_{\operatorname{rank}(\tilde X)\leq k}\|X_c-\tilde X\|_F^2.
+$$
+
+For a fitted sample of size $n$, whitening returns
+
+$$
+Z_{\mathrm{white}}
+=
+X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
+$$
+
+so the retained in-sample score covariance is the identity. Inverse transformation removes that scaling before applying $V_k'$ and adding $\bar x$. The summary reports
+
+$$
+\widehat{\operatorname{Var}}_j=\frac{s_j^2}{n-1},
+\qquad
+\text{explained ratio}_j
+=
+\frac{s_j^2}{\|X_c\|_F^2},
+$$
+
+where the ratio denominator includes variance in discarded components.
+
+**PCA** delegates a truncated largest-singular-vector solve to Linfa. **RandomizedPCA** instead constructs a randomized range of width $k+s$, performs the requested power iterations, and takes a small SVD in that range. It returns unwhitened scores only and exposes singular values but not explained-variance fields.
+
+## Implementation walkthrough
+
+### Exact `PCA`: delegated solve, package-owned contract
+
+1. The wrapper validates that at least two rows are present and separately computes the total sample variance from the centered entries. That full-spectrum denominator is retained because a truncated solver alone cannot recover the variance discarded outside the requested components.
+2. Linfa's PCA implementation owns centering and the truncated singular-vector solve. The wrapper retains the fitted Linfa object, training row and feature counts, and the independently computed total variance.
+3. `transform()` delegates projection to the fitted object. `summary()` converts Linfa's principal-component columns into public component rows, obtains singular values from the fitted principal values, computes $s_j^2/(n-1)$, and divides by the separately retained total variance for explained-variance ratios.
+4. Whitening and inverse transformation are package-facing behavior around that fitted decomposition: score columns are scaled by $\sqrt{n-1}/s_j$ on the way out and unscaled before multiplying by component rows and restoring the training mean.
+
+### `RandomizedPCA`: native randomized SVD
+
+1. The class computes and stores the column mean, centers an owned copy of $X$, and calls the package's randomized SVD with target rank $k$, oversampling $s$, and power count $q$. The sketch width is $\min(k+s,\min(n,p))$; ranks beyond the matrix dimensions and more than ten power iterations are rejected.
+2. The range finder draws a scaled Rademacher matrix whose entries are $\pm1/\sqrt{k+s}$ using the supplied seed or a fixed default. It forms $Y=X_c\Omega$ and obtains $Q$ from a dense QR factorization.
+3. Each power iteration forms $X_c'Q$, orthonormalizes it, multiplies back by $X_c$, and orthonormalizes again. Reorthogonalizing on both sides limits loss of numerical rank when singular values have a wide spread.
+4. The code projects to the small matrix $B=Q'X_c$, computes a full dense SVD of $B$, keeps its first $k$ triplets, and maps left vectors back as $U=Q\tilde U$. `RandomizedPCA` stores the first $k$ right-singular-vector rows and singular values; it does not retain $U$.
+5. Transform and inverse transform are direct $(X-\bar X)V_k$ and $ZV_k'+\bar X$ products. There is no whitening branch and no uncertainty calculation for the randomized subspace.
+
+The approximation error comes from the randomized range, not from the final small SVD. Oversampling gives the range finder room to capture directions near the rank cutoff; power iterations amplify spectral gaps but require two extra matrix passes apiece. The fixed fallback seed makes an omitted seed reproducible.
+
+## Inference and performance
+
+These are deterministic or randomized feature transforms, not statistical coefficient estimators; neither class provides standard errors or uncertainty for the learned subspace. Principal directions are sign-indeterminate, and repeated singular values identify only a subspace.
+
+A full centered design requires $O(np)$ storage. Truncated PCA cost depends on the iterative eigensolver and requested $k$. RandomizedPCA costs roughly $O(np(k+s)(q+1))$ for oversampling $s$ and power count $q$, plus a small decomposition, and is most useful when $k+s\ll\min(n,p)$. More power iterations improve spectral separation at additional passes over $X$. Both transforms densify their input.
+
 ## Python API
 
-Constructor: `cm.PCA`
+Constructors: `cm.PCA` and `cm.RandomizedPCA`
 
-Use `PCA(n_components, whiten=False)`. `fit(x)` stores the basis, `transform(x)` maps new data to scores, `fit_transform(x)` combines both, and `inverse_transform(scores)` reconstructs approximate original features. `summary()` exposes components, means, explained variance, ratios, and singular values.
+Use `PCA(n_components, whiten=False)` for the Linfa truncated solver or `RandomizedPCA(n_components, oversamples=10, power_iter=1, seed=None)` for randomized SVD. Both expose `fit`, `transform`, `fit_transform`, `inverse_transform`, and `summary`. At least two rows are required for `PCA`; randomized rank cannot exceed `min(x.shape)`.
 
 ```{python}
 print(inspect.signature(cm.PCA))
@@ -44,6 +105,11 @@ print(inspect.signature(cm.PCA))
 
 ```{python}
 cls = cm.PCA
+display(HTML(html_table(["Public method"], public_methods(cls))))
+```
+
+```{python}
+cls = cm.RandomizedPCA
 display(HTML(html_table(["Public method"], public_methods(cls))))
 ```
 
@@ -58,6 +124,11 @@ scores = model.fit_transform(x)
 print(scores.shape)
 print(model.summary()['explained_variance_ratio'])
 print(model.inverse_transform(scores[:2]))
+
+randomized = cm.RandomizedPCA(n_components=2, oversamples=3, power_iter=2, seed=22)
+randomized_scores = randomized.fit_transform(x)
+print(randomized_scores.shape)
+print(randomized.summary()['singular_values'])
 ```
 
 ## `summary()` contract
@@ -72,3 +143,5 @@ model.fit(x)
 summary = model.summary()
 display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))))
 ```
+
+`RandomizedPCA.summary()` returns the fitted mean, component rows, singular values, and randomized solver settings. It omits explained variance because that class does not retain the full-spectrum variance denominator.

@@ -30,13 +30,82 @@ $$
 \mathbb E[Y_i\mid X_i=x_i]=\exp(\alpha+x_i'\beta).
 $$
 
-The `alpha` constructor argument is an L2 penalty, not the intercept. `summary(vcov='vanilla')` reports Fisher-information standard errors; `summary(vcov='sandwich')` reports robust QMLE-style standard errors.
+The `alpha` constructor argument is an L2 penalty, not the intercept. For `alpha=0`, `summary(vcov='vanilla')` reports Fisher-information standard errors and `summary(vcov='sandwich')` reports robust QMLE-style standard errors. Penalized fits mark inference unavailable and omit `se`/`vcov`.
+
+## Likelihood and solver
+
+With $\eta_i=\alpha_0+x_i'\beta$ and $\mu_i=\exp(\eta_i)$, the implemented criterion is the Poisson negative log-likelihood up to the data-only $\log(y_i!)$ term:
+
+$$
+Q(\alpha_0,\beta)
+=
+\sum_{i=1}^n\{\mu_i-y_i\eta_i\}
++\frac{\lambda}{2}\|\beta\|_2^2.
+$$
+
+The intercept is unpenalized. Newton-CG uses the exact gradient and Hessian
+
+$$
+\nabla^2 Q
+=
+\tilde X'\operatorname{diag}(\mu_i)\tilde X
++\operatorname{diag}(0,\lambda,\ldots,\lambda),
+$$
+
+with $10^{-8}$ added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at $\log\{\max(\bar y,10^{-12})\}$ and slopes start at zero. A fit is stored only after Argmin reports solver convergence or a target cost. Reaching `max_iterations` raises `ValueError` and clears any previous fitted state. Successful summaries include `converged`, `iterations`, `termination_reason`, and the final penalized `objective` $Q(\hat\alpha_0,\hat\beta)$.
+
+::: {.callout-warning}
+The fit requires finite $y_i\geq0$, a finite nonnegative penalty, finite regressors, a positive tolerance, and a positive iteration budget. Outcomes need not be integers, which permits Poisson QMLE for nonnegative responses.
+:::
+
+## Implementation walkthrough
+
+Unlike `Logit`, this native GLM uses the exact Hessian. It is Newton-CG with line search, not the textbook IRLS presentation, although the Hessian $\tilde X'W\tilde X$ is the same weighted cross-product that IRLS uses.
+
+1. `fit()` clears all fitted state and validates finite regressors, finite nonnegative outcomes, a nonnegative penalty, and positive iteration and tolerance controls. Fractional $y_i$ pass intentionally because the score equations remain valid for Poisson QMLE.
+2. The optimizer vector is $(\alpha_0,\beta')$ when the intercept is enabled. Slopes start at zero and the intercept starts at $\log\{\max(\bar y,10^{-12})\}$, so the initial constant mean matches the sample mean except for the zero-mean floor.
+3. The cost callback computes the entire index vector, exponentiates it without clipping, and returns $\sum_i(e^{\eta_i}-y_i\eta_i)+\lambda\beta'\beta/2$. The gradient uses the residual vector $e^\eta-y$, with an unpenalized intercept score and $\lambda\beta$ added to the slope score.
+4. The Hessian callback multiplies every row of $X$ by $\mu_i$, forms $X'\operatorname{diag}(\mu)X$, fills the intercept cross-products from $X'\mu$, and adds $\lambda+10^{-8}$ to each slope diagonal and $10^{-8}$ to the intercept diagonal. The small ridge is used in every Newton system, including an otherwise unpenalized fit.
+5. Argmin's Newton-CG obtains a Newton direction using that dense Hessian and globalizes the update with a More-Thuente line search. `tolerance` is the Newton-CG stopping tolerance. The wrapper rejects an exhausted iteration budget and installs the best parameter, data, and diagnostics only after accepted convergence.
+6. `predict_lin()` evaluates $\alpha_0+X\beta$; `predict()` exponentiates it directly. The same absence of clipping that preserves the literal Poisson mean also means sufficiently extreme new rows can return infinity.
+
+IRLS would express each Newton step as weighted least squares on a working response. Newton-CG instead exposes the objective, gradient, and Hessian to a generic optimizer. Statistically the local quadratic step is the same; operationally the line search and conjugate-gradient machinery, rather than a dedicated GLM loop, control step acceptance.
+
+## Inference
+
+Analytic inference is disabled for $\lambda>0$. For an unpenalized fit, the vanilla covariance is the inverse Fisher information
+
+$$
+\widehat V_{\mathrm{vanilla}}
+=
+(\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I)^{-1}.
+$$
+
+The sandwich, also accepted under the alias QMLE, is
+
+$$
+\widehat V_{\mathrm{QMLE}}
+=
+B^{-1}
+\left\{
+\sum_i \tilde x_i\tilde x_i'(y_i-\hat\mu_i)^2
+\right\}
+B^{-1},
+\qquad
+B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
+$$
+
+No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw, and any nonconverged replicate aborts the bootstrap.
+
+## Performance and numerical behavior
+
+Every Newton Hessian evaluation costs $O(np^2)$ and the dense Newton system is up to $O(p^3)$, so this is more expensive per iteration than first-order GLM solvers at large $p$. The code evaluates $\exp(\eta)$ without clipping; extreme indices can overflow and abort optimization. There is no exposure or offset argument, so users must encode those effects in the supplied design only if estimating their coefficient is appropriate. Covariance and bootstrap add dense inversion and repeated-fit costs.
 
 ## Python API
 
 Constructor: `cm.Poisson`
 
-Use `fit(x, y)` with nonnegative count-like outcomes. `predict(x)` returns fitted conditional means. The class also supports `bootstrap(B, seed=None)`.
+Use `fit(x, y)` with nonnegative count-like outcomes. `predict_lin(x)` returns the log mean, `predict(x)` returns fitted conditional means, and `summary()` includes fit diagnostics. The class also supports `bootstrap(B, seed=None)`.
 
 ```{python}
 print(inspect.signature(cm.Poisson))
@@ -57,7 +126,9 @@ mu = np.exp(0.2 + x @ np.array([0.4, -0.25]))
 y = rng.poisson(mu).astype(float)
 model = cm.Poisson(max_iterations=200, tolerance=1e-08)
 model.fit(x, y)
-print(model.summary(vcov='vanilla')['coef'])
+fit = model.summary(vcov='vanilla')
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['coef'])
 print(model.summary(vcov='sandwich')['coef_se'])
 print(model.predict(x[:3]))
 ```

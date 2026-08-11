@@ -52,6 +52,8 @@ website:
             text: Anytime-Valid Confidence Sequences
           - href: examples/ridge.qmd
             text: Ridge
+          - href: examples/bagged-polynomial-regression.qmd
+            text: Bagged Polynomial Regression
           - href: examples/fixed-effects-ols.qmd
             text: Fixed Effects OLS
           - href: examples/elastic-net.qmd
@@ -68,8 +70,6 @@ website:
             text: Survival / Recurrent Events
           - href: examples/gmm.qmd
             text: GMM
-          - href: examples/ftrl.qmd
-            text: FTRL
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
       - text: Causal Inference

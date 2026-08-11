@@ -30,13 +30,60 @@ $$
 \Pr(Y_i=1\mid X_i=x_i)=\Lambda(\alpha+x_i'\beta),
 $$
 
-with optional L2 regularization controlled by `alpha`. `predict(x)` returns class labels, not probabilities.
+with optional L2 regularization controlled by `alpha`. `predict(x)` returns probabilities for label 1; `predict_label(x)` returns class labels.
+
+## Likelihood and solver
+
+With $\eta_i=\alpha_0+x_i'\beta$ and $p_i=\{1+\exp(-\eta_i)\}^{-1}$, the native fit minimizes the unnormalized penalized negative log-likelihood
+
+$$
+Q(\alpha_0,\beta)
+=
+\sum_{i=1}^n
+\left[
+\log\{1+\exp(\eta_i)\}-y_i\eta_i
+\right]
++\frac{\lambda}{2}\|\beta\|_2^2,
+$$
+
+where the constructor argument named `alpha` is $\lambda$ and the intercept is unpenalized. The implementation evaluates $\log(1+\exp\eta)$ with a branch-stable softplus and evaluates the logistic function without overflowing for large negative indices. It supplies the analytic gradient to ten-vector-memory L-BFGS with a More-Thuente line search, starts all parameters at zero, and stops only when Argmin reports solver convergence or a target cost.
+
+Reaching `max_iterations` is not convergence. `fit()` raises `ValueError` and clears any previous fitted state if the budget is exhausted or optimization otherwise fails. A successful `summary()` records `converged`, `iterations`, `termination_reason`, and the final penalized `objective`. The linear index and probability always refer to label 1.
+
+## Implementation walkthrough
+
+This is a direct likelihood implementation, not a call to Linfa and not iteratively reweighted least squares (IRLS). The fit proceeds as follows.
+
+1. `fit()` first clears the stored model and training arrays, converts the NumPy inputs into owned Rust `ndarray` arrays, and checks finiteness, dimensions, the penalty, the iteration controls, and that both integer labels 0 and 1 occur. A failed refit therefore cannot leave a stale fitted model behind.
+2. The optimizer vector stores the $p$ slopes first and the intercept last. The objective callback walks over observations, computes $\eta_i=x_i'\beta+\alpha_0$, and accumulates `softplus(eta) - y * eta`. The softplus is evaluated as $\eta+\log(1+e^{-\eta})$ for positive $\eta$ and $\log(1+e^\eta)$ otherwise. The sigmoid likewise branches on the sign of $\eta$. These branches are what keep the likelihood and gradient finite when the linear index is large in magnitude.
+3. The analytic score callback accumulates $x_i(p_i-y_i)$ for the slopes and $p_i-y_i$ for the intercept, then adds $\lambda\beta$ only to the slopes. It does not construct an $n\times p$ working design or solve a weighted least-squares problem.
+4. Argmin's L-BFGS stores ten correction pairs and obtains its step length from a More-Thuente line search. The initial vector is exactly zero, so the initial fitted probability is $1/2$ for every row. `gradient_tolerance` is passed directly to the L-BFGS gradient stopping test.
+5. The wrapper accepts Argmin's best parameter only when its termination status is a genuine solver convergence or target-cost condition. Hitting the iteration budget is converted into an exception. Only then are the coefficients and original training arrays installed on the Python object.
+6. `predict_lin()` performs one dense matrix-vector product and adds the fitted intercept. `predict()` applies the same stable sigmoid elementwise. `predict_label()` compares those probabilities with the requested cutoff, including equality on the label-1 side.
+
+The deliberate tradeoff is simplicity and a low-memory first-order iteration. IRLS would exploit the exact Hessian through a weighted least-squares solve at every iteration; this implementation instead spends $O(np)$ per objective/gradient call and lets L-BFGS approximate curvature. That avoids repeatedly forming and factorizing a $p\times p$ matrix, but it can take more iterations and has no special separation detector.
+
+## Inference
+
+Analytic inference is available only when $\lambda=0$. Let $\tilde X=[\mathbf1,X]$ and $W=\operatorname{diag}\{\hat p_i(1-\hat p_i)\}$. The returned model-based covariance is
+
+$$
+\widehat V
+=
+(\tilde X'W\tilde X+10^{-8}I)^{-1}.
+$$
+
+The $10^{-8}$ diagonal ridge is numerical stabilization, not a reported statistical penalty. The implementation has no heteroskedastic or cluster-robust logit sandwich option. Wald tests use this Fisher covariance. The pairs bootstrap refits the same fixed penalty in each sample; a resample on which the binary fit cannot be estimated aborts the bootstrap.
+
+## Performance and numerical behavior
+
+Each L-BFGS objective and gradient evaluation is $O(np)$, with solver state linear in $p$ for a fixed memory size. Computing the Fisher covariance forms a dense $(p+1)\times(p+1)$ information matrix in $O(np^2)$ and inverts it in $O(p^3)$. Complete or near separation can drive coefficients to large magnitudes and make the information matrix nearly singular; the small diagonal ridge can make inversion succeed without resolving the inferential weakness. Bootstrap multiplies the full optimization cost by the number of draws, and any nonconverged replicate aborts the bootstrap.
 
 ## Python API
 
 Constructor: `cm.Logit`
 
-Fit with integer labels using `fit(x, y_int32)`. `summary()` returns intercept/coefficient estimates and Fisher-information standard errors. `bootstrap()` resamples observations and refits the classifier.
+Fit with integer labels using `fit(x, y_int32)`. Labels must be exactly 0 and 1, with both represented. `summary()` returns intercept and coefficient estimates plus fit diagnostics. Fisher-information standard errors are available only for the unpenalized fit (`alpha=0`); penalized fits are explicitly prediction-only. `bootstrap()` resamples observations and refits the classifier.
 
 ```{python}
 print(inspect.signature(cm.Logit))
@@ -58,7 +105,9 @@ p = 1 / (1 + np.exp(-eta))
 y = rng.binomial(1, p, size=220).astype(np.int32)
 model = cm.Logit(max_iterations=200)
 model.fit(x, y)
-print(model.summary()['coef'])
+fit = model.summary()
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['coef'])
 print(model.predict(x[:5]))
 ```
 

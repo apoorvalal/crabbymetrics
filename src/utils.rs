@@ -6,25 +6,11 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::BTreeMap;
 
+pub(crate) use crate::validation::validate_sample_weight;
+
 pub fn add_intercept(x: &Array2<f64>) -> Array2<f64> {
     let ones = Array2::ones((x.nrows(), 1));
     concatenate(Axis(1), &[ones.view(), x.view()]).expect("failed to add intercept")
-}
-
-pub fn validate_sample_weight(weights: &Array1<f64>, n: usize) -> Result<(), String> {
-    if weights.len() != n {
-        return Err("sample_weight length must match the number of observations".to_string());
-    }
-    if weights
-        .iter()
-        .any(|value| !value.is_finite() || *value < 0.0)
-    {
-        return Err("sample_weight values must be finite and nonnegative".to_string());
-    }
-    if weights.iter().all(|value| *value == 0.0) {
-        return Err("sample_weight must contain at least one positive value".to_string());
-    }
-    Ok(())
 }
 
 pub fn sqrt_sample_weight(
@@ -85,49 +71,6 @@ pub fn solve_least_squares_mat(a: &Array2<f64>, b: &Array2<f64>) -> Result<Array
     a.to_owned()
         .least_squares_into(b.to_owned())
         .map_err(|err| err.to_string())
-}
-
-pub fn hc1_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, String> {
-    let n = x.nrows();
-    let k = x.ncols();
-    if residuals.len() != n {
-        return Err("residual length mismatch".to_string());
-    }
-
-    let xtx = x.t().dot(x);
-    let xtx_inv = invert_matrix(&xtx)?;
-
-    let mut meat = Array2::<f64>::zeros((k, k));
-    for i in 0..n {
-        let xi = x.row(i);
-        let u = residuals[i];
-        let outer = xi
-            .to_owned()
-            .insert_axis(Axis(1))
-            .dot(&xi.to_owned().insert_axis(Axis(0)));
-        meat = meat + outer * (u * u);
-    }
-
-    let mut cov = xtx_inv.dot(&meat).dot(&xtx_inv);
-    let scale = n as f64 / (n as f64 - k as f64);
-    cov.mapv_inplace(|v| v * scale);
-    Ok(cov)
-}
-
-pub fn ols_vanilla_cov(x: &Array2<f64>, residuals: &Array1<f64>) -> Result<Array2<f64>, String> {
-    let n = x.nrows();
-    let k = x.ncols();
-    if residuals.len() != n {
-        return Err("residual length mismatch".to_string());
-    }
-    if n <= k {
-        return Err("need more observations than regressors".to_string());
-    }
-
-    let xtx = x.t().dot(x);
-    let xtx_inv = invert_matrix(&xtx)?;
-    let sigma2 = residuals.dot(residuals) / ((n - k) as f64);
-    Ok(xtx_inv.mapv(|v| v * sigma2))
 }
 
 pub fn default_newey_west_lags(n: usize) -> usize {
@@ -220,13 +163,30 @@ pub fn sandwich_cov_from_parameter_scores(
     }
 }
 
-pub fn diag_sqrt(a: &Array2<f64>) -> Array1<f64> {
-    let n = a.nrows().min(a.ncols());
-    let mut out = Array1::zeros(n);
-    for i in 0..n {
-        out[i] = a[[i, i]].abs().sqrt();
+pub fn diag_sqrt(a: &Array2<f64>) -> Result<Array1<f64>, String> {
+    if a.nrows() != a.ncols() {
+        return Err("covariance matrix must be square".to_string());
     }
-    out
+    let scale = a
+        .iter()
+        .filter(|value| value.is_finite())
+        .fold(1.0_f64, |acc, value| acc.max(value.abs()));
+    if a.iter().any(|value| !value.is_finite()) {
+        return Err("covariance matrix must contain only finite values".to_string());
+    }
+    let tolerance = 1e-12 * scale;
+    let mut out = Array1::zeros(a.nrows());
+    for i in 0..a.nrows() {
+        let value = a[[i, i]];
+        if value < -tolerance {
+            return Err(format!(
+                "covariance diagonal at index {} is negative ({})",
+                i, value
+            ));
+        }
+        out[i] = value.max(0.0).sqrt();
+    }
+    Ok(out)
 }
 
 pub fn fisher_cov_binary(x: &Array2<f64>, probs: &Array1<f64>) -> Result<Array2<f64>, String> {
@@ -301,7 +261,11 @@ pub fn qmle_cov_poisson(
     Ok(bread.dot(&meat).dot(&bread))
 }
 
-pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Array2<f64>, String> {
+pub fn fisher_cov_multinomial(
+    x: &Array2<f64>,
+    probs: &Array2<f64>,
+    reference_class: usize,
+) -> Result<Array2<f64>, String> {
     let n = x.nrows();
     let k = x.ncols();
     let c = probs.ncols();
@@ -309,7 +273,15 @@ pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Ar
         return Err("prob length mismatch".to_string());
     }
 
-    let dim = k * c;
+    if c < 2 {
+        return Err("multinomial covariance requires at least two classes".to_string());
+    }
+    if reference_class >= c {
+        return Err("reference class index is out of bounds".to_string());
+    }
+
+    let modeled_classes: Vec<usize> = (0..c).filter(|class| *class != reference_class).collect();
+    let dim = k * (c - 1);
     let mut h = Array2::<f64>::zeros((dim, dim));
 
     for i in 0..n {
@@ -321,15 +293,15 @@ pub fn fisher_cov_multinomial(x: &Array2<f64>, probs: &Array2<f64>) -> Result<Ar
             }
         }
 
-        for a in 0..c {
-            for b in 0..c {
+        for (a_idx, &a) in modeled_classes.iter().enumerate() {
+            for (b_idx, &b) in modeled_classes.iter().enumerate() {
                 let w = if a == b {
                     probs[[i, a]] * (1.0 - probs[[i, a]])
                 } else {
                     -probs[[i, a]] * probs[[i, b]]
                 };
-                let row_offset = a * k;
-                let col_offset = b * k;
+                let row_offset = a_idx * k;
+                let col_offset = b_idx * k;
                 for r in 0..k {
                     for s in 0..k {
                         h[[row_offset + r, col_offset + s]] += w * outer_x[[r, s]];
@@ -429,4 +401,29 @@ pub fn pyarray1_from_i32<'py>(py: Python<'py>, data: &Array1<i32>) -> Bound<'py,
 pub fn pyarray2_from_f64<'py>(py: Python<'py>, data: &Array2<f64>) -> Bound<'py, PyArray2<f64>> {
     let vec2: Vec<Vec<f64>> = data.rows().into_iter().map(|row| row.to_vec()).collect();
     PyArray2::from_vec2(py, &vec2).expect("failed to build array")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::diag_sqrt;
+    use ndarray::array;
+
+    #[test]
+    fn diag_sqrt_accepts_valid_covariance() {
+        let se = diag_sqrt(&array![[4.0, 0.5], [0.5, 9.0]]).unwrap();
+        assert_eq!(se.to_vec(), vec![2.0, 3.0]);
+    }
+
+    #[test]
+    fn diag_sqrt_clips_only_roundoff_negative_values() {
+        let se = diag_sqrt(&array![[-1e-14, 0.0], [0.0, 1.0]]).unwrap();
+        assert_eq!(se.to_vec(), vec![0.0, 1.0]);
+        assert!(diag_sqrt(&array![[-1e-4, 0.0], [0.0, 1.0]]).is_err());
+    }
+
+    #[test]
+    fn diag_sqrt_rejects_nonfinite_or_nonsquare_covariance() {
+        assert!(diag_sqrt(&array![[f64::NAN]]).is_err());
+        assert!(diag_sqrt(&array![[1.0, 0.0]]).is_err());
+    }
 }

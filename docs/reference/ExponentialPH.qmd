@@ -27,16 +27,73 @@ from _api_doc_utils import *
 `ExponentialPH` is the smallest fully parametric proportional-hazards model in the module. It assumes
 
 $$
-h_i(t \mid x_i) = \lambda_0 \exp(x_i'eta),
+h_i(t \mid x_i) = \lambda_0 \exp(x_i'\beta),
 $$
 
 so the baseline hazard is constant over time. Because the full hazard is identified, the class can expose the whole prediction stack: log hazard, hazard, cumulative hazard, and survival.
+
+## Likelihood and predictions
+
+The model has constant baseline hazard
+
+$$
+h(t\mid x)=\lambda\exp(x'\beta),
+\qquad
+H(t\mid x)=\lambda t\exp(x'\beta),
+\qquad
+\lambda=\exp(\alpha).
+$$
+
+For observed time $t_i$ and event indicator $d_i$, the implemented right-censored log-likelihood is
+
+$$
+\ell(\alpha,\beta)
+=
+\sum_i
+\left[
+d_i(\alpha+x_i'\beta)
+-\exp(\alpha+x_i'\beta)t_i
+\right].
+$$
+
+Newton iterations use the analytic score and Hessian, subtract $10^{-8}$ from the log-likelihood Hessian diagonal before solving, clamp each proposed parameter step to $[-2,2]$, and backtrack until log-likelihood does not decrease. The initial log baseline hazard is $\log\{\sum_i d_i/\sum_i t_i\}$ and slopes start at zero. Convergence requires either $\|\nabla\ell\|_\infty<\tau$ or an accepted likelihood change below $\tau(1+|\ell|)$, where $\tau$ is `tolerance`.
+
+Prediction returns survival $\exp\{-H(t\mid x)\}$ by default. The linear prediction is the full log hazard $\alpha+x'\beta$, not only a relative-risk index.
+
+## Implementation walkthrough
+
+The likelihood, derivatives, damped Newton loop, and prediction functions are native Rust code.
+
+1. `fit()` clears fitted state, validates finite $X$, positive finite times, binary floating-point event indicators, and the solver controls. It initializes $(\alpha,\beta')$ at $(\log\{\max(\sum d_i,1)/\max(\sum t_i,10^{-12})\},0')$; the event count is floored at one, so an all-censored sample still receives a finite starting hazard.
+2. One observation pass evaluates $z_i=\exp(\alpha+x_i'\beta)t_i$, adds $d_i(\alpha+x_i'\beta)-z_i$ to the log likelihood, and accumulates the score $(d_i-z_i)(1,x_i')'$. A nested loop adds $-z_i(1,x_i')(1,x_i')$ to the Hessian.
+3. The Newton helper subtracts $10^{-8}$ from every diagonal of the log-likelihood Hessian, explicitly inverts that dense matrix, and returns $H^{-1}g$. Because the Hessian is negative definite near the optimum, the outer loop proposes $\theta_{\mathrm{new}}=\theta-H^{-1}g$.
+4. Every coordinate of that raw step is clipped to $[-2,2]$. The line search tries scale one and then at most 29 successive halvings. It accepts the first finite candidate whose log likelihood is no worse than the current value minus $10^{-10}$; otherwise the fit fails with a line-search error.
+5. The loop checks the maximum absolute score before solving and the relative likelihood change after an accepted step. Exhausting `max_iterations` is explicitly nonconvergence. The covariance is computed only afterward by reevaluating the Hessian and inverting its negative without the optimization ridge.
+6. Prediction stores no baseline grid because the baseline is a scalar. Log hazard is $\alpha+X\beta$, hazard exponentiates it, cumulative hazard multiplies by each requested time, and survival exponentiates the negative cumulative hazard.
+
+The explicit Hessian makes this implementation easy to audit, but explicit inversion is less stable and more expensive than solving the Newton linear system by factorization. The event-count floor is only an initialization device; it does not make a no-event likelihood identify the hazard.
+
+## Inference
+
+The returned covariance is the inverse observed information
+
+$$
+\widehat V
+=
+\{-\nabla^2\ell(\hat\alpha,\hat\beta)\}^{-1}.
+$$
+
+It is model-based under independent observations, correct exponential proportional hazards, and noninformative right censoring. There is no robust, clustered, bootstrap, or Wald interface. The covariance includes the log baseline hazard first and slope coefficients afterward, although the summary does not separately report standard errors. Reaching `max_iterations` raises `ValueError` before covariance or fitted state is stored. A successful summary exposes `converged`, `iterations`, `termination_reason`, and `objective`, where `objective` is $-\ell(\hat\alpha,\hat\beta)$.
+
+## Performance and numerical behavior
+
+Each score evaluation is $O(np)$; forming the dense Hessian is $O(np^2)$ and solving it is up to $O(p^3)$ per Newton iteration. The implementation stores the dense design but no risk sets. Exponential evaluations are not clipped, so extreme covariates or steps can overflow. The class supports only positive finite stop times, binary events, no delayed entry, no ties issue beyond ordinary parametric likelihood, and no observation weights.
 
 ## Python API
 
 Constructor: `cm.ExponentialPH`
 
-Use `fit(x, time, event)`. The layered prediction surface is `predict_lin(x)` for log hazard, `predict_hazard(x)`, `predict_cumulative_hazard(x, time)`, and `predict_survival(x, time)`. The default `predict(x, time)` returns survival probabilities.
+Use `fit(x, time, event)`. The layered prediction surface is `predict_lin(x)` for log hazard, `predict_hazard(x)`, `predict_cumulative_hazard(x, time)`, and `predict_survival(x, time)`. The default `predict(x, time)` returns survival probabilities. Times must be positive and finite, events must be binary, and `x` must be finite.
 
 ```{python}
 print(inspect.signature(cm.ExponentialPH))
@@ -55,6 +112,7 @@ rng=np.random.default_rng(31)
 x=rng.normal(size=(250,2)); rate=0.04*np.exp(x@np.array([0.5,-0.3])); t_event=rng.exponential(1.0/rate); c=rng.exponential(30,size=250)
 time=np.minimum(t_event,c); event=(t_event<=c).astype(float)
 model=cm.ExponentialPH(); model.fit(x,time,event)
+fit=model.summary(); print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
 print(model.predict_lin(x[:3]))
 print(model.predict_hazard(x[:3]))
 print(model.predict_cumulative_hazard(x[:3], time[:3]))

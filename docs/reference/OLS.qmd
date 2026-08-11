@@ -32,6 +32,97 @@ $$
 
 by least squares. The class stores the fitted intercept and coefficient vector and exposes the common linear-model covariance surface: classical, HC1, Newey-West, and cluster-robust standard errors.
 
+## Criterion and computation
+
+Write $\tilde x_i=(1,x_i')'$ and let $\theta=(\alpha,\beta')'$. The ordinary fit solves
+
+$$
+\hat\theta
+=
+\arg\min_\theta \sum_{i=1}^n (y_i-\tilde x_i'\theta)^2.
+$$
+
+The weighted method instead minimizes $\sum_i w_i(y_i-\tilde x_i'\theta)^2$ by applying least squares to $\sqrt{w_i}\tilde x_i$ and $\sqrt{w_i}y_i$. Both paths use a rank-revealing least-squares solve rather than explicitly forming $(X'X)^{-1}$ for the point estimate.
+
+The sketched method draws a CountSketch matrix $S\in\mathbb R^{s\times n}$ and solves
+
+$$
+\hat\theta_S=\arg\min_\theta\|S(y-\tilde X\theta)\|_2^2.
+$$
+
+This is an approximate point estimator. The fitted object still stores the full original design and computes residuals and covariance estimates on all $n$ observations at $\hat\theta_S$.
+
+## Implementation walkthrough
+
+The linear-estimator stack shares a small set of native array and covariance primitives.
+
+1. `fit()` converts NumPy inputs to owned dense arrays, validates dimensions and finiteness, and prepends an explicit column of ones. `fit_weighted()` additionally validates nonnegative weights and multiplies every design row and outcome by $\sqrt{w_i}$. The original unweighted arrays and weights are retained after fitting.
+2. The point estimate is obtained with `ndarray-linalg` least squares on the design itself. The code does not form $X'X$ or invert it to obtain coefficients. The returned parameter vector is split into its first intercept entry and remaining slope entries only after the solve succeeds.
+3. CountSketch assigns each original row independently to one of $s$ buckets and gives it a Rademacher sign $\pm1$. Signed rows of $X$ and signed outcomes are accumulated into the same buckets, using the supplied seed or fixed fallback seed `0xBAD5EED`. There is no $1/\sqrt{s}$ normalization; a common rescaling would not change the least-squares minimizer.
+4. `fit_sketch()` solves only the $s\times p$ sketched system for the point estimate, then stores the untouched full sample. Consequently, `predict()`, residuals, covariance, and all reported fit statistics are evaluated on the original observations at the approximate coefficients rather than on sketch residuals.
+5. `summary()` rebuilds the design, computes residuals, and dispatches to a shared covariance routine. That routine forms and inverts $X'X$, explicitly loops over leverage values for HC2/HC3, or first maps observation moments $x_i e_i$ through the bread to parameter-score rows for HAC and cluster aggregation.
+6. The pairs bootstrap draws integer row indices with replacement, copies matching $X$ and $y$ rows, and reruns the exact least-squares path. It does not reproduce a previous sketch. A weighted fit likewise resamples the corresponding weight entries.
+
+The split between QR-style least squares for coefficients and explicit cross-product inversion for inference is intentional but important: a rank-deficient fit can return a least-squares solution while covariance construction still fails or is unstable. CountSketch accelerates only the former.
+
+## Inference
+
+Let $e_i=y_i-\tilde x_i'\hat\theta$, $H=\tilde X(\tilde X'\tilde X)^{-1}\tilde X'$, and $d_f=n-p$, where $p$ includes the intercept. The implemented covariance choices are:
+
+$$
+\widehat V_{\mathrm{vanilla}}
+=
+\frac{e'e}{d_f}(\tilde X'\tilde X)^{-1},
+$$
+
+and
+
+$$
+\widehat V_{\mathrm{HC}k}
+=
+(\tilde X'\tilde X)^{-1}
+\left(\sum_i a_{ki}e_i^2\tilde x_i\tilde x_i'\right)
+(\tilde X'\tilde X)^{-1},
+$$
+
+with $a_{0i}=1$, $a_{1i}=n/d_f$, $a_{2i}=(1-h_{ii})^{-1}$, and $a_{3i}=(1-h_{ii})^{-2}$. Newey-West uses the Bartlett-weighted autocovariances of the parameter scores $(\tilde X'\tilde X)^{-1}\tilde x_i e_i$ and defaults to $\max\{1,\lfloor4(n/100)^{2/9}\rfloor\}$ lags. Cluster covariance sums those scores within clusters and applies
+
+$$
+\frac{G}{G-1}\frac{n-1}{d_f}.
+$$
+
+Wald tests use the selected covariance. The bootstrap is a pairs bootstrap over rows and refits the model in every draw.
+
+With anytime-valid output enabled, the class converts each squared $t$ statistic to the implemented mixture evidence value
+
+$$
+\log G_t
+=
+\frac12\log r+
+\frac{\nu+1}{2}
+\left[
+\log(1+t^2/\nu)-\log(1+rt^2/\nu)
+\right],
+\qquad
+r=\frac{g}{g+n},\quad \nu=n-p,
+$$
+
+and reports $\min\{1,\exp(-\log G_t)\}$. The confidence-sequence half-width is $c_{n,\alpha,g}\,\mathrm{SE}$, where
+
+$$
+c_{n,\alpha,g}^2
+=
+\nu\frac{1-q}{q-r},
+\qquad
+q=(r\alpha^2)^{1/(\nu+1)}.
+$$
+
+This sequential calculation reuses the requested fixed-sample covariance; it does not change the coefficient fit.
+
+## Performance and numerical behavior
+
+For a dense $n\times p$ design, fitting costs about $O(np^2+p^3)$ and stores $O(np+p^2)$ values. HC2/HC3 explicitly evaluate every leverage and therefore also cost $O(np^2)$. Newey-West adds $O(Lnp)$ score work for $L$ lags; cluster aggregation is linear in $n$ after the scores are formed. A CountSketch reduces the least-squares row dimension to $s$, but full-data prediction, residual construction, and inference remain; it is most useful when the point-estimation solve dominates. Ill-conditioned or rank-deficient designs may produce unstable covariance inversions even when the least-squares point estimate succeeds.
+
 ## Python API
 
 Constructor: `cm.OLS`

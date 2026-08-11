@@ -28,6 +28,55 @@ from _api_doc_utils import *
 
 The fitted coefficients still live on the proportional-hazards log-risk scale, so the prediction contract mirrors `CoxPH`: latent log hazard ratio plus relative risk.
 
+## Counting-process partial likelihood
+
+For interval record $(s_i,t_i]$, the risk set at event time $t_i$ is
+
+$$
+R(t_i)=\{r:s_r<t_i\leq t_r\}.
+$$
+
+The class maximizes
+
+$$
+\ell_p(\beta)
+=
+\sum_{i:d_i=1}
+\left[
+x_i'\beta
+-\log\left\{\sum_{r\in R(t_i)}\exp(x_r'\beta)\right\}
+\right].
+$$
+
+Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a $10^{-8}$ solve ridge, step clipping, backtracking, and risk-score index clipping to $[-40,40]$ inside the risk sets. Convergence requires either $\|\nabla\ell_p\|_\infty<\tau$ or an accepted partial-likelihood change below $\tau(1+|\ell_p|)$.
+
+## Implementation walkthrough
+
+`AndersenGill` calls the same native partial-likelihood kernel and Newton loop as `CoxPH`, with one additional entry-time predicate.
+
+1. The wrapper validates aligned arrays, finite covariates, binary events, and every interval condition $0\leq s_i<t_i$. It has no subject identifier and therefore cannot validate interval ordering or overlap within a subject.
+2. Slopes start at zero. At each candidate, raw indices are computed once and risk scores use $\exp\{\operatorname{clip}(x_i'\beta,-40,40)\}$. For every event record $i$, the inner scan includes record $r$ precisely when $s_r<t_i\leq t_r$, matching the open-left, closed-right counting-process interval.
+3. That scan accumulates the same scalar denominator and weighted first and second covariate moments as `CoxPH`. It adds one raw event index to the numerator and one log denominator per event, so equal stop-time events receive Breslow handling.
+4. The shared Newton step explicitly inverts a Hessian with $10^{-8}$ subtracted from its diagonal, clips step coordinates to $[-1,1]$, and backtracks through at most 30 halvings. Maximum-score or relative-objective convergence is required; the iteration cap is failure.
+5. Final covariance is the inverse observed information across interval rows. The code has no cluster-score accumulation stage, so repeated records from one subject are treated as separate contributions to this model-based information.
+6. Prediction ignores interval endpoints because the fitted object is only a relative-risk model: it returns $X\hat\beta$ or $\exp(X\hat\beta)$. It does not estimate a baseline hazard or a subject-specific event process.
+
+The source-level difference from `CoxPH` is deliberately small, which makes the counting-process risk-set rule clear. It also makes the API limitation clear: without subject IDs, the implementation cannot supply the robust sandwich that usually makes Andersen-Gill inference useful.
+
+## Inference limitation
+
+The returned covariance is only the inverse observed partial-likelihood information. The API has no subject identifier and cannot aggregate score residuals across multiple intervals belonging to the same subject.
+
+::: {.callout-warning}
+For recurrent-event Andersen-Gill analysis, the usual robust covariance clusters intervals by subject. This class does not implement that covariance. Its reported standard errors and $p$-values treat interval rows through the model-based information and should not be presented as robust recurrent-event inference.
+:::
+
+The class also does not validate that a subject's intervals are nonoverlapping or consistently ordered because subject membership is unavailable. Default prediction is relative risk $\exp(x'\hat\beta)$; no baseline hazard or survival curve is estimated. Reaching `max_iterations` raises `ValueError` and leaves the estimator unfitted. A successful summary exposes `converged`, `iterations`, `termination_reason`, and `objective`, where `objective=-\ell_p(\hat\beta)`.
+
+## Performance and numerical behavior
+
+Every event scans every interval to reconstruct its delayed-entry risk set and accumulates dense second moments, for about $O(Enp^2)$ work per Newton iteration plus an $O(p^3)$ solve. Splitting subjects into more intervals therefore increases both $n$ and often $E$. Risk-set exponentials are clipped but new-data relative-risk predictions are not. This implementation is usable for small counting-process designs and point estimates, but its naive risk-set algorithm and missing subject-cluster covariance are material limitations for production recurrent-event work.
+
 ## Python API
 
 Constructor: `cm.AndersenGill`
@@ -52,6 +101,7 @@ x=rng.normal(size=(180,1)); rate=0.05*np.exp(0.6*x[:,0]); t_event=rng.exponentia
 start=np.zeros_like(stop)
 start_long=np.concatenate([start, stop/2]); stop_long=np.concatenate([stop/2, stop]); x_long=np.vstack([x,x]); event_long=np.concatenate([np.zeros_like(event), event])
 model=cm.AndersenGill(); model.fit(x_long,start_long,stop_long,event_long)
+fit=model.summary(); print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
 print(model.predict_lin(x[:5]))
 print(model.predict(x[:5]))
 ```

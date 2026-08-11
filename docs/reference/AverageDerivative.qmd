@@ -28,6 +28,76 @@ from _api_doc_utils import *
 
 The doubly robust option combines outcome-bridge and weighting components, while the other options expose the individual pieces.
 
+## Linear average-derivative estimators
+
+Let $\mu=E_n[W]$, $W_i^c=W_i-\mu$, and
+
+$$
+R_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ D_i)'.
+$$
+
+Centering makes the final coefficient in the linear interaction regression equal the sample-average derivative with respect to $D$.
+
+The outcome-based method fits
+
+$$
+\hat\lambda_{\mathrm{OB}}
+=
+\arg\min_\lambda\sum_i(Y_i-R_i'\lambda)^2
+$$
+
+and reports the last component. Its joint moments estimate $\mu$ from $W_i-\mu$ and use $R_i(Y_i-R_i'\lambda)$ for the regression.
+
+The IPW method first projects $D$ on $\tilde W=[\mathbf1,W]$, sets
+
+$$
+v_i=D_i-\tilde W_i'\hat\pi,
+\qquad
+\hat\sigma^2=E_n[v_i^2],
+\qquad
+g_i=\frac{v_i}{\hat\sigma^2},
+$$
+
+and reports
+
+$$
+\hat\beta_{\mathrm{IPW}}
+=
+\frac{\sum_i g_iY_i}{\sum_i g_iD_i}.
+$$
+
+Its stacked moments include $\tilde W_iv_i$, $v_i^2-\sigma^2$, and $g_i(Y_i-D_i\beta)$.
+
+The DR method combines both structures. It uses regressors $R_i$ and instruments
+
+$$
+Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
+$$
+
+in a just-identified linear IV fit and reports the coefficient on $D$. The full moment system jointly accounts for treatment-projection coefficients, $\log\sigma^2$, control means, and outcome coefficients. These are linear-basis OB, IPW, and DR estimators; the class does not fit generic nonparametric derivatives.
+
+## Implementation walkthrough
+
+The three methods share validation and exactly identified sandwich code, but construct their point estimates and nuisance vectors separately.
+
+1. OB computes raw control means, centers $W$, builds the dense columns $(1,W^c,DW^c,D)$, and solves one rectangular least-squares problem. Centering is performed before the interaction, so the last coefficient is the derivative averaged at the sample control mean.
+2. IPW solves $D\sim(1,W)$ by least squares, computes $\hat\sigma^2=v'v/n$, rejects values at or below $10^{-12}$, and forms $g=v/\hat\sigma^2$. It then evaluates the scalar ratio $g'Y/(g'D)$. The nuisance vector stores $\log\hat\sigma^2$ so perturbed covariance calculations keep the variance positive.
+3. DR repeats that treatment projection, centers controls, and builds the OB outcome design. Its instrument matrix replaces the final raw treatment column by $g$. The just-identified IV solve first projects the outcome design on those instruments and then regresses $Y$ on the projected design; the reported target is again the final outcome coefficient.
+4. Each method packs every nuisance component and the target into a fixed order and has a matching row-moment constructor. OB stacks control-centering moments with outcome normal equations. IPW stacks treatment normal equations, a variance moment, and the weighted outcome moment. DR stacks all four blocks.
+5. `summary()` obtains the complete moment matrix, central-differences its mean once per packed parameter coordinate, verifies the Jacobian is square, and maps observation moments through its inverse. The requested iid, HC1, HAC, or cluster covariance is computed for the whole system before the final scalar block is selected.
+
+There is no iterative nonlinear fit in these estimators; all point estimates are closed-form least-squares or IV operations. Most of the computational complexity comes from faithfully propagating nuisance estimation through a numerically differentiated joint moment system.
+
+## Inference
+
+All three methods use the same exactly identified sandwich machinery. The Jacobian of the full stacked mean-moment vector is computed by central differences, and the empirical moment outer product supplies the meat. Vanilla is the uncorrected iid sandwich; HC1, Bartlett Newey-West, and cluster covariance add the same finite-sample corrections described on the EPLM page. Only the scalar average-derivative covariance block is returned.
+
+The method accepts continuous treatment values and does not enforce a binary treatment. No cross-fitting, bootstrap, or built-in Wald method is provided. Validity depends on the selected linear outcome and treatment structures and, for IPW/DR, nondegenerate residual treatment variance.
+
+## Performance and numerical behavior
+
+OB is a dense least-squares fit; IPW adds a treatment projection; DR adds a just-identified IV system. Summary-time differentiation is the dominant risk: the DR nuisance vector has $4p+4$ elements for $p$ raw controls, requiring two full moment evaluations per element followed by a dense cubic inversion. Interactions also double the outcome-design width. Scaling and collinearity matter, and there is no regularization.
+
 ## Python API
 
 Constructor: `cm.AverageDerivative`

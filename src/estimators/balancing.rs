@@ -1,8 +1,7 @@
+use crate::fit::{optimization_success, FitDiagnostics};
 use crate::utils::{pyarray1_from_f64, scale_rows, solve_least_squares_vec, to_array2};
-use argmin::core::{
-    CostFunction, Error as ArgminError, Executor, Gradient, State, TerminationReason,
-    TerminationStatus,
-};
+use crate::validation::validate_weights;
+use argmin::core::{CostFunction, Error as ArgminError, Executor, Gradient, State};
 use argmin::solver::{linesearch::MoreThuenteLineSearch, quasinewton::BFGS};
 use ndarray::{s, Array1, Array2, Axis};
 use numpy::{PyArray1, PyReadonlyArray2};
@@ -47,33 +46,6 @@ impl SolveMode {
 enum EntropyPhase {
     Relaxed,
     Bounded,
-}
-
-fn optimization_success(status: &TerminationStatus) -> bool {
-    matches!(
-        status,
-        TerminationStatus::Terminated(TerminationReason::SolverConverged)
-            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
-    )
-}
-
-fn validate_weights(name: &str, weights: &Array1<f64>, n: usize) -> Result<(), String> {
-    if weights.len() != n {
-        return Err(format!(
-            "{} length must match the number of observations",
-            name
-        ));
-    }
-    if weights
-        .iter()
-        .any(|value| !value.is_finite() || *value < 0.0)
-    {
-        return Err(format!("{} values must be finite and nonnegative", name));
-    }
-    if weights.iter().all(|value| *value == 0.0) {
-        return Err(format!("{} must contain at least one positive value", name));
-    }
-    Ok(())
 }
 
 fn normalize_weights(name: &str, weights: &Array1<f64>) -> Result<Array1<f64>, String> {
@@ -354,8 +326,30 @@ struct CalibrationFit {
     weights: Array1<f64>,
     criterion: f64,
     residual_norm: f64,
-    nit: usize,
+    diagnostics: FitDiagnostics,
+}
+
+fn calibration_fit(
+    beta: Array1<f64>,
+    weights: Array1<f64>,
+    criterion: f64,
+    residual_norm: f64,
+    iterations: usize,
     converged: bool,
+    termination_reason: impl Into<String>,
+) -> CalibrationFit {
+    CalibrationFit {
+        beta,
+        weights,
+        criterion,
+        residual_norm,
+        diagnostics: FitDiagnostics::new(
+            converged,
+            iterations as u64,
+            termination_reason,
+            Some(criterion),
+        ),
+    }
 }
 
 fn solve_gauss_newton(
@@ -380,25 +374,32 @@ fn solve_gauss_newton(
         let step_norm = step.dot(&step).sqrt();
 
         if residual_norm <= tolerance {
-            return Ok(CalibrationFit {
+            return Ok(calibration_fit(
                 beta,
                 weights,
-                criterion: current_criterion,
+                current_criterion,
                 residual_norm,
-                nit: iter,
-                converged: true,
-            });
+                iter,
+                true,
+                "Scaled residual tolerance reached",
+            ));
         }
 
         if step_norm <= tolerance || iter >= max_iterations {
-            return Ok(CalibrationFit {
+            let reason = if iter >= max_iterations {
+                "Maximum number of iterations reached"
+            } else {
+                "Step tolerance reached without scaled residual convergence"
+            };
+            return Ok(calibration_fit(
                 beta,
                 weights,
-                criterion: current_criterion,
+                current_criterion,
                 residual_norm,
-                nit: iter,
-                converged: residual_norm <= tolerance,
-            });
+                iter,
+                false,
+                reason,
+            ));
         }
 
         let mut alpha = 1.0;
@@ -425,27 +426,37 @@ fn solve_gauss_newton(
         let next_beta = match accepted_beta {
             Some(candidate) => candidate,
             None => {
-                return Ok(CalibrationFit {
+                return Ok(calibration_fit(
                     beta,
                     weights,
-                    criterion: current_criterion,
+                    current_criterion,
                     residual_norm,
-                    nit: iter,
-                    converged: false,
-                });
+                    iter,
+                    false,
+                    "Line search failed before scaled residual convergence",
+                ));
             }
         };
 
         iter += 1;
         if (current_criterion - accepted_criterion).abs() <= tolerance || iter >= max_iterations {
-            return Ok(CalibrationFit {
-                beta: next_beta,
-                weights: accepted_weights.expect("accepted weights missing"),
-                criterion: accepted_criterion,
-                residual_norm: accepted_residual_norm,
-                nit: iter,
-                converged: accepted_residual_norm <= tolerance,
-            });
+            let converged = accepted_residual_norm <= tolerance;
+            let reason = if converged {
+                "Scaled residual tolerance reached"
+            } else if iter >= max_iterations {
+                "Maximum number of iterations reached"
+            } else {
+                "Objective tolerance reached without scaled residual convergence"
+            };
+            return Ok(calibration_fit(
+                next_beta,
+                accepted_weights.expect("accepted weights missing"),
+                accepted_criterion,
+                accepted_residual_norm,
+                iter,
+                converged,
+                reason,
+            ));
         }
 
         beta = next_beta;
@@ -479,6 +490,7 @@ fn solve_bfgs(
 
     let nit = result.state.get_iter() as usize;
     let converged_by_status = optimization_success(result.state.get_termination_status());
+    let status_message = result.state.get_termination_status().to_string();
     let beta = result
         .state
         .take_best_param()
@@ -487,14 +499,23 @@ fn solve_bfgs(
     let criterion = system.objective(&beta)?;
     let residual_norm = system.residual_norm(&beta)?;
 
-    Ok(CalibrationFit {
+    let converged = converged_by_status && residual_norm <= tolerance;
+    let termination_reason = if converged {
+        "Scaled residual tolerance reached".to_string()
+    } else if converged_by_status {
+        format!("{status_message}, but scaled residual tolerance was not reached")
+    } else {
+        status_message
+    };
+    Ok(calibration_fit(
         beta,
         weights,
         criterion,
         residual_norm,
         nit,
-        converged: converged_by_status && residual_norm <= tolerance,
-    })
+        converged,
+        termination_reason,
+    ))
 }
 
 fn solve_system(
@@ -515,7 +536,7 @@ fn solve_system(
         )),
         SolveMode::Auto => {
             let gauss_newton = solve_gauss_newton(system, beta0, max_iterations, tolerance)?;
-            if gauss_newton.converged {
+            if gauss_newton.diagnostics.converged {
                 return Ok((gauss_newton, "gauss_newton".to_string()));
             }
 
@@ -567,6 +588,7 @@ pub struct BalancingWeights {
     solver_used: Option<String>,
     criterion: Option<f64>,
     residual_norm: Option<f64>,
+    diagnostics: Option<FitDiagnostics>,
 }
 
 #[pymethods]
@@ -585,6 +607,29 @@ impl BalancingWeights {
     ) -> PyResult<Self> {
         BalanceObjective::parse(objective).map_err(PyValueError::new_err)?;
         SolveMode::parse(solver).map_err(PyValueError::new_err)?;
+        if !min_weight.is_finite() || min_weight < 0.0 {
+            return Err(PyValueError::new_err(
+                "min_weight must be finite and nonnegative",
+            ));
+        }
+        if !max_weight.is_finite() || max_weight <= 0.0 {
+            return Err(PyValueError::new_err(
+                "max_weight must be positive and finite",
+            ));
+        }
+        if !l2_norm.is_finite() || l2_norm < 0.0 {
+            return Err(PyValueError::new_err(
+                "l2_norm must be finite and nonnegative",
+            ));
+        }
+        if max_iterations == 0 {
+            return Err(PyValueError::new_err("max_iterations must be positive"));
+        }
+        if !tolerance.is_finite() || tolerance <= 0.0 {
+            return Err(PyValueError::new_err(
+                "tolerance must be positive and finite",
+            ));
+        }
 
         Ok(Self {
             objective: objective.to_string(),
@@ -606,6 +651,7 @@ impl BalancingWeights {
             solver_used: None,
             criterion: None,
             residual_norm: None,
+            diagnostics: None,
         })
     }
 
@@ -617,6 +663,18 @@ impl BalancingWeights {
         baseline_weights: Option<Vec<f64>>,
         target_weights: Option<Vec<f64>>,
     ) -> PyResult<()> {
+        self.weights = None;
+        self.beta = None;
+        self.covariates = None;
+        self.target_covariates = None;
+        self.weighted_mean = None;
+        self.target_mean = None;
+        self.success = false;
+        self.nit = 0;
+        self.solver_used = None;
+        self.criterion = None;
+        self.residual_norm = None;
+        self.diagnostics = None;
         let covariates = to_array2(&covariates);
         let target_covariates = to_array2(&target_covariates);
         if covariates.ncols() != target_covariates.ncols() {
@@ -629,10 +687,6 @@ impl BalancingWeights {
                 "covariates and target_covariates must both have at least one row",
             ));
         }
-        if self.l2_norm < 0.0 {
-            return Err(PyValueError::new_err("l2_norm must be nonnegative"));
-        }
-
         let objective = BalanceObjective::parse(&self.objective).map_err(PyValueError::new_err)?;
         let solver = SolveMode::parse(&self.solver).map_err(PyValueError::new_err)?;
 
@@ -766,9 +820,7 @@ impl BalancingWeights {
             "target_weights",
         )
         .map_err(PyValueError::new_err)?;
-        let mean_diff = &weighted_mean_original - &target_mean_original;
-
-        let success = fit.residual_norm <= self.tolerance * 10.0 + 1e-8
+        let success = fit.diagnostics.converged
             && (fit.weights.sum() - 1.0).abs() <= 1e-6
             && fit
                 .weights
@@ -777,8 +829,7 @@ impl BalancingWeights {
             && fit
                 .weights
                 .iter()
-                .all(|value| *value <= self.max_weight + 1e-8)
-            && mean_diff.dot(&mean_diff).sqrt() <= self.l2_norm + 1e-6 + 10.0 * self.tolerance;
+                .all(|value| *value <= self.max_weight + 1e-8);
 
         self.weights = Some(fit.weights);
         self.beta = Some(fit.beta);
@@ -787,10 +838,11 @@ impl BalancingWeights {
         self.weighted_mean = Some(weighted_mean_original);
         self.target_mean = Some(target_mean_original);
         self.success = success;
-        self.nit = fit.nit;
+        self.nit = fit.diagnostics.iterations as usize;
         self.solver_used = Some(solver_used);
         self.criterion = Some(fit.criterion);
         self.residual_norm = Some(fit.residual_norm);
+        self.diagnostics = Some(fit.diagnostics);
 
         Ok(())
     }
@@ -816,6 +868,10 @@ impl BalancingWeights {
             .solver_used
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("BalancingWeights model is not fitted"))?;
+        let diagnostics = self
+            .diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("fit diagnostics are unavailable"))?;
 
         let mean_diff = weighted_mean - target_mean;
         let dict = pyo3::types::PyDict::new(py);
@@ -827,13 +883,24 @@ impl BalancingWeights {
         dict.set_item("nit", self.nit)?;
         dict.set_item("criterion", self.criterion)?;
         dict.set_item("residual_norm", self.residual_norm)?;
+        dict.set_item("solver_converged", diagnostics.converged)?;
+        dict.set_item("scaled_residual_norm", self.residual_norm)?;
+        dict.set_item("solver_objective", diagnostics.objective)?;
+        diagnostics.write_status(&dict)?;
         dict.set_item("weight_sum", weights.sum())?;
         dict.set_item("weighted_mean", pyarray1_from_f64(py, weighted_mean))?;
         dict.set_item("target_mean", pyarray1_from_f64(py, target_mean))?;
         dict.set_item("mean_diff", pyarray1_from_f64(py, &mean_diff))?;
         dict.set_item("l2_diff", mean_diff.dot(&mean_diff).sqrt())?;
+        dict.set_item("original_balance_l2", mean_diff.dot(&mean_diff).sqrt())?;
         dict.set_item(
             "max_abs_diff",
+            mean_diff
+                .iter()
+                .fold(0.0_f64, |acc, value| acc.max(value.abs())),
+        )?;
+        dict.set_item(
+            "original_balance_max_abs",
             mean_diff
                 .iter()
                 .fold(0.0_f64, |acc, value| acc.max(value.abs())),
@@ -856,6 +923,14 @@ impl BalancingWeights {
     #[getter]
     fn success(&self) -> bool {
         self.success
+    }
+
+    #[getter]
+    fn solver_converged(&self) -> bool {
+        self.diagnostics
+            .as_ref()
+            .map(|diagnostics| diagnostics.converged)
+            .unwrap_or(false)
     }
 
     #[getter]

@@ -1,3 +1,4 @@
+use crate::fit::optimization_success;
 use crate::utils::{pyarray1_from_f64, to_array1, to_array2};
 use argmin::core::{
     CostFunction, Error as ArgminError, Executor, Gradient, Jacobian, Operator, State,
@@ -30,7 +31,7 @@ fn extract_array1_from_pyany(
     err_msg: &str,
 ) -> Result<Array1<f64>, ArgminError> {
     let array = value
-        .downcast::<PyArray1<f64>>()
+        .cast::<PyArray1<f64>>()
         .map_err(|_| ArgminError::msg(err_msg.to_string()))?;
     Ok(to_array1(&array.readonly()))
 }
@@ -40,7 +41,7 @@ fn extract_array2_from_pyany(
     err_msg: &str,
 ) -> Result<Array2<f64>, ArgminError> {
     let array = value
-        .downcast::<PyArray2<f64>>()
+        .cast::<PyArray2<f64>>()
         .map_err(|_| ArgminError::msg(err_msg.to_string()))?;
     Ok(to_array2(&array.readonly()))
 }
@@ -58,7 +59,7 @@ fn array1_from_vec(x: &[f64]) -> Array1<f64> {
 }
 
 fn call_objective_array1(objective_fn: &Py<PyAny>, theta: &Array1<f64>) -> PyResult<f64> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let theta_py = pyarray1_from_f64(py, theta);
         objective_fn
             .call1(py, (theta_py,))
@@ -69,7 +70,7 @@ fn call_objective_array1(objective_fn: &Py<PyAny>, theta: &Array1<f64>) -> PyRes
 }
 
 fn call_gradient_array1(gradient_fn: &Py<PyAny>, theta: &Array1<f64>) -> PyResult<Array1<f64>> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let theta_py = pyarray1_from_f64(py, theta);
         let result = gradient_fn
             .call1(py, (theta_py,))
@@ -80,14 +81,6 @@ fn call_gradient_array1(gradient_fn: &Py<PyAny>, theta: &Array1<f64>) -> PyResul
         )
         .map_err(|err| PyValueError::new_err(err.to_string()))
     })
-}
-
-fn optimization_success(status: &TerminationStatus) -> bool {
-    matches!(
-        status,
-        TerminationStatus::Terminated(TerminationReason::SolverConverged)
-            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
-    )
 }
 
 fn optimize_result_dict_explicit<'py>(
@@ -139,7 +132,7 @@ impl CostFunction for ScalarObjectiveProblem {
     type Output = f64;
 
     fn cost(&self, theta: &Self::Param) -> Result<Self::Output, ArgminError> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             self.objective_fn
                 .call1(py, (theta_py,))
@@ -155,7 +148,7 @@ impl Gradient for ScalarObjectiveProblem {
     type Gradient = Array1<f64>;
 
     fn gradient(&self, theta: &Self::Param) -> Result<Self::Gradient, ArgminError> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             let result = self
                 .gradient_fn
@@ -179,7 +172,7 @@ impl Operator for ResidualProblem {
     type Output = Vec<f64>;
 
     fn apply(&self, theta: &Self::Param) -> Result<Self::Output, ArgminError> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, &array1_from_vec(theta));
             let result = self
                 .residual_fn
@@ -199,7 +192,7 @@ impl Jacobian for ResidualProblem {
     type Jacobian = Vec<Vec<f64>>;
 
     fn jacobian(&self, theta: &Self::Param) -> Result<Self::Jacobian, ArgminError> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, &array1_from_vec(theta));
             let result = self
                 .jacobian_fn
@@ -227,7 +220,7 @@ impl CostFunction for AnnealingProblem {
     type Output = f64;
 
     fn cost(&self, theta: &Self::Param) -> Result<Self::Output, ArgminError> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let theta_py = pyarray1_from_f64(py, theta);
             self.objective_fn
                 .call1(py, (theta_py,))
@@ -418,7 +411,7 @@ pub fn minimize_lbfgs<'py>(
     tolerance: f64,
 ) -> PyResult<Py<PyAny>> {
     let x0 = to_array1(&x0);
-    let fun_eval = Python::with_gil(|py| fun.clone_ref(py));
+    let fun_eval = Python::attach(|py| fun.clone_ref(py));
     let problem = ScalarObjectiveProblem {
         objective_fn: fun,
         gradient_fn: grad,
@@ -460,7 +453,7 @@ pub fn minimize_bfgs<'py>(
     tolerance: f64,
 ) -> PyResult<Py<PyAny>> {
     let x0 = to_array1(&x0);
-    let fun_eval = Python::with_gil(|py| fun.clone_ref(py));
+    let fun_eval = Python::attach(|py| fun.clone_ref(py));
     let problem = ScalarObjectiveProblem {
         objective_fn: fun,
         gradient_fn: grad,
@@ -510,8 +503,8 @@ pub fn minimize_nonlinear_cg<'py>(
     tolerance: f64,
 ) -> PyResult<Py<PyAny>> {
     let x0 = to_array1(&x0);
-    let fun_eval = Python::with_gil(|py| fun.clone_ref(py));
-    let grad_eval = Python::with_gil(|py| grad.clone_ref(py));
+    let fun_eval = Python::attach(|py| fun.clone_ref(py));
+    let grad_eval = Python::attach(|py| grad.clone_ref(py));
     let problem = ScalarObjectiveProblem {
         objective_fn: fun,
         gradient_fn: grad,
@@ -567,7 +560,7 @@ pub fn minimize_gauss_newton_ls<'py>(
     tolerance: f64,
 ) -> PyResult<Py<PyAny>> {
     let x0 = vec_from_array1(&to_array1(&x0));
-    let residual_eval = Python::with_gil(|py| residual_fn.clone_ref(py));
+    let residual_eval = Python::attach(|py| residual_fn.clone_ref(py));
     let problem = ResidualProblem {
         residual_fn,
         jacobian_fn,
@@ -584,9 +577,14 @@ pub fn minimize_gauss_newton_ls<'py>(
             .jacobian(&x)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
+        if jacobian.len() != residual.len() || jacobian.iter().any(|row| row.len() != x.len()) {
+            return Err(PyValueError::new_err(
+                "Jacobian shape must be (n_residuals, n_parameters)",
+            ));
+        }
         let residual_arr = array1_from_vec(&residual);
         let jacobian_arr = Array2::from_shape_vec(
-            (jacobian.len(), x.len()),
+            (residual.len(), x.len()),
             jacobian.into_iter().flatten().collect(),
         )
         .map_err(|_| PyValueError::new_err("Invalid Jacobian shape"))?;
@@ -594,9 +592,17 @@ pub fn minimize_gauss_newton_ls<'py>(
 
         let jt = jacobian_arr.t().to_owned();
         let gradient = jt.dot(&residual_arr);
+        if gradient.dot(&gradient).sqrt() <= tolerance {
+            status = TerminationStatus::Terminated(TerminationReason::SolverConverged);
+            break;
+        }
         let normal = jt.dot(&jacobian_arr);
         let inv = crate::utils::invert_matrix(&normal).map_err(PyValueError::new_err)?;
         let step = inv.dot(&gradient);
+        if step.dot(&step).sqrt() <= tolerance {
+            status = TerminationStatus::Terminated(TerminationReason::SolverConverged);
+            break;
+        }
 
         let mut alpha = 1.0;
         let mut accepted = false;
@@ -642,7 +648,7 @@ pub fn minimize_gauss_newton_ls<'py>(
         }
     }
 
-    let residual = Python::with_gil(|py| {
+    let residual = Python::attach(|py| {
         let theta_py = pyarray1_from_f64(py, &array1_from_vec(&x));
         let result = residual_eval
             .call1(py, (theta_py,))
@@ -679,8 +685,7 @@ pub fn minimize_simulated_annealing<'py>(
     }
 
     let x0 = to_array1(&x0);
-    let initial_fun = call_objective_array1(&fun, &x0)?;
-    let fun_eval = Python::with_gil(|py| fun.clone_ref(py));
+    let fun_eval = Python::attach(|py| fun.clone_ref(py));
     let (lower_bound, upper_bound) = optional_bounds(&x0, lower.as_ref(), upper.as_ref())?;
     let rng = match seed {
         Some(seed) => Xoshiro256PlusPlus::seed_from_u64(seed),
@@ -711,20 +716,12 @@ pub fn minimize_simulated_annealing<'py>(
         PyValueError::new_err("Simulated annealing did not produce a parameter vector")
     })?;
     let fun_value = call_objective_array1(&fun_eval, &x)?;
-    let status = result.state.get_termination_status();
-    let success = optimization_success(status) || fun_value <= initial_fun;
-    let message = if success && !optimization_success(status) {
-        "Returned best solution after fixed annealing budget".to_string()
-    } else {
-        status.to_string()
-    };
-    optimize_result_dict_explicit(
+    optimize_result_dict(
         py,
         &x,
         fun_value,
         result.state.get_iter(),
-        success,
-        &message,
+        result.state.get_termination_status(),
         "simulated_annealing",
     )
 }

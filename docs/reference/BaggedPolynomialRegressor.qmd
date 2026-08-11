@@ -1,0 +1,206 @@
+---
+title: "BaggedPolynomialRegressor"
+subtitle: "API reference for bagged random-subspace polynomial ridge regression"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: false
+    code-summary: "Show code"
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+```{python}
+from _api_doc_utils import *
+```
+
+## Class
+
+`crabbymetrics.BaggedPolynomialRegressor` is a prediction-only regression ensemble. Each base learner samples rows and a feature subspace, expands the selected features into monomials, standardizes those terms using its in-bag sample, fits ridge regression, and contributes equally to the final prediction.
+
+```{python}
+print(inspect.signature(cm.BaggedPolynomialRegressor))
+```
+
+### Constructor parameters
+
+| Parameter | Type and default | Contract |
+|---|---|---|
+| `n_estimators` | `int = 50` | Number of base learners. Must be at least 1. |
+| `degree` | `int = 2` | Maximum total polynomial degree. Must be at least 1. Every monomial of total degree 1 through `degree` is included within each selected feature subspace. |
+| `max_features` | `Optional[int] = None` | Number of raw columns sampled without replacement for each learner. `None` resolves to all columns at `fit()` time. An integer must lie in `[1, x.shape[1]]`. Fractions and strings are not accepted. |
+| `max_samples` | `Optional[int] = None` | Number of training-row draws per learner. `None` resolves to all rows at `fit()` time. An integer must lie in `[1, x.shape[0]]`. With `bootstrap=True`, draws are with replacement; otherwise this is a subset size without replacement. |
+| `bootstrap` | `bool = True` | Whether row sampling is with replacement. Out-of-bag diagnostics are computed only when this is `True`. |
+| `penalty` | `float = 1.0` | Nonnegative finite L2 penalty applied to polynomial slopes in every learner. The intercept is never penalized, and the loss is not divided by the learner sample size. |
+| `seed` | `int = 42` | Seed for the single Rust RNG used by row and feature sampling. It must fit an unsigned 64-bit integer. Equal data, parameters, and seeds produce equal ensembles. |
+
+The constructor creates an unfitted object. It does not expose estimator parameters as public Python attributes; fitted configuration, subspaces, and diagnostics are returned by `summary()`.
+
+## Methods
+
+### `fit(self, x, y)`
+
+Fit all base learners and replace the stored ensemble after the fit succeeds.
+
+| Argument | Required value |
+|---|---|
+| `x` | Two-dimensional `numpy.ndarray` with `dtype=float64` and shape `(n_samples, n_features)`. It must have at least one row and one column, and every value must be finite. |
+| `y` | One-dimensional `numpy.ndarray` with `dtype=float64` and shape `(n_samples,)`. Its length must match `x.shape[0]`, and every value must be finite. |
+
+**Returns:** `None`. This method does not return `self`, so calls cannot be chained in the scikit-learn style.
+
+**Raises:** `ValueError` when the arrays have incompatible or empty shapes, contain nonfinite values, resolved sampling sizes exceed the data dimensions, or the polynomial resource guards are exceeded. NumPy dtype or dimensionality mismatches are rejected at the PyO3 boundary.
+
+### `predict(self, x)`
+
+Average the predictions from all fitted base learners.
+
+| Argument | Required value |
+|---|---|
+| `x` | Two-dimensional finite `numpy.ndarray` with `dtype=float64` and shape `(n_new, n_features_in)`. The number of columns must equal the training design width. |
+
+**Returns:** a one-dimensional `numpy.ndarray` with `dtype=float64` and shape `(n_new,)`.
+
+**Raises:** `ValueError` before the first successful `fit()`, when the feature count differs from the fitted design, when values are nonfinite, or when the prediction polynomial design exceeds the resource limit.
+
+### `summary(self)`
+
+Return fitted configuration and ensemble diagnostics as a plain Python dictionary. It raises `ValueError` before the first successful `fit()`.
+
+| Key | Type or shape | Meaning |
+|---|---|---|
+| `n_estimators` | `int` | Requested and fitted number of learners. |
+| `degree` | `int` | Maximum polynomial degree. |
+| `max_features` | `int` | Resolved number of raw features per learner; never `None` after fitting. |
+| `max_samples` | `int` | Resolved number of row draws or selected rows per learner; never `None` after fitting. |
+| `bootstrap` | `bool` | Row-sampling mode used by the fit. |
+| `penalty` | `float` | Per-learner ridge penalty. |
+| `seed` | `int` | RNG seed used by the ensemble. |
+| `n_features_in` | `int` | Number of columns in the training design. |
+| `n_terms` | `int` | Polynomial design width for every learner, excluding its intercept. |
+| `feature_indices` | `list[list[int]]` | Length-`n_estimators` list of sorted original-column indices. Each inner list has length `max_features`. |
+| `term_counts` | `list[int]` | Length-`n_estimators` list. Every entry currently equals `n_terms`. |
+| `train_mse` | `numpy.ndarray`, `(n_estimators,)` | In-bag mean squared error for each learner. These values use each learner's sampled rows, including duplicate bootstrap draws. |
+| `oob_mse` | `Optional[float]` | MSE over training observations covered by at least one out-of-bag prediction. It is `None` if no observation is covered and always `None` when `bootstrap=False`. |
+| `oob_coverage` | `float` | Fraction of training observations covered by at least one out-of-bag learner. It lies in `[0, 1]` and is zero when `bootstrap=False`. |
+| `inference_available` | `bool` | Always `False`; the estimator provides no coefficient covariance or prediction interval. |
+
+## Example
+
+```{python}
+rng = np.random.default_rng(18)
+x = rng.normal(size=(320, 6))
+y = 0.5 + 0.8 * x[:, 0] * x[:, 1] - 0.4 * x[:, 2] ** 2
+y += rng.normal(scale=0.2, size=x.shape[0])
+
+model = cm.BaggedPolynomialRegressor(
+    n_estimators=40,
+    degree=2,
+    max_features=4,
+    max_samples=240,
+    bootstrap=True,
+    penalty=0.5,
+    seed=18,
+)
+result = model.fit(x, y)
+predictions = model.predict(x[:3])
+summary = model.summary()
+
+print("fit return:", result)
+print("predictions:", predictions)
+print(
+    "OOB diagnostics:",
+    {"mse": summary["oob_mse"], "coverage": summary["oob_coverage"]},
+)
+```
+
+The returned dictionary in this live fit has the following keys and shapes:
+
+```{python}
+display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))))
+```
+
+For a repeated train/validation/test comparison with ridge and kernel ridge, see the [bagged polynomial regression worked example](../examples/bagged-polynomial-regression.qmd).
+
+## Estimator definition
+
+For learner $b$, let $I_b$ be its sampled rows and $J_b$ its sampled feature subset. For $k=|J_b|$ selected features, the implementation enumerates
+
+$$
+q=\binom{k+d}{d}-1
+$$
+
+non-intercept monomials with total degree one through $d$. If $\phi_b(x)$ is that $q$-term vector, it computes in-bag means $\mu_b$ and population-standard-deviation scales $s_b$, then fits
+
+$$
+(\hat a_b,\hat\gamma_b)
+=
+\arg\min_{a,\gamma}
+\sum_{i\in I_b}
+\left[
+y_i-a-\left\{\frac{\phi_b(x_i)-\mu_b}{s_b}\right\}'\gamma
+\right]^2
++\lambda\|\gamma\|_2^2.
+$$
+
+Zero-variance terms retain scale one. The ensemble prediction is the unweighted average
+
+$$
+\hat f(x)=\frac1B\sum_{b=1}^B
+\left[
+\hat a_b+\left\{\frac{\phi_b(x)-\mu_b}{s_b}\right\}'\hat\gamma_b
+\right].
+$$
+
+The penalty is on the internally standardized polynomial coordinates, so its scale is comparable across terms within a learner. Because each learner computes its own means and scales, the fitted coordinate system is sample-dependent.
+
+## Sampling and out-of-bag diagnostics
+
+With `bootstrap=True`, each learner makes `max_samples` independent row draws with replacement. A training observation is out of bag for that learner when its index never appears among those draws. Its OOB prediction averages only the learners for which it was out of bag. `oob_mse` is computed over observations with at least one such prediction, while `oob_coverage` reports the covered fraction separately.
+
+With `bootstrap=False`, the implementation shuffles rows, keeps a subset without replacement, and sorts the retained indices. It does not compute OOB predictions in this mode, even when `max_samples < n_samples`; `oob_mse` is therefore `None` and `oob_coverage` is zero. Feature subsets are always sampled without replacement and stored in sorted order.
+
+The OOB MSE is a prediction diagnostic. It is not a standard error, confidence interval, or substitute for a held-out evaluation set used for final model comparison.
+
+## Implementation walkthrough
+
+The ensemble, polynomial expansion, standardization, ridge solve, and OOB accounting are implemented directly in the package.
+
+1. Before drawing anything, `fit()` resolves `max_features` and `max_samples`, computes $q=\binom{k+d}{d}-1$ with checked 128-bit arithmetic, and checks both the term limit and proposed dense design size. It generates the term specification once for a $k$-variable local coordinate system and shares that immutable list across all learners.
+2. Terms are generated degree by degree by recursion over nondecreasing feature indices. Repeated indices create powers and distinct indices create interactions. For two local variables and degree two, the order is $x_0,x_1,x_0^2,x_0x_1,x_1^2$. Each term is evaluated by starting from ones and multiplying the referenced columns; no symbolic polynomial library is used.
+3. One seeded Rust RNG drives the entire ensemble. A bootstrap learner draws row indices independently with replacement. A nonbootstrap learner shuffles all row indices, truncates, and sorts them. Features are independently shuffled, truncated without replacement, and sorted. Sorting makes stored subspaces deterministic to inspect but does not alter the draw.
+4. Each learner materializes its full in-bag polynomial matrix and standardizes each term with population variance using denominator $m$. A standard deviation at or below $10^{-12}$ is replaced by one, so a constant term becomes a centered zero column rather than causing division by zero.
+5. An intercept is prepended and ridge is fit with the same augmented-QR primitive as `Ridge`: $\sqrt{\lambda}I$ rows are appended for polynomial slopes, while the intercept is unpenalized. The learner stores selected original-column indices, the shared term list, in-bag means and scales, coefficients, and in-bag MSE.
+6. For bootstrap fits, each completed learner predicts all training rows. Its prediction is accumulated only for rows never drawn by that learner. At the end, accumulated predictions are divided by each row's OOB learner count before MSE and coverage are computed. Duplicate in-bag draws count as one Boolean membership for deciding OOB status.
+7. At prediction time every learner repeats raw-column selection and monomial construction, applies its own stored centering and scaling, and multiplies by its coefficient vector. The public result is the arithmetic mean across learners. There is no pruning, weighting, or coefficient pooling across repeated subspaces.
+
+Sharing the term specification is valid because every learner selects exactly the same number $k$ of raw features and the stored term indices refer to local subspace positions. This saves metadata but does not share polynomial matrices or computations across learners.
+
+## Inference
+
+This estimator intentionally exposes no coefficient-level analytic inference. Coefficients do not share a common basis across random feature subspaces, and ridge shrinkage plus data-dependent standardization would make a pooled coefficient table misleading. `inference_available` is always `False`; there is no covariance, bootstrap method, confidence interval, or prediction interval in this class.
+
+## Performance and resource limits
+
+The polynomial width
+
+$$
+q=\binom{k+d}{d}-1
+$$
+
+grows combinatorially in selected feature count $k$ and degree $d$. One learner stores a dense $m\times q$ polynomial design and costs roughly $O(mq^2+q^3)$ to fit through dense augmented QR. Prediction costs $O(nq)$ per learner. Both fit and prediction work are multiplied by `n_estimators`; learners are currently fit and evaluated serially.
+
+The implementation rejects more than 100,000 polynomial terms and any one polynomial design whose row count times `(n_terms + 1)` exceeds 50 million cells. These guards prevent the largest allocations but still permit expensive dense fits. Reducing `max_features` is often more effective than reducing `max_samples` because $q$ grows combinatorially in feature count. OOB computation adds a full-training-set prediction for every bootstrap learner.
+
+## See also
+
+- [Bagged polynomial regression worked example](../examples/bagged-polynomial-regression.qmd) for leakage-free tuning and test evaluation.
+- [Ridge](Ridge.qmd) for the unbagged linear ridge primitive used inside each learner.
+- [KernelBasis](KernelBasis.qmd) for alternative nonlinear feature maps.

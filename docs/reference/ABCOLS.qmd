@@ -28,6 +28,70 @@ from _api_doc_utils import *
 
 Instead of treating one level as the omitted baseline, it estimates an overcomplete dummy/interactions design under linear constraints that force categorical effects to average to zero under empirical level frequencies. This makes the intercept and continuous main slopes sample-abundance-weighted averages rather than reference-category coefficients.
 
+## Criterion and identification
+
+Let $X_f$ be the full, overcomplete design containing the intercept, continuous regressors, every observed indicator level, and all requested continuous-by-category and category-by-category terms. The class constructs a constraint matrix $A$ from empirical category abundances and solves
+
+$$
+\min_\theta \|y-X_f\theta\|_2^2
+\quad\text{subject to}\quad
+A\theta=0.
+$$
+
+For a categorical main effect, the constraint is the abundance-weighted zero mean $\sum_\ell \hat p_\ell\theta_\ell=0$. Continuous-by-category coefficients use the same weighted-zero constraint over category levels. A category-by-category table receives weighted zero-margin restrictions along both dimensions, with one redundant margin removed.
+
+The implementation eigendecomposes $A'A$ and collects an orthonormal null-space basis $Q$ satisfying $AQ=0$. It then parameterizes $\theta=Q\phi$ and solves
+
+$$
+\hat\phi=\arg\min_\phi\|y-X_fQ\phi\|_2^2,
+\qquad
+\hat\theta=Q\hat\phi.
+$$
+
+This identifies one empirically centered representative from the otherwise non-unique full-indicator coefficient system. The constraints depend on the estimation sample, so coefficients need not be invariant to changing the sample's category proportions.
+
+## Implementation walkthrough
+
+The abundance-based parameterization is constructed explicitly; it is not implemented by choosing omitted levels and recoding coefficients afterward.
+
+1. Continuous columns are optionally centered by their estimation-sample means, which are retained for prediction. Each categorical column must use contiguous observed codes $0,\ldots,L_k-1$; a gap is rejected rather than silently treated as an empty level.
+2. The code computes empirical marginal level shares and, for every requested category-by-category interaction, empirical cell shares. Every requested interaction cell must occur. These sample shares become coefficients in the restrictions, so the constraints and the coefficient interpretation are data-dependent.
+3. The full design is materialized in a deterministic order: intercept, continuous main effects, all indicator columns for each category, requested continuous-by-category products, and requested category-by-category cell indicators. Metadata for every column is stored alongside human-readable names.
+4. Constraint rows are assembled against those column metadata. Main categorical effects and continuous-by-category blocks receive abundance-weighted zero-sum rows. A two-category table receives weighted margin restrictions in both directions, with one redundant margin omitted before numerical null-space construction.
+5. The code forms $A'A$, performs a symmetric eigendecomposition, and defines a numerical null direction when its eigenvalue is no larger than
+
+   $$
+   100\max(m,p)\epsilon\max\{\lambda_{\max}(A'A),1\}.
+   $$
+
+   The selected eigenvectors are the orthonormal columns of $Q$. This avoids choosing an arbitrary reference cell but squares the condition number of $A$.
+6. It materializes $Z=X_fQ$, checks that at least one free coordinate and positive residual degrees of freedom remain, solves $Z\phi\approx y$ by least squares, and maps back with $\theta=Q\phi$. Fitted values use the original full design and constrained coefficients.
+7. Prediction centers new continuous values with the stored training means, rejects unseen categorical codes, rebuilds the same full column layout, and multiplies by $\hat\theta$. The reported maximum violation is $\|A\hat\theta\|_\infty$ and is a direct numerical audit of the reparameterization.
+
+The null-space route makes the estimand transparent and keeps the least-squares solve unconstrained. Its cost is dense expansion plus a tolerance-sensitive eigendecomposition; a sparse QR of $A'$ would be a more scalable construction for high-cardinality systems.
+
+## Inference
+
+Inference is homoskedastic and conditional on the constructed design and empirical constraints. With $Z=X_fQ$, $r=\operatorname{rank}(Z)$, and $e=y-Z\hat\phi$,
+
+$$
+\hat\sigma^2=\frac{e'e}{n-r},
+\qquad
+\widehat{\operatorname{Var}}(\hat\phi)
+=
+\hat\sigma^2(Z'Z)^{-1},
+\qquad
+\widehat{\operatorname{Var}}(\hat\theta)
+=
+Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
+$$
+
+The reported standard errors are the square roots of the final diagonal. The class does not implement heteroskedastic, clustered, serial-correlation-robust, or bootstrap covariance. It also treats the abundance constraints as fixed rather than accounting for their sampling variation.
+
+## Performance and numerical behavior
+
+The main risk is feature expansion. If $p_f$ is the width of the full design, the constraint eigendecomposition and covariance are dense $p_f\times p_f$ operations with roughly cubic factorization cost and quadratic storage. Category-by-category interactions can make $p_f$ grow as the product of level counts, and the fit requires every requested interaction cell to be represented. Prediction rebuilds the same dense full design and rejects unseen or inconsistently ordered category levels. This estimator is appropriate for moderate categorical systems where the centered coefficient parameterization is substantively useful, not high-cardinality sparse designs.
+
 ## Python API
 
 Constructor: `cm.ABCOLS`

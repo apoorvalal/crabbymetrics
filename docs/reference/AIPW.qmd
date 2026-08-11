@@ -30,7 +30,60 @@ $$
 \hat\tau = n^{-1}\sum_i \left[\hat\mu_1(x_i)-\hat\mu_0(x_i) + \frac{d_i(y_i-\hat\mu_1(x_i))}{\hat e(x_i)} - \frac{(1-d_i)(y_i-\hat\mu_0(x_i))}{1-\hat e(x_i)}\right].
 $$
 
-The nuisance functions are cross-fit ridge models.
+The nuisance functions are cross-fit ridge models. Fold assignment is deterministically shuffled within treatment strata, preventing avoidable single-arm training folds while preserving seed reproducibility.
+
+## Cross-fitted nuisance models and ATE
+
+The class uses seeded treatment-stratified outer folds. In each training complement it fits three unpenalized-intercept ridge regressions:
+
+$$
+\hat\mu_1(x)\ \text{from treated outcomes},\qquad
+\hat\mu_0(x)\ \text{from control outcomes},\qquad
+\hat\pi(x)\ \text{from a linear regression of }D\text{ on }X.
+$$
+
+Thus the propensity model is a ridge linear-probability model, not logistic regression. Its held-out predictions are clipped to $[c,1-c]$. Each nuisance objective is
+
+$$
+\sum_{i\in I_{\mathrm{train}}}(r_i-a-X_i'b)^2+\lambda\|b\|_2^2,
+$$
+
+with raw, unstandardized features. A penalty grid is selected independently for each nuisance and outer fold using deterministic inner-fold MSE.
+
+The held-out augmented inverse-probability pseudo-outcome is
+
+$$
+\phi_i
+=
+\hat\mu_1(X_i)-\hat\mu_0(X_i)
++\frac{D_i\{Y_i-\hat\mu_1(X_i)\}}{\hat\pi(X_i)}
+-\frac{(1-D_i)\{Y_i-\hat\mu_0(X_i)\}}{1-\hat\pi(X_i)},
+$$
+
+and the estimate is $\hat\tau=E_n[\phi_i]$.
+
+## Implementation walkthrough
+
+The estimator owns the stratified split construction, three nuisance fits per fold, clipping, pseudo-outcome, and influence-score covariance.
+
+1. Treatment must be exactly floating-point 0 or 1 with both arms represented. Within each arm, row indices are sorted by the deterministic SplitMix64 hash of `seed ^ index` and distributed round-robin over outer folds. This preserves treatment balance as far as arm size allows without a mutable RNG.
+2. For each outer complement, local treated and control indices are extracted. The two outcome regressions are fit only within their respective arms; the propensity regression uses the complete complement and treats $D$ as a continuous response.
+3. Every nuisance uses the same unstandardized, unpenalized-intercept augmented-QR ridge helper. A penalty grid triggers separate deterministic local inner CV for $\mu_0$, $\mu_1$, and $\pi$; small arm-specific training sets below four rows use the first penalty directly.
+4. All three fitted models predict the held-out $X$. Outcome predictions are stored unchanged. Propensity predictions from the linear-probability model are clipped immediately to $[c,1-c]$ before storage; the unclipped values and the number of clipped predictions are not retained.
+5. Once every row has out-of-fold nuisances, the implementation constructs the augmented pseudo-outcome elementwise and takes its arithmetic mean. Selected penalties are retained as three fold-length arrays; nuisance coefficients themselves are discarded.
+6. Summary reconstructs the same pseudo-outcome from stored arrays, centers it by $\hat\tau$, and treats those values as scalar influence scores. IID, HC1, Newey-West, or cluster aggregation operates on that fixed out-of-fold score vector and returns a $1\times1$ covariance.
+
+The linear propensity fit is an explicit teaching choice: it keeps every nuisance in the same ridge machinery and makes clipping visible. It is not a logistic likelihood, so frequent boundary clipping is evidence that this working model is extrapolating beyond the probability scale.
+
+## Inference
+
+The influence score used for covariance is $\phi_i-\hat\tau$. Vanilla is its uncorrected iid empirical variance divided by $n$; HC1, Bartlett Newey-West, and cluster options apply the common finite-sample corrections. The calculation is conditional on the realized cross-fit and selected nuisance penalties. There is no bootstrap, repeated sample splitting, or built-in Wald method.
+
+The usual double-robust interpretation requires at least one nuisance structure to be correctly specified and standard overlap and sampling assumptions. Clipping stabilizes denominators but changes the estimating equation and does not diagnose lack of overlap. Every outer training fold must contain treated and control observations.
+
+## Performance and numerical behavior
+
+Each outer fold fits separate treated and control outcome models plus a propensity model. With $K$ folds, $L$ candidate penalties, and $F$ inner folds, the workload is roughly $3KLF$ dense ridge solves, with smaller outcome samples inside treatment arms. No factorization is reused. The class stores all held-out nuisance predictions and selected penalties. Small treatment groups, many controls, raw feature scaling, and predictions frequently hitting the clipping bounds are the main stability concerns.
 
 ## Python API
 

@@ -59,3 +59,25 @@ def test_quadratic_balancing_detects_infeasible_exact_balance_and_relaxes_with_l
     np.testing.assert_allclose(relaxed_summary["weight_sum"], 1.0, atol=1e-8, rtol=0.0)
     assert np.all(np.asarray(relaxed_summary["weights"]) >= -1e-10)
     assert np.all(np.asarray(relaxed_summary["weights"]) <= 0.25 + 1e-8)
+
+
+def test_autoscaled_solver_convergence_is_separate_from_original_unit_balance():
+    rng = np.random.default_rng(0)
+    source = rng.normal(size=(200, 2)) * np.array([1.0, 1e12])
+    target = rng.normal(loc=[0.2, -0.15], size=(80, 2)) * np.array([1.0, 1e12])
+
+    model = cm.BalancingWeights(
+        objective="quadratic",
+        autoscale=True,
+        max_weight=0.05,
+        tolerance=1e-8,
+    )
+    model.fit(source, target)
+    summary = model.summary()
+
+    assert model.success
+    assert model.solver_converged
+    assert summary["converged"] is True
+    assert summary["scaled_residual_norm"] < 1e-8
+    assert summary["original_balance_l2"] > 1e-6
+    assert summary["original_balance_l2"] == summary["l2_diff"]

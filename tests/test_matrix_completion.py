@@ -45,6 +45,9 @@ def test_matrix_completion_improves_treated_cell_prediction():
     baseline_mse = np.mean((baseline[treated_cells] - mean[treated_cells]) ** 2)
 
     assert summary["iterations"] <= 300
+    assert summary["converged"] is True
+    assert summary["termination_reason"] == "Relative objective tolerance reached"
+    assert np.isfinite(summary["objective"])
     assert np.sum(summary["singular_values"] > 1e-8) <= 8
     assert mc_mse < 0.65 * baseline_mse
     assert "event_study" in summary
@@ -101,3 +104,17 @@ def test_matrix_completion_rejects_bad_randomized_svd_options():
         cm.MatrixCompletion(svd_method="fast-ish")
     with np.testing.assert_raises(ValueError):
         cm.MatrixCompletion(svd_method="randomized", svd_rank=0)
+
+
+def test_matrix_completion_reports_iteration_budget_exhaustion():
+    y, _ = make_low_rank_panel(seed=13, n=20, t=16)
+    w = make_treatment(*y.shape, n_treated=6, t0=10)
+    model = cm.MatrixCompletion(lambda_fraction=0.05, max_iterations=1, tolerance=1e-12)
+
+    model.fit(y, w)
+    summary = model.summary()
+
+    assert summary["converged"] is False
+    assert summary["iterations"] == 1
+    assert summary["termination_reason"] == "Maximum number of iterations reached"
+    assert np.isfinite(summary["objective"])

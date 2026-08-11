@@ -27,16 +27,74 @@ from _api_doc_utils import *
 `MEstimator` is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:
 
 $$
-\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = H^{-1}\widehat\Omega H^{-1}.
+\hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = A^{-1} B A^{-T} / n.
 $$
 
-The class favors flexibility over guardrails.
+The bread $A$ is the numerical Jacobian of the mean score and the meat $B$ is the empirical score outer product. The class checks optimizer convergence and validates score dimensions before reporting inference.
+
+## Objective and estimating equations
+
+The objective callback supplies both $Q_n(\theta)$ and $\nabla Q_n(\theta)$. The class minimizes that objective with seven-vector-memory L-BFGS, a More-Thuente line search, and joint gradient and cost tolerances. Only an Argmin solver-converged or target-cost termination is accepted. Budget exhaustion or another nonconverged status raises `ValueError` and clears any previous fitted state. A successful summary exposes `converged`, `iterations`, `termination_reason`, and the callback's final `objective`.
+
+Separately, the score callback must return rows $\psi_i(\theta)'\in\mathbb R^k$. Inference treats the fitted parameter as the solution to
+
+$$
+\frac1n\sum_{i=1}^n\psi_i(\theta)=0.
+$$
+
+The class does not verify that the objective gradient equals the sum of those scores or even that their sample mean is near zero at the optimizer solution. That mathematical consistency is the callback author's responsibility.
+
+## Implementation walkthrough
+
+This interface combines an Argmin optimizer with a separately implemented score-sandwich path.
+
+1. `fit()` clears fitted state, validates the initial vector and controls, and stores Python callable objects inside an Argmin problem. Each cost request calls `objective_fn(theta, data)`, requires a two-element tuple, and extracts only its scalar first element.
+2. Each gradient request calls the same Python function again and extracts only the second tuple element as a one-dimensional NumPy array. Cost and gradient are therefore separate Python calls even if the optimizer asks for both at the same parameter; there is no shared callback cache or explicit gradient-length check before Argmin uses it.
+3. Seven-pair L-BFGS starts exactly at `theta0`, uses More-Thuente line search, and applies the same tolerance to gradient and cost stopping. The wrapper converts Argmin termination to common diagnostics and rejects an iteration cap or other nonconverged status before storing parameters and data.
+4. Covariance is lazy: the first `summary()` calls `score_fn` at the estimate and requires a nonempty $n\times k$ matrix with $k=\dim\theta$. It then calls the score function twice for each coordinate perturbation and requires every perturbed output to retain the original shape.
+5. Column means of those perturbed score matrices yield the central-difference bread $A$. The meat is the uncentered $\Psi'\Psi/n$. The code explicitly inverts $A$, computes $A^{-1}BA^{-T}/n$, and averages the result with its transpose to remove numerical asymmetry. Later summaries reuse this cached covariance.
+6. Bootstrap reads `data['n']`, draws row indices, shallow-copies the Python dictionary, inserts an `indices` array, and calls the same L-BFGS problem from the original fitted estimate. The score callback is not used in bootstrap fitting. Correct resampling therefore depends entirely on `objective_fn` honoring that injected key.
+
+The split callback design is flexible but intentionally low level. It permits objective and score equations that disagree, repeats Python work between cost and gradient, and leaves all data-index semantics to the caller; those are API powers and failure modes, not hidden implementation details.
+
+## Inference
+
+For coordinate $j$, the mean-score Jacobian is estimated by central differences with
+
+$$
+h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
+$$
+
+$$
+\hat A_{\cdot j}
+=
+\frac{
+\bar\psi(\hat\theta+h_je_j)
+-\bar\psi(\hat\theta-h_je_j)}
+{2h_j},
+\qquad
+\hat B=\frac1n\sum_i\psi_i(\hat\theta)\psi_i(\hat\theta)'.
+$$
+
+The covariance is symmetrized after computing
+
+$$
+\widehat V
+=
+\frac1n\hat A^{-1}\hat B\hat A^{-T}.
+$$
+
+There are no HC, HAC, or cluster variants and no built-in Wald method. The pairs bootstrap is available only when data is a dictionary containing the sample size under the key $n$ and the objective callback honors the injected row-index vector. Bootstrap fits start from the original estimate and abort on the first failed optimization.
+
+## Performance and numerical behavior
+
+Every optimizer cost and gradient request crosses the Python-Rust boundary and calls the objective callback. Covariance requires the score at the fit plus two additional full score evaluations per parameter, so callback work is at least $2k+1$ score matrices of shape $n\times k$. It then stores and factors dense $k\times k$ matrices. Numerical inference is sensitive to the derivative step and fails if $\hat A$ is singular. Cached covariance avoids repeating this work on later summaries, but bootstrap performs one full callback-driven optimization per draw and aborts on any nonconverged replicate.
 
 ## Python API
 
 Constructor: `cm.MEstimator`
 
-Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an `(n, p)` matrix. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.
+Construct with `MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-6)`. `objective_fn(theta, data)` must return `(objective, gradient)`. `score_fn(theta, data)` must return an $(n,k)$ matrix when $\theta\in\mathbb R^k$. For bootstrap support, include `n` in `data` and have the objective respect optional `data['indices']`.
 
 ```{python}
 print(inspect.signature(cm.MEstimator))
@@ -64,7 +122,9 @@ X = rng.normal(size=(180, 2))
 y = X @ np.array([1.0, -0.5]) + rng.normal(scale=0.2, size=180)
 model = cm.MEstimator(obj, score, max_iterations=200)
 model.fit({'X': X, 'y': y, 'n': len(y)}, np.zeros(2))
-print(model.summary())
+fit = model.summary()
+print({key: fit[key] for key in ['converged', 'iterations', 'termination_reason', 'objective']})
+print(fit['coef'])
 ```
 
 ## `summary()` contract

@@ -1,0 +1,375 @@
+---
+title: "Estimator Correctness and API Design Review"
+subtitle: "Baseline audit, refactor remediation, and API-hardening record"
+date: "2026-07-12"
+format:
+  html:
+    embed-resources: true
+    page-layout: full
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+## API-hardening resolution status
+
+> This document retains the original 0.5.1 audit below as a historical record. The current implementation is the `api-hardening` branch created from `origin/master` at `ce5ea3b`. Statements in the baseline sections describe the audited checkout at the time and are not claims about the current source.
+
+| P0--P1 hardening item | Current resolution | Verification |
+|---|---|---|
+| Public FTRL estimator | Removed the Python export, Rust implementation, tests, API/reference pages, navigation, and `linfa-ftrl` dependency. The one-update batch wrapper is not presented as an online estimator. | Public-surface regression test plus source/documentation scans. |
+| Unused linear dependency | Removed `linfa-linear`; the package's linear estimators remain native. | Cargo dependency resolution and Rust build. |
+| Binary and multinomial logit | Replaced Linfa fitting with native stable-softplus/log-sum-exp objectives, analytic gradients, and convergence-checked L-BFGS. Prediction contracts remain label-1 probability for binary logit and sorted-class probability matrices for multinomial logit. | Statsmodels coefficient/covariance parity and forced-nonconvergence tests. |
+| Common fit diagnostics | Added one internal result contract for `converged`, `iterations`, `termination_reason`, and `objective`; Argmin budget exhaustion is never classified as convergence. | Rust status regression test and Python summary-contract tests. |
+| Survival estimators | ExponentialPH, WeibullPH, CoxPH, and AndersenGill now accept only explicit gradient or objective convergence and raise before storing covariance or state on budget exhaustion. | One-iteration failure tests for every survival class. |
+| MatrixCompletion | Retains a budget-exhausted diagnostic iterate but reports `converged=False`, the termination reason, iteration count, and final objective. | Budget-exhaustion regression test. |
+| ElasticNet | Recomputes and exposes the final duality gap and threshold, reports iteration count, and rejects a nonconverged coordinate-descent result. | Converged-summary and forced-budget tests. |
+| BalancingWeights | Scaled calibration residuals determine solver convergence; normalized-weight feasibility determines overall success; original-unit balance is reported separately and cannot reverse solver status. | Extreme-feature-scale regression test. |
+| Validation and source layout | Consolidated common array/hyperparameter/weight checks and optimizer status handling. Split the former estimator monolith into linear, IV, panel, and synthetic modules without changing public imports. | Full Python and Rust suites plus a warning-free Cargo check. |
+
+Final branch validation is 153 passing Python tests and 5 passing Rust tests after a fresh `maturin develop`, with `cargo fmt --all --check`, generator compilation, and `git diff --check` clean. All 92 Quarto site pages rendered from the committed branch; the visible-code and mobile-math checks are reflected in the draft at `https://lalten.org/drafts/crabbymetrics-api-hardening/`.
+
+Remaining limitations are deliberately not hidden: Andersen--Gill still lacks subject-clustered recurrent-event covariance; Cox-style risk-set construction remains $O(Enp^2)$ per Newton iteration; randomized MatrixCompletion SVD is an approximate proximal update; and ElasticNet retains Linfa's outcome-centering-only intercept convention for compatibility.
+
+## Historical refactor remediation status
+
+> This table records the earlier `refactor` branch disposition before the API-hardening pass. The detailed findings below preserve the audit of the checkpointed 0.5.1 working tree.
+
+| Priority finding | Refactor resolution | Verification |
+|---|---|---|
+| P0 weighted TwoSLS | Complete regressor and instrument designs, including intercepts, are now square-root weighted before projection and estimation. | Statsmodels `IV2SLS` point estimates and independently constructed covariance. |
+| P0 generic M-estimator covariance | The bread is the numerical Jacobian of the mean score; the meat is the empirical score outer product; covariance uses $A^{-1} B A^{-T}/n$. Constructor tolerance reaches LBFGS and nonconvergence raises. | Statsmodels OLS HC0 coefficient and covariance parity. |
+| P0 multinomial inference | Summary coefficients are identified class-versus-reference contrasts and covariance is computed in the $(C-1)k$ reference-class basis. | Statsmodels `MNLogit` transformed parameter and covariance parity. |
+| P0 penalized inference mismatch | ElasticNet was made prediction-only; the former FTRL wrapper was subsequently removed during API hardening. Penalized Logit and Poisson return point estimates without unpenalized covariance and reject Wald tests. Unpenalized Logit and Poisson retain tested inference. | Statsmodels binary Logit and Poisson parity plus negative contract tests. |
+| P1 local SyntheticDID scale | Resolved by the 0.7.0 upstream base: the pooled control pre-period first-difference sample standard deviation is used. | Direct formula regression test. |
+| P1 DML/AIPW folds | Fold membership is a deterministic seeded shuffle; AIPW assigns within treatment strata. | Manual cross-fit DML/AIPW formula tests use an independent implementation of the same documented split rule. |
+| P1 fixed-effect degrees of freedom | One-way rank is exact; two-way rank uses bipartite connected components; three-plus-way rank is explicitly labeled conservative. All covariance and Wald paths use the resulting residual degrees of freedom. | Statsmodels and full-dummy parity, including disconnected two-way graphs. |
+| P1 negative covariance diagonals | Roundoff-scale negatives are clipped to zero; material negatives, nonfinite values, and nonsquare matrices raise. | Rust unit tests. |
+| P1 convergence semantics | GMM, Poisson, MEstimator, synthetic-control/simplex solvers, and custom optimizers check convergence or a method-specific optimality tolerance. Simulated annealing no longer treats simple improvement as convergence. | Exhausted-budget, exact-optimum, malformed-Jacobian, and status regression tests. |
+| P1 bagged-polynomial demo leakage | All methods tune on validation outcomes, refit after selection, and touch each repeated draw test outcome once. | Source review plus Quarto execution. |
+
+The ported `BaggedPolynomialRegressor` also adds the pre-merge guardrails identified later in this review: checked polynomial complexity, resolved fitted metadata, internal polynomial scaling, shared term definitions, OOB diagnostics, and scikit-learn parity tests.
+
+## Prior refactor branch verification
+
+| Check | Current result |
+|---|---|
+| `uv run pytest -q tests` | 143 passed; external-library warnings only. |
+| `cargo test --all-targets` | 3 passed, covering covariance-diagonal validation. |
+| Changed Quarto pages with execution | The API overview and all 31 reference pages rendered successfully with live Python execution; equations were visually checked and reference code is unfolded. |
+| Draft site | Whole-site review preview published at `https://lalten.org/drafts/crabbymetrics-pr16-estimator-docs/`. |
+| Full executing site render | Stopped at page 17 because the pre-existing Ding chapter expects absent `ding_w_source/repl/nhanes_bmi.csv`. No changed page depends on that file. |
+| `cargo clippy --all-targets -- -D warnings` | PyO3 deprecations and the unused ABC column field were removed; 30 pre-existing structural style lints remain, chiefly public econometric acronyms, Python-facing argument counts, range loops, and type complexity. |
+
+## Pre-hardening implementation audit addendum
+
+The refactor remediation fixed the original wrong-result findings, but the 2026-07-11 class-by-class source audit found several remaining design and performance limitations in the then-current 0.7.1 implementation. The first table in this document records which of these were resolved by API hardening.
+
+| Current class or family | Source-audit result | Disposition on this branch |
+|---|---|---|
+| **FTRL** | The Python fit initialized an upstream random FTRL state, evaluated one aggregate full-batch logistic gradient, applied one proximal update, and stopped. It had no intercept, iteration, convergence target, partial-fit method, or persistent Python state. | Resolved by removing the class and its dependency rather than preserving an incoherent public estimator. |
+| **AndersenGill** | The point estimate uses the counting-process Cox partial likelihood, but the API accepts no subject identifier and returns inverse-information covariance. It cannot compute the subject-clustered robust variance normally used for recurrent events. | The reference page carries an explicit warning. A subject-ID argument and clustered score covariance are required before treating it as production recurrent-event inference. |
+| **CoxPH / AndersenGill performance** | Every event scans every row and rebuilds a dense second moment, producing approximately $O(Enp^2)$ work per Newton iteration. Breslow ties are implemented. | Exact risk-set and tie behavior plus the scaling limitation are documented. Cumulative risk-set sufficient statistics are the natural optimization follow-up. |
+| **MatrixCompletion** | The nuclear-norm objective and proximal threshold are coherent. Randomized truncated SVD only approximately follows the displayed proximal objective. | Budget exhaustion now retains an explicitly nonconverged result with common diagnostics; the randomized approximation remains documented. |
+| **BalancingWeights** | The dual calibration system is coherent, but autoscaling and original-unit balance require different diagnostics. | Scaled solver convergence is now separate from original-unit balance and weight-feasibility success. |
+| **Poisson** | Negative penalty previously made the objective inconsistent with its gradient and Hessian, and invalid outcomes were not rejected. | Fit now rejects nonfinite regressors, nonfinite or negative outcomes, negative/nonfinite penalty, nonpositive tolerance, and zero iteration budgets; direct tests were added. |
+| **PCA** | The delegated summary divided singular-value squares by retained-components minus one instead of observations minus one. Whitened inverse transformation reapplied rather than removed the whitening scale. | The wrapper now stores sample variance metadata, reports $s_j^2/(n-1)$ and full-variance ratios, correctly reverses whitening, and has direct SVD/reconstruction tests. |
+| **Public transforms** | NystromBasis, RandomFourierFeatures, and RandomizedPCA were exported but lacked grouped first-class API pages; the Gaussian bandwidth convention was misstated in the KernelBasis page. | Grouped PCA and kernel-transform pages now cover all five classes and use the implemented kernel $\exp(-\|x-z\|^2/h)$. |
+
+The hardening pass removed FTRL rather than redesigning it. Andersen--Gill's missing subject-cluster covariance and the Cox risk-set implementation remain the most important limitations from this addendum.
+
+## Historical baseline executive verdict
+
+The audited 0.5.1 working tree had a coherent core, but it was not ready for a broad estimator refactor. The point-estimation paths for unweighted OLS, scalar-penalty ridge, unweighted 2SLS, fixed-effects OLS, Poisson with `alpha=0`, synthetic control, GMM, EPLM, average derivative, partially linear DML, and AIPW were internally coherent and were supported by useful formula-level tests. The strongest parts of the codebase are the QR-based linear algebra, the explicit covariance choices for the main linear estimators, and the small NumPy-facing API.
+
+The main correctness problem is inference. Several classes return standard errors that do not correspond to the fitted estimator. `MEstimator` uses the score outer product as both bread and meat; multinomial logit inverts an unidentified full-class Hessian; ElasticNet applies unpenalized OLS HC1 after a penalized fit; and regularized logit, Poisson, and FTRL omit the penalty or online-estimation contribution from their covariance calculations. These are not cosmetic limitations. A user can receive finite-looking, precisely labeled standard errors that are mathematically wrong.
+
+There are also point-estimation defects. Weighted `TwoSLS` does not solve weighted 2SLS because it adds an unweighted intercept after scaling the other columns. The current local `SyntheticDID` computes its default noise scale incorrectly. The DML/AIPW `seed` does not randomize folds at all. The untracked bagged polynomial estimator is a reasonable prediction primitive, but it needs complexity guards, better diagnostics, and a corrected demo before it should be carried forward.
+
+The API is sensible as a small experimental surface, but not yet as a stable econometrics API. It is “scikit-adjacent” mainly in method names. Fits return `None`, sample weights use separate methods, classifier `predict()` semantics differ by class, fitted attributes are mostly inaccessible, no exposed class has a Python docstring, and `summary()` mixes configuration, diagnostics, estimates, and inference without a shared contract.
+
+**Recommendation:** do not create `refactor` from the current local `master`. First preserve the dirty bagged-polynomial work, then create `refactor` from the locally known `origin/master` (`0.7.0`) and port only the source, tests, and source documentation that remain relevant. Upstream is 38 commits ahead and already fixes the SDID noise calculation, adds SDID variance estimators, changes the MLE prediction API, introduces new estimators, and replaces the docs architecture.
+
+## Scope and repository state
+
+This review covers the exact working tree present on 2026-07-10:
+
+- branch: `master`
+- package version: `0.5.1`
+- relation to locally known upstream: 38 commits behind `origin/master` (`0.7.0`)
+- tracked local modifications: `.gitignore`, `devlog.md`, docs configuration/source/rendered artifacts, `src/estimators/mod.rs`, `src/estimators/regularized.rs`, and `src/lib.rs`
+- untracked bagged-polynomial artifacts: the example, rendered example/freeze output, and test file
+- exposed Python surface: 21 model/transform classes plus `Optimizers`
+
+The upstream drift is unusually important. `origin/master` changes `linear.rs`, `mle.rs`, `gmm.rs`, transforms, tests, packaging, and the complete docs structure. This report therefore distinguishes defects in the audited checkout from refactor work that must be rechecked after rebasing onto upstream.
+
+## Verification performed
+
+The current extension was rebuilt in a fresh repo-local uv environment with `uv run maturin develop`.
+
+| Check | Result | Interpretation |
+|---|---:|---|
+| `uv run pytest -q tests` | 56 passed | Existing package tests pass, including four untracked bagged-polynomial tests. |
+| `cargo test --all-targets` | 0 Rust tests, pass | Rust compilation succeeds, but there is no Rust-unit-test layer. |
+| `cargo clippy --all-targets -- -D warnings` | failed, 41 errors | PyO3 deprecations, unused `MEstimator.tolerance`, and several maintainability warnings remain. |
+| unscoped `uv run pytest -q` | collection failed locally | Ignored local `pyfixest/` and `within/` checkouts are collected. Fresh CI does not contain those directories, but a `testpaths` setting would make local behavior robust. |
+| targeted numerical counterexamples | reproduced | Weighted 2SLS, M-estimator covariance, multinomial covariance, and no-op DML seed issues were reproduced independently of the package tests. |
+
+The targeted results were:
+
+| Check | Reference | crabbymetrics | Consequence |
+|---|---:|---:|---|
+| largest coefficient difference, weighted 2SLS | correctly weighted design | `0.6162` away | material point-estimate error |
+| scalar-mean M-estimator SE | `0.08905` | `0.00562` | about 16 times too small in this design |
+| default multinomial-logit SE range | ordinary scale expected | `5773.46` to `5773.54` | unidentified Hessian hidden by a numerical ridge |
+| DML coefficient, seeds 1 and 999 | should use different random splits | exactly identical | `seed` only relabels unchanged folds |
+
+## Priority findings
+
+### P0: weighted 2SLS is the wrong estimator
+
+`fit_two_sls_closed_form()` scales `x_endog`, `x_exog`, `z`, and `y` by square-root weights, then calls `build_iv_designs()`, which adds a column of ones afterward (`src/estimators/linear.rs:228-274`). The intercept column is therefore unweighted while every other column is weighted. Correct weighted 2SLS must build the complete regressor and instrument matrices first and scale every column, including the intercept.
+
+The existing weighted test encodes the same bug: its reference helper scales the arrays and then calls a helper that adds ones (`tests/test_linear_and_poisson.py:238-258`). Unit weights pass, and non-unit weights agree with the duplicated transformation, but neither establishes correctness.
+
+This defect remains in the locally known `origin/master`, so it belongs in the first refactor tranche.
+
+### P0: `MEstimator` standard errors are not generic M-estimator standard errors
+
+`compute_vcov()` computes
+
+$$
+B = \frac{1}{n}\sum_i s_i s_i', \qquad A = B, \qquad
+\widehat{V} = \frac{1}{n}A^{-1}BA^{-1} = \frac{1}{n}B^{-1}.
+$$
+
+This is visible at `src/estimators/mle.rs:803-806`. A generic M-estimator needs the Jacobian or Hessian bread
+
+$$
+A = -\frac{1}{n}\sum_i \frac{\partial s_i(\theta)}{\partial\theta'},
+$$
+
+which cannot be recovered from the score outer product without an information-equality assumption. The current API nevertheless returns the result as `se`. For a scalar sample mean with outcome standard deviation near four, the implementation returned `0.00562` when the correct standard error was `0.08905`.
+
+The constructor's `tolerance` is also never passed to LBFGS (`src/estimators/mle.rs:713-753`), and the bootstrap accepts only a special data dictionary even though ordinary fitting accepts any Python object. `MEstimator` should either accept a Hessian/Jacobian callback or be renamed/documented as an OPG-likelihood estimator and refuse unsupported inference.
+
+### P0: multinomial-logit inference is unidentified
+
+`fisher_cov_multinomial()` constructs parameters for all $C$ classes and inverts a $Ck \times Ck$ softmax Hessian (`src/utils.rs:304-346`). Adding the same coefficient vector to every class leaves multinomial probabilities unchanged, so the full-class Hessian is singular without a reference-class constraint. The code adds `1e-8` to the diagonal and inverts it, converting non-identification into huge finite standard errors. The reproduced default fit returned standard errors near 5773 for every coefficient.
+
+Regularization in the Linfa fit does not rescue the reported covariance because the covariance omits `alpha`. The class must use a reference-class parameterization or return contrasts in an identified basis. Until then, `summary()['se']` should be removed.
+
+### P0: penalized fits report unpenalized or otherwise mismatched inference
+
+The issue is systematic:
+
+- `ElasticNet.summary()` runs ordinary OLS HC1 on residuals from the penalized fit (`src/estimators/regularized.rs:949-975`). It ignores active-set selection, shrinkage, and the elastic-net Hessian.
+- `Logit` defaults to `alpha=1.0`, but its Fisher covariance omits the L2 penalty (`src/estimators/mle.rs:91-115`). Linfa documents `alpha` as the weight on L2 regularization.
+- `Poisson.summary()` omits `alpha` from both vanilla and sandwich bread (`src/estimators/mle.rs:524-559`). It is coherent only for `alpha=0`.
+- `FTRL.summary()` treats the terminal online weights like an unpenalized batch logit MLE (`src/estimators/regularized.rs:1083-1101`). This does not account for FTRL's proximal penalty or update path.
+- Ridge's covariance is internally consistent with a penalized estimating equation, but it does not address shrinkage bias or penalty selection. When a penalty grid is chosen by CV, the reported standard errors condition on the selected penalty and ignore selection.
+
+The conservative design is to stop exposing standard errors for predictive regularized estimators until a specific inferential target is implemented. Bootstrap coefficient draws can remain, but they should be described as stability diagnostics rather than automatically valid confidence intervals.
+
+### P1: local `SyntheticDID` uses the wrong default noise scale
+
+The audited implementation first calculates a standard deviation of first differences separately for each control row, then takes the standard deviation across those row-level standard deviations (`src/estimators/linear.rs:494-526`). The reference `synthdid` implementation uses the standard deviation of all control pre-period first differences directly. The local calculation can approach zero when rows have similar noise variances even when the outcome noise is large, severely under-regularizing unit weights.
+
+The official implementation is visible in the [`synthdid_estimate` source](https://raw.githubusercontent.com/synth-inference/synthdid/master/R/synthdid.R), whose default is `sd(apply(Y[1:N0, 1:T0], 1, diff))`. The locally known upstream implementation has already corrected this exact issue, so it should not be independently rewritten before the branch is based on `origin/master`.
+
+The current `treatment_effect` vector is the raw treated-minus-synthetic path, while `att` also subtracts the time-weighted pre-period gap. The API should call the former `gap` or return a time-weight-adjusted effect curve to avoid suggesting that its post-period average necessarily equals `att`.
+
+### P1: DML and AIPW do not have randomized cross-fitting
+
+`make_kfold_splits()` assigns observation $i$ to `(i + offset) % k`, where `offset = seed % k` (`src/estimators/semiparametric.rs:160-188`). Changing the seed only permutes fold labels; it never changes fold membership. Ordered data therefore receive deterministic interleaved splits, and the documented seed has no behavioral effect.
+
+This is especially risky for AIPW because splits are not stratified by treatment. A sorted or rare treatment can produce a training fold without both arms and fail even when a valid stratified split exists. Implement a seeded shuffle and stratification for binary treatment, store the realized fold IDs, and test that different seeds change memberships while the same seed reproduces them.
+
+### P1: fixed-effects inference ignores absorbed degrees of freedom
+
+`FixedEffectsOLS.summary()` computes covariance on the residualized design and passes residual degrees of freedom as $n-p$ through the generic linear covariance helper (`src/estimators/linear.rs:890-924`). It does not subtract the rank of the absorbed fixed effects. Point estimates are correct in the tested one- and two-way cases, but vanilla and small-sample robust covariance scaling can be materially optimistic, particularly with many groups.
+
+The estimator should obtain absorbed rank or effective degrees of freedom from `within`, define singleton handling, and make the small-sample correction explicit. Clustered inference should also state how fixed effects nested in clusters affect the correction.
+
+### P1: negative covariance diagonals are silently converted to positive standard errors
+
+`diag_sqrt()` returns `sqrt(abs(diagonal))` (`src/utils.rs:223-229`). A materially negative covariance diagonal is evidence of a non-positive-semidefinite covariance, non-identification, or numerical failure. Taking an absolute value suppresses the diagnostic. Small negative values within a scale-aware numerical tolerance may be clipped to zero; larger negative values should raise an error or return `NaN` with a warning/status field.
+
+### P1: optimization success is not consistently checked
+
+Several classes take Argmin's best parameter without requiring a converged termination status:
+
+- `SyntheticControl` and the simplex SDID solvers return the best parameter after the iteration budget without exposing convergence.
+- `Poisson` labels only a missing parameter as failure; reaching `max_iterations` with a parameter is accepted.
+- `GMM.solve_gauss_newton()` returns a fit when `iter >= max_iterations` but stores no `success` or termination reason (`src/estimators/gmm.rs:217-225`).
+- `Optimizers.minimize_gauss_newton_ls()` reports a line-search failure when initialized at an exact solution because it requires strict cost decrease for a zero step (`src/optimizers.rs:579-643`).
+- Simulated annealing calls a run successful whenever the best objective is no worse than the initial objective (`src/optimizers.rs:713-719`), which is a budget-completion criterion, not convergence.
+
+Every iterative result should expose at least `success`, `status`, `message`, `nit`, final objective, and a method-specific optimality measure. Estimator `fit()` should either fail on non-convergence or retain an explicit non-converged state that `summary()` cannot conceal.
+
+### P1: the bagged-polynomial demo selects a model on the test outcome
+
+The untracked demo loops over kernel-ridge penalties, evaluates every one against `y_test`, and reports the minimum as “held-out mean squared error” (`docs/examples/bagged-polynomial-regression.qmd:98-121`). This is test-set leakage. Raw ridge uses training CV, BPR uses a hand-picked penalty, and kernel ridge receives oracle test tuning, so the comparison is not methodologically comparable.
+
+Use a train/validation/test split or inner CV for all three methods, lock hyperparameters without reading `y_test`, and evaluate the final models exactly once on the test set. Report variability across repeated DGP draws rather than a single favorable seed if the page makes comparative claims.
+
+### P2: input validation and shape errors are inconsistent
+
+The new bagged class has better finite-value and fitted-state checks than most existing classes. OLS, Ridge, 2SLS, ElasticNet, logit, multinomial logit, Poisson, FTRL, PCA, and KernelBasis do not share equivalent validation. Several `predict()` implementations rely on `ndarray.dot()` for dimension validation, which can surface a Rust panic rather than a normal `ValueError`. Constructors also often accept `NaN`, negative penalties, zero iteration budgets, or invalid tolerances until a dependency fails later.
+
+Centralize validation for finite arrays, nonempty arrays, feature counts, label domains, weights, positive finite tolerances, nonnegative finite penalties, and fitted state. Every public error should be a stable Python exception with the observed and expected shapes.
+
+### P2: test coverage is concentrated in the strongest classes
+
+The 56 Python tests are useful, but there are no direct tests for ElasticNet, Logit, MultinomialLogit, FTRL, or `MEstimator`. These are exactly the classes with the most serious inference defects. Existing tests often establish self-consistency rather than external correctness; weighted 2SLS is the clearest example.
+
+The refactor should add reference parity against Statsmodels, SciPy, scikit-learn, and the official synthdid implementation where applicable. `origin/master` already adds test dependencies for several of these libraries, making parity tests practical. Property tests should cover invariance, label relabeling, duplicated frequency weights, rank deficiency, non-contiguous NumPy arrays, empty inputs, missing classes in bootstrap samples, and non-convergence.
+
+## Class-by-class assessment
+
+| Class | Point estimation / transform | Inference and diagnostics | API verdict | Priority |
+|---|---|---|---|---|
+| `OLS` | Correct for ordinary and weighted least squares on full-rank finite designs. | Vanilla, HC1, HAC, and one-way cluster formulas are coherent; negative diagonals and absorbed/rank edge cases need handling. | Good minimal baseline; unify weights and add validation/fitted attributes. | retain, harden |
+| `Ridge` | Scalar penalty and augmented-QR solution are correct; grid CV refits the selected penalty. | Penalized covariance is conditional and does not account for CV selection or shrinkage bias. | Useful, but `penalty=None` meaning 1.0 and penalty-grid overloading are surprising. | retain, qualify inference |
+| `BaggedPolynomialRegressor` | Term enumeration and averaging are correct for the implemented dense random-subspace ridge ensemble. | No inferential claims, appropriately. Diagnostics are training-only and not OOB. | Promising prediction primitive; not ready to merge unchanged. | revise before port |
+| `FixedEffectsOLS` | Within estimates match manual/dummy references, including tested weights. | Residual degrees of freedom omit absorbed rank; row bootstrap is not a generally valid panel bootstrap. | Reasonable estimation-first surface; needs FE diagnostics and explicit inference conventions. | fix inference |
+| `TwoSLS` | Unweighted estimator is correct; weighted estimator is incorrect. | Robust formulas are coherent for the unweighted design, but there are no weak-IV or first-stage diagnostics. | Argument separation is clear, but `predict()` requires users to reconstruct endog/exog column order. | P0 fix |
+| `SyntheticControl` | Correct convex donor-weight target in tested interiors; softmax cannot represent exact zero weights. | No convergence status; time-row bootstrap ignores serial dependence. | Small and understandable; expose gap path and solver status. | harden |
+| `SyntheticDID` | ATT formula uses unit and time weights; local default regularization scale is wrong. | No local variance estimator; convergence is hidden. Upstream already adds variance methods. | Current effect-path naming is ambiguous. Re-audit the upstream redesign, not this class in isolation. | replace with upstream then audit |
+| `ElasticNet` | Delegated Linfa fit/predict is plausible and deterministic. | Reported HC1 SE is not valid for elastic-net coefficients. | Missing CV/path support and validation; do not present it as inference-capable. | remove/fix SE |
+| `FTRL` | Delegated FTRL probabilities are produced, but the one-shot `fit()` discards the algorithm's incremental advantage. Any nonzero integer target becomes `True`. | Fisher SE does not match the penalized online estimator. | Add `partial_fit`, `predict_proba`, label validation, and preprocessing contract. | redesign |
+| `Logit` | Delegated regularized binary fit is plausible. | Default `alpha=1` fit is regularized while covariance is unpenalized. | Needs `predict_proba`, `predict_label`, class metadata, and a clear default regarding regularization. Upstream partly addresses prediction layers. | fix inference/API |
+| `MultinomialLogit` | Delegated point fit and labels are plausible. | Full-class covariance is unidentified and yields huge artificial SE. Bootstrap class alignment is fragile. | Must expose class order and identified parameters/contrasts. | P0 inference fix |
+| `Poisson` | PPML point estimates are correct for `alpha=0` on valid finite nonnegative outcomes. | Fisher/QMLE covariance is correct only for `alpha=0`; solver status is hidden. | Validate outcomes and hyperparameters; distinguish counts from PPML continuous nonnegative outcomes. | harden |
+| `MEstimator` | Optimizes the supplied objective/gradient, subject to unused tolerance and weak status reporting. | Generic covariance is wrong because bread equals meat. | Callback and bootstrap data contracts are idiosyncratic and inconsistent. | P0 redesign |
+| `GMM` | Just-identified and two-step IID paths are broadly correct; line search is simple but coherent. | Sandwich formula is sound; “vanilla” is valid only under efficient weighting, convergence is not reported, and two-step weighting is always IID even if summary uses HAC/cluster omega. | Best generic estimation API in the checkout, but fit-time weighting and summary-time covariance need a clearer contract. | retain, harden |
+| `BalancingWeights` | Calibration systems and normalized weights are internally coherent in tested cases. | Success is exposed, which is good. Nonfinite covariates and several constructor values are not validated. `autoscale=True` solves the relaxation in scaled units but checks `l2_norm` in original units. | Domain-specific API is reasonable; return a diagnostic result even when exact balance is infeasible. | retain, fix scaling contract |
+| `EPLM` | Correct linear E-estimator ratio with stacked moments. | Exact-identified influence covariance is coherent. | Sensibly estimation-first; document linear nuisance assumptions prominently. | retain |
+| `AverageDerivative` | OB/IPW/DR formulas match their stated normal linear working models and tests. | Stacked-moment covariance is coherent, subject to numerical Jacobian stability. | The names `ipw`/`dr` need the continuous-treatment working-model context to avoid confusion with binary-treatment IPW. | retain, document |
+| `PartiallyLinearDML` | Residual-on-residual coefficient and influence score are correct for supplied ridge nuisances. | Cross-fitting is deterministic and seed-invariant; nested CV is also unshuffled. | Useful built-in baseline, but should expose nuisance predictions, folds, and scores. | fix splitting |
+| `AIPW` | Cross-fit AIPW formula is correct; propensity is a clipped ridge linear-probability model. | Influence-score covariance is coherent conditional on the folds; folds are unshuffled/unstratified. | Make nuisance-model choice explicit rather than letting `AIPW` imply a generic learner. | fix splitting/API |
+| `PCA` | Delegated centering, transform, whitening, and inverse transform are coherent in tests. | Not inferential. | Conventional transformer API, but `fit()` should return self and validate transform feature count. | retain, harden |
+| `KernelBasis` | Linear and Gaussian train/cross kernels match tests. | Not inferential. | Clear transformer, but output width grows with training rows and needs memory/anchor guidance and finite parameter checks. | retain, document |
+| `Optimizers` | Gradient wrappers work on tested smooth problems. Custom Gauss-Newton is numerically fragile. | Result dictionaries are useful, but success semantics differ by method. | Prefer module-level functions or a namespace module; a stateless class is not an estimator. | standardize results |
+
+## Bagged polynomial regression review
+
+### What is correct
+
+The implementation generates every monomial of total degree one through `degree` with repetition, so for $k$ selected features and degree $d$ the non-intercept term count is
+
+$$
+\binom{k+d}{d} - 1.
+$$
+
+Feature indices are sorted and reused consistently at prediction time. The intercept is not penalized. Row sampling with replacement, row subsampling without replacement, random feature subspaces, fixed-seed determinism, and ensemble averaging are implemented as advertised. The degree-one, one-estimator, all-row/all-feature case correctly matches `Ridge`.
+
+The class also improves on much of the existing repository by rejecting empty/nonfinite input, invalid fitted state, and prediction feature-count mismatch with `ValueError`.
+
+### What must change before merge
+
+1. **Add a complexity guard.** Polynomial term count grows combinatorially and is currently generated recursively with no checked count, memory budget, or overflow protection. Compute the count before allocation and reject unsafe `(max_features, degree)` combinations with an actionable message.
+
+2. **Resolve sampling parameters at fit time and report them consistently.** `summary()['max_features']` is resolved to $p$, but `summary()['max_samples']` remains `None`. Store `max_features_`, `max_samples_`, `n_features_in_`, and `n_terms_per_estimator_` as fitted metadata.
+
+3. **Constrain `max_samples`.** With `bootstrap=True`, the current implementation permits any integer larger than $n$. This can silently allocate enormous index/design arrays. Unless oversampling beyond $n$ is an explicit feature, require `max_samples <= n` for both modes.
+
+4. **Add OOB diagnostics.** Per-learner training MSE on duplicated bootstrap rows is optimistically biased and not useful for model selection. Track out-of-bag predictions/counts and report OOB MSE when bootstrap sampling leaves OOB observations.
+
+5. **Address scaling.** A common ridge penalty across raw linear, square, and interaction terms is scale-sensitive. Either standardize base-learner polynomial columns internally with stored moments or make the preprocessing requirement explicit and reject/flag near-zero and extreme-scale columns.
+
+6. **Avoid recomputing identical designs.** `terms` is regenerated for every learner even though it depends only on `max_features` and `degree`. Generate the local term index once and share/clone it only where ownership requires.
+
+7. **Broaden tests.** Add a direct degree-two feature-map parity test, differing-seed behavior, feature-subsampling coverage, row-subsampling coverage, nonfinite fit/predict tests, `max_samples` validation, a complexity-limit test, and parity against a NumPy/scikit-learn polynomial-ridge reference.
+
+8. **Correct the demo.** Remove test-set tuning, use equal tuning budgets, and report repeated-split uncertainty. The current nonlinear-signal test uses `bootstrap=False`, all rows, and all features, so its five base learners are identical and it tests polynomial ridge rather than bagging. Add a test in which random subspaces and row resampling actually operate.
+
+### API decision
+
+Keep the class, but position it as a prediction-only learner and port it after upstream reconciliation. `BaggedPolynomialRegressor` is an acceptable name because row bootstrapping is the default, though the implementation is more precisely a bagged random-subspace polynomial ridge ensemble. Do not add coefficient standard errors. Consider accepting integer/fractional `max_features` and `max_samples` only after a common parameter-validation layer exists.
+
+## API and architecture assessment
+
+### What is worth preserving
+
+- NumPy-only runtime input keeps the Python dependency surface small.
+- Native classes have narrow responsibilities and readable method names.
+- `GMM` and `BalancingWeights` expose more diagnostics than the older estimators and point toward the right design.
+- Explicit covariance labels are better than a single undocumented default.
+- Estimation-first causal classes appropriately avoid meaningless `predict()` methods.
+- Transformers compose with regression estimators without requiring a pipeline framework.
+
+### What should be standardized
+
+1. **Fit contract:** use `fit(..., sample_weight=None) -> self`; remove parallel `fit_weighted()` entry points after a deprecation window.
+
+2. **Fitted state:** expose read-only trailing-underscore attributes such as `coef_`, `intercept_`, `n_features_in_`, `classes_`, `converged_`, `n_iter_`, `objective_`, and estimator-specific diagnostics.
+
+3. **Prediction contract:** regression/count models use `predict`; classifiers use `predict_proba`, `predict_label`, and optionally `decision_function`. Do not let `Logit.predict()` return labels while `FTRL.predict()` returns probabilities.
+
+4. **Inference contract:** separate `vcov()`/`inference()` from descriptive `summary()`. A common inference result should include `params`, `vcov`, `se`, covariance type and options, $n$, residual/effective degrees of freedom, convergence state, and parameter names/order. Prediction-only estimators should not fabricate `se` keys.
+
+5. **Configuration contract:** make constructor parameters readable and add Python docstrings. At present all 22 exposed classes report no class docstring. Full sklearn cloning support is optional, but `get_params()` or read-only properties are needed for reproducibility.
+
+6. **Validation contract:** all classes should use shared finite/shape/label/hyperparameter checks and stable exception types. Dependency errors should be wrapped with estimator and parameter context.
+
+7. **Optimization contract:** create one internal result type with parameter vector, objective, gradient/score norm, iteration count, success, reason, and message. Do not infer convergence merely from the existence of a best parameter.
+
+8. **Storage contract:** decide whether training data are retained. Most current classes retain full copies to support `summary()` and bootstrap, which can double memory unexpectedly. Either document this or store sufficient statistics where possible and make resampling data opt-in.
+
+9. **Naming contract:** reserve `summary()` for stable, documented results. Method-specific dictionaries are acceptable, but keys shared across estimators should use the same names and shapes (`coef` versus `params`, `se` versus `coef_se`, `nobs`, `success`, `vcov_type`).
+
+## Recommended refactor gameplan
+
+### Phase 0: preserve and reconcile
+
+1. Create a checkpoint branch/commit containing the current dirty bagged-polynomial source, tests, source QMD, and this review. Preserve the other user changes without squashing them into generated docs churn.
+2. Create `refactor` from `origin/master`, not from local `master` at `0.5.1`.
+3. Port the bagged estimator selectively: `regularized.rs`, exports, tests, and a source doc adapted to the upstream reference-page architecture. Do not port local rendered HTML, search indexes, freeze artifacts, or the old global docs configuration; upstream now blocks rendered docs artifacts on master.
+4. Re-run the full audit against the upstream-only classes added in 0.6/0.7, including ABCOLS, matrix-completion/panel estimators, survival estimators, randomized linear algebra, and hypothesis tests. They are outside this working-tree review.
+
+### Phase 1: stop returning wrong results
+
+1. Fix weighted 2SLS and replace its self-referential test with an independently constructed full weighted design/reference package comparison.
+2. Remove or gate invalid `MEstimator`, multinomial-logit, ElasticNet, regularized-logit, regularized-Poisson, and FTRL standard errors.
+3. Replace `diag_sqrt(abs(.))` with checked covariance-diagonal handling.
+4. Add convergence state to every iterative estimator and prevent inference after an unsuccessful fit.
+5. Add direct tests for every exposed class before expanding the estimator catalog.
+
+### Phase 2: standardize the public surface
+
+1. Introduce shared validation, fitted-state, optimization-result, and inference-result helpers.
+2. Normalize classifier prediction methods and sample-weight handling.
+3. Add docstrings and fitted properties without requiring a heavy Python wrapper dependency.
+4. Define deprecation aliases for old method names rather than breaking every example at once.
+
+### Phase 3: repair causal/panel inference
+
+1. Implement seeded shuffled folds and treatment-stratified AIPW folds; store fold assignments and nuisance predictions.
+2. Correct fixed-effects degrees of freedom and document singleton/cluster corrections.
+3. Re-audit upstream SyntheticDID point paths and new bootstrap/jackknife/placebo variance estimators against the official package.
+4. Clarify GMM efficient versus robust covariance and allow fit-time IID/HAC/cluster weighting when two-step optimal weighting is requested.
+
+### Phase 4: land bagged polynomial regression
+
+1. Add term-count/memory guards, resolved fitted metadata, scaling policy, and OOB diagnostics.
+2. Replace the leaked demo comparison with nested tuning and a final untouched test set.
+3. Add reference and property tests that exercise actual bagging and random subspaces.
+4. Keep the estimator explicitly prediction-only; defer generic learner callbacks and R-learner integration until the base learner contract is stable.
+
+### Phase 5: release gates
+
+- `uv run pytest -q` passes in a clean checkout and in a checkout containing ignored sibling/vendor directories.
+- every public class has direct tests, invalid-input tests, and at least one independent reference or invariant test
+- `cargo clippy --all-targets -- -D warnings` passes, with narrowly justified lint allowances only for Python-facing naming/signatures
+- docs render from source with no raw math delimiters and no tracked generated-site churn on the source branch
+- no estimator returns inferential quantities unless the estimand, parameterization, covariance formula, and regularization assumptions are documented and tested
+
+## Final decision
+
+The right refactor is not a cosmetic common-base-class exercise. The first objective should be to make it impossible for a class to return a result whose statistical meaning differs from its label. Once inference, convergence, validation, and classifier prediction semantics have stable internal contracts, the existing small API can remain lightweight without becoming inconsistent.
+
+The bagged polynomial estimator should survive this process. Its core prediction algorithm is correct and useful for the stated smooth low-order setting. Its current demo and guardrails are not yet strong enough to merge, and it should be ported onto the upstream `0.7.0` architecture only after the correctness blockers above have explicit tests.

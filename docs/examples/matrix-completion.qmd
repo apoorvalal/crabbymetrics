@@ -77,7 +77,10 @@ summary = model.summary()
 
 print("estimated ATT:", round(float(summary["att"]), 4))
 print("lambda_l:", round(float(summary["lambda_l"]), 4))
-print("iterations:", summary["iterations"])
+print(
+    "fit diagnostics:",
+    {key: summary[key] for key in ["converged", "iterations", "termination_reason", "objective"]},
+)
 print("final observed-cell RMSE:", round(float(summary["history_rmse"][-1]), 4))
 ```
 
