@@ -45,6 +45,17 @@ The follow-up source audit covers every public estimator and all five public tra
 
 Current validation is 143 passing Python tests and 3 passing Rust tests. The `v0.8.0` release-tag build renders all 94 Quarto pages with live Python execution, including the API overview, all 31 reference pages, and the Ding pages. The earlier Ding failure was a local path problem: `ding_w_source` pointed at the replication directory while the pages correctly append `repl/`; the symlink now points at the parent `Ding_CausalInference` directory. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
 
+## Sparse Factor Rotations (2026-06-30)
+
+The sparse-rotation branch implements orthogonal factor-rotation and localization utilities rather than stopping at the original design memo. The public function surface is:
+
+- `varimax_rotation(...)` for the standard orthogonal Varimax criterion;
+- `l1_sparse_rotation(...)` for a seeded multi-start search over sparse directions;
+- `count_small_loadings(...)` and `local_factor_diagnostic(...)` for Freyaldenhoven-style local-factor diagnostics; and
+- `inverse_participation_ratio(...)` and `cumulative_participation(...)` for loading localization summaries.
+
+The implementation lives in `src/rotations.rs` and is exported from `src/lib.rs`. Tests cover subspace preservation, reference matrices, seeded reproducibility, sparsity recovery, and diagnostics. The worked page `docs/examples/sparse-rotations.qmd` includes synthetic and published loading examples; `docs/specs/sparse-rotations.qmd` records the numerical scope and identifying caveats. The routines remain function-level APIs: the branch does not introduce wrapper estimator classes or claim global optimality for the non-convex L1 search.
+
 ## Repository Layout
 
 ```text
