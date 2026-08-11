@@ -17,6 +17,17 @@ Release packaging now excludes both rendered `docs/` content and the local untra
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## Cressie-Read Balancing (2026-07-27)
+
+`BalancingWeights` now includes a Cressie-Read / power-divergence calibration map alongside the existing quadratic and entropy objectives:
+
+- `objective="cressie_read"` and alias `objective="power_divergence"`;
+- `divergence_power` for the Cressie-Read index $\lambda$;
+- `dual_ridge` for optional stabilization of non-intercept dual coefficients; and
+- `solver="lbfgs"`, with automatic fallback from Gauss-Newton to L-BFGS and then BFGS.
+
+The newer fit-diagnostics contract remains intact: `solver_converged` describes the scaled calibration system, `success` additionally checks normalized-weight feasibility, and the summary reports scaled numerical diagnostics separately from original-unit balance. The public reference and worked ATT example are `docs/reference/BalancingWeights.qmd` and `docs/examples/cressie-read-balancing.qmd`. The example's Rényi material is a diagnostic mapping through the shared power moment $\lambda=\alpha-1$, not a separate `objective="renyi"` optimizer. Regression coverage lives in `tests/test_balancing_weights.py`.
+
 ## API Hardening And Solver Correctness (2026-07-12)
 
 The `api-hardening` branch completes the P0--P1 estimator stocktake without expanding the estimator catalog.

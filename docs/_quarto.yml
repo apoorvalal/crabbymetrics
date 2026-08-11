@@ -76,6 +76,8 @@ website:
         menu:
           - href: examples/balancing-weights.qmd
             text: Balancing Weights
+          - href: examples/cressie-read-balancing.qmd
+            text: Cressie-Read And Rényi Balancing
           - href: examples/eplm.qmd
             text: EPLM
           - href: examples/average-derivative.qmd

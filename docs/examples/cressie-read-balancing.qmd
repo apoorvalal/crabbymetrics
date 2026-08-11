@@ -1,0 +1,456 @@
+---
+title: "Cressie-Read And Rényi Balancing"
+subtitle: "ATT weighting under good, medium, and bad overlap"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+`BalancingWeights(objective="cressie_read")` extends the existing quadratic and entropy calibration paths with a Cressie-Read power-divergence link. The target problem is still ATT weighting: reweight controls so their balance-basis moments match the treated moments, then estimate the missing treated counterfactual from weighted controls.
+
+Let $b(X)$ be the balance basis. With controls indexed by $D=0$, the exact normalized balance equations are
+
+$$
+\sum_{i:D_i=0} w_i = 1,
+\qquad
+\sum_{i:D_i=0} w_i b(X_i)=\bar b_T.
+$$
+
+The implementation solves these equations through a dual index. For controls define
+
+$$
+z_i=(1,\ b(X_i)-\bar b_T)'.
+$$
+
+Cressie-Read balancing uses
+
+$$
+w_i(\beta)=q_i h_\lambda(z_i'\beta),
+\qquad
+h_\lambda(u)=
+\begin{cases}
+\exp(u), & \lambda=0,\\
+(1+\lambda u)_+^{1/\lambda}, & \lambda\ne 0,
+\end{cases}
+$$
+
+and solves a regularized nonlinear least-squares calibration problem:
+
+$$
+\hat\beta
+=
+\arg\min_\beta
+\frac12\|Z'w(\beta)-e_1\|_2^2
++\frac{\eta}{2}\|\beta_{-0}\|_2^2.
+$$
+
+The $\lambda=0$ case is the entropy/KL limit. The $\lambda=1$ case is the Pearson chi-square / quadratic-distance member of the family, though the existing `objective="quadratic"` path keeps its original direct linear-weight implementation.
+
+Rényi divergence is not a new solver in this branch. Here it is used as a diagnostic on the fitted weights:
+
+$$
+D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
+$$
+
+It is tied to the Cressie-Read family by the same power moment, with $\lambda=\alpha-1$. This gives a clean mapping between divergence values, but the implemented optimizer is still the Cressie-Read calibration map above, solved by Gauss-Newton/L-BFGS/BFGS.
+
+## Setup
+
+```{python}
+from html import escape
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+
+def html_table(df, float_format="{:.4f}"):
+    rows = []
+    for _, row in df.iterrows():
+        cells = []
+        for value in row:
+            if isinstance(value, float):
+                cells.append(float_format.format(value))
+            else:
+                cells.append(str(value))
+        rows.append(cells)
+    out = ["<table>", "<thead>", "<tr>"]
+    out.extend(f"<th>{escape(str(col))}</th>" for col in df.columns)
+    out.extend(["</tr>", "</thead>", "<tbody>"])
+    for row in rows:
+        out.append("<tr>")
+        out.extend(f"<td>{escape(cell)}</td>" for cell in row)
+        out.append("</tr>")
+    out.extend(["</tbody>", "</table>"])
+    return "".join(out)
+
+
+def basis(x):
+    x1 = x[:, 0]
+    x2 = x[:, 1]
+    return np.column_stack([x1, x2, x1**2, x2**2, x1 * x2])
+
+
+def y0_surface(x):
+    x1 = x[:, 0]
+    x2 = x[:, 1]
+    return (
+        1.0
+        + 0.8 * x1
+        - 0.5 * x2
+        + 0.35 * x1**2
+        - 0.20 * x2**2
+        + 0.45 * x1 * x2
+    )
+
+
+def normalize_prob(weights):
+    weights = np.asarray(weights, dtype=float)
+    total = weights.sum()
+    if not np.isfinite(total) or total <= 0.0:
+        raise ValueError("weights must have positive finite total mass")
+    return weights / total
+
+
+def logsumexp(values):
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        return -np.inf
+    vmax = values.max()
+    return float(vmax + np.log(np.exp(values - vmax).sum()))
+
+
+def kl_divergence(p, q):
+    p = normalize_prob(p)
+    q = normalize_prob(q)
+    if np.any((p > 0.0) & (q <= 0.0)):
+        return np.inf
+    mask = p > 0.0
+    return float(np.sum(p[mask] * (np.log(p[mask]) - np.log(q[mask]))))
+
+
+def power_moment(p, q, alpha):
+    p = normalize_prob(p)
+    q = normalize_prob(q)
+    if alpha <= 0.0:
+        raise ValueError("alpha must be positive for Renyi divergence")
+    if alpha > 1.0 and np.any((p > 0.0) & (q <= 0.0)):
+        return np.inf
+
+    mask = (p > 0.0) & (q > 0.0)
+    log_terms = alpha * np.log(p[mask]) + (1.0 - alpha) * np.log(q[mask])
+    return float(np.exp(logsumexp(log_terms)))
+
+
+def renyi_divergence(p, q, alpha):
+    if np.isclose(alpha, 1.0):
+        return kl_divergence(p, q)
+    moment = power_moment(p, q, alpha)
+    if not np.isfinite(moment):
+        return np.inf
+    if moment <= 0.0:
+        return np.inf
+    return float(np.log(moment) / (alpha - 1.0))
+
+
+def cressie_read_statistic(p, q, lamb):
+    # Common Cressie-Read normalization: lambda=1 is Pearson chi-square,
+    # while lambda=0 is 2 * KL. The scale does not affect calibration.
+    p = normalize_prob(p)
+    q = normalize_prob(q)
+    if np.isclose(lamb, 0.0):
+        return 2.0 * kl_divergence(p, q)
+    if np.isclose(lamb, -1.0):
+        return 2.0 * kl_divergence(q, p)
+    moment = power_moment(p, q, lamb + 1.0)
+    if not np.isfinite(moment):
+        return np.inf
+    return float(2.0 * (moment - 1.0) / (lamb * (lamb + 1.0)))
+
+
+def renyi_from_cressie_read_statistic(cr_value, lamb):
+    if np.isclose(lamb, 0.0):
+        return 0.5 * cr_value
+    alpha = lamb + 1.0
+    moment = 1.0 + 0.5 * lamb * alpha * cr_value
+    return float(np.log(moment) / lamb)
+
+
+def draw_data(shift, rng, n_control=600, n_treated=220, tau=1.0):
+    x_control = rng.normal(size=(n_control, 2))
+    x_treated = rng.normal(loc=np.array([shift, -0.35 * shift]), size=(n_treated, 2))
+
+    y_control = y0_surface(x_control) + rng.normal(scale=1.0, size=n_control)
+    y_treated = y0_surface(x_treated) + tau + rng.normal(scale=1.0, size=n_treated)
+    return x_control, x_treated, y_control, y_treated, tau
+
+
+METHODS = [
+    ("Naive", None),
+    ("Quadratic", {"objective": "quadratic", "solver": "auto"}),
+    ("Entropy", {"objective": "entropy", "solver": "auto"}),
+    (
+        "CR lambda=0",
+        {
+            "objective": "cressie_read",
+            "solver": "lbfgs",
+            "divergence_power": 0.0,
+            "dual_ridge": 1e-10,
+        },
+    ),
+    (
+        "CR lambda=0.5",
+        {
+            "objective": "cressie_read",
+            "solver": "lbfgs",
+            "divergence_power": 0.5,
+            "dual_ridge": 1e-10,
+        },
+    ),
+    (
+        "CR lambda=1",
+        {
+            "objective": "cressie_read",
+            "solver": "lbfgs",
+            "divergence_power": 1.0,
+            "dual_ridge": 1e-10,
+        },
+    ),
+]
+
+
+def estimate_methods(x_control, x_treated, y_control, y_treated):
+    b_control = basis(x_control)
+    b_treated = basis(x_treated)
+    rows = []
+    for method, kwargs in METHODS:
+        if kwargs is None:
+            rows.append(
+                {
+                    "method": method,
+                    "estimate": float(y_treated.mean() - y_control.mean()),
+                    "ess": float(len(y_control)),
+                    "max_abs_balance": float(
+                        np.max(np.abs(b_control.mean(axis=0) - b_treated.mean(axis=0)))
+                    ),
+                    "success": True,
+                    "solver": "--",
+                }
+            )
+            continue
+
+        model = cm.BalancingWeights(max_iterations=500, tolerance=1e-7, **kwargs)
+        model.fit(b_control, b_treated)
+        summary = model.summary()
+        weights = np.asarray(summary["weights"])
+        rows.append(
+            {
+                "method": method,
+                "estimate": float(y_treated.mean() - np.dot(weights, y_control)),
+                "ess": float(summary["effective_sample_size"]),
+                "max_abs_balance": float(summary["max_abs_diff"]),
+                "success": bool(summary["success"]),
+                "solver": str(summary["solver"]),
+            }
+        )
+    return rows
+```
+
+## One Representative Draw
+
+```{python}
+overlap_settings = {
+    "Good": 0.20,
+    "Medium": 0.75,
+    "Bad": 1.35,
+}
+
+single_rows = []
+for label, shift in overlap_settings.items():
+    rng = np.random.default_rng(20260725 + int(100 * shift))
+    draw = draw_data(shift, rng)
+    for row in estimate_methods(*draw[:4]):
+        row["overlap"] = label
+        row["error"] = row["estimate"] - draw[4]
+        single_rows.append(row)
+
+single = pd.DataFrame(single_rows)
+single_display = single[
+    ["overlap", "method", "estimate", "error", "ess", "max_abs_balance", "success", "solver"]
+].copy()
+single_display["ess"] = single_display["ess"].round(1)
+single_display["max_abs_balance"] = single_display["max_abs_balance"].map(lambda x: f"{x:.2e}")
+from IPython.display import HTML, display
+
+display(HTML(html_table(single_display)))
+```
+
+The naive estimator gets worse as treated and control covariate distributions move apart. The balancing estimators drive the chosen basis moments toward the treated moments, but the effective sample size falls as overlap deteriorates.
+
+## Monte Carlo
+
+```{python}
+def run_mc(reps=40, seed=444):
+    rng = np.random.default_rng(seed)
+    rows = []
+    for overlap, shift in overlap_settings.items():
+        for rep in range(reps):
+            draw = draw_data(shift, rng)
+            for row in estimate_methods(*draw[:4]):
+                row["overlap"] = overlap
+                row["rep"] = rep
+                row["error"] = row["estimate"] - draw[4]
+                rows.append(row)
+    return pd.DataFrame(rows)
+
+
+mc = run_mc()
+summary = (
+    mc.groupby(["overlap", "method"], sort=False)
+    .agg(
+        mean_estimate=("estimate", "mean"),
+        bias=("error", "mean"),
+        rmse=("error", lambda x: float(np.sqrt(np.mean(np.asarray(x) ** 2)))),
+        median_ess=("ess", "median"),
+        median_balance=("max_abs_balance", "median"),
+        success_rate=("success", "mean"),
+    )
+    .reset_index()
+)
+summary_display = summary.copy()
+summary_display["median_ess"] = summary_display["median_ess"].round(1)
+summary_display["median_balance"] = summary_display["median_balance"].map(lambda x: f"{x:.2e}")
+display(HTML(html_table(summary_display)))
+```
+
+```{python}
+order = [name for name, _ in METHODS]
+fig, axes = plt.subplots(1, 3, figsize=(14, 4.8), sharey=True, constrained_layout=True)
+for ax, overlap in zip(axes, overlap_settings):
+    subset = mc[mc["overlap"] == overlap]
+    data = [subset[subset["method"] == method]["estimate"].to_numpy() for method in order]
+    ax.boxplot(data, labels=order, showfliers=False)
+    ax.axhline(1.0, color="black", linestyle="--", linewidth=1.1)
+    ax.set_title(f"{overlap} overlap")
+    ax.tick_params(axis="x", rotation=35)
+    ax.set_ylabel("ATT estimate")
+plt.show()
+```
+
+```{python}
+fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), sharey=True, constrained_layout=True)
+for ax, overlap in zip(axes, overlap_settings):
+    subset = mc[(mc["overlap"] == overlap) & (mc["method"] != "Naive")]
+    ess_data = [subset[subset["method"] == method]["ess"].to_numpy() for method in order[1:]]
+    ax.boxplot(ess_data, labels=order[1:], showfliers=False)
+    ax.set_title(f"{overlap} overlap")
+    ax.tick_params(axis="x", rotation=35)
+    ax.set_ylabel("Effective sample size")
+plt.show()
+```
+
+## Rényi Grid And Cressie-Read Mapping
+
+For a fixed pair of probability vectors $w$ and $q$, Rényi and Cressie-Read use the same power moment
+
+$$
+M_\alpha(w,q)=\sum_i w_i^\alpha q_i^{1-\alpha}.
+$$
+
+With $\lambda=\alpha-1$,
+
+$$
+D_\alpha(w\|q)=\frac{\log M_\alpha(w,q)}{\alpha-1},
+\qquad
+CR_\lambda(w,q)=
+\frac{2\{M_{\lambda+1}(w,q)-1\}}{\lambda(\lambda+1)}.
+$$
+
+So there is a clean mapping in the divergence values: $D_\alpha$ and $CR_{\alpha-1}$ are monotone transformations of the same scalar $M_\alpha$. The table below fits the mapped Cressie-Read calibration member, then reports both the Rényi value and the mapped Cressie-Read statistic for the fitted weights.
+
+```{python}
+alpha_grid = np.array([0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 2.00])
+
+
+def fit_alpha_grid():
+    rows = []
+    for overlap, shift in overlap_settings.items():
+        rng = np.random.default_rng(20260725 + int(100 * shift))
+        x_control, x_treated, y_control, y_treated, tau = draw_data(shift, rng)
+        b_control = basis(x_control)
+        b_treated = basis(x_treated)
+        q = np.full(len(y_control), 1.0 / len(y_control))
+
+        for alpha in alpha_grid:
+            lamb = alpha - 1.0
+            model = cm.BalancingWeights(
+                objective="cressie_read",
+                solver="lbfgs",
+                divergence_power=float(lamb),
+                dual_ridge=1e-10,
+                max_iterations=1000,
+                tolerance=1e-7,
+            )
+            model.fit(b_control, b_treated)
+            summary = model.summary()
+            weights = np.asarray(summary["weights"])
+            renyi = renyi_divergence(weights, q, alpha)
+            cr_stat = cressie_read_statistic(weights, q, lamb)
+            renyi_back = renyi_from_cressie_read_statistic(cr_stat, lamb)
+
+            rows.append(
+                {
+                    "overlap": overlap,
+                    "alpha": float(alpha),
+                    "lambda": float(lamb),
+                    "success": bool(summary["success"]),
+                    "estimate": float(y_treated.mean() - np.dot(weights, y_control)),
+                    "error": float(y_treated.mean() - np.dot(weights, y_control) - tau),
+                    "ess": float(summary["effective_sample_size"]),
+                    "max_abs_balance": float(summary["max_abs_diff"]),
+                    "D_alpha": renyi,
+                    "CR_lambda": cr_stat,
+                    "mapping_gap": abs(renyi - renyi_back),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+alpha_fits = fit_alpha_grid()
+alpha_display = alpha_fits.copy()
+alpha_display["estimate"] = alpha_display["estimate"].round(3)
+alpha_display["error"] = alpha_display["error"].round(3)
+alpha_display["ess"] = alpha_display["ess"].round(1)
+alpha_display["max_abs_balance"] = alpha_display["max_abs_balance"].map(lambda x: f"{x:.2e}")
+alpha_display["D_alpha"] = alpha_display["D_alpha"].round(4)
+alpha_display["CR_lambda"] = alpha_display["CR_lambda"].round(4)
+alpha_display["mapping_gap"] = alpha_display["mapping_gap"].map(lambda x: f"{x:.1e}")
+display(HTML(html_table(alpha_display)))
+```
+
+The mapping gap is numerical zero because the two columns are different transformations of the same fitted weights and the same power moment. That is the sense in which Rényi order $\alpha$ maps to Cressie-Read index $\lambda=\alpha-1$.
+
+That mapping is not the same thing as saying the current implementation has a separate Rényi optimizer. The current implementation fits weights through the Cressie-Read dual map and a nonlinear least-squares calibration criterion. Rényi is reported here as a divergence profile for those fitted weights. A paper-faithful Rényi objective would optimize the Rényi criterion directly, and the Bregman proximal algorithm would change the update geometry rather than simply switching from BFGS to L-BFGS.
+
+## Reading The Results
+
+Good overlap is forgiving. All calibrated estimators have high effective sample size and nearly identical balance diagnostics, so the choice of distance geometry barely matters.
+
+Medium overlap is where the distance family starts to show up. The estimators still solve essentially the same moment problem, but they distribute the adjustment differently across controls. Entropy and the $\lambda=0$ Cressie-Read limit should move together. Larger $\lambda$ values behave more like Pearson/quadratic distance. Lower Rényi orders correspond to negative Cressie-Read indices; they flatten the divergence's sensitivity to large ratios, but the dual map has a tighter natural domain and can fail before exact balance is reached.
+
+Bad overlap is the design warning. Exact moment balance may still be numerically feasible, but it is bought with lower effective sample size and more concentrated weights. The Cressie-Read parameter changes the path to balance; it does not identify missing support. The useful diagnostics are the same ones already returned by `BalancingWeights`: success, maximum balance error, weight bounds, and effective sample size.
+
+The support lesson is the same one as in the Rényi formula. If a treated-region distribution puts mass where the control baseline has zero mass, KL and Rényi with $\alpha\ge 1$ blow up. For $0<\alpha<1$, the zero-baseline term does not blow up in the divergence value, but that does not create usable controls in that region. It is a robustness knob for the distance, not an identification argument.

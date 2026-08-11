@@ -57,11 +57,12 @@ The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07
 
 ## Current Extension Status
 
-### Recently landed: API hardening, sparse rotations, randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
+### Recently landed: Cressie-Read balancing, API hardening, sparse rotations, randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
 
 The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
 
 - Randomized linear algebra / PR #8 is no longer an active PR. It added native randomized range finding, SVD, QR, QR solve, CountSketch OLS, `OLS.fit_sketch(...)`, `TwoSLS.fit_sketch(...)`, `GMM.fit_sketch(...)`, randomized SVD paths in `MatrixCompletion` / `InteractiveFixedEffects`, and the reusable `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` transformers.
+- Cressie-Read balancing is integrated into `BalancingWeights` through `objective="cressie_read"` / `"power_divergence"`, a finite `divergence_power`, optional dual ridge stabilization, and an explicit L-BFGS solver. It preserves the API-hardening distinction between scaled solver convergence, original-unit balance, and final weight feasibility. Rényi divergence is documented only as the $\lambda=\alpha-1$ diagnostic mapping, not as a separate optimizer.
 - Sparse factor rotations are implemented as low-level functions rather than estimator wrappers. The public surface includes Varimax, a seeded multi-start L1 sparse rotation, small-loading/local-factor diagnostics, and inverse/cumulative participation summaries. The implementation preserves explicit non-convexity caveats, seed control, and function-level diagnostics; the worked and design pages live at `docs/examples/sparse-rotations.qmd` and `docs/specs/sparse-rotations.qmd`.
 - Hypothesis-test helpers are landed. Estimator-level `wald_test(...)` methods exist for the main covariance-bearing estimators, module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` exist, and `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests.
 - `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed worked example at `docs/examples/abc-ols.qmd` and a class reference page at `docs/reference/ABCOLS.qmd`.
