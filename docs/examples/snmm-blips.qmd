@@ -19,8 +19,6 @@ This page documents two deliberately distinct estimators:
 - `RegressionBlip` is the recursive regression g-estimator described by Blackwell and Glynn (2018). It is identified by **sequential ignorability**.
 - `ParallelTrendsSNMM` implements the cross-fitted, doubly robust additive estimating equations of Shahn et al. (2022). It is identified by a **time-varying conditional parallel-trends** restriction.
 
-The recursive regression reference is Blackwell and **Glynn**, not Glynn and Quinn (2010), which is a separate paper on augmented inverse-propensity weighting.
-
 ## Two timing conventions
 
 The methods use different observation orderings, so their array contracts are intentionally different.
@@ -322,4 +320,3 @@ The initial implementation is intentionally narrow:
 
 - Blackwell, Matthew, and Adam N. Glynn. 2018. “How to Make Causal Inferences with Time-Series Cross-Sectional Data under Selection on Observables.” *American Political Science Review* 112(4): 1067–1082. [Paper](https://mattblackwell.org/files/papers/causal-tscs.pdf).
 - Shahn, Zach, Oliver Dukes, Meghana Shamsunder, David Richardson, Eric Tchetgen Tchetgen, and James Robins. 2022. “Structural Nested Mean Models Under Parallel Trends Assumptions.” [arXiv:2204.10291](https://arxiv.org/abs/2204.10291).
-- Glynn, Adam N., and Kevin M. Quinn. 2010. “An Introduction to the Augmented Inverse Propensity Weighted Estimator.” *Political Analysis* 18(1): 36–56.
