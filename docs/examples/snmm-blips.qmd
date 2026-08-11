@@ -1,0 +1,325 @@
+---
+title: "Dynamic Treatment Blips"
+subtitle: "Sequential ignorability and parallel-trends SNMMs"
+format:
+  html:
+    toc: true
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  error: false
+jupyter: python3
+---
+
+Structural nested mean models (SNMMs) parameterize the causal effect of a treatment *blip* at one time on outcomes observed now or later. They are useful when a treatment, an outcome, and confounders all evolve over time and an ordinary autoregressive distributed-lag regression would condition on variables caused by earlier treatment.
+
+This page documents two deliberately distinct estimators:
+
+- `RegressionBlip` is the recursive regression g-estimator described by Blackwell and Glynn (2018). It is identified by **sequential ignorability**.
+- `ParallelTrendsSNMM` implements the cross-fitted, doubly robust additive estimating equations of Shahn et al. (2022). It is identified by a **time-varying conditional parallel-trends** restriction.
+
+The recursive regression reference is Blackwell and **Glynn**, not Glynn and Quinn (2010), which is a separate paper on augmented inverse-propensity weighting.
+
+## Two timing conventions
+
+The methods use different observation orderings, so their array contracts are intentionally different.
+
+### Contemporaneous regression blips
+
+`RegressionBlip` treats $A_t$ as capable of affecting $Y_t$. Both arrays therefore have shape `(n_units, n_periods)`. Let $\bar A_t=(A_0,\ldots,A_t)$. For an additive, history-invariant impulse response,
+
+$$
+b_t(\bar a_t,j;\gamma)
+=
+E\left[
+Y_t(\bar a_{t-j},\bar 0_j)-Y_t(\bar a_{t-j-1},\bar 0_{j+1})
+\mid \bar A_{t-j}=\bar a_{t-j}
+\right]
+=\gamma_j a_{t-j}.
+$$
+
+After estimating lags $0,\ldots,j-1$, define the partially blipped-down outcome
+
+$$
+\widetilde Y_t^{\,j}
+=Y_t-\sum_{s=0}^{j-1}\widehat\gamma_s A_{t-s}.
+$$
+
+At stage $j$, the implementation regresses $\widetilde Y_t^{\,j}$ on $A_{t-j}$ and information available when $A_{t-j}$ was assigned: $A_{t-j-1}$, $Y_{t-j-1}$, optional user-supplied history $L_{t-j}$, and optional outcome-time indicators. The coefficient on $A_{t-j}$ is $\widehat\gamma_j$. The recursion avoids conditioning on $L_t$ when estimating the effect of $A_{t-j}$ if $L_t$ could have been caused by that treatment.
+
+The identifying restriction is sequential ignorability. For every treatment history and assignment time $s$,
+
+$$
+\{Y_r(\bar a_r):r\ge s\}\perp A_s\mid V_s,
+$$
+
+where $V_s$ contains the treatment and covariate history sufficient to remove confounding of $A_s$. The assumption permits $A_s$ to affect future covariates and future treatment.
+
+### Forward parallel-trends blips
+
+`ParallelTrendsSNMM` follows the paper's ordering in which $Y_m$ is observed before $A_m$, so $A_m$ first affects $Y_{m+1}$. If treatment has $T$ columns, the outcome must have $T+1$ columns.
+
+For a reference regime $g$, the general blip function is
+
+$$
+\gamma^g_{mk}(\bar l_m,\bar a_m)
+=E\left[
+Y_k(\bar a_m,g^{m+1})-Y_k(\bar a_{m-1},g^m)
+\mid \bar A_m=\bar a_m,\bar L_m=\bar l_m
+\right],\qquad k>m.
+$$
+
+The implemented first-tier model uses the untreated regime, an additive linear blip, and a common coefficient by treatment-to-outcome horizon $h=k-m$:
+
+$$
+\gamma_{mk}(\bar L_m,\bar A_m;\psi)=A_m\psi_{k-m},
+\qquad h=1,\ldots,H.
+$$
+
+For $m<k$, define
+
+$$
+H_{mk}(\psi)=Y_k-\sum_{j=m}^{k-1}\gamma_{jk}(\psi),
+\qquad
+H^\dagger_{mk}(\psi)=H_{mk}(\psi)-H_{m,k-1}(\psi).
+$$
+
+At the true parameter, $H^\dagger_{mk}(\psi_0)$ behaves like the counterfactual untreated outcome increment. The identifying restriction is
+
+$$
+E\left[
+Y_k(\bar A_{m-1},g^m)-Y_{k-1}(\bar A_{m-1},g^m)
+\mid A_m,\bar L_m,\bar A_{m-1}
+\right]
+$$
+
+$$
+=E\left[
+Y_k(\bar A_{m-1},g^m)-Y_{k-1}(\bar A_{m-1},g^m)
+\mid A_m=g_m,\bar L_m,\bar A_{m-1}
+\right].
+$$
+
+This is a statement about *counterfactual trends*, not counterfactual levels. Time-constant unobserved causes of treatment and outcome levels are allowed if they do not also modify untreated trends. A supplied `history[:, m, :]` must be available at assignment time $m$. In particular, conditioning on the current outcome level $Y_m$ can destroy the intended parallel-trends interpretation; lagged outcome increments may be admissible where levels are not.
+
+## Orthogonal estimating equation
+
+Let $\pi_m(L_m)=E(A_m\mid L_m,\bar A_{m-1})$ and
+
+$$
+\nu_{mk}(L_m;\psi)=E\{H^\dagger_{mk}(\psi)\mid L_m,\bar A_{m-1}\}.
+$$
+
+Shahn et al.'s doubly robust moment is
+
+$$
+U_{mk}(\psi)
+=s_{mk}(L_m,\bar A_{m-1})
+\{A_m-\pi_m(L_m)\}
+\{H^\dagger_{mk}(\psi)-\nu_{mk}(L_m;\psi)\}.
+$$
+
+Its expectation is zero if either the conditional treatment mean or the conditional blipped-trend mean is correctly specified. For a linear blip, write
+
+$$
+H^\dagger_{mk}(\psi)=\Delta Y_k-D_{mk}'\psi.
+$$
+
+The implementation separately residualizes $\Delta Y_k$ and $D_{mk}$ on the history features. This produces a linear orthogonal equation,
+
+$$
+\sum_{i,m,k}
+Z_{imk}\left[
+\{\Delta Y_{ik}-\widehat q_{mk}(L_{im})\}
+-\{D_{imk}-\widehat r_{mk}(L_{im})\}'\psi
+\right]=0,
+$$
+
+where $Z_{imk}$ places $A_{im}-\widehat\pi_m(L_{im})$ in the coordinate for horizon $k-m$. Treatment, trend, and blip-design conditional means are fitted with ridge regressions on training folds and evaluated on held-out units. The covariance is an influence-function sandwich over unit-level sums of the orthogonal scores.
+
+## API
+
+```python
+import crabbymetrics as cm
+
+# Blackwell--Glynn recursive regression blips.
+reg = cm.RegressionBlip(max_lag=2, time_effects=True)
+reg.fit(y_same_period, treatment_same_period, history)
+reg.coef
+reg.stage_standard_errors
+reg.blip_down(y_same_period, treatment_same_period)
+reg.summary()
+
+# Shahn et al. parallel-trends SNMM.
+pt = cm.ParallelTrendsSNMM(
+    max_horizon=3,
+    treatment_mode="initiation",
+    n_folds=3,
+    nuisance_penalty=1e-6,
+    propensity_clip=0.01,
+    seed=42,
+)
+pt.fit(y_forward, absorbing_treatment_status, history)
+pt.coef
+pt.standard_errors
+pt.summary()
+```
+
+`treatment_mode="blip"` uses the supplied period-specific treatment directly. `treatment_mode="initiation"` requires a binary absorbing treatment-status panel, constructs a first-treatment pulse internally, and restricts each assignment-time equation to units not treated before that time. In initiation mode, $\psi_h$ is the effect at horizon $h$ of initiating at $m$ rather than remaining untreated from $m$ onward, among the relevant initiation history.
+
+## Numerical experiment 1: post-treatment covariate feedback
+
+The first design makes $Z_t$ a mediator of $A_{t-1}$ and a confounder for $A_t$:
+
+$$
+Z_t=0.8A_{t-1}+U_t,
+\qquad
+\Pr(A_t=1\mid Z_t,A_{t-1})=\operatorname{logit}^{-1}(-0.2+0.8Z_t+0.2A_{t-1}),
+$$
+
+$$
+Y_t=2A_t+0.5A_{t-1}+1.5Z_t+\varepsilon_t.
+$$
+
+The contemporaneous blip is $\gamma_0=2$. The first-lag blip includes both the direct path and the mediated path through $Z_t$:
+
+$$
+\gamma_1=0.5+1.5(0.8)=1.7.
+$$
+
+```{python}
+import numpy as np
+import pandas as pd
+import crabbymetrics as cm
+
+rng = np.random.default_rng(1234)
+n, periods = 2_000, 7
+a = np.zeros((n, periods))
+y = np.zeros((n, periods))
+z = np.zeros((n, periods, 1))
+
+for t in range(periods):
+    a_lag = a[:, t - 1] if t else 0.0
+    z[:, t, 0] = 0.8 * a_lag + rng.normal(size=n)
+    p = 1 / (1 + np.exp(-(-0.2 + 0.8 * z[:, t, 0] + 0.2 * a_lag)))
+    a[:, t] = rng.binomial(1, p)
+    y[:, t] = (
+        2.0 * a[:, t]
+        + 0.5 * a_lag
+        + 1.5 * z[:, t, 0]
+        + rng.normal(scale=0.7, size=n)
+    )
+
+reg = cm.RegressionBlip(max_lag=1)
+reg.fit(y, a, z)
+reg_result = reg.summary()
+pd.DataFrame({
+    "lag": reg_result["lags"].astype(int),
+    "truth": [2.0, 1.7],
+    "estimate": reg_result["coef"],
+    "conditional_stage_se": reg_result["stage_se"],
+})
+```
+
+An ADL regression that includes $Z_t$ while interpreting the coefficient on $A_{t-1}$ as its total lagged effect blocks the mediated path and targets $0.5$, not $1.7$. Omitting $Z_t$ instead confounds the contemporaneous effect. The recursive blip regressions change the adjustment time with the causal lag.
+
+## Numerical experiment 2: staggered initiation with level confounding
+
+The second design contains an unobserved $U_i$ that affects both treatment initiation and the untreated outcome *level*. It does not affect untreated increments. The observed history $L_{im}$ predicts both initiation and untreated increments:
+
+$$
+Y_{i0}(0)=2U_i+\varepsilon_{i0},
+\qquad
+Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
+$$
+
+$$
+\Pr(T_i=m\mid T_i\ge m,L_{im},U_i)
+=\operatorname{logit}^{-1}(-1.2+0.55L_{im}+0.65U_i).
+$$
+
+The initiation response is $(1.0,1.6,2.1)$ at horizons one through three. This violates level ignorability because $U_i$ confounds initiation and $Y_{i0}(0)$, but it satisfies the simulated conditional parallel-trends restriction.
+
+```{python}
+rng = np.random.default_rng(91)
+n, periods = 5_000, 6
+truth = np.array([1.0, 1.6, 2.1])
+history = rng.normal(size=(n, periods, 1))
+u = rng.normal(size=n)
+status = np.zeros((n, periods))
+first = np.full(n, periods + 1, dtype=int)
+untreated = np.zeros((n, periods + 1))
+untreated[:, 0] = 2.0 * u + rng.normal(scale=0.4, size=n)
+
+for m in range(periods):
+    untreated[:, m + 1] = (
+        untreated[:, m]
+        + 0.35 * history[:, m, 0]
+        + rng.normal(scale=0.5, size=n)
+    )
+    risk = first > m
+    p = 1 / (1 + np.exp(-(-1.2 + 0.55 * history[:, m, 0] + 0.65 * u)))
+    start = risk & (rng.uniform(size=n) < p)
+    first[start] = m
+    status[first <= m, m] = 1.0
+
+y_forward = untreated.copy()
+for i in range(n):
+    if first[i] < periods:
+        for h, effect in enumerate(truth, start=1):
+            if first[i] + h <= periods:
+                y_forward[i, first[i] + h] += effect
+
+pt = cm.ParallelTrendsSNMM(
+    max_horizon=3,
+    treatment_mode="initiation",
+    n_folds=3,
+    seed=7,
+)
+pt.fit(y_forward, status, history)
+pt_result = pt.summary()
+pd.DataFrame({
+    "horizon": pt_result["horizons"].astype(int),
+    "truth": truth,
+    "estimate": pt_result["coef"],
+    "se": pt_result["se"],
+})
+```
+
+```{python}
+#| echo: false
+pd.Series({
+    "moment rows": pt_result["n_moment_rows"],
+    "minimum fitted treatment mean": pt_result["propensity_min"],
+    "maximum fitted treatment mean": pt_result["propensity_max"],
+    "maximum absolute sample moment": pt_result["max_abs_moment"],
+}).to_frame("diagnostic")
+```
+
+## Interpretation and current boundaries
+
+These classes do not estimate the same object under interchangeable assumptions.
+
+| Feature | `RegressionBlip` | `ParallelTrendsSNMM` |
+|---|---|---|
+| Identifying restriction | Sequential ignorability | Time-varying conditional parallel trends |
+| Outcome timing | $A_t$ may affect $Y_t$ | $A_m$ first affects $Y_{m+1}$ |
+| Nuisance strategy | Recursive outcome regressions | Cross-fitted treatment and trend regressions |
+| Robustness | Outcome-regression specification | Doubly robust orthogonal moment |
+| Unobserved level confounding | Generally not allowed | Allowed when it does not confound untreated trends |
+| Inference | Stagewise unit-clustered SE | Unit-level influence-function sandwich |
+
+The initial implementation is intentionally narrow:
+
+1. Effects are additive and linear, with one coefficient per lag or horizon.
+2. `ParallelTrendsSNMM` uses ridge nuisance regressions and a conditional-mean treatment model. Flexible Python callbacks are not yet part of the Rust boundary.
+3. `RegressionBlip` reports unit-clustered uncertainty conditional on earlier recursive blip estimates. A unit block bootstrap is required for joint recursive inference.
+4. In `ParallelTrendsSNMM`, cross-fitting is over units, never unit-period rows.
+5. Neither estimator makes parallel trends or sequential ignorability testable. The analyst still owns the history set, timing, treatment coding, positivity argument, and blip specification.
+
+## References
+
+- Blackwell, Matthew, and Adam N. Glynn. 2018. “How to Make Causal Inferences with Time-Series Cross-Sectional Data under Selection on Observables.” *American Political Science Review* 112(4): 1067–1082. [Paper](https://mattblackwell.org/files/papers/causal-tscs.pdf).
+- Shahn, Zach, Oliver Dukes, Meghana Shamsunder, David Richardson, Eric Tchetgen Tchetgen, and James Robins. 2022. “Structural Nested Mean Models Under Parallel Trends Assumptions.” [arXiv:2204.10291](https://arxiv.org/abs/2204.10291).
+- Glynn, Adam N., and Kevin M. Quinn. 2010. “An Introduction to the Augmented Inverse Propensity Weighted Estimator.” *Political Analysis* 18(1): 36–56.

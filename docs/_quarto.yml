@@ -102,6 +102,8 @@ website:
             text: Staggered Panel Event Study
           - href: examples/joint-hypothesis-tests-causal.qmd
             text: Joint Hypothesis Tests
+          - href: examples/snmm-blips.qmd
+            text: Dynamic Treatment Blips
       - text: Transforms
         menu:
           - href: examples/pca-and-kernel-basis.qmd

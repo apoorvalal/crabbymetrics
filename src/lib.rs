@@ -13,8 +13,9 @@ use crate::estimators::{
     AndersenGill, AverageDerivative, BaggedPolynomialRegressor, BalancingWeights, CoxPH,
     ElasticNet, ExponentialPH, FixedEffectsOLS, HorizontalPanelRidge, InteractiveFixedEffects,
     KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit, NystromBasis,
-    PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures, RandomizedPcaTransformer,
-    Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, GMM, OLS,
+    ParallelTrendsSNMM, PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures,
+    RandomizedPcaTransformer, RegressionBlip, Ridge, SyntheticControl, SyntheticDID, TwoSLS,
+    WeibullPH, AIPW, EPLM, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -51,6 +52,8 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<AverageDerivative>()?;
     m.add_class::<PartiallyLinearDML>()?;
     m.add_class::<AIPW>()?;
+    m.add_class::<ParallelTrendsSNMM>()?;
+    m.add_class::<RegressionBlip>()?;
     m.add_class::<PcaTransformer>()?;
     m.add_class::<KernelBasis>()?;
     m.add_class::<NystromBasis>()?;
