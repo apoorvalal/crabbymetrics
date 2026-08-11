@@ -77,7 +77,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Binary treatment ATE with nuisance models: `cm.AIPW()`.
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
-- Covariate balancing/calibration weights: `cm.BalancingWeights()`.
+- Covariate balancing/calibration weights: `cm.BalancingWeights()`; use `objective="cressie_read"` for Cressie-Read / power-divergence calibration.
 - Binary classification: use `cm.Logit()` for a convergence-checked likelihood estimator.
 - Multiclass classification: `cm.MultinomialLogit()`.
 - Count regression: `cm.Poisson()`.
@@ -305,13 +305,13 @@ No-covariate fect-style principal-components factor model helper for balanced pa
 ### Balancing and semiparametric estimators
 
 ```python
-cm.BalancingWeights(objective="quadratic", solver="auto", autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8)
+cm.BalancingWeights(objective="quadratic", solver="auto", autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-8, divergence_power=0.0, dual_ridge=0.0)
 fit(covariates, target_covariates, baseline_weights=None, target_weights=None)
 get_weights()
 summary()
 ```
 
-Low-level calibration/reweighting API. `solver_converged` and the generic convergence fields describe the scaled calibration system; `success` additionally checks normalized weight feasibility. `scaled_residual_norm` and `solver_objective` are numerical diagnostics, while `original_balance_l2` and `original_balance_max_abs` remain in user-supplied units.
+Low-level calibration/reweighting API. `objective` can be `"quadratic"`, `"entropy"`, `"cressie_read"`, or alias `"power_divergence"`; `solver` can be `"auto"`, `"gauss_newton"`, `"lbfgs"`, or `"bfgs"`. For Cressie-Read, `divergence_power` is the index lambda: `0.0` is the entropy/KL limit and `1.0` is the Pearson chi-square member. `dual_ridge` adds optional stabilization on non-intercept dual coefficients. `solver_converged` and the generic convergence fields describe the scaled calibration system; `success` additionally checks normalized weight feasibility. `scaled_residual_norm` and `solver_objective` are numerical diagnostics, while `original_balance_l2` and `original_balance_max_abs` remain in user-supplied units. Summary keys also include `weights`, `beta`, `weighted_mean`, `target_mean`, `mean_diff`, `effective_sample_size`, `divergence_power`, and `dual_ridge`.
 
 ```python
 cm.EPLM(fd_eps=1e-6)
@@ -498,6 +498,15 @@ bw = cm.BalancingWeights(objective="quadratic", autoscale=True)
 bw.fit(source_x, target_x)
 weights = bw.get_weights()
 print(bw.summary()["effective_sample_size"])
+
+cr = cm.BalancingWeights(
+    objective="cressie_read",
+    solver="lbfgs",
+    divergence_power=0.5,
+    dual_ridge=1e-10,
+)
+cr.fit(source_x, target_x)
+print(cr.summary()["weighted_mean"])
 ```
 
 ### Custom GMM
@@ -578,6 +587,7 @@ uv run quarto render docs
 - [GMM](https://apoorvalal.github.io/crabbymetrics/examples/gmm.html): custom moment estimators.
 - [MEstimator Poisson](https://apoorvalal.github.io/crabbymetrics/examples/mestimator-poisson.html): callback M-estimation matched against built-in Poisson.
 - [Balancing Weights](https://apoorvalal.github.io/crabbymetrics/examples/balancing-weights.html): entropy/quadratic calibration weights.
+- [Cressie-Read And Renyi Balancing](https://apoorvalal.github.io/crabbymetrics/examples/cressie-read-balancing.html): power-divergence calibration weights, Renyi alpha-grid diagnostics, and ATT overlap examples.
 - [EPLM](https://apoorvalal.github.io/crabbymetrics/examples/eplm.html): partially linear E-estimator.
 - [Average Derivative](https://apoorvalal.github.io/crabbymetrics/examples/average-derivative.html): Oaxaca-Blinder, IPW, and doubly robust average derivative.
 - [Double ML And AIPW](https://apoorvalal.github.io/crabbymetrics/examples/double-ml.html): cross-fit nuisance models for DML and binary AIPW.

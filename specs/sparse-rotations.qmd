@@ -1,0 +1,192 @@
+---
+title: "Sparse Rotation Spec"
+format: html
+execute:
+  echo: true
+  eval: false
+---
+
+This is a prototype design note for adding sparse factor-rotation methods to `crabbymetrics`. It is intentionally not a committed public API. The goal is to isolate the numerical core and the main API choices before implementing user-facing classes.
+
+## Source Material
+
+This spec is based on three local references gathered under `~/hdd/the_krust_krab`:
+
+- `l1rotation/`: R implementation of Freyaldenhoven's $\ell_1$ rotation criterion.
+- `vsp/`: R implementation of Rohe--Zeng Vintage Sparse PCA / Varimax factor analysis.
+- `arxiv-2004.05387/`: arXiv source for Rohe and Zeng, "Vintage Factor Analysis with Varimax Performs Statistical Inference."
+
+The two papers share a workflow:
+
+1. Estimate a low-dimensional subspace by PCA/SVD.
+2. Choose a rotation inside that subspace using structure that is not rotation-invariant.
+3. Interpret the rotated columns as economically or statistically meaningful factors.
+
+Freyaldenhoven uses sparse loadings/local factors and an $\ell_1$ criterion. Rohe--Zeng use independent leptokurtic latent coordinates and Varimax.
+
+## Numerical Scope
+
+The first implementation pass should target reusable rotation and diagnostic primitives, not a large estimator family.
+
+### Core Rotation Routines
+
+Add Rust-backed rotation routines over dense `ndarray` inputs:
+
+- `varimax_rotation(loadings, *, normalize=False, max_iter=..., tol=...)`
+- `l1_sparse_rotation(loadings, *, n_starts=..., seed=None, max_iter=..., tol=...)`
+
+Both should return:
+
+- rotated matrix
+- rotation matrix
+- objective value(s)
+- convergence / diagnostic metadata
+
+The initial `varimax_rotation` can use the standard orthogonal Procrustes-style iterative update used in common Varimax implementations. It should default to `normalize=False`, matching the Rohe--Zeng treatment and the local `vsp` implementation.
+
+The initial $\ell_1$ routine should follow `l1rotation`:
+
+- create many random unit directions in the loading-space basis
+- optimize the entrywise $\ell_1$ objective from each start
+- collect local minima
+- cluster nearby candidate directions
+- select a non-singular set of sparse directions
+
+The Freyaldenhoven implementation parameterizes candidate directions using spherical coordinates and optimizes with Nelder--Mead. In Rust, we can either:
+
+- port that approach directly for fidelity, or
+- use a simpler projected/on-sphere optimization for the first internal prototype.
+
+Fidelity matters more than speed in the first pass; the API can expose the method as experimental until we have simulation checks.
+
+### Diagnostics
+
+Add sparse-rotation diagnostics as plain functions first:
+
+- `count_small_loadings(loadings, threshold=None)`
+- `local_factor_diagnostic(loadings, threshold=None, alpha=0.05, gamma0=0.03)`
+- `inverse_participation_ratio(loadings, axis=0)`
+
+Defaults should mirror the source implementations where sensible:
+
+- Freyaldenhoven / `l1rotation`: small-loading threshold $h_n = 1 / \log(n)$.
+- `l1rotation`: compare the largest small-loading count to a `gamma_n` threshold.
+- `vsp`: use inverse participation ratios and cumulative participation to diagnose localization.
+
+These should not require a fitted estimator object. They should work on any loadings matrix returned by PCA, Varimax, or $\ell_1$ rotation.
+
+## Factor-Space Wrappers
+
+After the low-level routines exist, add one or two wrapper classes. Candidate names:
+
+- `SparseRotation`
+- `LocalFactors`
+- `VintageSparsePCA`
+
+I would avoid committing to all three. The cleanest split is probably:
+
+- `SparseRotation`: a transformer-like object for rotating an already-estimated loading/factor matrix.
+- `LocalFactors`: a higher-level factor-model workflow that estimates PCA loadings, applies $\ell_1$ rotation, and reports local-factor diagnostics.
+- `VintageSparsePCA`: optional later wrapper for the Rohe--Zeng matrix-factorization workflow with left/right Varimax rotations.
+
+Provisional Python sketch:
+
+```python
+rot = cm.SparseRotation(method="l1", n_starts=2000, seed=123).fit(loadings)
+rot.rotated_
+rot.rotation_
+rot.summary()
+```
+
+```python
+lf = cm.LocalFactors(method="l1", n_factors=4, seed=123).fit(X)
+lf.initial_loadings_
+lf.rotated_loadings_
+lf.local_factor_diagnostic()
+lf.summary()
+```
+
+```python
+vsp = cm.VintageSparsePCA(n_factors=8, center=True, degree_normalize=False).fit(A)
+vsp.z_
+vsp.y_
+vsp.b_
+vsp.summary()
+```
+
+These are sketches only. We should decide whether the package wants one flexible class or separate classes for econometric factors versus matrix-factorization factors.
+
+## Rohe--Zeng / VSP Specifics
+
+The local `vsp` R package implements:
+
+1. Optional double-centering.
+2. Optional regularized Laplacian / degree normalization.
+3. Sparse SVD.
+4. Varimax on left and right singular vectors separately.
+5. Rescaling: `Z = sqrt(n) * U R_U`, `Y = sqrt(d) * V R_V`.
+6. Middle matrix: `B = R_U' D R_V / sqrt(n d)`.
+7. Heuristics for sign choice and matching columns of `Z` and `Y`.
+
+For `crabbymetrics`, the first useful subset is:
+
+- dense SVD path using existing PCA / randomized SVD tools
+- optional centering
+- Varimax rotations for left and right singular vectors
+- return `Z`, `Y`, `B`, and rotation matrices
+
+Degree normalization and sparse matrix handling are more involved because `crabbymetrics` currently accepts NumPy arrays and does not expose a sparse matrix stack. The first pass should not add a sparse-matrix dependency just for VSP. A later pass can use explicit dense degree-normalization for moderate matrices or add a separate sparse path if there is a concrete need.
+
+## Freyaldenhoven / Local Factor Specifics
+
+The local `l1rotation` implementation does:
+
+1. Estimate initial loadings by PCA: `sqrt(n) * V[:, 1:r]`.
+2. Draw many random unit starting directions.
+3. Convert directions to spherical coordinates.
+4. Minimize `sum(abs(initial_loadings @ direction))` by Nelder--Mead.
+5. Convert candidate minima back to Cartesian directions.
+6. Cluster near-duplicate local minima.
+7. Filter rare/outlier solutions.
+8. Count small loadings using $h_n = 1 / \log(n)$.
+9. Select sparse, non-singular columns.
+10. Fill missing columns with leading PCs if needed.
+
+The main implementation risk is the non-convex multi-start optimization. For an initial prototype, we can:
+
+- keep `n_starts` explicit and reproducible
+- expose convergence diagnostics
+- add tests on small synthetic local-factor DGPs
+- avoid claiming global optimality
+
+## Testing Plan
+
+Start with deterministic and simulation-style tests:
+
+1. `varimax_rotation` preserves column space and improves the Varimax objective on a hand-built sparse rotated matrix.
+2. `l1_sparse_rotation` recovers sparse loading directions in the two-factor stylized DGP from Freyaldenhoven.
+3. `local_factor_diagnostic` flags simulated local factors and does not flag a dense Gaussian loading matrix too often.
+4. `VintageSparsePCA` reconstructs a low-rank matrix as `Z B Y.T` up to expected numerical tolerance.
+5. Rotation matrices preserve the fitted subspace; the low-rank reconstruction should not change materially after rotation.
+
+Test extras can compare small cases against R outputs saved as fixtures from `l1rotation` / `vsp`, but the core tests should not require R.
+
+## Documentation Plan
+
+If this moves beyond the spec branch:
+
+- Add a public example page under `docs/examples/sparse-rotations.qmd`.
+- Add reference pages only for final public classes.
+- Keep implementation caveats explicit: sparse rotations identify structure under assumptions; they are not generic dimensionality-reduction magic.
+- Include one compact simulation where PCA loadings are dense but $\ell_1$-rotated loadings recover local factors.
+- Include one compact Varimax example showing leptokurtic/radial-streak intuition.
+
+## Open API Questions
+
+- Should $\ell_1$ rotation and Varimax be plain functions, transformer classes, or both?
+- Should `LocalFactors.fit(X)` accept observations-by-variables only, or should it mirror panel-style `fit(Y, W)` conventions where possible?
+- Should `VintageSparsePCA` live in `Transforms`, `Unsupervised`, or remain an advanced utility?
+- Should VSP include degree normalization in the first release, or should that wait until sparse matrices are supported?
+- Should $\ell_1$ rotation allow oblique/non-orthogonal final rotations, matching Freyaldenhoven, or begin with orthogonal-only rotations for a simpler first implementation?
+
+My recommendation is to land low-level rotation functions first, then wrap them once the examples reveal the most ergonomic shape.
