@@ -9,28 +9,42 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.8.0` is published to PyPI and GitHub Releases. It contains the estimator-correctness remediation, complete estimator math/API audit, guarded `BaggedPolynomialRegressor`, and PCA/Poisson corrections merged in PR #16, in addition to the earlier anytime-valid OLS, likelihood, and survival work.
+Current release state: `v0.8.1` is published to PyPI and GitHub Releases. The matching 92-page documentation site is live from `gh-pages`.
+
+Current development state: PR #17 squash-merged into `master` as `854a63b`. The released code removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
+
+Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
-## Current Branch: Cressie-Read Balancing (2026-07-27)
+## Cressie-Read Balancing (2026-07-27)
 
-The `feature/cressie-read-balancing` branch extends `BalancingWeights` in
-`src/estimators/balancing.rs` with a Cressie-Read / power-divergence calibration
-map:
+`BalancingWeights` now includes a Cressie-Read / power-divergence calibration map alongside the existing quadratic and entropy objectives:
 
-- `objective="cressie_read"` and alias `objective="power_divergence"`
-- `divergence_power` for the Cressie-Read index lambda
-- `dual_ridge` for optional ridge stabilization on non-intercept dual
-  coefficients
-- `solver="lbfgs"` plus automatic fallback from Gauss-Newton to L-BFGS to BFGS
+- `objective="cressie_read"` and alias `objective="power_divergence"`;
+- `divergence_power` for the Cressie-Read index $\lambda$;
+- `dual_ridge` for optional stabilization of non-intercept dual coefficients; and
+- `solver="lbfgs"`, with automatic fallback from Gauss-Newton to L-BFGS and then BFGS.
 
-The public docs are updated in `docs/reference/BalancingWeights.qmd`, with a
-worked ATT reweighting example in `docs/examples/cressie-read-balancing.qmd` and
-navigation links in `docs/_quarto.yml` / `docs/index.qmd`. The Renyi material in
-the example is a diagnostic mapping through the shared power moment
-`lambda = alpha - 1`, not a separate `objective="renyi"` optimizer. Regression
-coverage lives in `tests/test_balancing_weights.py`.
+The newer fit-diagnostics contract remains intact: `solver_converged` describes the scaled calibration system, `success` additionally checks normalized-weight feasibility, and the summary reports scaled numerical diagnostics separately from original-unit balance. The public reference and worked ATT example are `docs/reference/BalancingWeights.qmd` and `docs/examples/cressie-read-balancing.qmd`. The example's Rényi material is a diagnostic mapping through the shared power moment $\lambda=\alpha-1$, not a separate `objective="renyi"` optimizer. Regression coverage lives in `tests/test_balancing_weights.py`.
+
+## API Hardening And Solver Correctness (2026-07-12)
+
+The `api-hardening` branch completes the P0--P1 estimator stocktake without expanding the estimator catalog.
+
+- Removed `FTRL` from the Rust and Python public surface, deleted its API/example/navigation entries and dedicated tests, and removed `linfa-ftrl`. The wrapper performed one aggregate batch update with fresh state and did not justify an online-estimator API.
+- Removed unused `linfa-linear`. `argmin-math` now enables its ndarray adapter explicitly rather than receiving that feature transitively.
+- Replaced Linfa binary and multinomial logistic fitting with native stable-softplus/log-sum-exp objectives, analytic gradients, and L-BFGS. Existing prediction contracts and identified inference outputs are preserved.
+- Added shared `FitDiagnostics` and common validation helpers. Iterative summaries use `converged`, `iterations`, `termination_reason`, and `objective`; maximum-iteration termination is not success.
+- Hardened ExponentialPH, WeibullPH, CoxPH, AndersenGill, ElasticNet, MatrixCompletion, BalancingWeights, Poisson, and MEstimator around explicit nonconvergence behavior. ElasticNet exposes its final duality gap; MatrixCompletion retains a budget-exhausted iterate only with `converged=False`; BalancingWeights separates scaled solver convergence from original-scale balance.
+- Split estimator source ownership into `linear.rs`, `iv.rs`, `panel.rs`, and `synthetic.rs` while preserving the existing Python imports.
+- Added targeted nonconvergence, external-parity, scaled-balance, and public-surface tests. Final validation passes 153 Python tests and 5 Rust tests after a fresh extension build; Rust formatting, generator compilation, and diff checks are clean.
+
+The API references now document the implemented loss or likelihood, inferential method, stopping rule, summary diagnostics, and performance characteristics for every affected estimator. The maintenance generator, `docs/llms.txt`, evaluation record, and worked examples were updated alongside those pages, with substantive example code visible. All 92 Quarto pages render from the branch; the whole-site review draft is `https://lalten.org/drafts/crabbymetrics-api-hardening/`.
+
+The follow-up implementation-doc pass adds source-level walkthroughs to all 29 estimator, transform, and optimizer class pages. The pages now expose concrete parameter order, initialization, derivative and matrix construction, randomization, line searches, convergence gates, state retention, and prediction paths. They also identify the exact delegation boundaries: fixed-effect absorption uses `within`, ElasticNet coordinate descent and exact PCA/kernel primitives use Linfa, while the surrounding contracts and the remaining estimator algorithms are package-owned. The reference generator now skips existing audited pages by default so a scaffold refresh cannot silently erase these sections.
+
+The complete 92-page site rendered successfully with live Python execution. The docs-heavy PR preview is `https://lalten.org/drafts/crabbymetrics-estimator-implementation-docs/`; representative likelihood, panel, transform, and optimizer pages were checked for rendered math, visible example code, and implementation-section navigation before the rendered artifacts were removed from the source branch.
 
 ## Refactor Correctness And Documentation Pass (2026-07-10 through 2026-07-11)
 
@@ -41,6 +55,17 @@ The `refactor` branch was created from `origin/master` 0.7.0 after preserving th
 The follow-up source audit covers every public estimator and all five public transforms. Each API reference now states the implemented objective or estimating equations, covariance or inferential method, prediction contract, and the relevant dense computational scaling. The audit also corrected Poisson input validation and the PCA explained-variance and whitening-inverse formulas. FTRL is now explicitly labeled experimental because its current Python fit performs only one full-batch proximal update; Andersen--Gill is explicitly limited to inverse-information covariance because the API has no subject identifier for clustered recurrent-event inference.
 
 Current validation is 143 passing Python tests and 3 passing Rust tests. The `v0.8.0` release-tag build renders all 94 Quarto pages with live Python execution, including the API overview, all 31 reference pages, and the Ding pages. The earlier Ding failure was a local path problem: `ding_w_source` pointed at the replication directory while the pages correctly append `repl/`; the symlink now points at the parent `Ding_CausalInference` directory. Strict Clippy is improved by removing PyO3 deprecations but still reports 30 pre-existing structural style lints.
+
+## Sparse Factor Rotations (2026-06-30)
+
+The sparse-rotation branch implements orthogonal factor-rotation and localization utilities rather than stopping at the original design memo. The public function surface is:
+
+- `varimax_rotation(...)` for the standard orthogonal Varimax criterion;
+- `l1_sparse_rotation(...)` for a seeded multi-start search over sparse directions;
+- `count_small_loadings(...)` and `local_factor_diagnostic(...)` for Freyaldenhoven-style local-factor diagnostics; and
+- `inverse_participation_ratio(...)` and `cumulative_participation(...)` for loading localization summaries.
+
+The implementation lives in `src/rotations.rs` and is exported from `src/lib.rs`. Tests cover subspace preservation, reference matrices, seeded reproducibility, sparsity recovery, and diagnostics. The worked page `docs/examples/sparse-rotations.qmd` includes synthetic and published loading examples; `docs/specs/sparse-rotations.qmd` records the numerical scope and identifying caveats. The routines remain function-level APIs: the branch does not introduce wrapper estimator classes or claim global optimality for the non-convex L1 search.
 
 ## Repository Layout
 
@@ -58,11 +83,16 @@ crabbymetrics/
     hyptests.rs
     lib.rs
     rla.rs
+    fit.rs
+    validation.rs
     utils.rs
     optimizers.rs
     estimators/
       mod.rs
       linear.rs
+      iv.rs
+      panel.rs
+      synthetic.rs
       regularized.rs  # includes BaggedPolynomialRegressor
       mle.rs
       gmm.rs
@@ -79,6 +109,8 @@ Key points:
 - `src/abc.rs` holds the abundance-based-constraints / weighted-effect-coding OLS estimator.
 - `src/hyptests.rs` holds module-level Wald, likelihood-ratio, and IV test helpers.
 - `src/rla.rs` holds randomized range/SVD/QR and CountSketch least-squares utilities.
+- `src/fit.rs` holds the shared iterative-fit diagnostics and optimizer-status contract.
+- `src/validation.rs` holds shared finite-value, positivity, binary-label, and sample-weight validation.
 - `src/utils.rs` holds shared array conversion, least-squares helpers, covariance helpers, weighting helpers, and bootstrap utilities.
 - `docs/` is a checked-in Quarto website, not just notebook scraps.
 - `docs/ding/` holds the translated Peng Ding chapter pages plus grouping pages for the `First Course Ding` section.
@@ -131,10 +163,9 @@ The current Python module exports:
   - `SyntheticDID`
   - `MatrixCompletion`
   - `InteractiveFixedEffects`
-- regularized / online:
+- regularized:
   - `Ridge`
   - `ElasticNet`
-  - `FTRL`
   - `BaggedPolynomialRegressor`
 - likelihood / generic:
   - `Logit`
@@ -332,12 +363,7 @@ Defaults are conservative:
 - effective sample size
 - optimization diagnostics
 
-The estimator supports quadratic, entropy, and active-branch Cressie-Read
-calibration geometries. Cressie-Read uses the dual map controlled by
-`divergence_power`; Renyi divergence is documented as a fitted-weight diagnostic,
-not as its own optimizer. The estimator is currently best viewed as a weighting
-primitive with strong diagnostics rather than a one-stop causal-inference summary
-object.
+The estimator is currently best viewed as a weighting primitive with strong diagnostics rather than a one-stop causal-inference summary object.
 
 ## Key Implementation Decisions
 
@@ -506,9 +532,9 @@ It is useful as an escape hatch, but it still has limitations:
 - solver diagnostics are thin
 - it is best treated as a low-level custom hook, not as the flagship inference path
 
-### `FTRL` is not yet a coherent online estimator API
+### The former `FTRL` wrapper was removed
 
-The current wrapper initializes a fresh upstream state, computes one aggregate full-batch logistic gradient, applies one proximal update, and discards the optimizer state. There is no intercept, `partial_fit`, iteration control, or convergence target. It should remain experimental until it becomes a persistent online estimator or is removed from the first-tier public surface.
+The released `v0.8.0` wrapper initialized a fresh upstream state, computed one aggregate full-batch logistic gradient, applied one proximal update, and discarded the optimizer state. The `api-hardening` branch removes it from the public surface and dependency tree. Any future streaming estimator should begin from a new persistent-state and `partial_fit` design rather than restoring that class.
 
 ### `AndersenGill` lacks recurrent-event robust inference
 
@@ -516,14 +542,12 @@ The point estimator is the counting-process Cox partial likelihood with Breslow 
 
 ## Current Direction
 
-After the correctness and class-by-class API audit, the most plausible next branch directions are:
+After API hardening, the most plausible next branch directions are:
 
-1. decide whether to redesign `FTRL` around persistent `partial_fit` state or remove it from the first-tier estimator surface
-2. add a subject identifier and clustered score covariance to `AndersenGill`, then optimize Cox-family risk-set accumulation
-3. expose convergence status for iterative estimators that currently retain budget-exhausted results, especially `MatrixCompletion` and survival fits
-4. difference-in-differences / event-study support
-5. more likelihood methods, starting with negative binomial and grouped/binomial likelihoods
-6. weighted nonlinear estimators, weighted GMM, and richer IV / GMM diagnostics
+1. add a subject identifier and clustered score covariance to `AndersenGill`, then optimize Cox-family risk-set accumulation
+2. difference-in-differences / event-study support
+3. more likelihood methods, starting with negative binomial and grouped/binomial likelihoods
+4. weighted nonlinear estimators, weighted GMM, and richer IV / GMM diagnostics
 
 That is the current state the next extension branch should assume.
 
@@ -627,3 +651,13 @@ That is the current state the next extension branch should assume.
 - Local release gates passed with 143 Python tests, 3 Rust tests, Rust formatting, and a clean-checkout 404 KiB sdist containing neither `docs/` nor the untracked local `ding_ci` notebooks.
 - Rebuilt all 94 public Quarto pages from the `v0.8.0` tag. The stale local `ding_w_source` symlink had pointed one directory too deep; pointing it at the parent `Ding_CausalInference` directory restored every external replication-data path.
 - Release links: PyPI version `0.8.0`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.0`; public docs `https://apoorvalal.github.io/crabbymetrics/`.
+
+## 2026-07-12 v0.8.1 API-Hardening Release
+
+- Tagged release commit `ebf2fc4` as `v0.8.1` after PR #17 and the source-distribution exclusion guard landed on `master`.
+- Release workflow `https://github.com/apoorvalal/crabbymetrics/actions/runs/29215539245` passed Python 3.10 and 3.12 test jobs, built Linux and macOS wheels for Python 3.10 through 3.14, published 10 wheels plus a 416,776-byte sdist, created the GitHub Release, and published to PyPI.
+- Local release gates passed with 153 Python tests, 5 Rust tests, Rust formatting, an editable 0.8.1 build, and a 418,119-byte dirty-checkout sdist containing neither rendered `docs/` content nor the local `ding_ci` symlink tree.
+- Re-executed the solver-sensitive panel DGP, same-root panel, semiparametric estimator, and variance estimator ablations, then rendered all 92 Quarto pages successfully against the 0.8.1 extension.
+- Published the rendered site to `gh-pages` and removed two generated Python bytecode files before the final Pages deployment. Pages workflow `https://github.com/apoorvalal/crabbymetrics/actions/runs/29215956872` deployed clean commit `c7a3ce4`; live checks confirmed visible API code, folded ablation code, and the new estimator implementation walkthroughs.
+- Follow-up documentation correction replaced the narrative-first `BaggedPolynomialRegressor` reference with a contract-first API page covering exact constructor defaults, parameter constraints, method inputs and returns, errors, every `summary()` field, estimator math, inference limits, and resource costs. It also corrected stale `docs/llms.txt` defaults from `n_estimators=100, seed=None` to the shipped `n_estimators=50, seed=42`.
+- Release links: PyPI version `0.8.1` at `https://pypi.org/project/crabbymetrics/0.8.1/`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.1`; public docs `https://apoorvalal.github.io/crabbymetrics/`.

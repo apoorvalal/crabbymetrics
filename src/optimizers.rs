@@ -1,3 +1,4 @@
+use crate::fit::optimization_success;
 use crate::utils::{pyarray1_from_f64, to_array1, to_array2};
 use argmin::core::{
     CostFunction, Error as ArgminError, Executor, Gradient, Jacobian, Operator, State,
@@ -80,14 +81,6 @@ fn call_gradient_array1(gradient_fn: &Py<PyAny>, theta: &Array1<f64>) -> PyResul
         )
         .map_err(|err| PyValueError::new_err(err.to_string()))
     })
-}
-
-fn optimization_success(status: &TerminationStatus) -> bool {
-    matches!(
-        status,
-        TerminationStatus::Terminated(TerminationReason::SolverConverged)
-            | TerminationStatus::Terminated(TerminationReason::TargetCostReached)
-    )
 }
 
 fn optimize_result_dict_explicit<'py>(

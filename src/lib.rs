@@ -1,9 +1,12 @@
 mod abc;
 mod estimators;
+mod fit;
 mod hyptests;
 mod optimizers;
 mod rla;
+mod rotations;
 mod utils;
+mod validation;
 
 use crate::abc::ABCOLS;
 use crate::estimators::{
@@ -11,7 +14,7 @@ use crate::estimators::{
     ElasticNet, ExponentialPH, FixedEffectsOLS, HorizontalPanelRidge, InteractiveFixedEffects,
     KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit, NystromBasis,
     PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures, RandomizedPcaTransformer,
-    Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, FTRL, GMM, OLS,
+    Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -42,7 +45,6 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::estimators::av, m)?)?;
     m.add_function(wrap_pyfunction!(crate::estimators::optimal_g, m)?)?;
     m.add_class::<BalancingWeights>()?;
-    m.add_class::<FTRL>()?;
     m.add_class::<MEstimator>()?;
     m.add_class::<GMM>()?;
     m.add_class::<EPLM>()?;
@@ -60,6 +62,21 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::rla::randomized_svd, m)?)?;
     m.add_function(wrap_pyfunction!(crate::rla::qr_solve, m)?)?;
     m.add_function(wrap_pyfunction!(crate::rla::sketch_ols, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rotations::varimax_rotation, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rotations::l1_sparse_rotation, m)?)?;
+    m.add_function(wrap_pyfunction!(crate::rotations::count_small_loadings, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::rotations::local_factor_diagnostic,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::rotations::inverse_participation_ratio,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::rotations::cumulative_participation,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(crate::hyptests::wald_test, m)?)?;
     m.add_function(wrap_pyfunction!(crate::hyptests::likelihood_ratio_test, m)?)?;
     m.add_function(wrap_pyfunction!(crate::hyptests::lr_test, m)?)?;

@@ -24,27 +24,57 @@ from _api_doc_utils import *
 
 **Group:** Regression
 
-`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties:
+`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The current delegated coordinate-descent implementation centers the outcome, but not the feature columns. With $\bar y=n^{-1}\sum_i y_i$ and $y_c=y-\bar y\mathbf1$, it solves
 
 $$
-\min_{\alpha,\beta}\; \frac{1}{2n}\sum_i (y_i-\alpha-x_i'\beta)^2 + \lambda\left(\rho\|\beta\|_1 + \frac{1-\rho}{2}\|\beta\|_2^2\right).
+\begin{aligned}
+\min_{\beta}\quad
+&\frac{1}{2n}\|y_c-X\beta\|_2^2 \\
+&+\lambda\rho\|\beta\|_1
++\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2.
+\end{aligned}
 $$
 
-It is useful when the goal is prediction or sparse regularized coefficients rather than classical inference.
+and predicts $\hat y=\bar y\mathbf1+X\hat\beta$. Thus the reported intercept is $\bar y$, not $\bar y-\bar x'\hat\beta$. This equals the usual jointly optimized unpenalized-intercept formulation when feature columns are centered; otherwise it is a different criterion. This behavior is retained for compatibility and should be accounted for when preparing features.
 
 ## Criterion and solver
 
-The delegated Linfa coordinate-descent solver minimizes
+Here $\lambda$ is `penalty` and $\rho$ is `l1_ratio`. Coordinate updates use soft thresholding. The wrapper independently recomputes the final duality gap rather than treating the existence of returned coefficients as convergence. Let
 
 $$
-\frac{1}{2n}\|y-\alpha\mathbf 1-X\beta\|_2^2
-+\lambda\rho\|\beta\|_1
-+\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2,
+\begin{aligned}
+r&=y_c-X\hat\beta, \\
+a&=X'r-n\lambda(1-\rho)\hat\beta, \\
+L&=n\lambda\rho.
+\end{aligned}
 $$
 
-where $\lambda$ is the penalty and $\rho$ is the L1 ratio. The intercept is fit after centering and is not penalized. Coordinate updates use soft thresholding, and convergence is checked with coefficient-change and duality-gap criteria up to the configured iteration budget. The wrapper delegates parameter validation to Linfa.
+and let $c=\min\{1,L/\|a\|_\infty\}$, with $c=1$ when $\|a\|_\infty\leq L$. The reported gap is
+
+$$
+\begin{aligned}
+G={}&\frac12(1+c^2)\|r\|_2^2
++L\|\hat\beta\|_1 \\
+&-c\,r'y_c
++\frac{n\lambda(1-\rho)}{2}(1+c^2)\|\hat\beta\|_2^2.
+\end{aligned}
+$$
+
+The fit is accepted only when $G$ is finite and $G\leq\tau\|y_c\|_2^2$, where $\tau$ is `tolerance`. Otherwise `fit()` raises `ValueError` and clears any previous fitted state. A successful summary exposes `duality_gap`, `duality_gap_tolerance`, `converged`, `iterations`, `termination_reason`, and the final primal `objective`. Inputs and all hyperparameters are validated before fitting.
 
 The class does not standardize $X$. Because both the L1 and L2 penalties act on raw coefficients, users must scale features explicitly when a common penalty across columns is intended.
+
+## Implementation walkthrough and delegation boundary
+
+Coordinate descent itself is delegated to `linfa-elasticnet`; the surrounding fit contract and convergence audit are package-owned.
+
+1. The wrapper clears prior state, validates the dense arrays and every hyperparameter, clones the arrays into a Linfa dataset, and configures Linfa with the requested penalty, mixing ratio, intercept flag, tolerance, and iteration cap. It performs no feature centering or scaling before delegation.
+2. Linfa runs coordinate descent and returns its hyperplane, intercept, and number of sweeps. The package does not expose or modify individual coordinate updates, active-set rules, or Linfa's internal stopping decision.
+3. Crabbymetrics independently reconstructs $y_c$ when an intercept is requested, computes the residual and elastic-net dual certificate shown above, and compares the gap with `tolerance * dot(y_centered, y_centered)`. This second check, not merely Linfa returning a model, decides whether the public fit succeeds.
+4. It separately recomputes the public primal objective from Linfa predictions and coefficients. A finite accepted gap produces package-standard `FitDiagnostics`; an excessive or nonfinite gap is labeled as iteration-budget failure and the wrapper raises without installing the returned model.
+5. Prediction delegates to the accepted Linfa object. `summary()` extracts its intercept and hyperplane but combines them with package-owned gap and termination fields. The pairs bootstrap repeats this entire delegated-fit-plus-native-audit pipeline and aborts at the first failed replicate.
+
+This boundary is why the page documents the observed intercept convention rather than assuming the textbook jointly centered problem. The wrapper can validate the returned solution against the criterion it exposes, but it cannot change the coordinate-descent mechanics without replacing the delegated solver.
 
 ## Inference
 
@@ -52,13 +82,13 @@ The summary deliberately returns no analytic covariance or standard errors. L1 s
 
 ## Performance and numerical behavior
 
-One complete coordinate sweep is $O(np)$ for dense input, so runtime is approximately $O(Inp)$ for $I$ iterations, plus $O(np)$ storage and residual work. Sparse coefficients do not reduce the stored dense design. Highly correlated or poorly scaled columns can slow coordinate descent and make the selected support unstable. At $\rho=0$ this solver is a coordinate-descent ridge fit with a different penalty normalization from the package's dedicated Ridge class; the same numeric penalty therefore does not imply the same objective.
+One complete coordinate sweep is $O(np)$ for dense input, so runtime is approximately $O(Inp)$ for $I$ iterations. The solver uses $O(n+p)$ working memory in addition to the dense $O(np)$ input retained by the estimator. The final gap check costs another $O(np)$. Sparse coefficients do not reduce the stored dense design. Highly correlated or poorly scaled columns can slow coordinate descent and make the selected support unstable. At $\rho=0$ this solver is a coordinate-descent ridge fit with a different penalty normalization from the package's dedicated `Ridge` class; the same numeric penalty therefore does not imply the same objective.
 
 ## Python API
 
 Constructor: `cm.ElasticNet`
 
-Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates and marks analytic inference unavailable. Bootstrap coefficient draws are stability diagnostics, not automatic confidence intervals.
+Use `ElasticNet(penalty, l1_ratio, tolerance, max_iterations)`, then `fit(x, y)`, `predict(x)`, `summary()`, and optionally `bootstrap(B, seed=None)`. The summary reports point estimates, convergence diagnostics, and the final duality gap, and marks analytic inference unavailable. Bootstrap coefficient draws are stability diagnostics, not automatic confidence intervals; any nonconverged replicate aborts the bootstrap.
 
 ```{python}
 print(inspect.signature(cm.ElasticNet))
@@ -78,7 +108,9 @@ x = rng.normal(size=(180, 8))
 y = 0.4 + x[:, :3] @ np.array([1.0, -0.8, 0.5]) + rng.normal(scale=0.5, size=180)
 model = cm.ElasticNet(penalty=0.05, l1_ratio=0.7)
 model.fit(x, y)
-print(model.summary()['coef'])
+fit = model.summary()
+print({key: fit[key] for key in ['converged', 'iterations', 'duality_gap', 'duality_gap_tolerance']})
+print(fit['coef'])
 print(model.predict(x[:3]))
 ```
 

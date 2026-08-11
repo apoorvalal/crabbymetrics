@@ -109,3 +109,23 @@ def test_cressie_read_power_one_matches_first_moments_and_reports_ridge():
     np.testing.assert_allclose(summary["weighted_mean"], summary["target_mean"], atol=1e-6, rtol=1e-6)
     np.testing.assert_allclose(summary["divergence_power"], 1.0, atol=0.0, rtol=0.0)
     np.testing.assert_allclose(summary["dual_ridge"], 1e-8, rtol=0.0, atol=0.0)
+def test_autoscaled_solver_convergence_is_separate_from_original_unit_balance():
+    rng = np.random.default_rng(0)
+    source = rng.normal(size=(200, 2)) * np.array([1.0, 1e12])
+    target = rng.normal(loc=[0.2, -0.15], size=(80, 2)) * np.array([1.0, 1e12])
+
+    model = cm.BalancingWeights(
+        objective="quadratic",
+        autoscale=True,
+        max_weight=0.05,
+        tolerance=1e-8,
+    )
+    model.fit(source, target)
+    summary = model.summary()
+
+    assert model.success
+    assert model.solver_converged
+    assert summary["converged"] is True
+    assert summary["scaled_residual_norm"] < 1e-8
+    assert summary["original_balance_l2"] > 1e-6
+    assert summary["original_balance_l2"] == summary["l2_diff"]

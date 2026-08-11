@@ -7,8 +7,7 @@ format:
     toc-depth: 3
     embed-resources: true
     page-layout: full
-    code-fold: true
-    code-summary: "Show code"
+    code-fold: false
 jupyter: python3
 execute:
   echo: true
@@ -317,30 +316,47 @@ def evaluate_single_dataset():
     )
 
     rows = [
-        ["Naive difference", f"{naive_att: .3f}", "--", "--", "--"],
+        ["Naive difference", f"{naive_att: .3f}", "--", "--", "--", "--"],
         [
             "Quadratic balancing on observed X",
             f"{quad_att: .3f}",
+            quad_summary["solver_converged"],
             quad_summary["success"],
             f"{quad_summary['effective_sample_size']: .1f}",
-            f"{quad_summary['max_abs_diff']: .2e}",
+            f"{quad_summary['original_balance_max_abs']: .2e}",
         ],
         [
             "Entropy balancing on observed X",
             f"{ent_att: .3f}",
+            ent_summary["solver_converged"],
             ent_summary["success"],
             f"{ent_summary['effective_sample_size']: .1f}",
-            f"{ent_summary['max_abs_diff']: .2e}",
+            f"{ent_summary['original_balance_max_abs']: .2e}",
         ],
         [
             "Entropy balancing on latent Z (oracle)",
             f"{oracle_att: .3f}",
+            oracle_summary["solver_converged"],
             oracle_summary["success"],
             f"{oracle_summary['effective_sample_size']: .1f}",
-            f"{oracle_summary['max_abs_diff']: .2e}",
+            f"{oracle_summary['original_balance_max_abs']: .2e}",
         ],
     ]
-    display(HTML(html_table(["Estimator", "ATT estimate", "Success", "ESS", "Max balance error"], rows)))
+    display(
+        HTML(
+            html_table(
+                [
+                    "Estimator",
+                    "ATT estimate",
+                    "Solver converged",
+                    "Weight-feasible success",
+                    "ESS",
+                    "Max original-unit balance error",
+                ],
+                rows,
+            )
+        )
+    )
 
     labels = [f"x{j + 1}" for j in range(x.shape[1])]
     fig, ax = plt.subplots(figsize=(8, 4))

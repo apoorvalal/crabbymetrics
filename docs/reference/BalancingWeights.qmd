@@ -112,6 +112,21 @@ $$
 
 Here $\eta$ is `dual_ridge`, which defaults to zero. Gauss-Newton uses the analytic residual Jacobian with a small $10^{-8}$ normal-equation ridge and backtracking. `solver="lbfgs"` uses argmin's L-BFGS with the same analytic gradient. Automatic mode tries Gauss-Newton first, then L-BFGS, and falls back to BFGS only when needed. These are generic smooth optimizers for the residual criterion above. They are not the Bregman proximal-gradient algorithm from the Rényi paper, where the update itself is defined by a Bregman geometry and the gradient has a moment-gap form. A future Bregman solver would be a new solver path rather than a relabeling of BFGS/L-BFGS. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.
 
+## Implementation walkthrough
+
+The class solves a package-owned nonlinear calibration system; the named objective determines the primal-to-dual weight map, while both solver choices minimize squared calibration residuals.
+
+1. Optional baseline and target weights are validated and normalized to sum one. With autoscaling, each source column is mapped by its source minimum and range and the identical affine map is applied to target rows. A source range at or below $10^{-12}$ maps both samples to zero in that column; target values are allowed outside $[0,1]$.
+2. The target mean is computed in fitting coordinates and the dense design $Z=[\mathbf1,X-\bar x_T]$ is built. Entropy starts its dual vector at zero. Quadratic calibration instead solves a linearized calibration system for its starting vector, with a baseline-weight adjustment when supplied.
+3. Given $\beta$, one pass computes $Z\beta$, the entropy, quadratic, or Cressie-Read weight map, and the derivative of each weight with respect to its scalar index. Clipped weights receive derivative zero. The residual is $Z'w-e_1$ plus the radial L2 slack, and the analytic Jacobian is $Z'\operatorname{diag}(w')Z$ plus the slack Jacobian.
+4. Native Gauss-Newton forms $J'J+10^{-8}I$, solves its least-squares system for the step, and halves the step until the residual sum of squares strictly decreases or the scale falls below $10^{-8}$. Only the scaled residual norm reaching tolerance counts as convergence; small steps or small objective changes alone are explicitly labeled nonconverged.
+5. The L-BFGS and BFGS alternatives expose $\|r(\beta)\|^2/2$ and $J'r$ to Argmin and use More-Thuente search; BFGS initializes the inverse Hessian at identity, while L-BFGS retains a ten-update correction history. Either method is accepted as converged only when both Argmin's status and the package's residual-norm check pass.
+6. In `solver='auto'`, a nonconverged Gauss-Newton result seeds L-BFGS. If L-BFGS does not improve the criterion, BFGS is tried from the Gauss-Newton iterate. A fallback replaces Gauss-Newton only when its objective is no larger; a finite nonconverged fit is therefore reportable for diagnostics.
+7. Entropy first permits weights up to $10^8$ and no lower clipping to preserve a smooth solve. If that result violates the requested box, the same solver sequence is rerun from its dual vector with bounded exponential clipping. Quadratic calibration uses the requested box from the start.
+8. Final `success` separately requires solver convergence, unit weight sum within $10^{-6}$, finite weights, and box feasibility. Original-scale weighted means are recomputed from the unscaled covariates, so diagnostic balance is not inferred from the scaled residual.
+
+This design makes infeasibility observable rather than exceptional: the object can retain the best finite weights with `solver_converged=False` or `success=False`. The zero derivative at active clipping bounds also explains why tight boxes can stall either local solver.
+
 ## Diagnostics and inference
 
 There is no outcome model, treatment-effect estimand, standard error, or covariance calculation. The fitted object returns normalized weights, original-scale mean differences, effective sample size
@@ -120,19 +135,19 @@ $$
 \mathrm{ESS}=\frac{1}{\sum_i w_i^2},
 $$
 
-the dual coefficient, and solver diagnostics. A successful fit must satisfy calibration residual tolerance, weight sum and bounds, and the L2 mean-difference tolerance.
+the dual coefficient, and solver diagnostics. `solver_converged` means that the scaled calibration residual satisfies the requested tolerance and, for BFGS, that the optimizer also reports a converged status. The generic `converged`, `iterations`, and `termination_reason` keys describe that same scaled-coordinate solve. `success` additionally requires finite normalized weights whose sum and box constraints are feasible.
 
-With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. The final success check also compares the unscaled mean-difference norm to the same L2 tolerance. Consequently, success can be false even when the scaled calibration system converged; the reported original-scale mean differences should be inspected directly.
+With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. Solver convergence is intentionally not reclassified by applying that scaled tolerance to unscaled covariates. `scaled_residual_norm` and `solver_objective` report the numerical problem; `original_balance_l2` and `original_balance_max_abs` report balance in the units supplied by the user. The legacy aliases `residual_norm`, `criterion`, `l2_diff`, and `max_abs_diff` remain available. Large original-unit imbalance can therefore coexist with solver convergence when feature scales are large, and should be judged substantively rather than against a dimensionless solver tolerance.
 
 ## Performance and numerical behavior
 
-For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. L-BFGS/BFGS add repeated residual and gradient evaluations. Tight box constraints, a Cressie-Read dual index outside its natural domain, or an infeasible balance tolerance can leave a finite set of weights with success false rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped.
+For $n$ source rows and $p$ covariates, each residual/Jacobian construction forms dense weighted cross-products with about $O(np^2)$ work and $O(np+p^2)$ storage; the Gauss-Newton system costs up to $O(p^3)$. L-BFGS/BFGS add repeated residual and gradient evaluations. Tight box constraints, a Cressie-Read dual index outside its natural domain, or an infeasible balance tolerance can leave a finite set of weights with `success=False` rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped. Very disparate original feature scales favor `autoscale=True`, but original-unit diagnostics must still be interpreted feature by feature.
 
 ## Python API
 
 Constructor: `cm.BalancingWeights`
 
-Use `fit(covariates, target_covariates, baseline_weights=None, target_weights=None)`. `get_weights()` returns the fitted source weights. `summary()` reports balance diagnostics, the dual coefficients, effective sample size, and solver status.
+Use `fit(covariates, target_covariates, baseline_weights=None, target_weights=None)`. `get_weights()` returns the fitted source weights. The read-only `solver_converged` property reports scaled solver convergence, while `success` also checks weight feasibility. `summary()` reports both statuses, scaled numerical diagnostics, original-scale balance, the dual coefficients, and effective sample size.
 
 ```{python}
 print(inspect.signature(cm.BalancingWeights))
@@ -152,8 +167,10 @@ x0 = rng.normal(size=(180, 3))
 x1 = rng.normal(loc=np.array([0.4, -0.2, 0.1]), size=(80, 3))
 model = cm.BalancingWeights(objective='quadratic', max_iterations=500)
 model.fit(x0, x1)
-print(model.summary()['mean_diff'])
-print(model.summary()['effective_sample_size'])
+fit = model.summary()
+print({key: fit[key] for key in ['solver_converged', 'success', 'scaled_residual_norm', 'original_balance_l2']})
+print(fit['mean_diff'])
+print(fit['effective_sample_size'])
 print(model.get_weights()[:5])
 ```
 

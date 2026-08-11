@@ -26,6 +26,30 @@ from _api_doc_utils import *
 
 `Optimizers` is a small namespace for callback-driven numerical optimization. It is not an estimator; it exposes reusable routines for smooth objectives, nonlinear least squares, and a simple stochastic global search.
 
+## Solver mechanics
+
+All methods bridge Python callbacks into Rust and normalize the result into the same dictionary, but their step construction and success rules differ.
+
+### BFGS and L-BFGS
+
+Both call `fun(theta)` and `grad(theta)` separately, use a More-Thuente line search, and apply `tolerance` to gradient and cost stopping. BFGS initializes a dense inverse-Hessian approximation at identity and updates the full matrix. L-BFGS retains seven correction pairs instead. Both return Argmin's best parameter and classify success only from its termination status; reaching the iteration budget returns a dictionary with `success=False` rather than raising.
+
+### Nonlinear conjugate gradient
+
+This method uses Polak-Ribiere-plus directions and an Armijo backtracking line search with sufficient-decrease constant $0.2$. It supports periodic and orthogonality restarts. Because the underlying solver does not use the public tolerance directly, the wrapper reevaluates the final Python gradient and upgrades the result to success when its Euclidean norm is at most `tolerance`.
+
+### Gauss-Newton least squares
+
+The package owns this loop. At each iterate it calls the residual and Jacobian functions, requires Jacobian shape `(n_residuals, n_parameters)`, forms $g=J'r$ and $J'J$, explicitly inverts $J'J$, and proposes $(J'J)^{-1}g$. Gradient or step norm below tolerance stops. Otherwise a halving line search requires strict decrease in $\|r\|^2/2$ down to scale $10^{-8}$. A small objective change succeeds; a singular normal matrix, callback error, or malformed shape raises, while line-search or iteration exhaustion returns `success=False`.
+
+### Simulated annealing
+
+The proposal modifies at least one randomly selected coordinate, adds a uniform perturbation in `[-step_size, step_size]`, and clamps it to optional elementwise bounds. Proposal and acceptance RNGs use separate Xoshiro streams; with a seed the second stream uses `seed + 1`. Argmin's Boltzmann temperature schedule runs until its stopping status or 1,000 consecutive stalls in best or accepted states. This is the only method that can use OS entropy when no seed is supplied.
+
+## Performance and failure behavior
+
+Every objective, gradient, residual, or Jacobian evaluation crosses the Python-Rust boundary and copies NumPy results. BFGS stores $O(p^2)$ curvature state, L-BFGS and nonlinear CG use $O(p)$ state aside from callback data, and native Gauss-Newton forms and inverts a dense $p\times p$ normal matrix. The wrappers return the best parameter, then reevaluate the public objective to populate `fun`; a callback that is stochastic or stateful can therefore report a value different from the one attached to the optimizer's best state.
+
 ## Python API
 
 Constructor: `cm.Optimizers`
