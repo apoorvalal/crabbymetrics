@@ -682,6 +682,118 @@ fn effective_sample_size(weights: &Array1<f64>) -> f64 {
     }
 }
 
+pub(super) struct QuadraticCalibrationFit {
+    pub weights: Array1<f64>,
+    pub effective_sample_size: f64,
+    pub max_abs_balance: f64,
+    pub converged: bool,
+    pub iterations: usize,
+}
+
+/// Internal exact quadratic-calibration path shared by dynamic covariate balancing.
+///
+/// This deliberately reuses the same scaled design, dual weight map, bounded solver,
+/// and convergence checks as `BalancingWeights(objective="quadratic")`. The target
+/// weights are normalized before fitting, and returned source weights sum to one.
+pub(super) fn fit_quadratic_calibration(
+    covariates: &Array2<f64>,
+    target_covariates: &Array2<f64>,
+    target_weights: Option<&Array1<f64>>,
+    autoscale: bool,
+    max_weight: f64,
+    max_iterations: usize,
+    tolerance: f64,
+) -> Result<QuadraticCalibrationFit, String> {
+    if covariates.ncols() != target_covariates.ncols() {
+        return Err(
+            "covariates and target_covariates must have the same number of columns".to_string(),
+        );
+    }
+    if covariates.nrows() == 0 || target_covariates.nrows() == 0 {
+        return Err("covariates and target_covariates must both have at least one row".to_string());
+    }
+    if !max_weight.is_finite() || max_weight <= 0.0 || max_weight > 1.0 {
+        return Err("max_weight must lie in (0, 1]".to_string());
+    }
+    let uniform_weight = 1.0 / covariates.nrows() as f64;
+    if max_weight < uniform_weight {
+        return Err(format!(
+            "max_weight cannot be smaller than the uniform source weight {uniform_weight}"
+        ));
+    }
+
+    let normalized_target_weights = match target_weights {
+        Some(weights) => Some(normalize_weights("target_weights", weights)?),
+        None => None,
+    };
+    if let Some(weights) = normalized_target_weights.as_ref() {
+        validate_weights("target_weights", weights, target_covariates.nrows())?;
+    }
+
+    let (covariates_fit, target_covariates_fit) = if autoscale {
+        minmax_scale_fit(covariates, target_covariates)
+    } else {
+        (covariates.clone(), target_covariates.clone())
+    };
+    let active_columns = (0..covariates_fit.ncols())
+        .filter(|column| {
+            let values = covariates_fit.column(*column);
+            let minimum = values
+                .iter()
+                .fold(f64::INFINITY, |current, value| current.min(*value));
+            let maximum = values
+                .iter()
+                .fold(f64::NEG_INFINITY, |current, value| current.max(*value));
+            maximum - minimum > 1e-12
+        })
+        .collect::<Vec<_>>();
+    let covariates_fit = covariates_fit.select(Axis(1), &active_columns);
+    let target_covariates_fit = target_covariates_fit.select(Axis(1), &active_columns);
+    let target_mean_fit = weighted_mean(
+        &target_covariates_fit,
+        normalized_target_weights.as_ref(),
+        "target_weights",
+    )?;
+    let z = balance_design(&covariates_fit, &target_mean_fit);
+    let beta0 = initial_beta(&z, BalanceObjective::Quadratic, None)?;
+    let system = CalibrationSystem {
+        z,
+        objective: BalanceObjective::Quadratic,
+        baseline_weights: None,
+        min_weight: 0.0,
+        max_weight,
+        l2_norm: 0.0,
+        divergence_power: 0.0,
+        dual_ridge: 0.0,
+        entropy_phase: EntropyPhase::Bounded,
+    };
+    let (fit, _) = solve_system(&system, SolveMode::Auto, &beta0, max_iterations, tolerance)?;
+
+    let weights = normalize_weights("weights", &fit.weights)?;
+    let weighted_mean_original = weighted_mean(covariates, Some(&weights), "weights")?;
+    let target_mean_original = weighted_mean(
+        target_covariates,
+        normalized_target_weights.as_ref(),
+        "target_weights",
+    )?;
+    let mean_diff = weighted_mean_original - target_mean_original;
+    let max_abs_balance = mean_diff
+        .iter()
+        .fold(0.0_f64, |current, value| current.max(value.abs()));
+    let converged = fit.diagnostics.converged
+        && weights
+            .iter()
+            .all(|value| value.is_finite() && *value >= -1e-8 && *value <= max_weight + 1e-8);
+
+    Ok(QuadraticCalibrationFit {
+        effective_sample_size: effective_sample_size(&weights),
+        max_abs_balance,
+        converged,
+        iterations: fit.diagnostics.iterations as usize,
+        weights,
+    })
+}
+
 fn identity_matrix(n: usize) -> Array2<f64> {
     let mut eye = Array2::<f64>::zeros((n, n));
     for i in 0..n {

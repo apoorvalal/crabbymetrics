@@ -345,6 +345,32 @@ summary(vcov=None, lags=None, clusters=None)
 
 Binary-treatment augmented inverse probability weighting estimator for the ATE. Treatment `d` should be coded `0/1`; fold assignment is deterministically shuffled within treatment strata.
 
+```python
+cm.RegressionBlip(max_lag=1, time_effects=True)
+fit(y, treatment, history=None)
+blip_down(y, treatment)
+summary()
+```
+
+Blackwell--Glynn recursive regression g-estimator under sequential ignorability. `y` and `treatment` are same-shaped `(n_units, n_periods)` panels. Optional `history` is `(n_units, n_periods, n_features)` and must contain only information available when treatment is assigned.
+
+```python
+cm.ParallelTrendsSNMM(max_horizon=1, treatment_mode="blip", n_folds=2, nuisance_penalty=1e-6, propensity_clip=0.01, seed=42)
+fit(y, treatment, history=None)
+summary()
+```
+
+Additive cross-fitted doubly robust SNMM under time-varying conditional parallel trends. `y` has shape `(n_units, n_treatment_periods + 1)` and treatment has one fewer column. `treatment_mode="initiation"` accepts binary absorbing treatment status and internally constructs first-treatment pulses and not-yet-treated risk sets. Cross-fitting is over units, never unit-period rows. The shared mathematical and numerical page is `docs/examples/snmm-blips.qmd`.
+
+```python
+cm.DynamicCovariateBalance(nuisance_penalty=1e-6, autoscale=True, max_weight=1.0, max_iterations=300, tolerance=1e-6)
+fit(outcome, treatment, history, target_path)
+get_weights()
+summary()
+```
+
+Viviano--Bradic dynamic covariate-balancing estimator for the final mean potential outcome under one binary treatment path. `outcome` has shape `(n_units,)`, `treatment` has shape `(n_units, n_periods)`, and `history` has shape `(n_units, n_periods, n_features)`. It recursively fits ridge potential projections and obtains exact sequential quadratic calibration weights from the same engine as `BalancingWeights`. Fit two objects and difference `potential_outcome` to estimate a path contrast. The initial implementation exposes calibration diagnostics but no analytic standard error.
+
 ### Bagged polynomial regression
 
 ```python
@@ -539,7 +565,8 @@ If you need to inspect or modify source, start here:
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/survival.rs`: ExponentialPH, WeibullPH, CoxPH, AndersenGill.
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
-- `src/estimators/balancing.rs`: BalancingWeights.
+- `src/estimators/dynamic.rs`: RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance.
+- `src/estimators/balancing.rs`: BalancingWeights and the shared internal quadratic-calibration engine used by DynamicCovariateBalance.
 - `src/estimators/gmm.rs`: GMM.
 - `src/estimators/transforms.rs`: PCA, RandomizedPCA, KernelBasis, NystromBasis, and RandomFourierFeatures.
 - `src/fit.rs`: shared convergence status and fit diagnostics.
@@ -591,6 +618,7 @@ uv run quarto render docs
 - [EPLM](https://apoorvalal.github.io/crabbymetrics/examples/eplm.html): partially linear E-estimator.
 - [Average Derivative](https://apoorvalal.github.io/crabbymetrics/examples/average-derivative.html): Oaxaca-Blinder, IPW, and doubly robust average derivative.
 - [Double ML And AIPW](https://apoorvalal.github.io/crabbymetrics/examples/double-ml.html): cross-fit nuisance models for DML and binary AIPW.
+- [Dynamic Treatment Blips](https://apoorvalal.github.io/crabbymetrics/examples/snmm-blips.html): sequential-regression and parallel-trends SNMMs, with separate timing and identification contracts.
 - [Richer Regression With Transformer Pipelines](https://apoorvalal.github.io/crabbymetrics/examples/richer-regression.html): KernelBasis/PCA features in downstream regressions.
 - [PCA And Kernel Basis](https://apoorvalal.github.io/crabbymetrics/examples/pca-and-kernel-basis.html): transformer examples.
 - [Optimizers](https://apoorvalal.github.io/crabbymetrics/examples/optimizers.html): direct optimizer usage.

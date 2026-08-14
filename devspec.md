@@ -145,6 +145,12 @@ Implementation guardrails for sketching work:
   - `AverageDerivative(method="ob" | "ipw" | "dr")`
   - `PartiallyLinearDML`
   - `AIPW`
+- dynamic treatment effects (review branch)
+  - `RegressionBlip(max_lag=1, time_effects=True)` estimates additive lag-specific blips by recursive outcome regression under sequential ignorability
+  - `ParallelTrendsSNMM(max_horizon=1, treatment_mode="blip" | "initiation", n_folds=2, nuisance_penalty=1e-6, propensity_clip=0.01, seed=42)` estimates additive horizon-specific blips using cross-fitted doubly robust moments under time-varying conditional parallel trends
+  - `DynamicCovariateBalance(nuisance_penalty=1e-6, autoscale=True, max_weight=1.0, max_iterations=300, tolerance=1e-6)` estimates a Viviano--Bradic final mean potential outcome under one binary path using recursive ridge potential projections and the shared exact quadratic-calibration engine
+  - all accept wide unit-by-time NumPy panels; optional or required histories use shape `(n_units, n_periods, n_features)`, and cross-fitting is always by unit where used
+  - the standalone mathematical and API review page is `docs/examples/snmm-blips.qmd`
 - MLE prediction contract and survival models
   - `Logit`, `MultinomialLogit`, and `Poisson` expose layered prediction APIs: `predict_lin(...)`, `predict(...)`, and classifier-only `predict_label(...)`
   - `ExponentialPH` and `WeibullPH` expose absolute hazard, cumulative-hazard, and survival predictions
