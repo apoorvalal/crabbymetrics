@@ -78,6 +78,9 @@ Use these defaults unless the application has a reason to do otherwise:
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
 - Covariate balancing/calibration weights: `cm.BalancingWeights()`; use `objective="cressie_read"` for Cressie-Read / power-divergence calibration.
+- Longitudinal additive blips under sequential ignorability: `cm.RegressionBlip()`.
+- Longitudinal additive blips under conditional parallel trends: `cm.ParallelTrendsSNMM()`.
+- A final mean potential outcome under a specified binary treatment path using sequential balance: `cm.DynamicCovariateBalance()`; fit one object per path and difference the fitted path means for a contrast.
 - Binary classification: use `cm.Logit()` for a convergence-checked likelihood estimator.
 - Multiclass classification: `cm.MultinomialLogit()`.
 - Count regression: `cm.Poisson()`.

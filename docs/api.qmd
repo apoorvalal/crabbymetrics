@@ -158,18 +158,86 @@ display(HTML(html_table(
 
 ## Causal inference and panels
 
+### Treatment effects, IV, and balancing
+
+Reference pages:
+
 - [TwoSLS](reference/TwoSLS.qmd)
 - [BalancingWeights](reference/BalancingWeights.qmd)
 - [EPLM](reference/EPLM.qmd)
 - [AverageDerivative](reference/AverageDerivative.qmd)
 - [PartiallyLinearDML](reference/PartiallyLinearDML.qmd)
 - [AIPW](reference/AIPW.qmd)
+
+Worked docs:
+
+- [TwoSLS](examples/twosls.qmd)
+- [Balancing Weights](examples/balancing-weights.qmd)
+- [Cressie--Read and Rényi Balancing](examples/cressie-read-balancing.qmd)
+- [EPLM](examples/eplm.qmd)
+- [Average Derivative](examples/average-derivative.qmd)
+- [Double ML and AIPW](examples/double-ml.qmd)
+
+```{python}
+display(HTML(html_table(
+    ["Constructor", "Methods"],
+    class_rows([
+        cm.TwoSLS,
+        cm.BalancingWeights,
+        cm.EPLM,
+        cm.AverageDerivative,
+        cm.PartiallyLinearDML,
+        cm.AIPW,
+    ])
+)))
+```
+
+### Dynamic treatment regimes
+
+The three longitudinal estimators have deliberately different timing contracts. `RegressionBlip` takes same-shaped outcome and treatment panels because treatment at $t$ may affect $Y_t$. `ParallelTrendsSNMM` takes an outcome panel with one extra column because treatment at $t$ first affects $Y_{t+1}$. `DynamicCovariateBalance` takes a scalar final outcome and estimates one path-specific mean per fitted object.
+
+- [RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance](examples/snmm-blips.qmd)
+
+```{python}
+display(HTML(html_table(
+    ["Constructor", "Methods"],
+    class_rows([
+        cm.RegressionBlip,
+        cm.ParallelTrendsSNMM,
+        cm.DynamicCovariateBalance,
+    ])
+)))
+```
+
+### Panel estimators
+
 - [SyntheticControl](reference/SyntheticControl.qmd)
 - [HorizontalPanelRidge](reference/HorizontalPanelRidge.qmd)
 - [SyntheticDID](reference/SyntheticDID.qmd)
 - [MatrixCompletion](reference/MatrixCompletion.qmd)
 - [InteractiveFixedEffects](reference/InteractiveFixedEffects.qmd)
-- [RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance](examples/snmm-blips.qmd)
+
+Worked docs:
+
+- [Synthetic Control](examples/synthetic-control.qmd)
+- [Horizontal Panel Ridge](examples/horizontal-panel-ridge.qmd)
+- [Synthetic DID](examples/synthetic-did.qmd)
+- [Matrix Completion](examples/matrix-completion.qmd)
+- [Interactive Fixed Effects](examples/interactive-fixed-effects.qmd)
+- [Staggered Panel Event Study](examples/staggered-panel-event-study.qmd)
+
+```{python}
+display(HTML(html_table(
+    ["Constructor", "Methods"],
+    class_rows([
+        cm.SyntheticControl,
+        cm.HorizontalPanelRidge,
+        cm.SyntheticDID,
+        cm.MatrixCompletion,
+        cm.InteractiveFixedEffects,
+    ])
+)))
+```
 
 ## Hypothesis testing and utilities
 

@@ -678,3 +678,10 @@ That is the current state the next extension branch should assume.
 - Published the rendered site to `gh-pages` and removed two generated Python bytecode files before the final Pages deployment. Pages workflow `https://github.com/apoorvalal/crabbymetrics/actions/runs/29215956872` deployed clean commit `c7a3ce4`; live checks confirmed visible API code, folded ablation code, and the new estimator implementation walkthroughs.
 - Follow-up documentation correction replaced the narrative-first `BaggedPolynomialRegressor` reference with a contract-first API page covering exact constructor defaults, parameter constraints, method inputs and returns, errors, every `summary()` field, estimator math, inference limits, and resource costs. It also corrected stale `docs/llms.txt` defaults from `n_estimators=100, seed=None` to the shipped `n_estimators=50, seed=42`.
 - Release links: PyPI version `0.8.1` at `https://pypi.org/project/crabbymetrics/0.8.1/`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.1`; public docs `https://apoorvalal.github.io/crabbymetrics/`.
+
+## 2026-08-13 Dynamic-Treatment Estimators And API Docs
+
+- Squash-merged PR #19 as `8e16b11 Add dynamic-treatment blip estimators (#19)`.
+- Landed `RegressionBlip`, `ParallelTrendsSNMM`, and `DynamicCovariateBalance`, together with focused tests and the full mathematical/simulation vignette at `docs/examples/snmm-blips.qmd`.
+- Expanded the causal-inference API overview into separate treatment-effect, dynamic-regime, and panel sections. The dynamic-regime section now displays the live constructor and method surface for all three estimators and states their distinct outcome/treatment timing contracts.
+- Updated `docs/llms.txt` estimator-selection guidance so agents can choose among sequential-ignorability regression blips, conditional-parallel-trends SNMMs, and path-specific dynamic balancing.
