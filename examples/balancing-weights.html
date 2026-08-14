@@ -4208,6 +4208,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
  <span class="dropdown-text">Joint Hypothesis Tests</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4722,7 +4726,7 @@ w_i^{\mathrm{CBPS}}
 <h2 class="anchored" data-anchor-id="kang-schafer">Kang-Schafer</h2>
 <p>Kang-Schafer is useful here because balancing is asked to work on the transformed covariates <span class="math inline">\(X\)</span>, not the latent Gaussian drivers <span class="math inline">\(Z\)</span> that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.</p>
 <p>On this single draw, both balancing estimators substantially reduce the raw covariate imbalance. The <code>Max balance error</code> column is the largest absolute difference between the weighted control mean and treated mean in the fitted balance basis. The oracle version that balances on latent <span class="math inline">\(Z\)</span> shows the benchmark we would like to approach, but it uses variables that are not observed in the real Kang-Schafer problem.</p>
-<div id="01f83d90" class="cell" data-execution_count="2">
+<div id="6f70747d" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>single_dataset <span class="op">=</span> evaluate_single_dataset()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -4780,7 +4784,7 @@ w_i^{\mathrm{CBPS}}
 </div>
 </div>
 </div>
-<div id="1dd87093" class="cell" data-execution_count="3">
+<div id="06ba044f" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_kang_schafer_panel(n_rep<span class="op">=</span><span class="dv">80</span>, n<span class="op">=</span><span class="dv">1000</span>, seed<span class="op">=</span><span class="dv">2026</span>):</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> []</span>
@@ -4872,7 +4876,7 @@ w_i^{\mathrm{CBPS}}
 <section id="hainmueller" class="level2">
 <h2 class="anchored" data-anchor-id="hainmueller">Hainmueller</h2>
 <p>The Hainmueller-style design below keeps the unit-level treatment effect at zero while varying overlap and the difficulty of the treatment and outcome models. The harder setting deliberately uses nonlinear assignment and outcome functions, but the outcome remains finite and stable enough that the RMSE table is still interpretable.</p>
-<div id="7a99a146" class="cell" data-execution_count="4">
+<div id="ed1cc049" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_hainmueller_panel(setting_name, overlap_design, pscore_design, outcome_design, n_rep<span class="op">=</span><span class="dv">50</span>, n<span class="op">=</span><span class="dv">1500</span>, seed<span class="op">=</span><span class="dv">3030</span>):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> []</span>
@@ -4991,7 +4995,7 @@ w_i^{\mathrm{CBPS}}
 </table>
 </div>
 </div>
-<div id="04f9a72f" class="cell" data-execution_count="5">
+<div id="9d051180" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rmse_by_setting(rows):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    settings <span class="op">=</span> <span class="bu">sorted</span>({row[<span class="dv">0</span>] <span class="cf">for</span> row <span class="kw">in</span> rows})</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> [<span class="st">&quot;Naive&quot;</span>, <span class="st">&quot;Quadratic&quot;</span>, <span class="st">&quot;Entropy&quot;</span>]</span>

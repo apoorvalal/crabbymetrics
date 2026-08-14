@@ -4208,6 +4208,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
  <span class="dropdown-text">Joint Hypothesis Tests</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4421,7 +4425,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 <p>It is tied to the Cressie-Read family by the same power moment, with <span class="math inline">\(\lambda=\alpha-1\)</span>. This gives a clean mapping between divergence values, but the implemented optimizer is still the Cressie-Read calibration map above, solved by Gauss-Newton/L-BFGS/BFGS.</p>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="6d2c5211" class="cell" data-execution_count="1">
+<div id="41df3e91" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -4629,7 +4633,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </section>
 <section id="one-representative-draw" class="level2">
 <h2 class="anchored" data-anchor-id="one-representative-draw">One Representative Draw</h2>
-<div id="6906a010" class="cell" data-execution_count="2">
+<div id="6d0cad96" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>overlap_settings <span class="op">=</span> {</span>
@@ -4860,7 +4864,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </section>
 <section id="monte-carlo" class="level2">
 <h2 class="anchored" data-anchor-id="monte-carlo">Monte Carlo</h2>
-<div id="04e94643" class="cell" data-execution_count="3">
+<div id="c3cdbfad" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_mc(reps<span class="op">=</span><span class="dv">40</span>, seed<span class="op">=</span><span class="dv">444</span>):</span>
@@ -5094,7 +5098,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </table>
 </div>
 </div>
-<div id="06e96779" class="cell" data-execution_count="4">
+<div id="caa11ae7" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>order <span class="op">=</span> [name <span class="cf">for</span> name, _ <span class="kw">in</span> METHODS]</span>
@@ -5117,7 +5121,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </div>
 </div>
 </div>
-<div id="c9c2caea" class="cell" data-execution_count="5">
+<div id="a2b8ac8a" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="fl">4.5</span>), sharey<span class="op">=</span><span class="va">True</span>, constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
@@ -5153,7 +5157,7 @@ CR_\lambda(w,q)=
 \frac{2\{M_{\lambda+1}(w,q)-1\}}{\lambda(\lambda+1)}.
 \]</span></p>
 <p>So there is a clean mapping in the divergence values: <span class="math inline">\(D_\alpha\)</span> and <span class="math inline">\(CR_{\alpha-1}\)</span> are monotone transformations of the same scalar <span class="math inline">\(M_\alpha\)</span>. The table below fits the mapped Cressie-Read calibration member, then reports both the Rényi value and the mapped Cressie-Read statistic for the fitted weights.</p>
-<div id="0962d90b" class="cell" data-execution_count="6">
+<div id="ef553724" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alpha_grid <span class="op">=</span> np.array([<span class="fl">0.25</span>, <span class="fl">0.50</span>, <span class="fl">0.75</span>, <span class="fl">1.00</span>, <span class="fl">1.25</span>, <span class="fl">1.50</span>, <span class="fl">2.00</span>])</span>

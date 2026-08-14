@@ -4208,6 +4208,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
  <span class="dropdown-text">Joint Hypothesis Tests</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4387,7 +4391,7 @@ window.Quarto = {
 </header>
 
 
-<div id="f5248f2a" class="cell" data-execution_count="1">
+<div id="561f5d5d" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="where-it-fits" class="level2" data-number="1">
@@ -4459,13 +4463,13 @@ d_i\rho L_i-z_i\{(\rho L_i)^2+\rho L_i\}.
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.WeibullPH</code></p>
 <p>Use <code>fit(x, time, event)</code>. <code>predict_lin(x, time)</code> returns the log hazard at a specific horizon, while <code>predict_hazard</code>, <code>predict_cumulative_hazard</code>, and <code>predict_survival</code> expose the absolute prediction surface. The default <code>predict(x, time)</code> returns survival probabilities. Times must be positive and finite, events must be binary, and <code>x</code> must be finite.</p>
-<div id="c3eaf137" class="cell" data-execution_count="2">
+<div id="295dc124" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.WeibullPH))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="cd88e708" class="cell" data-execution_count="3">
+<div id="eabb9be6" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.WeibullPH</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;Public method&quot;</span>], public_methods(cls))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
@@ -4510,7 +4514,7 @@ d_i\rho L_i-z_i\{(\rho L_i)^2+\rho L_i\}.
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="30c49ba7" class="cell" data-execution_count="4">
+<div id="0804b2eb" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">32</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">300</span>,<span class="dv">2</span>))<span class="op">;</span> rho<span class="op">=</span><span class="fl">1.4</span><span class="op">;</span> lam<span class="op">=</span><span class="fl">0.03</span><span class="op">;</span> u<span class="op">=</span>rng.uniform(size<span class="op">=</span><span class="dv">300</span>)<span class="op">;</span> t_event<span class="op">=</span>(( <span class="op">-</span>np.log(u)) <span class="op">/</span>(lam<span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.45</span>,<span class="op">-</span><span class="fl">0.25</span>]))))<span class="op">**</span>(<span class="fl">1.0</span><span class="op">/</span>rho)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">35</span>,size<span class="op">=</span><span class="dv">300</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>time<span class="op">=</span>np.minimum(t_event,c)<span class="op">;</span> event<span class="op">=</span>(t_event<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
@@ -4532,7 +4536,7 @@ d_i\rho L_i-z_i\{(\rho L_i)^2+\rho L_i\}.
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="c0d46765" class="cell" data-execution_count="5">
+<div id="acd70788" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">132</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">140</span>,<span class="dv">2</span>))<span class="op">;</span> rho<span class="op">=</span><span class="fl">1.3</span><span class="op">;</span> lam<span class="op">=</span><span class="fl">0.04</span><span class="op">;</span> u<span class="op">=</span>rng.uniform(size<span class="op">=</span><span class="dv">140</span>)<span class="op">;</span> te<span class="op">=</span>(( <span class="op">-</span>np.log(u)) <span class="op">/</span>(lam<span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.35</span>,<span class="op">-</span><span class="fl">0.15</span>]))))<span class="op">**</span>(<span class="fl">1.0</span><span class="op">/</span>rho)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">25</span>,size<span class="op">=</span><span class="dv">140</span>)<span class="op">;</span> time<span class="op">=</span>np.minimum(te,c)<span class="op">;</span> event<span class="op">=</span>(te<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>model<span class="op">=</span>cm.WeibullPH()<span class="op">;</span> model.fit(x,time,event)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>

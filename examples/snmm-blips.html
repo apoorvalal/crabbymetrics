@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Dynamic Treatment Effects – crabbymetrics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-445ff30f473745a4b54dfab4fb13ee75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../logo.png" alt="" class="navbar-logo light-content">
+    <img src="../logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">crabbymetrics</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">API</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
+        <li>
+    <a class="dropdown-item" href="../api.html">
+ <span class="dropdown-text">API Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#regression-and-glms">
+ <span class="dropdown-text">Regression And GLMs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#survival-time-to-event-and-recurrent-event-models">
+ <span class="dropdown-text">Survival / Event-Time</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#causal-inference-and-panels">
+ <span class="dropdown-text">Causal Inference And Panels</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
+ <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#transforms">
+ <span class="dropdown-text">Transforms</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#estimation-interfaces-and-optimizers">
+ <span class="dropdown-text">Estimation Interfaces</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../mechanics-ols.html"> 
+<span class="menu-text">Binding Crash Course</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression And GLMs</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
+        <li>
+    <a class="dropdown-item" href="../examples/ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/abc-ols.html">
+ <span class="dropdown-text">ABC OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bagged-polynomial-regression.html">
+ <span class="dropdown-text">Bagged Polynomial Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/elastic-net.html">
+ <span class="dropdown-text">ElasticNet</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/logit.html">
+ <span class="dropdown-text">Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multinomial-logit.html">
+ <span class="dropdown-text">Multinomial Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mle-prediction-interface.html">
+ <span class="dropdown-text">MLE Prediction Interface</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival-time-to-event-and-recurrent-events.html">
+ <span class="dropdown-text">Survival / Recurrent Events</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm.html">
+ <span class="dropdown-text">GMM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mestimator-poisson.html">
+ <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal Inference</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
+ <span class="dropdown-text">Cressie-Read And Rényi Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/sparse-rotations.html">
+ <span class="dropdown-text">Sparse Factor Rotations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ablations</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+        <li>
+    <a class="dropdown-item" href="../ablations/variance-estimators.html">
+ <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
+ <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
+ <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Optimization</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+        <li>
+    <a class="dropdown-item" href="../examples/optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
+ <span class="dropdown-text">GMM With Optimizers</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding: First Course</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+        <li>
+    <a class="dropdown-item" href="../first-course-ding.html">
+ <span class="dropdown-text">Overview And TOC</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
+ <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
+ <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
+ <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
+ <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
+ <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
+ <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
+ <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
+ <span class="dropdown-text">Ch 21 Experimental IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
+ <span class="dropdown-text">Ch 23 Econometric IV</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ch27-mediation.html">
+ <span class="dropdown-text">Ch 27 Mediation</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#two-timing-conventions" id="toc-two-timing-conventions" class="nav-link active" data-scroll-target="#two-timing-conventions">Two timing conventions</a>
+  <ul class="collapse">
+  <li><a href="#contemporaneous-regression-blips" id="toc-contemporaneous-regression-blips" class="nav-link" data-scroll-target="#contemporaneous-regression-blips">Contemporaneous regression blips</a></li>
+  <li><a href="#forward-parallel-trends-blips" id="toc-forward-parallel-trends-blips" class="nav-link" data-scroll-target="#forward-parallel-trends-blips">Forward parallel-trends blips</a></li>
+  </ul></li>
+  <li><a href="#orthogonal-estimating-equation" id="toc-orthogonal-estimating-equation" class="nav-link" data-scroll-target="#orthogonal-estimating-equation">Orthogonal estimating equation</a></li>
+  <li><a href="#dynamic-covariate-balance" id="toc-dynamic-covariate-balance" class="nav-link" data-scroll-target="#dynamic-covariate-balance">Dynamic covariate balance</a></li>
+  <li><a href="#api" id="toc-api" class="nav-link" data-scroll-target="#api">API</a></li>
+  <li><a href="#numerical-experiment-1-post-treatment-covariate-feedback" id="toc-numerical-experiment-1-post-treatment-covariate-feedback" class="nav-link" data-scroll-target="#numerical-experiment-1-post-treatment-covariate-feedback">Numerical experiment 1: post-treatment covariate feedback</a></li>
+  <li><a href="#numerical-experiment-2-staggered-initiation-with-level-confounding" id="toc-numerical-experiment-2-staggered-initiation-with-level-confounding" class="nav-link" data-scroll-target="#numerical-experiment-2-staggered-initiation-with-level-confounding">Numerical experiment 2: staggered initiation with level confounding</a></li>
+  <li><a href="#comparative-simulation-study" id="toc-comparative-simulation-study" class="nav-link" data-scroll-target="#comparative-simulation-study">Comparative simulation study</a></li>
+  <li><a href="#interpretation-and-current-boundaries" id="toc-interpretation-and-current-boundaries" class="nav-link" data-scroll-target="#interpretation-and-current-boundaries">Interpretation and current boundaries</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Dynamic Treatment Effects</h1>
+<p class="subtitle lead">Regression blips, parallel-trends SNMMs, and dynamic covariate balance</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Dynamic causal estimators must respect the order in which treatment, outcomes, and time-varying confounders are observed. Two methods below parameterize the effect of a treatment <em>blip</em> at one time on later outcomes; the third estimates a mean final outcome under an entire treatment path. All avoid interpreting an ordinary autoregressive distributed-lag regression as causal when it conditions on variables caused by earlier treatment.</p>
+<p>This page documents three deliberately distinct estimators:</p>
+<ul>
+<li><code>RegressionBlip</code> is the recursive regression g-estimator described by Blackwell and Glynn (2018). It is identified by <strong>sequential ignorability</strong>.</li>
+<li><code>ParallelTrendsSNMM</code> implements the cross-fitted, doubly robust additive estimating equations of Shahn et al.&nbsp;(2022). It is identified by a <strong>time-varying conditional parallel-trends</strong> restriction.</li>
+<li><code>DynamicCovariateBalance</code> implements the recursive potential-projection and sequential weighting construction of Viviano and Bradic (2026). It targets a <strong>mean potential outcome under a specified treatment path</strong> and uses sequential ignorability plus linear potential projections.</li>
+</ul>
+<section id="two-timing-conventions" class="level2">
+<h2 class="anchored" data-anchor-id="two-timing-conventions">Two timing conventions</h2>
+<p>The methods use different observation orderings, so their array contracts are intentionally different.</p>
+<section id="contemporaneous-regression-blips" class="level3">
+<h3 class="anchored" data-anchor-id="contemporaneous-regression-blips">Contemporaneous regression blips</h3>
+<p><code>RegressionBlip</code> treats <span class="math inline">\(A_t\)</span> as capable of affecting <span class="math inline">\(Y_t\)</span>. Both arrays therefore have shape <code>(n_units, n_periods)</code>. Let <span class="math inline">\(\bar A_t=(A_0,\ldots,A_t)\)</span>. For an additive, history-invariant impulse response,</p>
+<p><span class="math display">\[
+b_t(\bar a_t,j;\gamma)
+=
+E\left[
+Y_t(\bar a_{t-j},\bar 0_j)-Y_t(\bar a_{t-j-1},\bar 0_{j+1})
+\mid \bar A_{t-j}=\bar a_{t-j}
+\right]
+=\gamma_j a_{t-j}.
+\]</span></p>
+<p>After estimating lags <span class="math inline">\(0,\ldots,j-1\)</span>, define the partially blipped-down outcome</p>
+<p><span class="math display">\[
+\widetilde Y_t^{\,j}
+=Y_t-\sum_{s=0}^{j-1}\widehat\gamma_s A_{t-s}.
+\]</span></p>
+<p>At stage <span class="math inline">\(j\)</span>, the implementation regresses <span class="math inline">\(\widetilde Y_t^{\,j}\)</span> on <span class="math inline">\(A_{t-j}\)</span> and information available when <span class="math inline">\(A_{t-j}\)</span> was assigned: <span class="math inline">\(A_{t-j-1}\)</span>, <span class="math inline">\(Y_{t-j-1}\)</span>, optional user-supplied history <span class="math inline">\(L_{t-j}\)</span>, and optional outcome-time indicators. The coefficient on <span class="math inline">\(A_{t-j}\)</span> is <span class="math inline">\(\widehat\gamma_j\)</span>. The recursion avoids conditioning on <span class="math inline">\(L_t\)</span> when estimating the effect of <span class="math inline">\(A_{t-j}\)</span> if <span class="math inline">\(L_t\)</span> could have been caused by that treatment.</p>
+<p>The identifying restriction is sequential ignorability. For every treatment history and assignment time <span class="math inline">\(s\)</span>,</p>
+<p><span class="math display">\[
+\{Y_r(\bar a_r):r\ge s\}\perp A_s\mid V_s,
+\]</span></p>
+<p>where <span class="math inline">\(V_s\)</span> contains the treatment and covariate history sufficient to remove confounding of <span class="math inline">\(A_s\)</span>. The assumption permits <span class="math inline">\(A_s\)</span> to affect future covariates and future treatment.</p>
+</section>
+<section id="forward-parallel-trends-blips" class="level3">
+<h3 class="anchored" data-anchor-id="forward-parallel-trends-blips">Forward parallel-trends blips</h3>
+<p><code>ParallelTrendsSNMM</code> follows the paper’s ordering in which <span class="math inline">\(Y_m\)</span> is observed before <span class="math inline">\(A_m\)</span>, so <span class="math inline">\(A_m\)</span> first affects <span class="math inline">\(Y_{m+1}\)</span>. If treatment has <span class="math inline">\(T\)</span> columns, the outcome must have <span class="math inline">\(T+1\)</span> columns.</p>
+<p>For a reference regime <span class="math inline">\(g\)</span>, the general blip function is</p>
+<p><span class="math display">\[
+\gamma^g_{mk}(\bar l_m,\bar a_m)
+=E\left[
+Y_k(\bar a_m,g^{m+1})-Y_k(\bar a_{m-1},g^m)
+\mid \bar A_m=\bar a_m,\bar L_m=\bar l_m
+\right],\qquad k&gt;m.
+\]</span></p>
+<p>The implemented first-tier model uses the untreated regime, an additive linear blip, and a common coefficient by treatment-to-outcome horizon <span class="math inline">\(h=k-m\)</span>:</p>
+<p><span class="math display">\[
+\gamma_{mk}(\bar L_m,\bar A_m;\psi)=A_m\psi_{k-m},
+\qquad h=1,\ldots,H.
+\]</span></p>
+<p>For <span class="math inline">\(m&lt;k\)</span>, define</p>
+<p><span class="math display">\[
+H_{mk}(\psi)=Y_k-\sum_{j=m}^{k-1}\gamma_{jk}(\psi),
+\qquad
+H^\dagger_{mk}(\psi)=H_{mk}(\psi)-H_{m,k-1}(\psi).
+\]</span></p>
+<p>At the true parameter, <span class="math inline">\(H^\dagger_{mk}(\psi_0)\)</span> behaves like the counterfactual untreated outcome increment. The identifying restriction is</p>
+<p><span class="math display">\[
+E\left[
+Y_k(\bar A_{m-1},g^m)-Y_{k-1}(\bar A_{m-1},g^m)
+\mid A_m,\bar L_m,\bar A_{m-1}
+\right]
+\]</span></p>
+<p><span class="math display">\[
+=E\left[
+Y_k(\bar A_{m-1},g^m)-Y_{k-1}(\bar A_{m-1},g^m)
+\mid A_m=g_m,\bar L_m,\bar A_{m-1}
+\right].
+\]</span></p>
+<p>This is a statement about <em>counterfactual trends</em>, not counterfactual levels. Time-constant unobserved causes of treatment and outcome levels are allowed if they do not also modify untreated trends. A supplied <code>history[:, m, :]</code> must be available at assignment time <span class="math inline">\(m\)</span>. In particular, conditioning on the current outcome level <span class="math inline">\(Y_m\)</span> can destroy the intended parallel-trends interpretation; lagged outcome increments may be admissible where levels are not.</p>
+</section>
+</section>
+<section id="orthogonal-estimating-equation" class="level2">
+<h2 class="anchored" data-anchor-id="orthogonal-estimating-equation">Orthogonal estimating equation</h2>
+<p>Let <span class="math inline">\(\pi_m(L_m)=E(A_m\mid L_m,\bar A_{m-1})\)</span> and</p>
+<p><span class="math display">\[
+\nu_{mk}(L_m;\psi)=E\{H^\dagger_{mk}(\psi)\mid L_m,\bar A_{m-1}\}.
+\]</span></p>
+<p>Shahn et al.’s doubly robust moment is</p>
+<p><span class="math display">\[
+U_{mk}(\psi)
+=s_{mk}(L_m,\bar A_{m-1})
+\{A_m-\pi_m(L_m)\}
+\{H^\dagger_{mk}(\psi)-\nu_{mk}(L_m;\psi)\}.
+\]</span></p>
+<p>Its expectation is zero if either the conditional treatment mean or the conditional blipped-trend mean is correctly specified. For a linear blip, write</p>
+<p><span class="math display">\[
+H^\dagger_{mk}(\psi)=\Delta Y_k-D_{mk}'\psi.
+\]</span></p>
+<p>The implementation separately residualizes <span class="math inline">\(\Delta Y_k\)</span> and <span class="math inline">\(D_{mk}\)</span> on the history features. This produces a linear orthogonal equation,</p>
+<p><span class="math display">\[
+\sum_{i,m,k}
+Z_{imk}\left[
+\{\Delta Y_{ik}-\widehat q_{mk}(L_{im})\}
+-\{D_{imk}-\widehat r_{mk}(L_{im})\}'\psi
+\right]=0,
+\]</span></p>
+<p>where <span class="math inline">\(Z_{imk}\)</span> places <span class="math inline">\(A_{im}-\widehat\pi_m(L_{im})\)</span> in the coordinate for horizon <span class="math inline">\(k-m\)</span>. Treatment, trend, and blip-design conditional means are fitted with ridge regressions on training folds and evaluated on held-out units. The covariance is an influence-function sandwich over unit-level sums of the orthogonal scores.</p>
+</section>
+<section id="dynamic-covariate-balance" class="level2">
+<h2 class="anchored" data-anchor-id="dynamic-covariate-balance">Dynamic covariate balance</h2>
+<p>Viviano and Bradic target the mean final potential outcome under a complete treatment path,</p>
+<p><span class="math display">\[
+\mu_T(d_{1:T})=E\{Y_T(d_{1:T})\}.
+\]</span></p>
+<p>Let <span class="math inline">\(H_{it}\)</span> contain information observed before <span class="math inline">\(A_{it}\)</span>, including baseline covariates, prior treatment, and any relevant lagged outcomes or time-varying covariates. Their potential local-projection model is</p>
+<p><span class="math display">\[
+E\{Y_{iT}(d_{1:T})\mid H_{it}(d_{1:t-1})\}
+=H_{it}(d_{1:t-1})'\beta_d^{(t)}.
+\]</span></p>
+<p>The fitted projections are obtained backwards. At <span class="math inline">\(t=T\)</span>, regress <span class="math inline">\(Y_T\)</span> on <span class="math inline">\(H_T\)</span> among units with <span class="math inline">\(A_{1:T}=d_{1:T}\)</span>. At every earlier <span class="math inline">\(t\)</span>, regress the next fitted conditional mean <span class="math inline">\(H_{t+1}'\widehat\beta_d^{(t+1)}\)</span> on <span class="math inline">\(H_t\)</span> among units with <span class="math inline">\(A_{1:t}=d_{1:t}\)</span>. The implementation uses ridge regularization with an unpenalized intercept; the paper’s high-dimensional theory instead permits appropriately convergent lasso projections.</p>
+<p>Starting from <span class="math inline">\(\widehat\gamma_{i0}=1/n\)</span>, period-<span class="math inline">\(t\)</span> weights solve the exact-balance special case</p>
+<p><span class="math display">\[
+\begin{aligned}
+\widehat\gamma_t
+=\arg\min_{\gamma\in\mathbb R^n}\;&amp;\sum_{i=1}^n\gamma_i^2\\
+\text{subject to }\;&amp;
+\sum_i\gamma_iH_{it}
+=\sum_i\widehat\gamma_{i,t-1}H_{it},\\
+&amp;\sum_i\gamma_i=1,\qquad 0\leq\gamma_i\leq w_{\max},\\
+&amp;\gamma_i=0\quad\text{if }A_{i,1:t}\neq d_{1:t}.
+\end{aligned}
+\]</span></p>
+<p>Thus the first-period path group is balanced to the whole sample. At later periods, the longer path group is balanced to the preceding path group after applying the previous period’s weights. <code>DynamicCovariateBalance</code> calls the same autoscaling, bounded quadratic dual map, solver sequence, normalization, and diagnostics used by <code>BalancingWeights(objective="quadratic")</code>; this is one shared calibration engine rather than a second weighting implementation.</p>
+<p>Given the recursive predictions <span class="math inline">\(\widehat q_{it}=H_{it}'\widehat\beta_d^{(t)}\)</span>, the augmented path-mean estimator is</p>
+<p><span class="math display">\[
+\widehat\mu_T(d)
+=\sum_i\widehat\gamma_{iT}Y_{iT}
+-\sum_{t=2}^T\sum_i
+(\widehat\gamma_{it}-\widehat\gamma_{i,t-1})\widehat q_{it}
+-\sum_i(\widehat\gamma_{i1}-1/n)\widehat q_{i1}.
+\]</span></p>
+<p>The paper permits coordinatewise <span class="math inline">\(\ell_\infty\)</span> balance slack and explicit high-dimensional tuning. The first package implementation uses exact balance, ridge projections, and the existing scalar weight cap. It reports calibration diagnostics but deliberately does not report an analytic standard error yet; Monte Carlo dispersion or a unit bootstrap is required for uncertainty until the paper’s longitudinal influence-function variance is implemented.</p>
+</section>
+<section id="api" class="level2">
+<h2 class="anchored" data-anchor-id="api">API</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Blackwell--Glynn recursive regression blips.</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>reg <span class="op">=</span> cm.RegressionBlip(max_lag<span class="op">=</span><span class="dv">2</span>, time_effects<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>reg.fit(y_same_period, treatment_same_period, history)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>reg.coef</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>reg.stage_standard_errors</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>reg.blip_down(y_same_period, treatment_same_period)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>reg.summary()</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Shahn et al. parallel-trends SNMM.</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>pt <span class="op">=</span> cm.ParallelTrendsSNMM(</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    max_horizon<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    treatment_mode<span class="op">=</span><span class="st">"initiation"</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    n_folds<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    nuisance_penalty<span class="op">=</span><span class="fl">1e-6</span>,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    propensity_clip<span class="op">=</span><span class="fl">0.01</span>,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">42</span>,</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>pt.fit(y_forward, absorbing_treatment_status, history)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>pt.coef</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>pt.standard_errors</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>pt.summary()</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Viviano--Bradic dynamic covariate balance for one treatment path.</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>dcb <span class="op">=</span> cm.DynamicCovariateBalance(</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    nuisance_penalty<span class="op">=</span><span class="fl">1e-6</span>,</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    autoscale<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    max_weight<span class="op">=</span><span class="fl">1.0</span>,</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>dcb.fit(final_outcome, treatment, history, target_path<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>])</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>dcb.potential_outcome</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>dcb.get_weights()  <span class="co"># n_units by n_periods</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>dcb.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>treatment_mode="blip"</code> uses the supplied period-specific treatment directly. <code>treatment_mode="initiation"</code> requires a binary absorbing treatment-status panel, constructs a first-treatment pulse internally, and restricts each assignment-time equation to units not treated before that time. In initiation mode, <span class="math inline">\(\psi_h\)</span> is the effect at horizon <span class="math inline">\(h\)</span> of initiating at <span class="math inline">\(m\)</span> rather than remaining untreated from <span class="math inline">\(m\)</span> onward, among the relevant initiation history.</p>
+<p><code>DynamicCovariateBalance.fit(...)</code> takes only the final outcome because its estimand is a path-specific final mean. The treatment panel and target path have the same number of periods; <code>history[:, t, :]</code> must contain only pre-treatment information for period <span class="math inline">\(t\)</span>. A path contrast requires two fitted objects, one for each path. <code>summary()</code> reports prefix support, effective sample size, maximum original-scale imbalance, per-period solver status, and the fitted path mean.</p>
+</section>
+<section id="numerical-experiment-1-post-treatment-covariate-feedback" class="level2">
+<h2 class="anchored" data-anchor-id="numerical-experiment-1-post-treatment-covariate-feedback">Numerical experiment 1: post-treatment covariate feedback</h2>
+<p>The first design makes <span class="math inline">\(Z_t\)</span> a mediator of <span class="math inline">\(A_{t-1}\)</span> and a confounder for <span class="math inline">\(A_t\)</span>:</p>
+<p><span class="math display">\[
+Z_t=0.8A_{t-1}+U_t,
+\qquad
+\Pr(A_t=1\mid Z_t,A_{t-1})=\operatorname{logit}^{-1}(-0.2+0.8Z_t+0.2A_{t-1}),
+\]</span></p>
+<p><span class="math display">\[
+Y_t=2A_t+0.5A_{t-1}+1.5Z_t+\varepsilon_t.
+\]</span></p>
+<p>The contemporaneous blip is <span class="math inline">\(\gamma_0=2\)</span>. The first-lag blip includes both the direct path and the mediated path through <span class="math inline">\(Z_t\)</span>:</p>
+<p><span class="math display">\[
+\gamma_1=0.5+1.5(0.8)=1.7.
+\]</span></p>
+<div id="e6bf0ea7" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">1234</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>n, periods <span class="op">=</span> <span class="dv">2_000</span>, <span class="dv">7</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> np.zeros((n, periods))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.zeros((n, periods))</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> np.zeros((n, periods, <span class="dv">1</span>))</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> t <span class="kw">in</span> <span class="bu">range</span>(periods):</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    a_lag <span class="op">=</span> a[:, t <span class="op">-</span> <span class="dv">1</span>] <span class="cf">if</span> t <span class="cf">else</span> <span class="fl">0.0</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    z[:, t, <span class="dv">0</span>] <span class="op">=</span> <span class="fl">0.8</span> <span class="op">*</span> a_lag <span class="op">+</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    p <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> (<span class="dv">1</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="op">-</span><span class="fl">0.2</span> <span class="op">+</span> <span class="fl">0.8</span> <span class="op">*</span> z[:, t, <span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> a_lag)))</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    a[:, t] <span class="op">=</span> rng.binomial(<span class="dv">1</span>, p)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    y[:, t] <span class="op">=</span> (</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>        <span class="fl">2.0</span> <span class="op">*</span> a[:, t]</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> a_lag</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> <span class="fl">1.5</span> <span class="op">*</span> z[:, t, <span class="dv">0</span>]</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.7</span>, size<span class="op">=</span>n)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>reg <span class="op">=</span> cm.RegressionBlip(max_lag<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>reg.fit(y, a, z)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>reg_result <span class="op">=</span> reg.summary()</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"lag"</span>: reg_result[<span class="st">"lags"</span>].astype(<span class="bu">int</span>),</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"truth"</span>: [<span class="fl">2.0</span>, <span class="fl">1.7</span>],</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"estimate"</span>: reg_result[<span class="st">"coef"</span>],</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"conditional_stage_se"</span>: reg_result[<span class="st">"stage_se"</span>],</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">lag</th>
+<th data-quarto-table-cell-role="th">truth</th>
+<th data-quarto-table-cell-role="th">estimate</th>
+<th data-quarto-table-cell-role="th">conditional_stage_se</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>0</td>
+<td>2.0</td>
+<td>1.981614</td>
+<td>0.013754</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>1</td>
+<td>1.7</td>
+<td>1.637764</td>
+<td>0.035863</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>An ADL regression that includes <span class="math inline">\(Z_t\)</span> while interpreting the coefficient on <span class="math inline">\(A_{t-1}\)</span> as its total lagged effect blocks the mediated path and targets <span class="math inline">\(0.5\)</span>, not <span class="math inline">\(1.7\)</span>. Omitting <span class="math inline">\(Z_t\)</span> instead confounds the contemporaneous effect. The recursive blip regressions change the adjustment time with the causal lag.</p>
+</section>
+<section id="numerical-experiment-2-staggered-initiation-with-level-confounding" class="level2">
+<h2 class="anchored" data-anchor-id="numerical-experiment-2-staggered-initiation-with-level-confounding">Numerical experiment 2: staggered initiation with level confounding</h2>
+<p>The second design contains an unobserved <span class="math inline">\(U_i\)</span> that affects both treatment initiation and the untreated outcome <em>level</em>. It does not affect untreated increments. The observed history <span class="math inline">\(L_{im}\)</span> predicts both initiation and untreated increments:</p>
+<p><span class="math display">\[
+Y_{i0}(0)=2U_i+\varepsilon_{i0},
+\qquad
+Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
+\]</span></p>
+<p><span class="math display">\[
+\Pr(T_i=m\mid T_i\ge m,L_{im},U_i)
+=\operatorname{logit}^{-1}(-1.2+0.55L_{im}+0.65U_i).
+\]</span></p>
+<p>The initiation response is <span class="math inline">\((1.0,1.6,2.1)\)</span> at horizons one through three. This violates level ignorability because <span class="math inline">\(U_i\)</span> confounds initiation and <span class="math inline">\(Y_{i0}(0)\)</span>, but it satisfies the simulated conditional parallel-trends restriction.</p>
+<div id="9b74ba66" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">91</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n, periods <span class="op">=</span> <span class="dv">5_000</span>, <span class="dv">6</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>truth <span class="op">=</span> np.array([<span class="fl">1.0</span>, <span class="fl">1.6</span>, <span class="fl">2.1</span>])</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>history <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, periods, <span class="dv">1</span>))</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>u <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>status <span class="op">=</span> np.zeros((n, periods))</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>first <span class="op">=</span> np.full(n, periods <span class="op">+</span> <span class="dv">1</span>, dtype<span class="op">=</span><span class="bu">int</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>untreated <span class="op">=</span> np.zeros((n, periods <span class="op">+</span> <span class="dv">1</span>))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>untreated[:, <span class="dv">0</span>] <span class="op">=</span> <span class="fl">2.0</span> <span class="op">*</span> u <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.4</span>, size<span class="op">=</span>n)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> m <span class="kw">in</span> <span class="bu">range</span>(periods):</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    untreated[:, m <span class="op">+</span> <span class="dv">1</span>] <span class="op">=</span> (</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>        untreated[:, m]</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> <span class="fl">0.35</span> <span class="op">*</span> history[:, m, <span class="dv">0</span>]</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>        <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span>n)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    risk <span class="op">=</span> first <span class="op">&gt;</span> m</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    p <span class="op">=</span> <span class="dv">1</span> <span class="op">/</span> (<span class="dv">1</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="op">-</span><span class="fl">1.2</span> <span class="op">+</span> <span class="fl">0.55</span> <span class="op">*</span> history[:, m, <span class="dv">0</span>] <span class="op">+</span> <span class="fl">0.65</span> <span class="op">*</span> u)))</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    start <span class="op">=</span> risk <span class="op">&amp;</span> (rng.uniform(size<span class="op">=</span>n) <span class="op">&lt;</span> p)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    first[start] <span class="op">=</span> m</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    status[first <span class="op">&lt;=</span> m, m] <span class="op">=</span> <span class="fl">1.0</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>y_forward <span class="op">=</span> untreated.copy()</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> first[i] <span class="op">&lt;</span> periods:</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> h, effect <span class="kw">in</span> <span class="bu">enumerate</span>(truth, start<span class="op">=</span><span class="dv">1</span>):</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> first[i] <span class="op">+</span> h <span class="op">&lt;=</span> periods:</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>                y_forward[i, first[i] <span class="op">+</span> h] <span class="op">+=</span> effect</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>pt <span class="op">=</span> cm.ParallelTrendsSNMM(</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    max_horizon<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    treatment_mode<span class="op">=</span><span class="st">"initiation"</span>,</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    n_folds<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">7</span>,</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>pt.fit(y_forward, status, history)</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>pt_result <span class="op">=</span> pt.summary()</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"horizon"</span>: pt_result[<span class="st">"horizons"</span>].astype(<span class="bu">int</span>),</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    <span class="st">"truth"</span>: truth,</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    <span class="st">"estimate"</span>: pt_result[<span class="st">"coef"</span>],</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    <span class="st">"se"</span>: pt_result[<span class="st">"se"</span>],</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">horizon</th>
+<th data-quarto-table-cell-role="th">truth</th>
+<th data-quarto-table-cell-role="th">estimate</th>
+<th data-quarto-table-cell-role="th">se</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>1</td>
+<td>1.0</td>
+<td>0.983159</td>
+<td>0.009227</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>2</td>
+<td>1.6</td>
+<td>1.589484</td>
+<td>0.016232</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>3</td>
+<td>2.1</td>
+<td>2.103710</td>
+<td>0.022914</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="08ed086a" class="cell" data-execution_count="3">
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">diagnostic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">moment rows</th>
+<td>4.526500e+04</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">minimum fitted treatment mean</th>
+<td>1.000000e-02</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">maximum fitted treatment mean</th>
+<td>6.400915e-01</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">maximum absolute sample moment</th>
+<td>4.106337e-15</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="comparative-simulation-study" class="level2">
+<h2 class="anchored" data-anchor-id="comparative-simulation-study">Comparative simulation study</h2>
+<p>The three estimators target different primitive objects. A common scalar comparison is possible in a linear distributed-lag design. There are four treatment decisions, <span class="math inline">\(t=0,1,2,3\)</span>, and the target contrasts are</p>
+<p><span class="math display">\[
+d^0=(0,0,0,0),\qquad d^1=(0,1,1,1).
+\]</span></p>
+<p>Because the final outcome is <span class="math inline">\(Y_4\)</span>, switching from <span class="math inline">\(d^0\)</span> to <span class="math inline">\(d^1\)</span> changes the treatments entering at horizons one, two, and three. The common target is therefore</p>
+<p><span class="math display">\[
+\tau=\mu_4(d^1)-\mu_4(d^0)
+=1+0.6+0.4=2.
+\]</span></p>
+<p>For each unit, draw mutually independent standard-normal <span class="math inline">\(X_i,U_i,L_{i,-1},\eta_{it},\varepsilon_{it}\)</span>. Let <span class="math inline">\(\Lambda(v)=1/(1+e^{-v})\)</span>, set <span class="math inline">\(A_{i,-1}=A_{i,-2}=0\)</span>, and generate</p>
+<p><span class="math display">\[
+L_{it}=0.5X_i+\eta_{it},
+\]</span></p>
+<p><span class="math display">\[
+A_{it}\mid X_i,L_{it},A_{i,t-1},U_i
+\sim\operatorname{Bernoulli}\left[
+\Lambda\{-0.1+0.35X_i+0.35L_{it}+0.2A_{i,t-1}+\rho U_i\}
+\right],
+\]</span></p>
+<p><span class="math display">\[
+Y_{i0}=U_i+0.5X_i+0.4L_{i,-1}+\varepsilon_{i0},
+\]</span></p>
+<p><span class="math display">\[
+Y_{i,t+1}
+=U_i+0.5X_i+0.15(t+1)+0.4L_{it}
++A_{it}+0.6A_{i,t-1}+0.4A_{i,t-2}+\varepsilon_{i,t+1}.
+\]</span></p>
+<p>The observed-selection design sets <span class="math inline">\(\rho=0\)</span>. The history <span class="math inline">\(H_{it}=(X_i,L_{it},L_{i,t-1},A_{i,t-1})\)</span> then contains the treatment predictors. The fixed <span class="math inline">\(U_i\)</span> shifts outcome levels but is independent of treatment.</p>
+<div class="cell" data-layout-align="default">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  X["baseline X"] --&gt; L["state L_t"]</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  X --&gt; A["treatment A_t"]</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  L --&gt; A</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  AP["past treatment A_(t-1)"] --&gt; A</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  X --&gt; Y["outcome Y_(t+1)"]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  L --&gt; Y</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  AP --&gt; Y</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  A --&gt; Y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  X["baseline X"] --&gt; L["state L_t"]
+  X --&gt; A["treatment A_t"]
+  L --&gt; A
+  AP["past treatment A_(t-1)"] --&gt; A
+  X --&gt; Y["outcome Y_(t+1)"]
+  L --&gt; Y
+  AP --&gt; Y
+  A --&gt; Y
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>The hidden-selection design sets <span class="math inline">\(\rho=0.6\)</span>. The unobserved <span class="math inline">\(U_i\)</span> now causes both treatment and outcome <em>levels</em>. It does not enter the untreated trend because it cancels from <span class="math inline">\(Y_{i,t+1}(0)-Y_{it}(0)\)</span>. Sequential ignorability fails for the regression-blip and dynamic-balancing estimators, while the time-varying parallel-trends restriction remains plausible.</p>
+<div class="cell" data-layout-align="default">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  U["unobserved level U"] --&gt; A["treatment A_t"]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  U --&gt; Y["outcome Y_(t+1)"]</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  X["baseline X"] --&gt; L["state L_t"]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  X --&gt; A</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  L --&gt; A</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  AP["past treatment A_(t-1)"] --&gt; A</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  X --&gt; Y</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  L --&gt; Y</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  AP --&gt; Y</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  A --&gt; Y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  U["unobserved level U"] --&gt; A["treatment A_t"]
+  U --&gt; Y["outcome Y_(t+1)"]
+  X["baseline X"] --&gt; L["state L_t"]
+  X --&gt; A
+  L --&gt; A
+  AP["past treatment A_(t-1)"] --&gt; A
+  X --&gt; Y
+  L --&gt; Y
+  AP --&gt; Y
+  A --&gt; Y
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>For each draw, <code>RegressionBlip</code> estimates <span class="math inline">\(\tau\)</span> as <span class="math inline">\(\widehat\gamma_0+\widehat\gamma_1+\widehat\gamma_2\)</span>. <code>ParallelTrendsSNMM</code> estimates it as <span class="math inline">\(\widehat\psi_1+\widehat\psi_2+\widehat\psi_3\)</span>. <code>DynamicCovariateBalance</code> fits <span class="math inline">\(\widehat\mu_4(d^1)\)</span> and <span class="math inline">\(\widehat\mu_4(d^0)\)</span> separately and differences them.</p>
+<div id="3017f000" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_comparison(seed, hidden_strength, n<span class="op">=</span><span class="dv">1_200</span>, periods<span class="op">=</span><span class="dv">4</span>):</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    treatment <span class="op">=</span> np.zeros((n, periods))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    outcome <span class="op">=</span> np.zeros((n, periods <span class="op">+</span> <span class="dv">1</span>))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    state <span class="op">=</span> np.zeros((n, periods))</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    lagged_state <span class="op">=</span> np.zeros((n, periods))</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    state_minus_one <span class="op">=</span> <span class="fl">0.5</span> <span class="op">*</span> x <span class="op">+</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    outcome[:, <span class="dv">0</span>] <span class="op">=</span> (</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>        u <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> x <span class="op">+</span> <span class="fl">0.4</span> <span class="op">*</span> state_minus_one <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span>n)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    previous_treatment <span class="op">=</span> np.zeros(n)</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    twice_lagged_treatment <span class="op">=</span> np.zeros(n)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    previous_state <span class="op">=</span> state_minus_one</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> time <span class="kw">in</span> <span class="bu">range</span>(periods):</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>        lagged_state[:, time] <span class="op">=</span> previous_state</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>        state[:, time] <span class="op">=</span> <span class="fl">0.5</span> <span class="op">*</span> x <span class="op">+</span> rng.normal(size<span class="op">=</span>n)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>        linear_probability <span class="op">=</span> (</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span><span class="fl">0.1</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.35</span> <span class="op">*</span> x</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.35</span> <span class="op">*</span> state[:, time]</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.2</span> <span class="op">*</span> previous_treatment</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> hidden_strength <span class="op">*</span> u</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>        propensity <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>linear_probability))</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>        treatment[:, time] <span class="op">=</span> rng.binomial(<span class="dv">1</span>, propensity)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>        outcome[:, time <span class="op">+</span> <span class="dv">1</span>] <span class="op">=</span> (</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>            u</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> x</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.15</span> <span class="op">*</span> (time <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.4</span> <span class="op">*</span> state[:, time]</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> treatment[:, time]</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.6</span> <span class="op">*</span> previous_treatment</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.4</span> <span class="op">*</span> twice_lagged_treatment</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.8</span>, size<span class="op">=</span>n)</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>        twice_lagged_treatment <span class="op">=</span> previous_treatment.copy()</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>        previous_treatment <span class="op">=</span> treatment[:, time].copy()</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>        previous_state <span class="op">=</span> state[:, time].copy()</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>    lagged_treatment <span class="op">=</span> np.column_stack(</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>        [np.zeros(n), treatment[:, : periods <span class="op">-</span> <span class="dv">1</span>]]</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>    pt_history <span class="op">=</span> np.stack(</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>        [np.repeat(x[:, <span class="va">None</span>], periods, axis<span class="op">=</span><span class="dv">1</span>), state, lagged_state, lagged_treatment],</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>        axis<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>    regression_treatment <span class="op">=</span> np.zeros((n, periods <span class="op">+</span> <span class="dv">1</span>))</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>    regression_treatment[:, <span class="dv">1</span>:] <span class="op">=</span> treatment</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>    regression_history <span class="op">=</span> np.zeros((n, periods <span class="op">+</span> <span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>    regression_history[:, <span class="dv">1</span>:, <span class="dv">0</span>] <span class="op">=</span> x[:, <span class="va">None</span>]</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>    regression_history[:, <span class="dv">1</span>:, <span class="dv">1</span>] <span class="op">=</span> state</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>    regression_history[:, <span class="dv">1</span>:, <span class="dv">2</span>] <span class="op">=</span> lagged_state</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>    dcb_history <span class="op">=</span> np.stack(</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>        [</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>            np.repeat(x[:, <span class="va">None</span>], periods, axis<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>            state,</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a>            lagged_state,</span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>            lagged_treatment,</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>            outcome[:, :periods],</span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a>        axis<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>    regression <span class="op">=</span> cm.RegressionBlip(max_lag<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>    regression.fit(outcome, regression_treatment, regression_history)</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>    parallel_trends <span class="op">=</span> cm.ParallelTrendsSNMM(</span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>        max_horizon<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>        treatment_mode<span class="op">=</span><span class="st">"blip"</span>,</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>        n_folds<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a>        nuisance_penalty<span class="op">=</span><span class="fl">1e-4</span>,</span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a>        seed<span class="op">=</span>seed,</span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>    parallel_trends.fit(outcome, treatment, pt_history)</span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a>    path_means <span class="op">=</span> []</span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a>    dcb_success <span class="op">=</span> []</span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a>    dcb_max_balance <span class="op">=</span> []</span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> path <span class="kw">in</span> ([<span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>], [<span class="fl">0.0</span>, <span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="fl">1.0</span>]):</span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>        dcb <span class="op">=</span> cm.DynamicCovariateBalance(nuisance_penalty<span class="op">=</span><span class="fl">1e-4</span>)</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>        dcb.fit(outcome[:, <span class="op">-</span><span class="dv">1</span>], treatment, dcb_history, path)</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>        diagnostics <span class="op">=</span> dcb.summary()</span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a>        path_means.append(dcb.potential_outcome)</span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a>        dcb_success.append(diagnostics[<span class="st">"success"</span>])</span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>        dcb_max_balance.append(np.<span class="bu">max</span>(diagnostics[<span class="st">"max_abs_balance"</span>]))</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Regression blip"</span>: regression.coef.<span class="bu">sum</span>(),</span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Parallel-trends SNMM"</span>: parallel_trends.coef.<span class="bu">sum</span>(),</span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Dynamic balance"</span>: path_means[<span class="dv">1</span>] <span class="op">-</span> path_means[<span class="dv">0</span>],</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>        <span class="st">"dcb_success"</span>: <span class="bu">all</span>(dcb_success),</span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>        <span class="st">"dcb_max_balance"</span>: <span class="bu">max</span>(dcb_max_balance),</span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a>records <span class="op">=</span> []</span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> design, hidden_strength <span class="kw">in</span> [</span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Selection on observables"</span>, <span class="fl">0.0</span>),</span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Selection on unobservables"</span>, <span class="fl">0.6</span>),</span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a>]:</span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> replication <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">100</span>):</span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a>        result <span class="op">=</span> simulate_comparison(<span class="dv">1_000</span> <span class="op">+</span> replication, hidden_strength)</span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> estimator <span class="kw">in</span> [</span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Regression blip"</span>,</span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Parallel-trends SNMM"</span>,</span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Dynamic balance"</span>,</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>        ]:</span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>            records.append(</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>                {</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"design"</span>: design,</span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"replication"</span>: replication,</span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"estimator"</span>: estimator,</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"estimate"</span>: result[estimator],</span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"dcb_success"</span>: result[<span class="st">"dcb_success"</span>],</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"dcb_max_balance"</span>: result[<span class="st">"dcb_max_balance"</span>],</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a>                }</span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a>comparison <span class="op">=</span> pd.DataFrame(records)</span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a>truth <span class="op">=</span> <span class="fl">2.0</span></span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>monte_carlo <span class="op">=</span> (</span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a>    comparison.groupby([<span class="st">"design"</span>, <span class="st">"estimator"</span>])[<span class="st">"estimate"</span>]</span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a>    .agg(mean<span class="op">=</span><span class="st">"mean"</span>, mc_sd<span class="op">=</span><span class="st">"std"</span>)</span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a>    .reset_index()</span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a>monte_carlo[<span class="st">"bias"</span>] <span class="op">=</span> monte_carlo[<span class="st">"mean"</span>] <span class="op">-</span> truth</span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a>monte_carlo[<span class="st">"rmse"</span>] <span class="op">=</span> (</span>
+<span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a>    comparison.assign(squared_error<span class="op">=</span><span class="kw">lambda</span> frame: (frame[<span class="st">"estimate"</span>] <span class="op">-</span> truth) <span class="op">**</span> <span class="dv">2</span>)</span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>    .groupby([<span class="st">"design"</span>, <span class="st">"estimator"</span>])[<span class="st">"squared_error"</span>]</span>
+<span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a>    .mean()</span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">pow</span>(<span class="fl">0.5</span>)</span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a>    .to_numpy()</span>
+<span id="cb6-138"><a href="#cb6-138" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-139"><a href="#cb6-139" aria-hidden="true" tabindex="-1"></a>monte_carlo.<span class="bu">round</span>(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">design</th>
+<th data-quarto-table-cell-role="th">estimator</th>
+<th data-quarto-table-cell-role="th">mean</th>
+<th data-quarto-table-cell-role="th">mc_sd</th>
+<th data-quarto-table-cell-role="th">bias</th>
+<th data-quarto-table-cell-role="th">rmse</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>Selection on observables</td>
+<td>Dynamic balance</td>
+<td>2.000</td>
+<td>0.197</td>
+<td>0.000</td>
+<td>0.196</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>Selection on observables</td>
+<td>Parallel-trends SNMM</td>
+<td>1.997</td>
+<td>0.095</td>
+<td>-0.003</td>
+<td>0.095</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>Selection on observables</td>
+<td>Regression blip</td>
+<td>1.996</td>
+<td>0.076</td>
+<td>-0.004</td>
+<td>0.075</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>Selection on unobservables</td>
+<td>Dynamic balance</td>
+<td>2.918</td>
+<td>0.201</td>
+<td>0.918</td>
+<td>0.939</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>Selection on unobservables</td>
+<td>Parallel-trends SNMM</td>
+<td>1.957</td>
+<td>0.086</td>
+<td>-0.043</td>
+<td>0.095</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>Selection on unobservables</td>
+<td>Regression blip</td>
+<td>2.636</td>
+<td>0.075</td>
+<td>0.636</td>
+<td>0.641</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="4efc0f65" class="cell" data-execution_count="5">
+<div class="cell-output cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="snmm-blips_files/figure-html/cell-6-output-1.png" width="1046" height="393" class="figure-img"></p>
+<figcaption>Sampling distributions for the common final-period path contrast.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="f030c7b3" class="cell" data-execution_count="6">
+<div class="cell-output cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="snmm-blips_files/figure-html/cell-7-output-1.png" width="993" height="374" class="figure-img"></p>
+<figcaption>Monte Carlo bias and standard deviation separate robustness from efficiency.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Under selection on observables, all three sampling distributions are centered near two. The recursive regression is most efficient in this correctly specified low-dimensional outcome model; the parallel-trends estimator pays for orthogonalization and cross-fitting, while the path-specific dynamic-balancing contrast pays for estimating two increasingly selective path means.</p>
+<p>When <span class="math inline">\(U_i\)</span> enters treatment assignment, the regression-blip and dynamic-balancing estimates inherit the positive level confounding. The parallel-trends estimate remains close to the target because differencing removes <span class="math inline">\(U_i\)</span>. This is not generic robustness to hidden confounding: it relies specifically on <span class="math inline">\(U_i\)</span> being time invariant and absent from untreated outcome trends.</p>
+<div id="150a1410" class="cell" data-execution_count="7">
+<div class="cell-output cell-output-display" data-execution_count="7">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">strict_solver_success_rate</th>
+<th data-quarto-table-cell-role="th">maximum_retained_imbalance</th>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">design</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">Selection on observables</th>
+<td>0.81</td>
+<td>0.000130</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">Selection on unobservables</th>
+<td>0.76</td>
+<td>0.000053</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><code>BalancingWeights</code> deliberately retains finite weights when its strict scaled-residual convergence gate is not met. <code>DynamicCovariateBalance</code> propagates that per-period status instead of relabeling the fit as converged. The simulation therefore reports both the strict solver-success rate and the maximum original-scale imbalance among retained fits; a production analysis should inspect both and tighten or relax the calibration design deliberately.</p>
+</section>
+<section id="interpretation-and-current-boundaries" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation-and-current-boundaries">Interpretation and current boundaries</h2>
+<p>These classes do not estimate the same object under interchangeable assumptions.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th><code>RegressionBlip</code></th>
+<th><code>ParallelTrendsSNMM</code></th>
+<th><code>DynamicCovariateBalance</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Identifying restriction</td>
+<td>Sequential ignorability</td>
+<td>Time-varying conditional parallel trends</td>
+<td>Sequential ignorability plus potential projections</td>
+</tr>
+<tr class="even">
+<td>Primitive target</td>
+<td>Lag-specific additive blips</td>
+<td>Horizon-specific additive blips</td>
+<td>Mean final outcome under one path</td>
+</tr>
+<tr class="odd">
+<td>Outcome timing</td>
+<td><span class="math inline">\(A_t\)</span> may affect <span class="math inline">\(Y_t\)</span></td>
+<td><span class="math inline">\(A_m\)</span> first affects <span class="math inline">\(Y_{m+1}\)</span></td>
+<td>History precedes <span class="math inline">\(A_t\)</span>; final outcome supplied separately</td>
+</tr>
+<tr class="even">
+<td>Nuisance strategy</td>
+<td>Recursive outcome regressions</td>
+<td>Cross-fitted treatment and trend regressions</td>
+<td>Recursive potential projections plus sequential calibration</td>
+</tr>
+<tr class="odd">
+<td>Robustness</td>
+<td>Outcome-regression specification</td>
+<td>Doubly robust orthogonal moment</td>
+<td>Product of projection error and imbalance</td>
+</tr>
+<tr class="even">
+<td>Unobserved level confounding</td>
+<td>Generally not allowed</td>
+<td>Allowed when it does not confound untreated trends</td>
+<td>Generally not allowed</td>
+</tr>
+<tr class="odd">
+<td>Inference</td>
+<td>Stagewise unit-clustered SE</td>
+<td>Unit-level influence-function sandwich</td>
+<td>Not yet implemented; use a unit bootstrap</td>
+</tr>
+</tbody>
+</table>
+<p>The initial implementation is intentionally narrow:</p>
+<ol type="1">
+<li>The two blip estimators use additive linear effects, with one coefficient per lag or horizon. Dynamic balance instead estimates one path mean at a time.</li>
+<li><code>ParallelTrendsSNMM</code> uses ridge nuisance regressions and a conditional-mean treatment model. Flexible Python callbacks are not yet part of the Rust boundary.</li>
+<li><code>RegressionBlip</code> reports unit-clustered uncertainty conditional on earlier recursive blip estimates. A unit block bootstrap is required for joint recursive inference.</li>
+<li>In <code>ParallelTrendsSNMM</code>, cross-fitting is over units, never unit-period rows.</li>
+<li><code>DynamicCovariateBalance</code> implements the paper’s full-interaction recursion with ridge, exact balance, and the package’s quadratic calibration geometry. It does not yet implement the paper’s lasso tuning, coordinatewise approximate-balance program, or analytic longitudinal variance.</li>
+<li>None of the estimators makes parallel trends or sequential ignorability testable. The analyst still owns the history set, timing, treatment coding, positivity argument, path support, and effect specification.</li>
+</ol>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li>Blackwell, Matthew, and Adam N. Glynn. 2018. “How to Make Causal Inferences with Time-Series Cross-Sectional Data under Selection on Observables.” <em>American Political Science Review</em> 112(4): 1067–1082. <a href="https://mattblackwell.org/files/papers/causal-tscs.pdf">Paper</a>.</li>
+<li>Shahn, Zach, Oliver Dukes, Meghana Shamsunder, David Richardson, Eric Tchetgen Tchetgen, and James Robins. 2022. “Structural Nested Mean Models Under Parallel Trends Assumptions.” <a href="https://arxiv.org/abs/2204.10291">arXiv:2204.10291</a>.</li>
+<li>Viviano, Davide, and Jelena Bradic. 2026. “Dynamic Covariate Balancing: Estimating Treatment Effects over Time with Potential Local Projections.” First circulated 2021. <a href="https://arxiv.org/abs/2103.01280">arXiv:2103.01280</a>.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

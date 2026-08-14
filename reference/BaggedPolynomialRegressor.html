@@ -4208,6 +4208,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
  <span class="dropdown-text">Joint Hypothesis Tests</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -4396,13 +4400,13 @@ window.Quarto = {
 </header>
 
 
-<div id="3926b9bb" class="cell" data-execution_count="1">
+<div id="deb359ad" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> _api_doc_utils <span class="im">import</span> <span class="op">*</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="class" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="class"><span class="header-section-number">1</span> Class</h2>
 <p><code>crabbymetrics.BaggedPolynomialRegressor</code> is a prediction-only regression ensemble. Each base learner samples rows and a feature subspace, expands the selected features into monomials, standardizes those terms using its in-bag sample, fits ridge regression, and contributes equally to the final prediction.</p>
-<div id="cbbfe443" class="cell" data-execution_count="2">
+<div id="328b5f52" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.BaggedPolynomialRegressor))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(n_estimators=50, degree=2, max_features=None, max_samples=None, bootstrap=True, penalty=1.0, seed=42)</code></pre>
@@ -4616,7 +4620,7 @@ window.Quarto = {
 </section>
 <section id="example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="example"><span class="header-section-number">3</span> Example</h2>
-<div id="5bb054f4" class="cell" data-execution_count="3">
+<div id="abca252f" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">18</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">320</span>, <span class="dv">6</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.5</span> <span class="op">+</span> <span class="fl">0.8</span> <span class="op">*</span> x[:, <span class="dv">0</span>] <span class="op">*</span> x[:, <span class="dv">1</span>] <span class="op">-</span> <span class="fl">0.4</span> <span class="op">*</span> x[:, <span class="dv">2</span>] <span class="op">**</span> <span class="dv">2</span></span>
@@ -4648,7 +4652,7 @@ OOB diagnostics: {&#39;mse&#39;: 0.37199936832351177, &#39;coverage&#39;: 1.0}</
 </div>
 </div>
 <p>The returned dictionary in this live fit has the following keys and shapes:</p>
-<div id="be9adfcf" class="cell" data-execution_count="4">
+<div id="67cfef39" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">&quot;summary() key&quot;</span>, <span class="st">&quot;shape&quot;</span>], summary_shape_rows(summary))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
