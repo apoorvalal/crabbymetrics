@@ -685,3 +685,11 @@ That is the current state the next extension branch should assume.
 - Landed `RegressionBlip`, `ParallelTrendsSNMM`, and `DynamicCovariateBalance`, together with focused tests and the full mathematical/simulation vignette at `docs/examples/snmm-blips.qmd`.
 - Expanded the causal-inference API overview into separate treatment-effect, dynamic-regime, and panel sections. The dynamic-regime section now displays the live constructor and method surface for all three estimators and states their distinct outcome/treatment timing contracts.
 - Updated `docs/llms.txt` estimator-selection guidance so agents can choose among sequential-ignorability regression blips, conditional-parallel-trends SNMMs, and path-specific dynamic balancing.
+
+## 2026-08-16 Augmented Panel Balancing
+
+- Added `AugmentedBalancing`, a panel ATT estimator that composes a supplied untreated-outcome surface with optional simplex unit and time balancing.
+- Added switches for outcome-only, unit, and double balancing; cohort or individual unit-weight targets; and raw-outcome or residual-based weight fitting.
+- Reused the `SyntheticDID` simplex solver and common panel treatment parser, event summaries, and pre-period diagnostics.
+- Added focused algebra, recovery, target-mapping, and validation tests plus a public class reference page.
+- Updated two existing balancing pages to use the current Matplotlib boxplot keyword so the full documentation site renders with the declared docs environment.

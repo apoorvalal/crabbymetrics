@@ -1,0 +1,128 @@
+---
+title: "AugmentedBalancing"
+subtitle: "Composable outcome-model and balancing corrections for panel ATT"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+```{python}
+from _api_doc_utils import *
+```
+
+## Where it fits
+
+**Group:** Causal inference
+
+`AugmentedBalancing` combines a supplied untreated-outcome surface with unit and optional time balancing. It implements the panel residual-balancing framework that contains outcome-only imputation, synthetic control, augmented synthetic control, synthetic difference-in-differences, and augmented double balancing as choices within one API.
+
+The class uses the common `fit(Y, W, outcome_model=None)` panel contract. `Y` is a finite balanced outcome matrix. `W` is a same-shaped binary absorbing treatment matrix. `outcome_model`, when supplied, is a finite same-shaped matrix of untreated-outcome predictions. The class treats this matrix as a fitted nuisance input; it does not fit the outcome model itself.
+
+## Estimator
+
+For one treated unit $i$, one target period $t$, never-treated controls $C$, and pre-treatment periods $P$, define residuals
+
+$$
+R_{js}=Y_{js}-\hat m_{js}.
+$$
+
+The double-balanced counterfactual is
+
+$$
+\widehat Y_{it}(0)
+=
+\hat m_{it}
++\sum_{j\in C}\hat\omega_j R_{jt}
++\sum_{s\in P}\hat\lambda_s R_{is}
+-\sum_{j\in C}\sum_{s\in P}\hat\omega_j\hat\lambda_s R_{js}.
+$$
+
+`balance="unit"` omits both terms that contain $\lambda$. `balance="none"` returns $\hat m_{it}$ without a balancing correction. If no outcome-model matrix is supplied, $\hat m=0$; unit balancing then gives synthetic control, and double balancing gives the synthetic difference-in-differences matrix contrast.
+
+For each treatment cohort, simplex unit weights match the cohort-average pre-period path by default. `target="individual"` fits one unit-weight vector for each treated unit. `balance_on="raw"` fits weights with $Y$ and then applies them to residuals $R$. `balance_on="residual"` fits the same simplex problems with $R$. Time weights always target each control unit's mean outcome after the cohort treatment date, using either raw outcomes or residuals as selected.
+
+The unit and time weight problems use the same profiled-intercept simplex least-squares solver as `SyntheticDID`. Omitted penalties use the cohort-specific control first-difference scale:
+
+$$
+\zeta_\omega=(N_{\mathrm{target}}T_{\mathrm{post}})^{1/4}\hat\sigma,
+\qquad
+\zeta_\lambda=10^{-6}\hat\sigma.
+$$
+
+For individual targeting, $N_{\mathrm{target}}=1$. The ATT is the simple mean of $Y_{it}-\widehat Y_{it}(0)$ over cells where $W_{it}=1$.
+
+## Configuration map
+
+| Estimator | Constructor and fit choice |
+|---|---|
+| Outcome model | `balance="none"`, supply `outcome_model` |
+| Unit balancing | `balance="unit"`, omit `outcome_model` |
+| Double balancing | `balance="double"`, omit `outcome_model` |
+| Augmented unit balancing | `balance="unit"`, supply `outcome_model` |
+| Augmented double balancing | `balance="double"`, supply `outcome_model` |
+| Residual-first augmented double balancing | add `balance_on="residual"` |
+| Individual-target augmented double balancing | add `target="individual"` |
+
+## Scope and diagnostics
+
+Every treated cohort must have a pre-period and at least one never-treated donor. The class supports staggered absorbing adoption by fitting each cohort separately. It does not fit nuisance outcome models, select their tuning parameters, cross-fit, or provide analytic or resampling inference. Treat the supplied surface as a causal nuisance estimate only when it was fit without treated post-treatment outcomes.
+
+`summary()` returns ATT, panel counterfactuals and effects, event-study and group summaries, fitted unit and time weights, weight-target mappings, penalties, pre-period RMSE, and the supplied outcome-model surface. `target_units` contains the treated unit for each individual-target row and `-1` for each cohort-target row. `target_cohorts` maps every unit-weight row to its adoption cohort.
+
+## Python API
+
+Constructor: `cm.AugmentedBalancing`
+
+```{python}
+print(inspect.signature(cm.AugmentedBalancing))
+```
+
+```{python}
+cls = cm.AugmentedBalancing
+display(HTML(html_table(["Public method"], public_methods(cls))))
+```
+
+## Minimal example
+
+```{python}
+rng = np.random.default_rng(24)
+n_control, n_treated, n_pre, n_post = 8, 2, 10, 4
+controls = rng.normal(size=(n_control, n_pre + n_post))
+weights = rng.dirichlet(np.ones(n_control))
+untreated = weights @ controls
+treated = untreated + np.r_[np.zeros(n_pre), np.full(n_post, 0.8)]
+y = np.vstack([controls, treated - 0.1, treated + 0.1])
+w = np.zeros_like(y)
+w[n_control:, n_pre:] = 1.0
+
+# A simple supplied nuisance surface. A production analysis should estimate it
+# without using treated post-treatment outcomes.
+outcome_model = np.zeros_like(y)
+model = cm.AugmentedBalancing(
+    balance="double",
+    target="cohort",
+    balance_on="residual",
+    zeta_omega=0.01,
+    zeta_lambda=0.01,
+)
+model.fit(y, w, outcome_model)
+print(model.summary()["att"])
+print(model.predict().shape)
+```
+
+## `summary()` contract
+
+```{python}
+summary = model.summary()
+display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(summary))))
+```

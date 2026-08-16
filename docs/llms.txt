@@ -114,6 +114,7 @@ First-class panel causal estimators using `fit(Y, W)`:
 
 - `HorizontalPanelRidge(penalty=1.0)`: horizontal forecasting estimator. Uses never-treated donor paths as contemporaneous features, trains cohort-specific ridge forecasts on pre-treatment periods, and predicts treated-unit counterfactual paths. Works surprisingly well as a pure forecasting baseline.
 - `SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)`: synthetic difference-in-differences with cohort-specific donor and time weights under the common panel contract.
+- `AugmentedBalancing(balance="double", target="cohort", balance_on="raw", zeta_omega=None, zeta_lambda=None, max_iterations=1000)`: compose a supplied same-shaped untreated-outcome surface with no balancing, unit balancing, or unit-and-time residual balancing. Unit weights can target cohort means or individual treated paths and can be fit on raw outcomes or outcome-model residuals.
 - `MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-6)`: matrix completion for panels where untreated cells (`W == 0`) are observed entries and treated cells are completed as counterfactuals.
 
 Common panel summary keys:
@@ -286,6 +287,16 @@ summary()
 ```
 
 Important summary keys: `att`, `unit_weights`, `time_weights`, `counterfactual`, `synthetic_outcome`, `treatment_effect`, `event_study`, `group_means`, `pre_rmse`, `unit_intercept`, `time_intercept`, `zeta_omega`, `zeta_lambda`, `control_units`, `treated_units`, `cohorts`.
+
+```python
+cm.AugmentedBalancing(balance="double", target="cohort", balance_on="raw", zeta_omega=None, zeta_lambda=None, max_iterations=1000)
+fit(Y, W, outcome_model=None)
+predict()
+treatment_effect()
+summary()
+```
+
+Set `balance="none"` for outcome-only imputation, `balance="unit"` for an augmented synthetic-control correction, and `balance="double"` for the full two-dimensional correction. If `outcome_model` is omitted, the nuisance surface is zero. `target="individual"` fits one donor-weight vector per treated unit. `balance_on="residual"` fits both weight problems on `Y - outcome_model`. There is no built-in nuisance fitting or inference.
 
 ```python
 cm.MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-6)
@@ -564,6 +575,7 @@ If you need to inspect or modify source, start here:
 - `src/estimators/iv.rs`: TwoSLS.
 - `src/estimators/panel.rs`: InteractiveFixedEffects, MatrixCompletion, HorizontalPanelRidge, factor/fixed-effect panel helpers, and shared panel summaries.
 - `src/estimators/synthetic.rs`: SyntheticControl and SyntheticDID.
+- `src/estimators/augmented_balancing.rs`: composable outcome-model, unit-balancing, and double-balancing panel ATT.
 - `src/estimators/regularized.rs`: Ridge, ElasticNet, BaggedPolynomialRegressor.
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/survival.rs`: ExponentialPH, WeibullPH, CoxPH, AndersenGill.

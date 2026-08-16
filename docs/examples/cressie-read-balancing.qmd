@@ -342,7 +342,7 @@ fig, axes = plt.subplots(1, 3, figsize=(14, 4.8), sharey=True, constrained_layou
 for ax, overlap in zip(axes, overlap_settings):
     subset = mc[mc["overlap"] == overlap]
     data = [subset[subset["method"] == method]["estimate"].to_numpy() for method in order]
-    ax.boxplot(data, labels=order, showfliers=False)
+    ax.boxplot(data, tick_labels=order, showfliers=False)
     ax.axhline(1.0, color="black", linestyle="--", linewidth=1.1)
     ax.set_title(f"{overlap} overlap")
     ax.tick_params(axis="x", rotation=35)
@@ -355,7 +355,7 @@ fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), sharey=True, constrained_layou
 for ax, overlap in zip(axes, overlap_settings):
     subset = mc[(mc["overlap"] == overlap) & (mc["method"] != "Naive")]
     ess_data = [subset[subset["method"] == method]["ess"].to_numpy() for method in order[1:]]
-    ax.boxplot(ess_data, labels=order[1:], showfliers=False)
+    ax.boxplot(ess_data, tick_labels=order[1:], showfliers=False)
     ax.set_title(f"{overlap} overlap")
     ax.tick_params(axis="x", rotation=35)
     ax.set_ylabel("Effective sample size")
