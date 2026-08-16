@@ -175,7 +175,7 @@ fn fit_synthetic_control_weights(
     Ok(softmax_weights(&theta))
 }
 
-fn fit_simplex_least_squares_weights(
+pub(crate) fn fit_simplex_least_squares_weights(
     design: &Array2<f64>,
     target: &Array1<f64>,
     zeta: f64,
@@ -241,7 +241,11 @@ fn simplex_intercept(design: &Array2<f64>, target: &Array1<f64>, weights: &Array
     (target - &fitted).mean().unwrap_or(0.0)
 }
 
-fn sdid_sigma_estimator(y_reordered: &Array2<f64>, n_control: usize, t_pre: usize) -> f64 {
+pub(crate) fn sdid_sigma_estimator(
+    y_reordered: &Array2<f64>,
+    n_control: usize,
+    t_pre: usize,
+) -> f64 {
     if n_control == 0 || t_pre < 2 {
         return 0.0;
     }
