@@ -70,7 +70,8 @@ def test_double_balancing_matches_stored_weight_formula():
     outcome_model = 0.15 * np.add.outer(np.arange(y.shape[0]), np.arange(y.shape[1]))
     model = cm.AugmentedBalancing(
         balance="double",
-        target="cohort",
+        unit_target="cohort",
+        time_target="all",
         balance_on="raw",
         zeta_omega=0.01,
         zeta_lambda=0.01,
@@ -94,7 +95,9 @@ def test_double_balancing_matches_stored_weight_formula():
             - correction
         )
 
-    np.testing.assert_allclose(model.predict()[treated], manual, atol=1e-10)
+    np.testing.assert_allclose(
+        model.predict()[treated, n_pre:], manual[:, n_pre:], atol=1e-10
+    )
     np.testing.assert_allclose(lam.sum(), 1.0, atol=1e-10)
 
 
@@ -118,7 +121,7 @@ def test_individual_target_stores_one_weight_vector_per_treated_unit():
     y, w, _, _ = make_convex_panel(seed=814)
     model = cm.AugmentedBalancing(
         balance="unit",
-        target="individual",
+        unit_target="individual",
         balance_on="residual",
         zeta_omega=0.01,
     )
@@ -132,12 +135,67 @@ def test_individual_target_stores_one_weight_vector_per_treated_unit():
     assert not np.allclose(weights[0], weights[1])
 
 
+@pytest.mark.parametrize("balance", ["unit", "time"])
+def test_one_dimension_balancing_uses_uniform_weights_for_other_dimension(balance):
+    y, w, _, n_pre = make_convex_panel(seed=816)
+    model = cm.AugmentedBalancing(
+        balance=balance,
+        zeta_omega=0.02,
+        zeta_lambda=0.02,
+        max_iterations=3000,
+    )
+    model.fit(y, w)
+    summary = model.summary()
+
+    controls = np.asarray(summary["control_units"])
+    treated = np.asarray(summary["treated_units"])
+    omega = np.asarray(summary["unit_weights"])[0, controls]
+    lam = np.asarray(summary["time_weights"])[0, :n_pre]
+    if balance == "unit":
+        np.testing.assert_allclose(lam, np.full(n_pre, 1.0 / n_pre))
+    else:
+        np.testing.assert_allclose(omega, np.full(controls.size, 1.0 / controls.size))
+
+    correction = omega @ y[np.ix_(controls, np.arange(n_pre))] @ lam
+    manual = np.empty((treated.size, y.shape[1] - n_pre))
+    for row, unit in enumerate(treated):
+        manual[row] = (
+            omega @ y[controls, n_pre:]
+            + y[unit, :n_pre] @ lam
+            - correction
+        )
+    np.testing.assert_allclose(model.predict()[treated, n_pre:], manual, atol=1e-10)
+
+
+def test_period_time_target_stores_one_weight_vector_per_post_period():
+    y, w, _, n_pre = make_convex_panel(seed=817)
+    model = cm.AugmentedBalancing(
+        balance="double",
+        unit_target="individual",
+        time_target="period",
+        zeta_omega=0.01,
+        zeta_lambda=0.01,
+        max_iterations=3000,
+    )
+    model.fit(y, w)
+    summary = model.summary()
+
+    time_weights = np.asarray(summary["time_weights"])
+    np.testing.assert_array_equal(
+        summary["time_target_periods"], np.arange(n_pre, y.shape[1])
+    )
+    assert time_weights.shape == (y.shape[1] - n_pre, y.shape[1])
+    np.testing.assert_allclose(time_weights[:, :n_pre].sum(axis=1), 1.0, atol=1e-10)
+
+
 def test_augmented_balancing_rejects_invalid_options_and_inputs():
     y, w, _, _ = make_convex_panel(seed=815)
     with pytest.raises(ValueError, match="balance must be"):
         cm.AugmentedBalancing(balance="triple")
-    with pytest.raises(ValueError, match="target must be"):
-        cm.AugmentedBalancing(target="unit")
+    with pytest.raises(ValueError, match="unit_target must be"):
+        cm.AugmentedBalancing(unit_target="unit")
+    with pytest.raises(ValueError, match="time_target must be"):
+        cm.AugmentedBalancing(time_target="cohort")
     with pytest.raises(ValueError, match="balance_on must be"):
         cm.AugmentedBalancing(balance_on="fitted")
     with pytest.raises(ValueError, match="same shape"):
