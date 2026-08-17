@@ -1,7 +1,13 @@
+import csv
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 import crabbymetrics as cm
+
+
+FIXTURE_DIRECTORY = Path(__file__).parent / "fixtures"
 
 
 def make_convex_panel(seed=811):
@@ -202,3 +208,54 @@ def test_augmented_balancing_rejects_invalid_options_and_inputs():
         cm.AugmentedBalancing().fit(y, w, np.zeros((2, 2)))
     with pytest.raises(ValueError, match="max_iterations must be positive"):
         cm.AugmentedBalancing(max_iterations=0)
+
+
+def test_all_r_estimator_reference_cases_match_within_numerical_tolerance():
+    panel = np.genfromtxt(
+        FIXTURE_DIRECTORY / "r_augmented_balancing_panel.csv",
+        delimiter=",",
+        names=True,
+    )
+    n_units = int(panel["unit"].max()) + 1
+    n_periods = int(panel["period"].max()) + 1
+    y = panel["outcome"].reshape(n_units, n_periods)
+    w = panel["treatment"].reshape(n_units, n_periods)
+    outcome_model = panel["outcome_model"].reshape(n_units, n_periods)
+
+    with (FIXTURE_DIRECTORY / "r_augmented_balancing_results.csv").open(
+        newline="", encoding="utf-8"
+    ) as stream:
+        cases = list(csv.DictReader(stream))
+
+    assert len(cases) == 24
+    for case in cases:
+        model = cm.AugmentedBalancing(
+            balance=case["balance"],
+            unit_target=case["unit_target"],
+            time_target=case["time_target"],
+            balance_on=case["balance_on"],
+            max_iterations=10000,
+        )
+        model.fit(y, w, outcome_model)
+        summary = model.summary()
+        case_name = "/".join(
+            case[key]
+            for key in ("balance", "unit_target", "time_target", "balance_on")
+        )
+        np.testing.assert_allclose(
+            summary["att"], float(case["att"]), atol=2e-5, err_msg=case_name
+        )
+        if case["balance"] in {"unit", "double"}:
+            np.testing.assert_allclose(
+                summary["zeta_omega"],
+                float(case["zeta_omega"]),
+                atol=1e-12,
+                err_msg=case_name,
+            )
+        if case["balance"] in {"time", "double"}:
+            np.testing.assert_allclose(
+                summary["zeta_lambda"],
+                float(case["zeta_lambda"]),
+                atol=1e-12,
+                err_msg=case_name,
+            )
