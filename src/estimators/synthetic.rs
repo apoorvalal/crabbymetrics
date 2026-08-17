@@ -10,6 +10,7 @@ use crate::utils::{
 use argmin::core::{CostFunction, Executor, Gradient, State};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
+use nalgebra::{DMatrix, DVector};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -41,13 +42,6 @@ struct SyntheticControlProblem<'a> {
     treated: ArrayView1<'a, f64>,
 }
 
-struct SimplexLeastSquaresProblem<'a> {
-    design: ArrayView2<'a, f64>,
-    target: ArrayView1<'a, f64>,
-    zeta: f64,
-    intercept: bool,
-}
-
 impl CostFunction for SyntheticControlProblem<'_> {
     type Param = Array1<f64>;
     type Output = f64;
@@ -71,49 +65,6 @@ impl Gradient for SyntheticControlProblem<'_> {
         let weights = softmax_weights(theta);
         let residual = self.donors.dot(&weights) - &self.treated;
         let grad_weights = self.donors.t().dot(&residual) / (self.donors.nrows() as f64);
-        let centered = &grad_weights - weights.dot(&grad_weights);
-        Ok(weights * centered)
-    }
-}
-
-impl SimplexLeastSquaresProblem<'_> {
-    fn residual(&self, weights: &Array1<f64>) -> Array1<f64> {
-        let mut residual = self.design.dot(weights) - self.target;
-        if self.intercept {
-            let mean = residual.mean().unwrap_or(0.0);
-            residual.mapv_inplace(|value| value - mean);
-        }
-        residual
-    }
-}
-
-impl CostFunction for SimplexLeastSquaresProblem<'_> {
-    type Param = Array1<f64>;
-    type Output = f64;
-
-    fn cost(&self, theta: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
-        let weights = softmax_weights(theta);
-        let residual = self.residual(&weights);
-        let n = self.design.nrows() as f64;
-        let fit = residual.dot(&residual) / n;
-        let penalty = self.zeta * self.zeta * weights.dot(&weights);
-        Ok(0.5 * (fit + penalty))
-    }
-}
-
-impl Gradient for SimplexLeastSquaresProblem<'_> {
-    type Param = Array1<f64>;
-    type Gradient = Array1<f64>;
-
-    fn gradient(
-        &self,
-        theta: &Self::Param,
-    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
-        let weights = softmax_weights(theta);
-        let residual = self.residual(&weights);
-        let n = self.design.nrows() as f64;
-        let grad_weights = self.design.t().dot(&residual) / n
-            + weights.mapv(|value| self.zeta * self.zeta * value);
         let centered = &grad_weights - weights.dot(&grad_weights);
         Ok(weights * centered)
     }
@@ -203,37 +154,129 @@ pub(crate) fn fit_simplex_least_squares_weights(
         return Ok(Array1::from_vec(vec![1.0]));
     }
 
-    let problem = SimplexLeastSquaresProblem {
-        design: design.view(),
-        target: target.view(),
-        zeta,
-        intercept,
-    };
-    let theta0 = Array1::<f64>::zeros(design.ncols());
-    let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7)
-        .with_tolerance_grad(1e-8)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?
-        .with_tolerance_cost(1e-12)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-    let mut result = Executor::new(problem, solver)
-        .configure(|state| state.param(theta0).max_iters(max_iterations))
-        .run()
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-    if !optimization_success(result.state.get_termination_status()) {
-        return Err(PyValueError::new_err(format!(
-            "simplex optimization did not converge: {}",
-            result.state.get_termination_status()
-        )));
+    let n_observations = design.nrows() as f64;
+    let n_weights = design.ncols();
+    let mut centered_design = design.clone();
+    let mut centered_target = target.clone();
+    if intercept {
+        for column in 0..n_weights {
+            let mean = centered_design.column(column).mean().unwrap_or(0.0);
+            centered_design
+                .column_mut(column)
+                .mapv_inplace(|value| value - mean);
+        }
+        let mean = centered_target.mean().unwrap_or(0.0);
+        centered_target.mapv_inplace(|value| value - mean);
     }
-    let theta = result
-        .state
-        .take_best_param()
-        .ok_or_else(|| PyValueError::new_err("simplex least-squares optimization failed"))?;
 
-    Ok(softmax_weights(&theta))
+    let mut hessian = centered_design.t().dot(&centered_design) / n_observations;
+    for index in 0..n_weights {
+        hessian[[index, index]] += zeta * zeta;
+    }
+    let linear = centered_design.t().dot(&centered_target) / n_observations;
+    solve_simplex_quadratic(&hessian, &linear, max_iterations)
+}
+
+fn equality_constrained_direction(
+    hessian: &Array2<f64>,
+    gradient: &Array1<f64>,
+    free: &[usize],
+) -> PyResult<(Array1<f64>, f64)> {
+    let dimension = free.len() + 1;
+    let mut kkt = DMatrix::<f64>::zeros(dimension, dimension);
+    let mut rhs = DVector::<f64>::zeros(dimension);
+    for (row, source_row) in free.iter().enumerate() {
+        rhs[row] = -gradient[*source_row];
+        for (column, source_column) in free.iter().enumerate() {
+            kkt[(row, column)] = hessian[[*source_row, *source_column]];
+        }
+        kkt[(row, dimension - 1)] = 1.0;
+        kkt[(dimension - 1, row)] = 1.0;
+    }
+
+    let solution = kkt
+        .clone()
+        .lu()
+        .solve(&rhs)
+        .or_else(|| kkt.svd(true, true).solve(&rhs, 1e-12).ok())
+        .ok_or_else(|| PyValueError::new_err("simplex quadratic KKT system could not be solved"))?;
+    let mut direction = Array1::<f64>::zeros(hessian.nrows());
+    for (index, source) in free.iter().enumerate() {
+        direction[*source] = solution[index];
+    }
+    Ok((direction, solution[dimension - 1]))
+}
+
+fn solve_simplex_quadratic(
+    hessian: &Array2<f64>,
+    linear: &Array1<f64>,
+    max_iterations: u64,
+) -> PyResult<Array1<f64>> {
+    let n_weights = hessian.nrows();
+    let mut weights = Array1::<f64>::from_elem(n_weights, 1.0 / n_weights as f64);
+    let mut is_free = vec![true; n_weights];
+    let tolerance = 1e-10;
+
+    for _ in 0..max_iterations {
+        let gradient = hessian.dot(&weights) - linear;
+        let free: Vec<usize> = is_free
+            .iter()
+            .enumerate()
+            .filter_map(|(index, value)| value.then_some(index))
+            .collect();
+        let (direction, multiplier) = equality_constrained_direction(hessian, &gradient, &free)?;
+        let direction_norm = direction.dot(&direction).sqrt();
+
+        if direction_norm <= tolerance {
+            let candidate = is_free
+                .iter()
+                .enumerate()
+                .filter(|(_, value)| !**value)
+                .map(|(index, _)| (index, gradient[index] + multiplier))
+                .min_by(|left, right| left.1.total_cmp(&right.1));
+            match candidate {
+                Some((index, reduced_gradient)) if reduced_gradient < -tolerance => {
+                    is_free[index] = true;
+                    continue;
+                }
+                _ => {
+                    weights.mapv_inplace(|value| value.max(0.0));
+                    let total = weights.sum();
+                    if total <= 0.0 || !total.is_finite() {
+                        return Err(PyValueError::new_err(
+                            "simplex quadratic solver produced invalid weights",
+                        ));
+                    }
+                    weights /= total;
+                    return Ok(weights);
+                }
+            }
+        }
+
+        let mut step = 1.0_f64;
+        for index in &free {
+            if direction[*index] < 0.0 {
+                step = step.min(-weights[*index] / direction[*index]);
+            }
+        }
+        for index in 0..n_weights {
+            weights[index] += step * direction[index];
+            if weights[index].abs() <= tolerance {
+                weights[index] = 0.0;
+            }
+        }
+        if step < 1.0 - tolerance {
+            for index in &free {
+                if weights[*index] == 0.0 && direction[*index] < 0.0 {
+                    is_free[*index] = false;
+                }
+            }
+        }
+    }
+
+    Err(PyValueError::new_err(
+        "simplex quadratic optimization did not converge within max_iterations",
+    ))
 }
 
 fn simplex_intercept(design: &Array2<f64>, target: &Array1<f64>, weights: &Array1<f64>) -> f64 {
