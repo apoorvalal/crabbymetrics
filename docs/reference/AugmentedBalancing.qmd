@@ -91,6 +91,30 @@ Constructor: `cm.AugmentedBalancing`
 print(inspect.signature(cm.AugmentedBalancing))
 ```
 
+| Parameter | Default | Contract |
+|---|---:|---|
+| `balance` | `"double"` | `"none"`, `"unit"`, `"time"`, or `"double"` |
+| `unit_target` | `"cohort"` | `"cohort"` or `"individual"` |
+| `time_target` | `"all"` | `"all"` or `"period"` |
+| `balance_on` | `"raw"` | `"raw"` or `"residual"` |
+| `unit_loss` | `"ridge"` | `"ridge"` or `"penalized_scm"` |
+| `unit_penalty` | `0.0001` | Nonnegative penalized-SCM donor-distance coefficient |
+| `zeta_omega` | `None` | Optional nonnegative unit-ridge scale; `None` uses the data-dependent rule |
+| `zeta_lambda` | `None` | Optional nonnegative time-ridge scale; `None` uses the data-dependent rule |
+| `max_iterations` | `1000` | Positive active-set iteration budget |
+
+`fit(y, w, outcome_model=None)` fits in place and returns `None`. `predict()`
+and `treatment_effect()` return arrays with the same shape as `y`.
+`summary()` returns the full fitted-state dictionary described below. These
+three accessors raise `ValueError` before a successful fit.
+
+Constructor choices are validated when the class is created. During `fit`,
+`y` and the optional outcome model must be finite, two-dimensional, and
+same-shaped. `w` must be a same-shaped binary absorbing-treatment matrix.
+Each treated cohort must have a pre-period and the panel must contain a
+never-treated donor. Invalid arrays, unsupported treatment paths, and solver
+failures raise `ValueError`.
+
 ```{python}
 cls = cm.AugmentedBalancing
 display(HTML(html_table(["Public method"], public_methods(cls))))
