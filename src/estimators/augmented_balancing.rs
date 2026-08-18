@@ -2,7 +2,10 @@ use super::panel::{
     cohort_units, ensure_panel_has_never_treated, infer_panel_treatment, panel_effect_dicts,
     panel_group_pre_rmse, PanelTreatmentInfo,
 };
-use super::synthetic::{fit_simplex_least_squares_weights, sdid_sigma_estimator};
+use super::synthetic::{
+    fit_penalized_synthetic_control_weights, fit_simplex_least_squares_weights,
+    sdid_sigma_estimator,
+};
 use crate::utils::{pyarray1_from_f64, pyarray2_from_f64, to_array2};
 use ndarray::{s, Array1, Array2, Axis};
 use numpy::{PyArray2, PyReadonlyArray2};
@@ -81,6 +84,24 @@ enum BalanceData {
     Residual,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UnitLoss {
+    Ridge,
+    PenalizedScm,
+}
+
+impl UnitLoss {
+    fn parse(value: &str) -> PyResult<Self> {
+        match value {
+            "ridge" => Ok(Self::Ridge),
+            "penalized_scm" => Ok(Self::PenalizedScm),
+            _ => Err(PyValueError::new_err(
+                "unit_loss must be 'ridge' or 'penalized_scm'",
+            )),
+        }
+    }
+}
+
 impl BalanceData {
     fn parse(value: &str) -> PyResult<Self> {
         match value {
@@ -155,6 +176,8 @@ fn fit_augmented_balancing_panel(
     unit_target: UnitTarget,
     time_target: TimeTarget,
     balance_on: BalanceData,
+    unit_loss: UnitLoss,
+    unit_penalty: f64,
     zeta_omega_opt: Option<f64>,
     zeta_lambda_opt: Option<f64>,
     max_iterations: u64,
@@ -318,13 +341,22 @@ fn fit_augmented_balancing_panel(
             let omega = if balance.uses_unit_weights() {
                 let target_pre = mean_rows(balancing_data, &target_group, t_pre)?;
                 let design = control_pre.t().to_owned();
-                fit_simplex_least_squares_weights(
-                    &design,
-                    &target_pre,
-                    zeta_omega,
-                    true,
-                    max_iterations,
-                )?
+                match unit_loss {
+                    UnitLoss::Ridge => fit_simplex_least_squares_weights(
+                        &design,
+                        &target_pre,
+                        zeta_omega,
+                        true,
+                        max_iterations,
+                    )?,
+                    UnitLoss::PenalizedScm => fit_penalized_synthetic_control_weights(
+                        &design,
+                        &target_pre,
+                        unit_penalty,
+                        true,
+                        max_iterations,
+                    )?,
+                }
             } else {
                 Array1::<f64>::from_elem(n_control, 1.0 / n_control as f64)
             };
@@ -332,11 +364,12 @@ fn fit_augmented_balancing_panel(
             for (column, unit) in controls.iter().enumerate() {
                 unit_weights[[unit_target_row, *unit]] = omega[column];
             }
-            fitted_zeta_omega[unit_target_row] = if balance.uses_unit_weights() {
-                zeta_omega
-            } else {
-                0.0
-            };
+            fitted_zeta_omega[unit_target_row] =
+                if balance.uses_unit_weights() && unit_loss == UnitLoss::Ridge {
+                    zeta_omega
+                } else {
+                    0.0
+                };
             target_units.push(if unit_target == UnitTarget::Individual {
                 target_group[0] as i64
             } else {
@@ -401,6 +434,8 @@ pub struct AugmentedBalancing {
     unit_target: String,
     time_target: String,
     balance_on: String,
+    unit_loss: String,
+    unit_penalty: f64,
     zeta_omega: Option<f64>,
     zeta_lambda: Option<f64>,
     max_iterations: u64,
@@ -424,12 +459,14 @@ pub struct AugmentedBalancing {
 #[pymethods]
 impl AugmentedBalancing {
     #[new]
-    #[pyo3(signature = (balance="double", unit_target="cohort", time_target="all", balance_on="raw", zeta_omega=None, zeta_lambda=None, max_iterations=1000))]
+    #[pyo3(signature = (balance="double", unit_target="cohort", time_target="all", balance_on="raw", unit_loss="ridge", unit_penalty=1e-4, zeta_omega=None, zeta_lambda=None, max_iterations=1000))]
     fn new(
         balance: &str,
         unit_target: &str,
         time_target: &str,
         balance_on: &str,
+        unit_loss: &str,
+        unit_penalty: f64,
         zeta_omega: Option<f64>,
         zeta_lambda: Option<f64>,
         max_iterations: u64,
@@ -438,6 +475,8 @@ impl AugmentedBalancing {
         UnitTarget::parse(unit_target)?;
         TimeTarget::parse(time_target)?;
         BalanceData::parse(balance_on)?;
+        UnitLoss::parse(unit_loss)?;
+        checked_penalty(Some(unit_penalty), "unit_penalty", 0.0)?;
         checked_penalty(zeta_omega, "zeta_omega", 0.0)?;
         checked_penalty(zeta_lambda, "zeta_lambda", 0.0)?;
         if max_iterations == 0 {
@@ -448,6 +487,8 @@ impl AugmentedBalancing {
             unit_target: unit_target.to_string(),
             time_target: time_target.to_string(),
             balance_on: balance_on.to_string(),
+            unit_loss: unit_loss.to_string(),
+            unit_penalty,
             zeta_omega,
             zeta_lambda,
             max_iterations,
@@ -489,6 +530,8 @@ impl AugmentedBalancing {
             UnitTarget::parse(&self.unit_target)?,
             TimeTarget::parse(&self.time_target)?,
             BalanceData::parse(&self.balance_on)?,
+            UnitLoss::parse(&self.unit_loss)?,
+            self.unit_penalty,
             self.zeta_omega,
             self.zeta_lambda,
             self.max_iterations,
@@ -574,6 +617,8 @@ impl AugmentedBalancing {
         dict.set_item("unit_target", self.unit_target.clone())?;
         dict.set_item("time_target", self.time_target.clone())?;
         dict.set_item("balance_on", self.balance_on.clone())?;
+        dict.set_item("unit_loss", self.unit_loss.clone())?;
+        dict.set_item("unit_penalty", self.unit_penalty)?;
         dict.set_item("converged", true)?;
         Ok(dict.into())
     }

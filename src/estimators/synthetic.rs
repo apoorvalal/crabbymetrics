@@ -177,6 +177,72 @@ pub(crate) fn fit_simplex_least_squares_weights(
     solve_simplex_quadratic(&hessian, &linear, max_iterations)
 }
 
+pub(crate) fn fit_penalized_synthetic_control_weights(
+    design: &Array2<f64>,
+    target: &Array1<f64>,
+    penalty: f64,
+    intercept: bool,
+    max_iterations: u64,
+) -> PyResult<Array1<f64>> {
+    if max_iterations == 0 {
+        return Err(PyValueError::new_err("max_iterations must be positive"));
+    }
+    if design.nrows() != target.len() || design.nrows() == 0 || design.ncols() == 0 {
+        return Err(PyValueError::new_err(
+            "penalized synthetic control needs a non-empty design aligned with target",
+        ));
+    }
+    if !penalty.is_finite() || penalty < 0.0 {
+        return Err(PyValueError::new_err(
+            "unit_penalty must be finite and nonnegative",
+        ));
+    }
+    if design.ncols() == 1 {
+        return Ok(Array1::from_vec(vec![1.0]));
+    }
+
+    let count = design.len() as f64;
+    let mean = design.sum() / count;
+    let variance = design
+        .iter()
+        .map(|value| {
+            let centered = *value - mean;
+            centered * centered
+        })
+        .sum::<f64>()
+        / (count - 1.0);
+    let scale = variance.sqrt();
+    if !scale.is_finite() || scale <= 0.0 {
+        return Err(PyValueError::new_err(
+            "penalized synthetic control donor outcomes have zero scale",
+        ));
+    }
+    let mut scaled_design = design / scale;
+    let mut scaled_target = target / scale;
+    let mut distances = Array1::<f64>::zeros(design.ncols());
+    for column in 0..design.ncols() {
+        let difference = &scaled_target - &scaled_design.column(column);
+        distances[column] = difference.dot(&difference);
+    }
+    if intercept {
+        for column in 0..scaled_design.ncols() {
+            let column_mean = scaled_design.column(column).mean().unwrap_or(0.0);
+            scaled_design
+                .column_mut(column)
+                .mapv_inplace(|value| value - column_mean);
+        }
+        let target_mean = scaled_target.mean().unwrap_or(0.0);
+        scaled_target.mapv_inplace(|value| value - target_mean);
+    }
+    let mut hessian = scaled_design.t().dot(&scaled_design);
+    let numerical_ridge = 1e-12 * hessian.diag().iter().copied().fold(1.0_f64, f64::max);
+    for index in 0..hessian.nrows() {
+        hessian[[index, index]] += numerical_ridge;
+    }
+    let linear = scaled_design.t().dot(&scaled_target) - distances * (0.5 * penalty);
+    solve_simplex_quadratic(&hessian, &linear, max_iterations)
+}
+
 fn equality_constrained_direction(
     hessian: &Array2<f64>,
     gradient: &Array1<f64>,

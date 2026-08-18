@@ -57,7 +57,23 @@ simplex_ridge <- function(design, target, zeta) {
   quadprog::solve.QP(quadratic, linear, constraints, bounds, meq = 1)$solution
 }
 
-fit_case <- function(balance, unit_target, time_target, balance_on) {
+simplex_penalized_scm <- function(design, target, penalty) {
+  scale <- sd(as.vector(design))
+  scaled_design <- design / scale
+  scaled_target <- target / scale
+  distances <- apply(scaled_design, 2, function(donor) sum((scaled_target - donor)^2))
+  centered_design <- sweep(scaled_design, 2, colMeans(scaled_design), "-")
+  centered_target <- scaled_target - mean(scaled_target)
+  base_quadratic <- crossprod(centered_design)
+  numerical_ridge <- 1e-12 * max(1, diag(base_quadratic))
+  quadratic <- 2 * (base_quadratic + numerical_ridge * diag(ncol(design)))
+  linear <- 2 * crossprod(centered_design, centered_target) - penalty * distances
+  constraints <- cbind(rep(1, ncol(design)), diag(ncol(design)))
+  bounds <- c(1, rep(0, ncol(design)))
+  quadprog::solve.QP(quadratic, linear, constraints, bounds, meq = 1)$solution
+}
+
+fit_case <- function(balance, unit_target, time_target, balance_on, unit_loss) {
   residual <- y - outcome_model
   balancing <- if (balance_on == "raw") y else residual
   control_pre <- balancing[seq_len(n_control), seq_len(t_pre), drop = FALSE]
@@ -68,16 +84,21 @@ fit_case <- function(balance, unit_target, time_target, balance_on) {
   zeta_lambda <- 1e-6 * sigma
 
   if (balance %in% c("unit", "double")) {
+    unit_fit <- function(design, target) {
+      if (unit_loss == "ridge") {
+        simplex_ridge(design, target, zeta_omega)
+      } else {
+        simplex_penalized_scm(design, target, 1e-4)
+      }
+    }
     if (unit_target == "cohort") {
-      fitted <- simplex_ridge(t(control_pre),
-                              colMeans(balancing[(n_control + 1):nrow(y),
-                                                 seq_len(t_pre), drop = FALSE]),
-                              zeta_omega)
+      fitted <- unit_fit(t(control_pre),
+                         colMeans(balancing[(n_control + 1):nrow(y),
+                                            seq_len(t_pre), drop = FALSE]))
       omega <- matrix(rep(fitted, n_treated), nrow = n_control)
     } else {
       omega <- vapply(seq_len(n_treated), function(index) {
-        simplex_ridge(t(control_pre),
-                      balancing[n_control + index, seq_len(t_pre)], zeta_omega)
+        unit_fit(t(control_pre), balancing[n_control + index, seq_len(t_pre)])
       }, numeric(n_control))
     }
   } else {
@@ -118,6 +139,8 @@ fit_case <- function(balance, unit_target, time_target, balance_on) {
     unit_target = unit_target,
     time_target = time_target,
     balance_on = balance_on,
+    unit_loss = unit_loss,
+    unit_penalty = 1e-4,
     zeta_omega = zeta_omega,
     zeta_lambda = zeta_lambda,
     att = mean(effects)
@@ -129,11 +152,12 @@ grid <- expand.grid(
   unit_target = c("cohort", "individual"),
   time_target = c("all", "period"),
   balance_on = c("raw", "residual"),
+  unit_loss = c("ridge", "penalized_scm"),
   stringsAsFactors = FALSE
 )
 results <- do.call(rbind, lapply(seq_len(nrow(grid)), function(index) {
   fit_case(grid$balance[index], grid$unit_target[index], grid$time_target[index],
-           grid$balance_on[index])
+           grid$balance_on[index], grid$unit_loss[index])
 }))
 write.csv(results, file.path(fixture_directory, "r_augmented_balancing_results.csv"),
           row.names = FALSE)

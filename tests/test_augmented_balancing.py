@@ -194,6 +194,24 @@ def test_period_time_target_stores_one_weight_vector_per_post_period():
     np.testing.assert_allclose(time_weights[:, :n_pre].sum(axis=1), 1.0, atol=1e-10)
 
 
+def test_penalized_scm_unit_loss_produces_simplex_weights():
+    y, w, _, _ = make_convex_panel(seed=818)
+    model = cm.AugmentedBalancing(
+        balance="double",
+        unit_loss="penalized_scm",
+        unit_penalty=1e-4,
+    )
+    model.fit(y, w)
+    summary = model.summary()
+    controls = np.asarray(summary["control_units"])
+    weights = np.asarray(summary["unit_weights"])[0, controls]
+
+    np.testing.assert_allclose(weights.sum(), 1.0, atol=1e-12)
+    assert np.all(weights >= 0.0)
+    assert summary["unit_loss"] == "penalized_scm"
+    assert summary["unit_penalty"] == pytest.approx(1e-4)
+
+
 def test_augmented_balancing_rejects_invalid_options_and_inputs():
     y, w, _, _ = make_convex_panel(seed=815)
     with pytest.raises(ValueError, match="balance must be"):
@@ -204,6 +222,10 @@ def test_augmented_balancing_rejects_invalid_options_and_inputs():
         cm.AugmentedBalancing(time_target="cohort")
     with pytest.raises(ValueError, match="balance_on must be"):
         cm.AugmentedBalancing(balance_on="fitted")
+    with pytest.raises(ValueError, match="unit_loss must be"):
+        cm.AugmentedBalancing(unit_loss="lasso")
+    with pytest.raises(ValueError, match="unit_penalty"):
+        cm.AugmentedBalancing(unit_penalty=-1.0)
     with pytest.raises(ValueError, match="same shape"):
         cm.AugmentedBalancing().fit(y, w, np.zeros((2, 2)))
     with pytest.raises(ValueError, match="max_iterations must be positive"):
@@ -227,13 +249,15 @@ def test_all_r_estimator_reference_cases_match_within_numerical_tolerance():
     ) as stream:
         cases = list(csv.DictReader(stream))
 
-    assert len(cases) == 24
+    assert len(cases) == 48
     for case in cases:
         model = cm.AugmentedBalancing(
             balance=case["balance"],
             unit_target=case["unit_target"],
             time_target=case["time_target"],
             balance_on=case["balance_on"],
+            unit_loss=case["unit_loss"],
+            unit_penalty=float(case["unit_penalty"]),
             max_iterations=10000,
         )
         model.fit(y, w, outcome_model)
@@ -245,7 +269,7 @@ def test_all_r_estimator_reference_cases_match_within_numerical_tolerance():
         np.testing.assert_allclose(
             summary["att"], float(case["att"]), atol=2e-5, err_msg=case_name
         )
-        if case["balance"] in {"unit", "double"}:
+        if case["balance"] in {"unit", "double"} and case["unit_loss"] == "ridge":
             np.testing.assert_allclose(
                 summary["zeta_omega"],
                 float(case["zeta_omega"]),
