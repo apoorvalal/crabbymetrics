@@ -688,8 +688,10 @@ That is the current state the next extension branch should assume.
 
 ## 2026-08-16 Augmented Panel Balancing
 
-- Added `AugmentedBalancing`, a panel ATT estimator that composes a supplied untreated-outcome surface with optional simplex unit and time balancing.
-- Added switches for outcome-only, unit, and double balancing; cohort or individual unit-weight targets; and raw-outcome or residual-based weight fitting.
-- Reused the `SyntheticDID` simplex solver and common panel treatment parser, event summaries, and pre-period diagnostics.
-- Added focused algebra, recovery, target-mapping, and validation tests plus a public class reference page.
+- Added `AugmentedBalancing`, a panel ATT estimator that composes a supplied untreated-outcome surface with optional simplex unit and time balancing through the full augmented score.
+- Added outcome-only, unit-only, time-only, and double balancing; cohort or individual unit targets; pooled or period-specific time targets; raw-outcome or residual balance inputs; and ridge or penalized-SCM donor losses.
+- Replaced the simplex ridge approximation with an active-set quadratic-programming solver. Boundary solutions now preserve exact zero weights and match the executable R reference on integrated and weak-support panels.
+- Added a committed same-panel R fixture for 48 estimator configurations. The maximum absolute R/Rust ATT difference is below $1.8\times10^{-10}$.
+- Ran a separate 200-replication R/Python comparison for 14 DGP/estimator settings and seven estimators or variants, for 98 matched RMSE cells. Every difference is within three combined Monte Carlo standard errors.
+- Added focused algebra, recovery, target-mapping, validation, ranking-regression, and external-parity tests plus a public class reference page. The ranking tests require double balancing to improve on unit-only balancing in the strong-factor, weak-factor, mixed, and persistent time-series cases where the R experiments show that result.
 - Updated two existing balancing pages to use the current Matplotlib boxplot keyword so the full documentation site renders with the declared docs environment.

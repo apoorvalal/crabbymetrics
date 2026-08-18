@@ -57,6 +57,12 @@ The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07
 
 ## Current Extension Status
 
+### Active branch: faithful augmented panel balancing
+
+`feature/augmented-panel-balancing` implements the R experiment's estimator family without treating horizontal ridge as a universal panel estimator. `AugmentedBalancing` supports outcome-only, unit-only, time-only, and double balancing; cohort or individual unit targets; pooled or period-specific time targets; raw-outcome or residual balance inputs; and ridge or penalized-SCM donor losses. Unit and time weights enter the full augmented score in every balancing mode, including the uniform weights used for a dimension that is not optimized.
+
+The simplex ridge solver uses an active-set quadratic-programming step, and the penalized-SCM loss follows the executable R reference. A committed same-panel fixture checks 48 configurations against R and has a maximum absolute ATT difference below $1.8\times10^{-10}$. The independent 200-replication reproduction checks 98 matched R/Python RMSE cells; all differences are within three combined Monte Carlo standard errors. This evidence validates the implemented balancing family. It does not imply that horizontal ridge dominates across the panel DGPs.
+
 ### Recently landed: Cressie-Read balancing, API hardening, sparse rotations, randomized linear algebra, hypothesis tests, ABC OLS, anytime-valid OLS, MLE prediction, survival, and v0.8.0
 
 The 2026-05 through 2026-06 extension sequence landed several items that used to be active or pending in this file:
@@ -139,7 +145,7 @@ Implementation guardrails for sketching work:
   - fitted panel estimators expose high-level causal outputs through `summary()`: `att`, `counterfactual`, `treatment_effect`, `event_study`, and `group_means`
   - `HorizontalPanelRidge` exposes the horizontal forecasting leaf from Shen-Ding-Sekhon-Yu style panel comparisons: train cohort-specific ridge forecasts on treated pre-period outcomes using donor paths as features, then forecast treated counterfactual paths
   - `SyntheticDID` ports the matrix-form synthetic difference-in-differences estimator from the local `synthlearners` CVXPY reference into a Rust-backed NumPy API, now fit cohort-by-cohort under the common panel contract
-  - `AugmentedBalancing` implements outcome-only, unit-balanced, double-balanced, and outcome-model-augmented variants; weights can target cohort means or individuals and can be fit on raw outcomes or outcome-model residuals
+  - `AugmentedBalancing` implements outcome-only, unit-balanced, time-balanced, double-balanced, and outcome-model-augmented variants; unit weights can target cohort means or individuals, time weights can be pooled or period-specific, balance inputs can be raw outcomes or outcome-model residuals, and the donor loss can use ridge or penalized SCM
   - low-level weight APIs remain public: `SyntheticControl` for simplex donor weights and `BalancingWeights` for calibration weights, but they are not the modal panel causal path
 - semiparametric bundle
   - `EPLM`
