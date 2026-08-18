@@ -427,7 +427,7 @@ fn fit_augmented_balancing_panel(
     })
 }
 
-/// Outcome-model augmentation with optional unit and time balancing for panel ATT.
+/// Outcome-model augmentation with unit, time, or double balancing for panel ATT.
 #[pyclass]
 pub struct AugmentedBalancing {
     balance: String,
