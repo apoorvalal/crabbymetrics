@@ -311,6 +311,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -706,7 +710,7 @@ Y_t=2A_t+0.5A_{t-1}+1.5Z_t+\varepsilon_t.
 <p><span class="math display">\[
 \gamma_1=0.5+1.5(0.8)=1.7.
 \]</span></p>
-<div id="e6bf0ea7" class="cell" data-execution_count="1">
+<div id="81ca6265" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -791,7 +795,7 @@ Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
 =\operatorname{logit}^{-1}(-1.2+0.55L_{im}+0.65U_i).
 \]</span></p>
 <p>The initiation response is <span class="math inline">\((1.0,1.6,2.1)\)</span> at horizons one through three. This violates level ignorability because <span class="math inline">\(U_i\)</span> confounds initiation and <span class="math inline">\(Y_{i0}(0)\)</span>, but it satisfies the simulated conditional parallel-trends restriction.</p>
-<div id="9b74ba66" class="cell" data-execution_count="2">
+<div id="2692a905" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">91</span>)</span>
@@ -880,7 +884,7 @@ Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
 </div>
 </div>
 </div>
-<div id="08ed086a" class="cell" data-execution_count="3">
+<div id="6fabc741" class="cell" data-execution_count="3">
 <div class="cell-output cell-output-display" data-execution_count="3">
 <div>
 
@@ -1016,7 +1020,7 @@ Y_{i,t+1}
 </div>
 </div>
 <p>For each draw, <code>RegressionBlip</code> estimates <span class="math inline">\(\tau\)</span> as <span class="math inline">\(\widehat\gamma_0+\widehat\gamma_1+\widehat\gamma_2\)</span>. <code>ParallelTrendsSNMM</code> estimates it as <span class="math inline">\(\widehat\psi_1+\widehat\psi_2+\widehat\psi_3\)</span>. <code>DynamicCovariateBalance</code> fits <span class="math inline">\(\widehat\mu_4(d^1)\)</span> and <span class="math inline">\(\widehat\mu_4(d^0)\)</span> separately and differences them.</p>
-<div id="3017f000" class="cell" data-execution_count="4">
+<div id="534ce892" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -1236,7 +1240,7 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<div id="4efc0f65" class="cell" data-execution_count="5">
+<div id="385af7f7" class="cell" data-execution_count="5">
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -1246,7 +1250,7 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<div id="f030c7b3" class="cell" data-execution_count="6">
+<div id="70a3ee44" class="cell" data-execution_count="6">
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -1258,7 +1262,7 @@ Y_{i,t+1}
 </div>
 <p>Under selection on observables, all three sampling distributions are centered near two. The recursive regression is most efficient in this correctly specified low-dimensional outcome model; the parallel-trends estimator pays for orthogonalization and cross-fitting, while the path-specific dynamic-balancing contrast pays for estimating two increasingly selective path means.</p>
 <p>When <span class="math inline">\(U_i\)</span> enters treatment assignment, the regression-blip and dynamic-balancing estimates inherit the positive level confounding. The parallel-trends estimate remains close to the target because differencing removes <span class="math inline">\(U_i\)</span>. This is not generic robustness to hidden confounding: it relies specifically on <span class="math inline">\(U_i\)</span> being time invariant and absent from untreated outcome trends.</p>
-<div id="150a1410" class="cell" data-execution_count="7">
+<div id="f6100380" class="cell" data-execution_count="7">
 <div class="cell-output cell-output-display" data-execution_count="7">
 <div>
 

@@ -214,6 +214,7 @@ display(HTML(html_table(
 - [SyntheticControl](reference/SyntheticControl.qmd)
 - [HorizontalPanelRidge](reference/HorizontalPanelRidge.qmd)
 - [SyntheticDID](reference/SyntheticDID.qmd)
+- [AugmentedBalancing](reference/AugmentedBalancing.qmd)
 - [MatrixCompletion](reference/MatrixCompletion.qmd)
 - [InteractiveFixedEffects](reference/InteractiveFixedEffects.qmd)
 
@@ -222,6 +223,7 @@ Worked docs:
 - [Synthetic Control](examples/synthetic-control.qmd)
 - [Horizontal Panel Ridge](examples/horizontal-panel-ridge.qmd)
 - [Synthetic DID](examples/synthetic-did.qmd)
+- [Augmented Balancing for Panel Data](examples/augmented-balancing.qmd)
 - [Matrix Completion](examples/matrix-completion.qmd)
 - [Interactive Fixed Effects](examples/interactive-fixed-effects.qmd)
 - [Staggered Panel Event Study](examples/staggered-panel-event-study.qmd)
@@ -233,6 +235,7 @@ display(HTML(html_table(
         cm.SyntheticControl,
         cm.HorizontalPanelRidge,
         cm.SyntheticDID,
+        cm.AugmentedBalancing,
         cm.MatrixCompletion,
         cm.InteractiveFixedEffects,
     ])

@@ -4189,6 +4189,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -4408,7 +4412,7 @@ window.Quarto = {
 <li>it shows the live constructor and method surface from the installed module;</li>
 <li>it groups the growing class list into a navigable left-TOC landing page instead of relying on an oversized navbar dropdown.</li>
 </ul>
-<div id="ae1e22ba" class="cell" data-execution_count="1">
+<div id="83b31953" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> inspect</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4495,7 +4499,7 @@ window.Quarto = {
 <li><a href="./examples/multinomial-logit.html">Multinomial Logit</a></li>
 <li><a href="./examples/poisson.html">Poisson</a></li>
 </ul>
-<div id="5a272443" class="cell" data-execution_count="2">
+<div id="90cc8d27" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
@@ -4620,7 +4624,7 @@ window.Quarto = {
 <li><a href="./examples/survival-time-to-event-and-recurrent-events.html">Survival / Time-to-Event / Recurrent Events</a></li>
 <li><a href="./examples/survival-models.html">Survival Models (compact worked example)</a></li>
 </ul>
-<div id="d9ad135f" class="cell" data-execution_count="3">
+<div id="fd4ba148" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
@@ -4712,7 +4716,7 @@ window.Quarto = {
 <li><a href="./examples/average-derivative.html">Average Derivative</a></li>
 <li><a href="./examples/double-ml.html">Double ML and AIPW</a></li>
 </ul>
-<div id="ecdfd891" class="cell" data-execution_count="4">
+<div id="f8a0645c" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
@@ -4785,7 +4789,7 @@ window.Quarto = {
 <ul>
 <li><a href="./examples/snmm-blips.html">RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance</a></li>
 </ul>
-<div id="8c5ded3e" class="cell" data-execution_count="5">
+<div id="07d94181" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
@@ -4835,6 +4839,7 @@ window.Quarto = {
 <li><a href="./reference/SyntheticControl.html">SyntheticControl</a></li>
 <li><a href="./reference/HorizontalPanelRidge.html">HorizontalPanelRidge</a></li>
 <li><a href="./reference/SyntheticDID.html">SyntheticDID</a></li>
+<li><a href="./reference/AugmentedBalancing.html">AugmentedBalancing</a></li>
 <li><a href="./reference/MatrixCompletion.html">MatrixCompletion</a></li>
 <li><a href="./reference/InteractiveFixedEffects.html">InteractiveFixedEffects</a></li>
 </ul>
@@ -4843,21 +4848,23 @@ window.Quarto = {
 <li><a href="./examples/synthetic-control.html">Synthetic Control</a></li>
 <li><a href="./examples/horizontal-panel-ridge.html">Horizontal Panel Ridge</a></li>
 <li><a href="./examples/synthetic-did.html">Synthetic DID</a></li>
+<li><a href="./examples/augmented-balancing.html">Augmented Balancing for Panel Data</a></li>
 <li><a href="./examples/matrix-completion.html">Matrix Completion</a></li>
 <li><a href="./examples/interactive-fixed-effects.html">Interactive Fixed Effects</a></li>
 <li><a href="./examples/staggered-panel-event-study.html">Staggered Panel Event Study</a></li>
 </ul>
-<div id="040e7400" class="cell" data-execution_count="6">
+<div id="d25c4fd2" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        cm.SyntheticControl,</span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        cm.HorizontalPanelRidge,</span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        cm.SyntheticDID,</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        cm.MatrixCompletion,</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        cm.InteractiveFixedEffects,</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        cm.AugmentedBalancing,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>        cm.MatrixCompletion,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        cm.InteractiveFixedEffects,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <colgroup>
@@ -4895,12 +4902,19 @@ window.Quarto = {
 <code>vcov(self, /, method=&#39;bootstrap&#39;, replications=200, seed=None)</code></td>
 </tr>
 <tr class="even">
+<td><code>AugmentedBalancing(balance=&#39;double&#39;, unit_target=&#39;cohort&#39;, time_target=&#39;all&#39;, balance_on=&#39;raw&#39;, unit_loss=&#39;ridge&#39;, unit_penalty=0.0001, zeta_omega=None, zeta_lambda=None, max_iterations=1000)</code></td>
+<td><code>fit(self, /, y, w, outcome_model=None)</code><br>
+<code>predict(self, /)</code><br>
+<code>summary(self, /)</code><br>
+<code>treatment_effect(self, /)</code></td>
+</tr>
+<tr class="odd">
 <td><code>MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-06, svd_method=Ellipsis, svd_rank=None, svd_oversamples=10, svd_power_iter=1, svd_seed=None)</code></td>
 <td><code>fit(self, /, y, w)</code><br>
 <code>predict(self, /)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>InteractiveFixedEffects(rank=0, force=3, factor_method=Ellipsis, factor_oversamples=10, factor_power_iter=1, factor_seed=None)</code></td>
 <td><code>fit(self, /, y)</code><br>
 <code>predict(self, /)</code><br>
@@ -4925,7 +4939,7 @@ window.Quarto = {
 <li><a href="./reference/KernelBasis.html">KernelBasis, NystromBasis, and RandomFourierFeatures</a></li>
 <li><a href="./examples/sparse-rotations.html">Sparse Factor Rotations</a></li>
 </ul>
-<div id="06f400a7" class="cell" data-execution_count="7">
+<div id="46f538d5" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;Constructor&quot;</span>, <span class="st">&quot;Methods&quot;</span>],</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>

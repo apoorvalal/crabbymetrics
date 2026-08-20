@@ -4173,6 +4173,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -4368,7 +4372,7 @@ window.Quarto = {
 <p>The workflow is PCA or SVD first, rotation second, interpretation last. A rotation preserves the fitted subspace and chooses a basis inside that subspace. Sparse L1 rotation comes first here because it is the sharper tool when a few units or variables should carry each factor.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="aec227c9" class="cell" data-execution_count="1">
+<div id="8c5095db" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -4386,7 +4390,7 @@ window.Quarto = {
 </section>
 <section id="helpers" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="helpers"><span class="header-section-number">2</span> Helpers</h2>
-<div id="1367f3fe" class="cell" data-execution_count="2">
+<div id="d1b65199" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> read_numeric_data(path, columns<span class="op">=</span><span class="va">None</span>):</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    frame <span class="op">=</span> pl.read_csv(path, null_values<span class="op">=</span>[<span class="st">&quot;&quot;</span>, <span class="st">&quot;NA&quot;</span>, <span class="st">&quot;NaN&quot;</span>])</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    candidate_columns <span class="op">=</span> columns <span class="kw">or</span> [name <span class="cf">for</span> name <span class="kw">in</span> frame.columns <span class="cf">if</span> name <span class="op">!=</span> <span class="st">&quot;rownames&quot;</span>]</span>
@@ -4459,7 +4463,7 @@ window.Quarto = {
 <section id="a-favorable-simulation" class="level3" data-number="3.1">
 <h3 data-number="3.1" class="anchored" data-anchor-id="a-favorable-simulation"><span class="header-section-number">3.1</span> A Favorable Simulation</h3>
 <p>This simulation starts from three genuinely sparse loading columns. A random orthogonal matrix hides those columns by mixing them into a dense basis. The L1 rotation sees only the dense basis and tries to recover sparse axes inside the same column space.</p>
-<div id="dd2112ed" class="cell" data-execution_count="3">
+<div id="72fb8906" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2026</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>p, n_factors <span class="op">=</span> <span class="dv">72</span>, <span class="dv">3</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -4489,7 +4493,7 @@ small-loading counts: [56. 56. 52.]
 best absolute matches to true sparse columns: [1. 1. 1.]</code></pre>
 </div>
 </div>
-<div id="da5c4321" class="cell" data-execution_count="4">
+<div id="5fc293d0" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loading_heatmaps(</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    dense_basis,</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    sim_rotated,</span>
@@ -4510,7 +4514,7 @@ best absolute matches to true sparse columns: [1. 1. 1.]</code></pre>
 <section id="mood-items-from-rdatasets" class="level3" data-number="3.2">
 <h3 data-number="3.2" class="anchored" data-anchor-id="mood-items-from-rdatasets"><span class="header-section-number">3.2</span> Mood Items From Rdatasets</h3>
 <p>The <code>small.msq</code> dataset has 200 responses to affect items. The item names suggest local blocks: energetic activation, sleepiness/fatigue, anxiety, and calmness. This gives a compact real-data example where sparse rotation can concentrate columns on interpretable item groups.</p>
-<div id="e2007bbf" class="cell" data-execution_count="5">
+<div id="2ba4ab60" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>msq_items <span class="op">=</span> [</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;active&quot;</span>,</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;alert&quot;</span>,</span>
@@ -4545,7 +4549,7 @@ best absolute matches to true sparse columns: [1. 1. 1.]</code></pre>
 small-loading counts: [10.  0.  1.  1.]</code></pre>
 </div>
 </div>
-<div id="b23808a0" class="cell" data-execution_count="6">
+<div id="70b09350" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>loading_heatmaps(</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    msq_loadings,</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    msq_rotated,</span>
@@ -4566,7 +4570,7 @@ small-loading counts: [10.  0.  1.  1.]</code></pre>
 <section id="diagnostics" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="diagnostics"><span class="header-section-number">4</span> Diagnostics</h2>
 <p>Freyaldenhoven’s local-factor diagnostic counts entries smaller than <code>h_n = 1 / log(n)</code> by default and compares the largest count to a Gaussian reference threshold. You can also pass a fixed <code>threshold</code> when a scale is known.</p>
-<div id="205dbb26" class="cell" data-execution_count="7">
+<div id="1ddafabd" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>diag <span class="op">=</span> cm.local_factor_diagnostic(msq_rotated)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;has local factors:&quot;</span>, diag[<span class="st">&quot;has_local_factors&quot;</span>])</span>
@@ -4581,7 +4585,7 @@ h_n: 0.4024</code></pre>
 </div>
 </div>
 <p>The VSP-style localization utilities are scale-sensitive summaries of concentration:</p>
-<div id="d1578653" class="cell" data-execution_count="8">
+<div id="3feb2e94" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>orthonormal_example <span class="op">=</span> msq_rotated <span class="op">/</span> np.linalg.norm(msq_rotated, axis<span class="op">=</span><span class="dv">0</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;IPR by column:&quot;</span>, cm.inverse_participation_ratio(orthonormal_example))</span>
@@ -4607,7 +4611,7 @@ cumulative participation: 1.65625</code></pre>
 <section id="ability-test-correlations-from-rdatasets" class="level3" data-number="5.1">
 <h3 data-number="5.1" class="anchored" data-anchor-id="ability-test-correlations-from-rdatasets"><span class="header-section-number">5.1</span> Ability-Test Correlations From Rdatasets</h3>
 <p>The Harman-Holzinger data are a 9 by 9 correlation matrix of ability tests. The first two principal loading columns span the dominant ability-test space, and Varimax chooses axes that line up more clearly with verbal and arithmetic/spatial-style item groups.</p>
-<div id="f2dee013" class="cell" data-execution_count="9">
+<div id="27993be4" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>harman_columns, harman_corr <span class="op">=</span> read_numeric_data(DATA_DIR <span class="op">/</span> <span class="st">&quot;harman_holzinger.csv&quot;</span>)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>harman_loadings <span class="op">=</span> loadings_from_correlation(harman_corr, n_factors<span class="op">=</span><span class="dv">2</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>harman_varimax <span class="op">=</span> cm.varimax_rotation(harman_loadings, normalize<span class="op">=</span><span class="va">False</span>)</span>
@@ -4623,7 +4627,7 @@ cumulative participation: 1.65625</code></pre>
 Varimax objective: 1.435356</code></pre>
 </div>
 </div>
-<div id="80e9df2b" class="cell" data-execution_count="10">
+<div id="eed9fd03" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">13</span>, <span class="fl">5.5</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, values, title <span class="kw">in</span> [</span>

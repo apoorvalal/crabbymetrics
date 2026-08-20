@@ -4189,6 +4189,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -4387,7 +4391,7 @@ window.Quarto = {
 
 
 <p>Chapter 4 shifts from Fisher’s sharp-null logic to Neyman’s repeated-sampling logic. The finite population is fixed and the treatment assignment is repeatedly redrawn.</p>
-<div id="0b40ed07" class="cell" data-execution_count="1">
+<div id="a4a47ec0" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -4399,7 +4403,7 @@ window.Quarto = {
 </div>
 <section id="three-fixed-finite-populations" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="three-fixed-finite-populations"><span class="header-section-number">1</span> Three Fixed Finite Populations</h2>
-<div id="4a9c1c39" class="cell" data-execution_count="2">
+<div id="8e307238" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4</span>)</span>
@@ -4500,7 +4504,7 @@ window.Quarto = {
 <section id="geometry-of-the-potential-outcomes" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="geometry-of-the-potential-outcomes"><span class="header-section-number">2</span> Geometry Of The Potential Outcomes</h2>
 <p>The negative correlation case is where Neyman’s variance is most conservative, because treatment effects vary and <span class="math inline">\(Y(1)\)</span> and <span class="math inline">\(Y(0)\)</span> are moving against each other.</p>
-<div id="51e20018" class="cell" data-execution_count="3">
+<div id="d517f798" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">3</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">12</span>))</span>

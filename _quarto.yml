@@ -92,6 +92,8 @@ website:
             text: Synthetic Control
           - href: examples/synthetic-did.qmd
             text: Synthetic DID
+          - href: examples/augmented-balancing.qmd
+            text: Augmented Balancing For Panel Data
           - href: examples/horizontal-panel-ridge.qmd
             text: Horizontal Panel Ridge
           - href: examples/matrix-completion.qmd

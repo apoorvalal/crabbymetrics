@@ -4189,6 +4189,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -4425,7 +4429,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 <p>It is tied to the Cressie-Read family by the same power moment, with <span class="math inline">\(\lambda=\alpha-1\)</span>. This gives a clean mapping between divergence values, but the implemented optimizer is still the Cressie-Read calibration map above, solved by Gauss-Newton/L-BFGS/BFGS.</p>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="41df3e91" class="cell" data-execution_count="1">
+<div id="72d1aba3" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -4633,7 +4637,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </section>
 <section id="one-representative-draw" class="level2">
 <h2 class="anchored" data-anchor-id="one-representative-draw">One Representative Draw</h2>
-<div id="6d0cad96" class="cell" data-execution_count="2">
+<div id="ee258aac" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>overlap_settings <span class="op">=</span> {</span>
@@ -4864,7 +4868,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </section>
 <section id="monte-carlo" class="level2">
 <h2 class="anchored" data-anchor-id="monte-carlo">Monte Carlo</h2>
-<div id="c3cdbfad" class="cell" data-execution_count="3">
+<div id="a5969479" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_mc(reps<span class="op">=</span><span class="dv">40</span>, seed<span class="op">=</span><span class="dv">444</span>):</span>
@@ -5098,7 +5102,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </table>
 </div>
 </div>
-<div id="caa11ae7" class="cell" data-execution_count="4">
+<div id="7c1d953b" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>order <span class="op">=</span> [name <span class="cf">for</span> name, _ <span class="kw">in</span> METHODS]</span>
@@ -5106,7 +5110,7 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, overlap <span class="kw">in</span> <span class="bu">zip</span>(axes, overlap_settings):</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    subset <span class="op">=</span> mc[mc[<span class="st">&quot;overlap&quot;</span>] <span class="op">==</span> overlap]</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    data <span class="op">=</span> [subset[subset[<span class="st">&quot;method&quot;</span>] <span class="op">==</span> method][<span class="st">&quot;estimate&quot;</span>].to_numpy() <span class="cf">for</span> method <span class="kw">in</span> order]</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    ax.boxplot(data, labels<span class="op">=</span>order, showfliers<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    ax.boxplot(data, tick_labels<span class="op">=</span>order, showfliers<span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    ax.axhline(<span class="fl">1.0</span>, color<span class="op">=</span><span class="st">&quot;black&quot;</span>, linestyle<span class="op">=</span><span class="st">&quot;--&quot;</span>, linewidth<span class="op">=</span><span class="fl">1.1</span>)</span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f&quot;</span><span class="sc">{</span>overlap<span class="sc">}</span><span class="ss"> overlap&quot;</span>)</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    ax.tick_params(axis<span class="op">=</span><span class="st">&quot;x&quot;</span>, rotation<span class="op">=</span><span class="dv">35</span>)</span>
@@ -5121,14 +5125,14 @@ D_\alpha(w\|q)=\frac{1}{\alpha-1}\log\sum_i w_i^\alpha q_i^{1-\alpha}.
 </div>
 </div>
 </div>
-<div id="a2b8ac8a" class="cell" data-execution_count="5">
+<div id="2bd82428" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="fl">4.5</span>), sharey<span class="op">=</span><span class="va">True</span>, constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, overlap <span class="kw">in</span> <span class="bu">zip</span>(axes, overlap_settings):</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    subset <span class="op">=</span> mc[(mc[<span class="st">&quot;overlap&quot;</span>] <span class="op">==</span> overlap) <span class="op">&amp;</span> (mc[<span class="st">&quot;method&quot;</span>] <span class="op">!=</span> <span class="st">&quot;Naive&quot;</span>)]</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    ess_data <span class="op">=</span> [subset[subset[<span class="st">&quot;method&quot;</span>] <span class="op">==</span> method][<span class="st">&quot;ess&quot;</span>].to_numpy() <span class="cf">for</span> method <span class="kw">in</span> order[<span class="dv">1</span>:]]</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    ax.boxplot(ess_data, labels<span class="op">=</span>order[<span class="dv">1</span>:], showfliers<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    ax.boxplot(ess_data, tick_labels<span class="op">=</span>order[<span class="dv">1</span>:], showfliers<span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f&quot;</span><span class="sc">{</span>overlap<span class="sc">}</span><span class="ss"> overlap&quot;</span>)</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    ax.tick_params(axis<span class="op">=</span><span class="st">&quot;x&quot;</span>, rotation<span class="op">=</span><span class="dv">35</span>)</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">&quot;Effective sample size&quot;</span>)</span>
@@ -5157,7 +5161,7 @@ CR_\lambda(w,q)=
 \frac{2\{M_{\lambda+1}(w,q)-1\}}{\lambda(\lambda+1)}.
 \]</span></p>
 <p>So there is a clean mapping in the divergence values: <span class="math inline">\(D_\alpha\)</span> and <span class="math inline">\(CR_{\alpha-1}\)</span> are monotone transformations of the same scalar <span class="math inline">\(M_\alpha\)</span>. The table below fits the mapped Cressie-Read calibration member, then reports both the Rényi value and the mapped Cressie-Read statistic for the fitted weights.</p>
-<div id="ef553724" class="cell" data-execution_count="6">
+<div id="afef202c" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alpha_grid <span class="op">=</span> np.array([<span class="fl">0.25</span>, <span class="fl">0.50</span>, <span class="fl">0.75</span>, <span class="fl">1.00</span>, <span class="fl">1.25</span>, <span class="fl">1.50</span>, <span class="fl">2.00</span>])</span>

@@ -4189,6 +4189,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -4394,7 +4398,7 @@ window.Quarto = {
 <li>contingency-table evidence can be summarized with simple callback-rate differences</li>
 <li>Simpson’s paradox is a warning that pooled regressions can point in the wrong direction when group composition shifts</li>
 </ul>
-<div id="7b95acdc" class="cell" data-execution_count="1">
+<div id="97aa5028" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -4421,7 +4425,7 @@ window.Quarto = {
 <section id="lalonde-observational-data" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="lalonde-observational-data"><span class="header-section-number">1</span> Lalonde Observational Data</h2>
 <p>The original notebook starts with the Lalonde-style CPS comparison. Here the point is simple: the treatment coefficient can move a long way once we control for observable differences.</p>
-<div id="46f9be44" class="cell" data-execution_count="2">
+<div id="14c9bb0e" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>cps <span class="op">=</span> pd.read_table(data_dir <span class="op">/</span> <span class="st">&quot;cps1re74.csv&quot;</span>, delimiter<span class="op">=</span><span class="st">&quot; &quot;</span>)</span>
@@ -4496,7 +4500,7 @@ window.Quarto = {
 <section id="callback-rates-in-the-resume-experiment" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="callback-rates-in-the-resume-experiment"><span class="header-section-number">2</span> Callback Rates In The Resume Experiment</h2>
 <p>The Bertrand-Mullainathan resume data are a clean reminder that some causal contrasts are already visible in simple grouped means.</p>
-<div id="9384254c" class="cell" data-execution_count="3">
+<div id="c9ba0175" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>resume <span class="op">=</span> pd.read_csv(data_dir <span class="op">/</span> <span class="st">&quot;resume.csv&quot;</span>)</span>
@@ -4556,7 +4560,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<div id="a5e90102" class="cell" data-execution_count="4">
+<div id="c3dbf70e" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>callback_plot <span class="op">=</span> (</span>
@@ -4584,7 +4588,7 @@ window.Quarto = {
 <section id="berkeley-admissions" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="berkeley-admissions"><span class="header-section-number">3</span> Berkeley Admissions</h2>
 <p>The R script also uses the classic Berkeley admissions table to show Simpson’s paradox in a real contingency-table setting. The pooled admission-rate difference favors men, while most department-specific differences are small or move in the other direction.</p>
-<div id="862f43c4" class="cell" data-execution_count="5">
+<div id="746fbca7" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ucb_counts <span class="op">=</span> pd.DataFrame(</span>
@@ -4674,7 +4678,7 @@ window.Quarto = {
 <section id="simpsons-paradox-in-a-synthetic-example" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="simpsons-paradox-in-a-synthetic-example"><span class="header-section-number">4</span> Simpson’s Paradox In A Synthetic Example</h2>
 <p>Within each group below, the relationship between <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> is positive. Pooled together, it becomes negative because the high-<span class="math inline">\(x\)</span> group also has a much lower intercept.</p>
-<div id="26c6044f" class="cell" data-execution_count="6">
+<div id="5cfebcac" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">1</span>)</span>
@@ -4729,7 +4733,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<div id="dbc7c08b" class="cell" data-execution_count="7">
+<div id="64e9c0f4" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(x.<span class="bu">min</span>() <span class="op">-</span> <span class="fl">0.2</span>, x.<span class="bu">max</span>() <span class="op">+</span> <span class="fl">0.2</span>, <span class="dv">100</span>)</span>

@@ -351,7 +351,7 @@ fig, axes = plt.subplots(2, 1, figsize=(11, 8), constrained_layout=True, sharex=
 order = ["naive", "did", "om", "omXF", "ipw", "ipwXF", "aipw", "aipwXF"]
 for ax, rho in zip(axes, [0.0, 2.0]):
     data = [mc_draws[rho][name] for name in order]
-    ax.boxplot(data, labels=order, showfliers=False)
+    ax.boxplot(data, tick_labels=order, showfliers=False)
     ax.axhline(3.0, color="tab:red", linestyle="--", linewidth=1.2, label="truth")
     ax.set_title(f"Sampling distributions, rho = {rho:g}")
     ax.set_ylabel("ATT estimate")

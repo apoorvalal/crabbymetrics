@@ -72,7 +72,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.
 - Instrumental variables / 2SLS: `cm.TwoSLS()`.
 - Single treated time series with donor paths and simplex donor weights: `cm.SyntheticControl()`.
-- Balanced panel causal ATT with absorbing treatment matrix: start with `cm.SyntheticDID()` or `cm.HorizontalPanelRidge()`; use `cm.MatrixCompletion()` when a low-rank completion model is appropriate.
+- Balanced panel causal ATT with absorbing treatment matrix: start with `cm.SyntheticDID()` or `cm.HorizontalPanelRidge()`; use `cm.MatrixCompletion()` when a low-rank completion model is appropriate; use `cm.AugmentedBalancing()` to correct a supplied untreated-outcome surface with unit and/or time balancing.
 - No-covariate interactive fixed-effects factor model on a balanced panel: `cm.InteractiveFixedEffects(rank=..., force=...)`.
 - Binary treatment ATE with nuisance models: `cm.AIPW()`.
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
@@ -114,6 +114,7 @@ First-class panel causal estimators using `fit(Y, W)`:
 
 - `HorizontalPanelRidge(penalty=1.0)`: horizontal forecasting estimator. Uses never-treated donor paths as contemporaneous features, trains cohort-specific ridge forecasts on pre-treatment periods, and predicts treated-unit counterfactual paths. Works surprisingly well as a pure forecasting baseline.
 - `SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)`: synthetic difference-in-differences with cohort-specific donor and time weights under the common panel contract.
+- `AugmentedBalancing(balance="double", unit_target="cohort", time_target="all", balance_on="raw", unit_loss="ridge", unit_penalty=1e-4, zeta_omega=None, zeta_lambda=None, max_iterations=1000)`: compose a supplied untreated-outcome surface with no, unit, time, or double balancing. Unit and time targets vary independently. Unit losses are SDID ridge or penalized SCM.
 - `MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-6)`: matrix completion for panels where untreated cells (`W == 0`) are observed entries and treated cells are completed as counterfactuals.
 
 Common panel summary keys:
@@ -126,9 +127,10 @@ Common panel summary keys:
 
 Panel caution:
 
-- `HorizontalPanelRidge` and `SyntheticDID` currently assume at least one never-treated donor unit and use cohort-specific donor-based models for staggered timing.
+- `HorizontalPanelRidge`, `SyntheticDID`, and `AugmentedBalancing` require at least one never-treated donor unit and use cohort-specific donor-based models for staggered timing.
 - Treatment should be absorbing. If a unit is treated at time `t`, later periods for that unit should also be treated.
 - The panel estimators infer treated units, first-treatment cohorts, never-treated donors, pre/post windows, event time, and aggregate summaries internally from `W`.
+- `AugmentedBalancing` does not fit, mask, cross-fit, or validate the causal construction of `outcome_model`; callers must prevent treated-post leakage.
 
 ## Core estimator signatures
 
@@ -286,6 +288,16 @@ summary()
 ```
 
 Important summary keys: `att`, `unit_weights`, `time_weights`, `counterfactual`, `synthetic_outcome`, `treatment_effect`, `event_study`, `group_means`, `pre_rmse`, `unit_intercept`, `time_intercept`, `zeta_omega`, `zeta_lambda`, `control_units`, `treated_units`, `cohorts`.
+
+```python
+cm.AugmentedBalancing(balance="double", unit_target="cohort", time_target="all", balance_on="raw", unit_loss="ridge", unit_penalty=1e-4, zeta_omega=None, zeta_lambda=None, max_iterations=1000)
+fit(Y, W, outcome_model=None)
+predict()
+treatment_effect()
+summary()
+```
+
+Set `balance="none"` for outcome-only imputation, `balance="unit"` for optimized unit and uniform time weights, `balance="time"` for uniform unit and optimized time weights, and `balance="double"` to optimize both. If `outcome_model` is omitted, the nuisance surface is zero. `unit_target="individual"` fits one donor vector per treated unit, while `time_target="period"` fits one time vector per post period. `balance_on="residual"` fits weight problems on `Y - outcome_model`. `unit_loss="penalized_scm"` selects the R penalized-SCM donor loss. There is no built-in nuisance fitting or inference.
 
 ```python
 cm.MatrixCompletion(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-6)
@@ -507,6 +519,23 @@ print(out["att"])
 print(out["event_study"].keys())
 ```
 
+### Augmented balancing panel ATT
+
+```python
+# `outcome_model` is a finite, same-shaped untreated-outcome prediction matrix
+# fit without using treated post-treatment outcomes.
+m = cm.AugmentedBalancing(
+    balance="double",
+    unit_target="cohort",
+    time_target="all",
+    balance_on="residual",
+)
+m.fit(Y, W, outcome_model)
+out = m.summary()
+print(out["att"], out["pre_rmse"])
+print(out["unit_weights"].shape, out["time_weights"].shape)
+```
+
 ### Matrix completion panel ATT
 
 ```python
@@ -564,6 +593,7 @@ If you need to inspect or modify source, start here:
 - `src/estimators/iv.rs`: TwoSLS.
 - `src/estimators/panel.rs`: InteractiveFixedEffects, MatrixCompletion, HorizontalPanelRidge, factor/fixed-effect panel helpers, and shared panel summaries.
 - `src/estimators/synthetic.rs`: SyntheticControl and SyntheticDID.
+- `src/estimators/augmented_balancing.rs`: composable outcome-model, unit-balancing, and double-balancing panel ATT.
 - `src/estimators/regularized.rs`: Ridge, ElasticNet, BaggedPolynomialRegressor.
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.
 - `src/estimators/survival.rs`: ExponentialPH, WeibullPH, CoxPH, AndersenGill.
@@ -609,6 +639,7 @@ uv run quarto render docs
 - [ElasticNet](https://apoorvalal.github.io/crabbymetrics/examples/elastic-net.html): mixed L1/L2 regularized linear regression.
 - [Synthetic Control](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-control.html): low-level simplex donor weights for one treated path.
 - [Synthetic DID](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-did.html): panel `fit(Y, W)` synthetic difference-in-differences workflow.
+- [Augmented Balancing for Panel Data](https://apoorvalal.github.io/crabbymetrics/examples/augmented-balancing.html): staggered-adoption workflow combining a matrix-completion nuisance surface with residual unit/time balancing.
 - [Logit](https://apoorvalal.github.io/crabbymetrics/examples/logit.html): binary logistic regression.
 - [Multinomial Logit](https://apoorvalal.github.io/crabbymetrics/examples/multinomial-logit.html): multiclass classification.
 - [Poisson](https://apoorvalal.github.io/crabbymetrics/examples/poisson.html): count regression and QMLE/sandwich inference.

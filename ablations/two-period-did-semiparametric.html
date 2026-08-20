@@ -4189,6 +4189,10 @@ window.Quarto = {
  <span class="dropdown-text">Synthetic DID</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
  <span class="dropdown-text">Horizontal Panel Ridge</span></a>
   </li>  
@@ -4387,7 +4391,7 @@ window.Quarto = {
 <p>The nuisance fits use lightweight ridge/logistic-ridge learners so the page is self-contained in the Python docs environment. The estimator menu includes unadjusted DID, outcome-model DID, IPW DID, and AIPW DID, with plug-in and cross-fit versions of the nuisance-based estimators.</p>
 <section id="imports-and-helpers" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports-and-helpers"><span class="header-section-number">1</span> Imports And Helpers</h2>
-<div id="e58fd4ad" class="cell" data-execution_count="2">
+<div id="9917ba19" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -4455,7 +4459,7 @@ Y_i^1(1) &amp;= \theta_0 + Y_i^0(1) + \varepsilon_i,
 Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 \]</span></p>
 <p>When <span class="math inline">\(\rho = 0\)</span>, the untreated trend does not depend on the propensity score and the simple DID contrast is valid. When <span class="math inline">\(\rho \neq 0\)</span>, units with high treatment probability also have different untreated trends, so unconditional DID is biased unless the covariates are accounted for.</p>
-<div id="6fc15b09" class="cell" data-execution_count="3">
+<div id="f4ba5575" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> semipar_did_dgp(n<span class="op">=</span><span class="dv">200</span>, p<span class="op">=</span><span class="dv">100</span>, s<span class="op">=</span><span class="dv">5</span>, theta<span class="op">=</span><span class="fl">3.0</span>, rho<span class="op">=</span><span class="fl">0.0</span>, rng<span class="op">=</span><span class="va">None</span>):</span>
@@ -4552,7 +4556,7 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 \frac{D_i - \hat e(X_i)}{\hat p(1-\hat e(X_i))}
 \{\Delta Y_i - \hat m_0(X_i)\}.
 \]</span></p>
-<div id="a45a5caa" class="cell" data-execution_count="4">
+<div id="29f87d92" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ridge_fit(x, y, penalty<span class="op">=</span><span class="fl">1.0</span>):</span>
@@ -4718,7 +4722,7 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 <section id="monte-carlo" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="monte-carlo"><span class="header-section-number">4</span> Monte Carlo</h2>
 <p>The simulation compares <span class="math inline">\(\rho=0\)</span> and <span class="math inline">\(\rho=2\)</span>. The true effect is <span class="math inline">\(\theta_0=3\)</span> in both cases.</p>
-<div id="73b0adf5" class="cell" data-execution_count="5">
+<div id="2e902d21" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> summarize(vals, truth):</span>
@@ -4939,14 +4943,14 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 </table>
 </div>
 </div>
-<div id="38dfe554" class="cell" data-execution_count="6">
+<div id="396997bd" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="dv">8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>, sharex<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>order <span class="op">=</span> [<span class="st">&quot;naive&quot;</span>, <span class="st">&quot;did&quot;</span>, <span class="st">&quot;om&quot;</span>, <span class="st">&quot;omXF&quot;</span>, <span class="st">&quot;ipw&quot;</span>, <span class="st">&quot;ipwXF&quot;</span>, <span class="st">&quot;aipw&quot;</span>, <span class="st">&quot;aipwXF&quot;</span>]</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax, rho <span class="kw">in</span> <span class="bu">zip</span>(axes, [<span class="fl">0.0</span>, <span class="fl">2.0</span>]):</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    data <span class="op">=</span> [mc_draws[rho][name] <span class="cf">for</span> name <span class="kw">in</span> order]</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    ax.boxplot(data, labels<span class="op">=</span>order, showfliers<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    ax.boxplot(data, tick_labels<span class="op">=</span>order, showfliers<span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    ax.axhline(<span class="fl">3.0</span>, color<span class="op">=</span><span class="st">&quot;tab:red&quot;</span>, linestyle<span class="op">=</span><span class="st">&quot;--&quot;</span>, linewidth<span class="op">=</span><span class="fl">1.2</span>, label<span class="op">=</span><span class="st">&quot;truth&quot;</span>)</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="ss">f&quot;Sampling distributions, rho = </span><span class="sc">{</span>rho<span class="sc">:g}</span><span class="ss">&quot;</span>)</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">&quot;ATT estimate&quot;</span>)</span>
