@@ -399,6 +399,9 @@ pub fn pyarray1_from_i32<'py>(py: Python<'py>, data: &Array1<i32>) -> Bound<'py,
 }
 
 pub fn pyarray2_from_f64<'py>(py: Python<'py>, data: &Array2<f64>) -> Bound<'py, PyArray2<f64>> {
+    if data.nrows() == 0 || data.ncols() == 0 {
+        return PyArray2::zeros(py, [data.nrows(), data.ncols()], false);
+    }
     let vec2: Vec<Vec<f64>> = data.rows().into_iter().map(|row| row.to_vec()).collect();
     PyArray2::from_vec2(py, &vec2).expect("failed to build array")
 }

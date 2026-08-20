@@ -1,3 +1,4 @@
+mod augmented_balancing;
 mod balancing;
 mod dynamic;
 mod gmm;
@@ -11,6 +12,7 @@ mod survival;
 mod synthetic;
 mod transforms;
 
+pub use augmented_balancing::AugmentedBalancing;
 pub use balancing::BalancingWeights;
 pub use dynamic::{DynamicCovariateBalance, ParallelTrendsSNMM, RegressionBlip};
 pub use gmm::GMM;

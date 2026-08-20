@@ -10,12 +10,12 @@ mod validation;
 
 use crate::abc::ABCOLS;
 use crate::estimators::{
-    AndersenGill, AverageDerivative, BaggedPolynomialRegressor, BalancingWeights, CoxPH,
-    DynamicCovariateBalance, ElasticNet, ExponentialPH, FixedEffectsOLS, HorizontalPanelRidge,
-    InteractiveFixedEffects, KernelBasis, Logit, MEstimator, MatrixCompletion, MultinomialLogit,
-    NystromBasis, ParallelTrendsSNMM, PartiallyLinearDML, PcaTransformer, Poisson,
-    RandomFourierFeatures, RandomizedPcaTransformer, RegressionBlip, Ridge, SyntheticControl,
-    SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, GMM, OLS,
+    AndersenGill, AugmentedBalancing, AverageDerivative, BaggedPolynomialRegressor,
+    BalancingWeights, CoxPH, DynamicCovariateBalance, ElasticNet, ExponentialPH, FixedEffectsOLS,
+    HorizontalPanelRidge, InteractiveFixedEffects, KernelBasis, Logit, MEstimator,
+    MatrixCompletion, MultinomialLogit, NystromBasis, ParallelTrendsSNMM, PartiallyLinearDML,
+    PcaTransformer, Poisson, RandomFourierFeatures, RandomizedPcaTransformer, RegressionBlip,
+    Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, GMM, OLS,
 };
 use crate::optimizers::Optimizers;
 use pyo3::prelude::*;
@@ -39,6 +39,7 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<HorizontalPanelRidge>()?;
     m.add_class::<SyntheticControl>()?;
     m.add_class::<SyntheticDID>()?;
+    m.add_class::<AugmentedBalancing>()?;
     m.add_class::<MatrixCompletion>()?;
     m.add_class::<InteractiveFixedEffects>()?;
     m.add_function(wrap_pyfunction!(crate::estimators::panel_factor, m)?)?;
