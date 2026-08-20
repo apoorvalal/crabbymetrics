@@ -28,6 +28,20 @@ from _api_doc_utils import *
 
 The class uses the common `fit(Y, W, outcome_model=None)` panel contract. `Y` is a finite balanced outcome matrix. `W` is a same-shaped binary absorbing treatment matrix. `outcome_model`, when supplied, is a finite same-shaped matrix of untreated-outcome predictions. The class treats this matrix as a fitted nuisance input; it does not fit the outcome model itself.
 
+For an end-to-end staggered-adoption workflow, including a `MatrixCompletion` nuisance surface, specification comparisons, event-time plots, and weight diagnostics, see [Augmented Balancing for Panel Data](../examples/augmented-balancing.qmd).
+
+## Data and treatment contract
+
+| Input | Shape | Requirements |
+|---|---|---|
+| `y` | `(n_units, n_periods)` | Finite, nonempty, two-dimensional balanced outcome matrix |
+| `w` | Same as `y` | Finite binary values; treatment must be absorbing within each row |
+| `outcome_model` | Same as `y` | Optional finite untreated-outcome prediction surface; omitted means an all-zero surface |
+
+The treatment parser infers each treated unit's first-treatment period, the distinct adoption cohorts, and the never-treated donor rows. Every fitted panel must contain at least one treated unit and one never-treated donor. Every cohort must start after period zero so that a pre-treatment history exists. These requirements still apply to `balance="none"`, because ATT and cohort/event-time summaries are defined from the same panel treatment contract.
+
+The estimator does not mask or refit `outcome_model`. Callers are responsible for constructing it without leakage from treated post-treatment outcomes. Passing a same-shaped finite matrix verifies the array contract, not its causal validity.
+
 ## Estimator
 
 For one treated unit $i$, one target period $t$, never-treated controls $C$, and pre-treatment periods $P$, define residuals
@@ -83,6 +97,12 @@ Every treated cohort must have a pre-period and at least one never-treated donor
 
 `summary()` returns ATT, panel counterfactuals and effects, event-study and group summaries, fitted unit and time weights, weight-target mappings, penalties, pre-period RMSE, and the supplied outcome-model surface. `target_units` and `target_cohorts` map unit-weight rows. `time_target_periods` uses `-1` for an all-post target and the zero-based post-period index for period-specific targets. `time_target_cohorts` maps time-weight rows to cohorts.
 
+## Computational scaling
+
+With cohort unit targets, the estimator solves one unit-weight problem per adoption cohort. With individual targets, it solves one per treated unit. `time_target="all"` solves one time-weight problem per cohort, while `time_target="period"` solves one for every cohort-specific post-treatment period. Unit problems have one simplex coordinate per never-treated donor; time problems have one coordinate per cohort-specific pre-period.
+
+The implementation stores dense weight matrices in original panel coordinates. Non-donor columns in `unit_weights` and non-pre-period columns in `time_weights` are zero. `counterfactual` and `treatment_effect` have the same shape as `y`, with finite rows for ever-treated units and `NaN` rows for never-treated donors. A successful `fit` reports `converged=True`; an invalid input or exhausted/failed weight solve raises `ValueError` instead of returning a partial fit.
+
 ## Python API
 
 Constructor: `cm.AugmentedBalancing`
@@ -107,6 +127,13 @@ print(inspect.signature(cm.AugmentedBalancing))
 and `treatment_effect()` return arrays with the same shape as `y`.
 `summary()` returns the full fitted-state dictionary described below. These
 three accessors raise `ValueError` before a successful fit.
+
+| Method | Return value | Meaning |
+|---|---|---|
+| `fit(y, w, outcome_model=None)` | `None` | Validate the panel, fit cohort/target-specific weights, and store counterfactual state |
+| `predict()` | `(n_units, n_periods)` array | Estimated untreated counterfactual surface for treated rows; donor rows are `NaN` |
+| `treatment_effect()` | `(n_units, n_periods)` array | Cellwise `y - predict()` for treated rows; donor rows are `NaN` |
+| `summary()` | `dict` | ATT, diagnostics, weights, mappings, configuration, and event/cohort summaries |
 
 Constructor choices are validated when the class is created. During `fit`,
 `y` and the optional outcome model must be finite, two-dimensional, and
@@ -150,6 +177,28 @@ print(model.predict().shape)
 ```
 
 ## `summary()` contract
+
+| Key | Contract |
+|---|---|
+| `att` | Scalar mean of `treatment_effect` over cells with `w == 1` |
+| `unit_weights` | Dense `(n_unit_targets, n_units)` matrix; only never-treated donor columns can be nonzero |
+| `time_weights` | Dense `(n_time_targets, n_periods)` matrix; only the target cohort's pre-period columns can be nonzero |
+| `counterfactual` | Same-shaped untreated prediction matrix returned by `predict()` |
+| `treatment_effect` | Same-shaped observed-minus-counterfactual matrix returned by `treatment_effect()` |
+| `outcome_model` | The supplied nuisance surface, or the all-zero surface used when it was omitted |
+| `event_study` | Nested `unweighted` and treated-count-`weighted` event-time dictionaries with `event_time`, `estimate`, and `n` arrays |
+| `group_means` | Cohort/event-time rows plus nested unweighted and weighted aggregates of treated means, counterfactual means, and effects |
+| `pre_rmse` | Root-mean-square pre-treatment gap over treated-unit counterfactual rows |
+| `zeta_omega`, `zeta_lambda` | Fitted regularization scales in unit-target and time-target row order; unused or penalized-SCM unit scales are zero |
+| `target_units` | Unit-weight row targets; `-1` denotes a cohort-average target |
+| `target_cohorts` | Zero-based adoption period for every unit-weight row |
+| `time_target_periods` | Time-weight row targets; `-1` denotes one all-post target |
+| `time_target_cohorts` | Zero-based adoption period for every time-weight row |
+| `control_units`, `treated_units`, `cohorts` | Inferred zero-based panel row indices and distinct adoption periods |
+| `balance`, `unit_target`, `time_target`, `balance_on`, `unit_loss`, `unit_penalty` | Echo of the fitted constructor configuration |
+| `converged` | `True` for a completed fit; failed solves raise instead of returning a false flag |
+
+The live example below verifies the exact keys and runtime shapes against the installed extension.
 
 ```{python}
 summary = model.summary()

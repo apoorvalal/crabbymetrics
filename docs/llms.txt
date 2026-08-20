@@ -72,7 +72,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Multi-way categorical fixed effects with slopes: `cm.FixedEffectsOLS()`.
 - Instrumental variables / 2SLS: `cm.TwoSLS()`.
 - Single treated time series with donor paths and simplex donor weights: `cm.SyntheticControl()`.
-- Balanced panel causal ATT with absorbing treatment matrix: start with `cm.SyntheticDID()` or `cm.HorizontalPanelRidge()`; use `cm.MatrixCompletion()` when a low-rank completion model is appropriate.
+- Balanced panel causal ATT with absorbing treatment matrix: start with `cm.SyntheticDID()` or `cm.HorizontalPanelRidge()`; use `cm.MatrixCompletion()` when a low-rank completion model is appropriate; use `cm.AugmentedBalancing()` to correct a supplied untreated-outcome surface with unit and/or time balancing.
 - No-covariate interactive fixed-effects factor model on a balanced panel: `cm.InteractiveFixedEffects(rank=..., force=...)`.
 - Binary treatment ATE with nuisance models: `cm.AIPW()`.
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
@@ -127,9 +127,10 @@ Common panel summary keys:
 
 Panel caution:
 
-- `HorizontalPanelRidge` and `SyntheticDID` currently assume at least one never-treated donor unit and use cohort-specific donor-based models for staggered timing.
+- `HorizontalPanelRidge`, `SyntheticDID`, and `AugmentedBalancing` require at least one never-treated donor unit and use cohort-specific donor-based models for staggered timing.
 - Treatment should be absorbing. If a unit is treated at time `t`, later periods for that unit should also be treated.
 - The panel estimators infer treated units, first-treatment cohorts, never-treated donors, pre/post windows, event time, and aggregate summaries internally from `W`.
+- `AugmentedBalancing` does not fit, mask, cross-fit, or validate the causal construction of `outcome_model`; callers must prevent treated-post leakage.
 
 ## Core estimator signatures
 
@@ -518,6 +519,23 @@ print(out["att"])
 print(out["event_study"].keys())
 ```
 
+### Augmented balancing panel ATT
+
+```python
+# `outcome_model` is a finite, same-shaped untreated-outcome prediction matrix
+# fit without using treated post-treatment outcomes.
+m = cm.AugmentedBalancing(
+    balance="double",
+    unit_target="cohort",
+    time_target="all",
+    balance_on="residual",
+)
+m.fit(Y, W, outcome_model)
+out = m.summary()
+print(out["att"], out["pre_rmse"])
+print(out["unit_weights"].shape, out["time_weights"].shape)
+```
+
 ### Matrix completion panel ATT
 
 ```python
@@ -621,6 +639,7 @@ uv run quarto render docs
 - [ElasticNet](https://apoorvalal.github.io/crabbymetrics/examples/elastic-net.html): mixed L1/L2 regularized linear regression.
 - [Synthetic Control](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-control.html): low-level simplex donor weights for one treated path.
 - [Synthetic DID](https://apoorvalal.github.io/crabbymetrics/examples/synthetic-did.html): panel `fit(Y, W)` synthetic difference-in-differences workflow.
+- [Augmented Balancing for Panel Data](https://apoorvalal.github.io/crabbymetrics/examples/augmented-balancing.html): staggered-adoption workflow combining a matrix-completion nuisance surface with residual unit/time balancing.
 - [Logit](https://apoorvalal.github.io/crabbymetrics/examples/logit.html): binary logistic regression.
 - [Multinomial Logit](https://apoorvalal.github.io/crabbymetrics/examples/multinomial-logit.html): multiclass classification.
 - [Poisson](https://apoorvalal.github.io/crabbymetrics/examples/poisson.html): count regression and QMLE/sandwich inference.

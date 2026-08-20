@@ -94,6 +94,8 @@ print(out["att"], out["event_study"].keys(), out["group_means"].keys())
 
 `AugmentedBalancing.fit(Y, W, outcome_model=None)` composes supplied untreated-outcome predictions with unit or unit-and-time residual balancing. Constructor options select cohort versus individual unit-weight targets and raw versus residualized weight fitting.
 
+The [Augmented Balancing vignette](https://apoorvalal.github.io/crabbymetrics/examples/augmented-balancing.html) shows a staggered-adoption workflow with a matrix-completion nuisance surface, estimator comparisons, event-time plots, and weight-target diagnostics. The [class reference](https://apoorvalal.github.io/crabbymetrics/reference/AugmentedBalancing.html) documents every constructor option and `summary()` field.
+
 The direct optimizer wrappers live under `Optimizers` and follow a lightweight scipy-style interface:
 
 ```python
