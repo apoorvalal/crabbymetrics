@@ -703,3 +703,10 @@ That is the current state the next extension branch should assume.
 - Added `docs/examples/augmented-balancing.qmd`, a self-contained staggered-adoption vignette that fits a `MatrixCompletion` nuisance surface, compares outcome-only, balancing-only, and augmented specifications, plots counterfactual and event-time results, and inspects unit/time target mappings.
 - Linked the vignette from the causal-inference navigation, API panel section, site home, README, and `docs/llms.txt`.
 - Clarified that the 398-cell, fixed-panel, and ranking reproductions are external evidence; the repository commits the focused tests and 48-case R fixture.
+
+## 2026-08-20 v0.8.2 Release
+
+- Released `v0.8.2` through the `Build wheels` workflow at `https://github.com/apoorvalal/crabbymetrics/actions/runs/32451137385`.
+- The workflow passed the Python 3.10 and 3.12 test jobs, built Linux and macOS wheels for Python 3.10 through 3.14, published 10 wheels plus a 506,522-byte sdist, created the GitHub Release, and published to PyPI.
+- A pre-release local sdist check produced a 496 KiB archive containing no rendered docs, HTML, or search index. A clean Python 3.12 environment then installed `crabbymetrics==0.8.2` from the public PyPI index and successfully fit `AugmentedBalancing`.
+- Release links: PyPI `https://pypi.org/project/crabbymetrics/0.8.2/`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.2`.
