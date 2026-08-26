@@ -48,6 +48,14 @@ exclude = [
 ]
 
 [dependency-groups]
+benchmark = [
+    "doubleml>=0.11.0",
+    "lifelines>=0.30.0",
+    "pandas>=2.3.3",
+    "psutil>=7.0.0",
+    "pyfixest>=0.50.1",
+    "scikit-learn>=1.7.2",
+]
 dev = [
     "jupyter>=1.1.1",
     "lifelines>=0.30.0",

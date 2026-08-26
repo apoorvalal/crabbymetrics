@@ -1,0 +1,149 @@
+---
+title: "Estimator scaling and reference implementations"
+description: "Guarded sample-size and dimension scaling for every exported estimator"
+format:
+  html:
+    toc: true
+    code-fold: true
+execute:
+  warning: false
+  message: false
+---
+
+This ablation inventories all 30 estimator classes exported by Crabbymetrics and
+measures how their fit time and memory use change over $n \in
+\{10^3,10^4,10^5,10^6,10^7\}$ and $k \in \{5,10,20,50,100\}$. External
+comparators follow a fixed preference order: scikit-learn, PyFixest, then a
+canonical R implementation. A comparator is included in timing results only when
+the common data-generating process preserves the estimator's semantics.
+
+The full source inventory, exact GitHub references, dimension conventions, and
+commands are in the [benchmark README](https://github.com/apoorvalal/crabbymetrics/blob/speedtest/benchmarks/scaling/README.md).
+
+## Guard rails
+
+Each cell runs in a fresh subprocess with single-threaded numerical kernels. The
+driver rejects predicted over-cap allocations, watches aggregate descendant RSS,
+enforces a wall timeout, and stops attempting larger samples after the first hard
+failure for an estimator/implementation/dimension path. Thus a missing point is
+an observed feasibility boundary, not an accidental omission.
+
+```{python}
+#| label: load-scaling-results
+#| output: false
+from pathlib import Path
+import pandas as pd
+
+path = Path("data/estimator-scaling.csv")
+results = pd.read_csv(path) if path.exists() else pd.DataFrame()
+```
+
+## Completion status
+
+The committed run contains 1,150 cells across all 30 native estimators and 15
+external implementation adapters. Of these, 731 completed, 198 were rejected by
+the allocation preflight, 27 hit the 15-second timeout, five crossed the 1.83 GiB
+hard RSS cap, and 189 larger cells were pruned after one of those hard failures.
+No launched cell ended in an unclassified execution error.
+
+```{python}
+#| label: scaling-status
+if results.empty:
+    print("Run benchmarks/scaling/run_grid.py to populate the guarded grid.")
+else:
+    display(
+        results.groupby(["implementation", "status"], dropna=False)
+        .size()
+        .rename("cells")
+        .reset_index()
+        .sort_values(["implementation", "status"])
+    )
+```
+
+## Runtime frontier
+
+```{python}
+#| label: scaling-runtime
+#| fig-cap: "Fit time by problem size; panels are estimator-specific because k has different semantics across families."
+if not results.empty:
+    import matplotlib.pyplot as plt
+
+    ok = results.loc[results.status.eq("ok")].copy()
+    for estimator in ok.estimator.drop_duplicates():
+        frame = ok.loc[ok.estimator.eq(estimator)]
+        if frame.empty:
+            continue
+        fig, ax = plt.subplots(figsize=(7, 4))
+        for (implementation, k), group in frame.groupby(["implementation", "k"]):
+            group = group.sort_values("n")
+            ax.plot(group.n, group.fit_seconds, marker="o", label=f"{implementation}, k={k}")
+        ax.set(xscale="log", yscale="log", xlabel="n", ylabel="fit seconds", title=estimator)
+        ax.legend(fontsize=6, ncol=2)
+        plt.show()
+```
+
+## Memory frontier
+
+```{python}
+#| label: scaling-memory
+if not results.empty:
+    frontier = (
+        results.assign(peak_rss_gib=results.peak_rss_bytes / 2**30)
+        .groupby(["estimator", "implementation", "status"], dropna=False)
+        .agg(max_n=("n", "max"), max_peak_rss_gib=("peak_rss_gib", "max"))
+        .reset_index()
+    )
+    display(frontier)
+```
+
+## Matched reference ratios
+
+The table below uses only cells where both Crabbymetrics and the external
+implementation completed. `reference / native > 1` means the Crabbymetrics fit
+was faster; values below one mean the external fit was faster. Medians summarize
+heterogeneous $(n,k)$ cells and should be read as a profiling signal, not a
+single universal speed factor.
+
+```{python}
+#| label: matched-reference-ratios
+if not results.empty:
+    native = (
+        results.loc[
+            results.implementation.eq("crabbymetrics") & results.status.eq("ok"),
+            ["estimator", "n", "k", "fit_seconds"],
+        ]
+        .rename(columns={"fit_seconds": "native_seconds"})
+    )
+    matched = (
+        results.loc[
+            results.implementation.ne("crabbymetrics") & results.status.eq("ok")
+        ]
+        .merge(native, on=["estimator", "n", "k"])
+        .assign(reference_over_native=lambda frame: frame.fit_seconds / frame.native_seconds)
+    )
+    ratios = (
+        matched.groupby(["estimator", "implementation"])
+        .agg(
+            matched_cells=("reference_over_native", "size"),
+            median_reference_over_native=("reference_over_native", "median"),
+        )
+        .reset_index()
+    )
+    display(ratios)
+```
+
+## Interpretation
+
+The grid is a systems benchmark, not an accuracy horse race. Fit-only timing is
+reported; synthetic-data construction happens before the model call but remains
+inside the child process and therefore contributes to the memory guard. Reference
+rows test the same shapes and model family, but small differences in defaults,
+parameterization, convergence criteria, and inference work remain. “Nearest”
+references in the inventory are literature/code pointers only and never enter
+the timing plots.
+
+On this host, 26 of 30 native estimators completed at least one $n=10^6$ cell.
+The native sample-size frontiers were $n=10^3$ for synthetic DID and augmented
+balancing, $n=10^4$ for Cox PH and Andersen--Gill, and $n=10^6$ for the other 26
+estimators. These maxima collapse across $k$ and therefore describe reach, not a
+claim that every dimension completed at that sample size.

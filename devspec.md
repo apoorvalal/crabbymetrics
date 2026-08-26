@@ -439,3 +439,23 @@ Operational note:
   - direct tests
   - one focused vignette or API example
 - if an idea starts demanding a large dependency just for ergonomics, it probably does not belong here
+
+## Estimator Scaling And Reference Audit
+
+Status: complete on `speedtest`
+
+Scope:
+
+- maintain an explicit registry for every exported estimator class
+- prefer scikit-learn timing comparators, then PyFixest, then exact R references
+- retain credible GitHub provenance without pretending nearby methods share an estimand
+- sweep $n=10^3,10^4,10^5,10^6,10^7$ and $k=5,10,20,50,100$ using family-specific dimension conventions
+- isolate every cell and guard it with allocation preflight, descendant-RSS monitoring, a wall timeout, single-threaded numerical kernels, and monotone pruning after hard failure
+- commit long-form results and host metadata under `docs/ablations/data/`
+
+Success condition:
+
+- all exported estimators appear in the registry and native grid
+- all runnable reference adapters pass a smoke test on the same shapes
+- unsafe cells are skipped or killed without destabilizing the benchmark host
+- the ablation page distinguishes fit time, process RSS, timeout boundaries, and non-equivalent provenance references
