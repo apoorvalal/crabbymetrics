@@ -713,10 +713,12 @@ That is the current state the next extension branch should assume.
 
 ## 2026-08-25 Estimator Scaling And Reference Audit
 
-- Created `speedtest` from `origin/master` and inventoried all 30 estimator classes exported by Crabbymetrics.
+- Created `speedtest` from `origin/master`, opened PR #21, and inventoried all 30 estimator classes exported by Crabbymetrics.
 - Mapped every estimator to scikit-learn, PyFixest, DoubleML/lifelines, or a canonical R/GitHub implementation. Searches found no exact public implementation for the Shahn et al. parallel-trends SNMM, the Viviano--Bradic dynamic covariate-balancing estimator, or Crabbymetrics' abundance-based constrained least squares; those are explicitly marked native-only or nearest-reference rather than given false comparators.
 - Added an isolated scaling harness over $n=10^3$ through $10^7$ and $k=5,10,20,50,100$, with family-specific meanings for panel and dynamic dimensions.
 - Added preflight allocation estimates, a 4 GiB system reserve, descendant-process RSS monitoring, hard process-tree termination, 15-second run-level timeouts, single-thread numerical-kernel settings, and pruning of larger cells after hard failure.
 - The 16 GiB host selected a 1.83 GiB cell cap. The committed run contains 1,150 rows: 731 completed, 198 preflight OOM skips, 27 timeouts, five RSS kills, and 189 monotone-pruned cells, with no unclassified execution errors.
 - Added executable comparison adapters for scikit-learn linear, regularized, polynomial-bagging, logistic, multinomial, and Poisson models; PyFixest fixed-effects OLS and IV; DoubleML PLR and IRM; lifelines Cox PH; and R `fixest` and `survival` references.
 - Added `docs/ablations/estimator-scaling.qmd`, linked it from the Ablations menu and site index, and added a registry-coverage test that fails if any of the 30 exported estimators disappears from the benchmark inventory.
+- Expanded the report into 30 estimator-specific sections. Each records the DGP, exact fitting configuration, reference interpretation, completion/failure frontier, median log-log runtime slope, maximum observed RSS, and runtime/memory scaling plots.
+- Rendered the complete report and staged the review artifact at `https://lalten.org/pages/crabbymetrics-estimator-scaling/ablations/estimator-scaling.html`; the deployed HTML is byte-identical to the verified local render.

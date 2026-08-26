@@ -459,3 +459,5 @@ Success condition:
 - all runnable reference adapters pass a smoke test on the same shapes
 - unsafe cells are skipped or killed without destabilizing the benchmark host
 - the ablation page distinguishes fit time, process RSS, timeout boundaries, and non-equivalent provenance references
+- every estimator has an explicit DGP/fitting/reference description and its own observed runtime and memory scaling summary
+- a full review render is staged on lalten and the source changes are submitted through PR #21

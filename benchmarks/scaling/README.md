@@ -59,6 +59,11 @@ uv run python benchmarks/scaling/run_grid.py --implementations native
 
 The committed analysis page is
 [`docs/ablations/estimator-scaling.qmd`](../../docs/ablations/estimator-scaling.qmd).
+It documents the DGP, exact fitted specification, reference interpretation,
+completion frontier, failure counts, observed RSS, and log-log runtime slope for
+each estimator separately. Those descriptions live in
+[`report_metadata.py`](report_metadata.py), and the registry coverage test
+requires one complete description for every exported estimator.
 
 ## Estimator inventory and references
 

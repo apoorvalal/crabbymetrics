@@ -4,6 +4,7 @@ description: "Guarded sample-size and dimension scaling for every exported estim
 format:
   html:
     toc: true
+    toc-depth: 3
     code-fold: true
 execute:
   warning: false
@@ -32,10 +33,126 @@ an observed feasibility boundary, not an accidental omission.
 #| label: load-scaling-results
 #| output: false
 from pathlib import Path
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from IPython.display import Markdown, display
 
 path = Path("data/estimator-scaling.csv")
 results = pd.read_csv(path) if path.exists() else pd.DataFrame()
+
+benchmark_root = Path.cwd().parents[1] / "benchmarks" / "scaling"
+sys.path.insert(0, str(benchmark_root))
+from registry import ESTIMATORS, REFERENCE_URLS
+from report_metadata import EXPERIMENT_DETAILS
+
+
+def scaling_slope(frame):
+    frame = frame.loc[
+        frame.status.eq("ok")
+        & frame.fit_seconds.gt(0)
+        & frame.n.gt(0)
+    ].drop_duplicates("n")
+    if len(frame) < 3:
+        return np.nan
+    return np.polyfit(np.log10(frame.n), np.log10(frame.fit_seconds), deg=1)[0]
+
+
+def render_estimator(estimator):
+    detail = EXPERIMENT_DETAILS[estimator]
+    spec = ESTIMATORS[estimator]
+    references = []
+    for reference in spec["references"]:
+        url = REFERENCE_URLS[reference]
+        references.append(f"[{reference}]({url})" if url else reference)
+    display(
+        Markdown(
+            f"**Family and dimensions.** `{spec['family']}`; `k` means "
+            f"{spec['k_semantics']}.\n\n"
+            f"**Data-generating process.** {detail['dgp']}\n\n"
+            f"**Fitted specification.** {detail['fit']}\n\n"
+            f"**Reference interpretation.** {detail['comparison']}\n\n"
+            f"**Reference code.** {', '.join(references)}"
+        )
+    )
+
+    frame = results.loc[results.estimator.eq(estimator)].copy()
+    ok = frame.loc[frame.status.eq("ok")].copy()
+    frontier = (
+        ok.groupby("implementation", dropna=False)
+        .agg(
+            max_completed_n=("n", "max"),
+            max_completed_k=("k", "max"),
+            median_fit_seconds=("fit_seconds", "median"),
+            max_peak_rss_gib=("peak_rss_bytes", lambda values: values.max() / 2**30),
+        )
+        .reset_index()
+    )
+    summary = (
+        frame.groupby("implementation", dropna=False)
+        .agg(
+            completed=("status", lambda values: int((values == "ok").sum())),
+            timeouts=("status", lambda values: int((values == "timeout").sum())),
+            rss_kills=("status", lambda values: int((values == "killed_rss_guard").sum())),
+            preflight_skips=("status", lambda values: int((values == "preflight_oom").sum())),
+        )
+        .reset_index()
+        .merge(frontier, how="left", on="implementation")
+    )
+    slopes = (
+        frame.groupby(["implementation", "k"], dropna=False)
+        .apply(scaling_slope, include_groups=False)
+        .dropna()
+        .groupby("implementation")
+        .agg(median_log_log_slope="median", slope_paths="size")
+        .reset_index()
+    )
+    summary = summary.merge(slopes, how="left", on="implementation")
+    summary["max_completed_n"] = summary.max_completed_n.fillna(0).astype(int)
+    summary["max_completed_k"] = summary.max_completed_k.fillna(0).astype(int)
+    display(
+        summary.rename(
+            columns={
+                "implementation": "implementation",
+                "completed": "completed cells",
+                "timeouts": "timeouts",
+                "rss_kills": "RSS kills",
+                "preflight_skips": "preflight skips",
+                "max_completed_n": "largest completed n",
+                "max_completed_k": "largest completed k",
+                "median_fit_seconds": "median fit seconds",
+                "max_peak_rss_gib": "maximum observed RSS (GiB)",
+                "median_log_log_slope": "median log-log runtime slope",
+                "slope_paths": "k paths with slope",
+            }
+        )
+    )
+
+    if ok.empty:
+        return
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
+    for (implementation, k), group in ok.groupby(["implementation", "k"]):
+        group = group.sort_values("n")
+        label = f"{implementation}, k={int(k)}"
+        axes[0].plot(group.n, group.fit_seconds, marker="o", linewidth=1, label=label)
+        axes[1].plot(
+            group.n,
+            group.peak_rss_bytes / 2**30,
+            marker="o",
+            linewidth=1,
+            label=label,
+        )
+    axes[0].set(xscale="log", yscale="log", xlabel="n", ylabel="fit seconds")
+    axes[1].set(xscale="log", yscale="log", xlabel="n", ylabel="peak child RSS (GiB)")
+    axes[0].set_title("Runtime scaling")
+    axes[1].set_title("Memory scaling")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=6)
+    fig.suptitle(estimator)
+    fig.tight_layout(rect=(0, 0.16, 1, 1))
+    plt.show()
 ```
 
 ## Completion status
@@ -60,41 +177,44 @@ else:
     )
 ```
 
-## Runtime frontier
+## Numerical experiment
 
-```{python}
-#| label: scaling-runtime
-#| fig-cap: "Fit time by problem size; panels are estimator-specific because k has different semantics across families."
-if not results.empty:
-    import matplotlib.pyplot as plt
+### Common grid and timing boundary
 
-    ok = results.loc[results.status.eq("ok")].copy()
-    for estimator in ok.estimator.drop_duplicates():
-        frame = ok.loc[ok.estimator.eq(estimator)]
-        if frame.empty:
-            continue
-        fig, ax = plt.subplots(figsize=(7, 4))
-        for (implementation, k), group in frame.groupby(["implementation", "k"]):
-            group = group.sort_values("n")
-            ax.plot(group.n, group.fit_seconds, marker="o", label=f"{implementation}, k={k}")
-        ax.set(xscale="log", yscale="log", xlabel="n", ylabel="fit seconds", title=estimator)
-        ax.legend(fontsize=6, ncol=2)
-        plt.show()
-```
+The default grid is the Cartesian product of five sample sizes and five
+dimensions. A fresh seeded generator builds the complete input outside the fit
+timer. The reported `fit_seconds` starts immediately before the estimator call
+and stops on return; imports and data generation are excluded. In contrast,
+`peak_rss_bytes` covers the complete child process, including imported libraries,
+generated inputs, copies made by foreign-function boundaries, solver workspaces,
+and descendants such as R subprocesses.
 
-## Memory frontier
+The preflight starts from the raw $8nk$ bytes for a `float64` design (or the
+family-specific panel/dynamic analogue), multiplies it by a conservative
+estimator-family workspace factor, and adds 192 MiB. The run-time monitor then
+enforces the smaller of 40 percent of physical RAM and available RAM after a
+4 GiB system reserve. This run selected 1.83 GiB. Every child and descendant was
+also subject to a 15-second wall clock. A preflight rejection, RSS kill, timeout,
+or execution error stops larger `n` values only for that estimator,
+implementation, and `k` path.
 
-```{python}
-#| label: scaling-memory
-if not results.empty:
-    frontier = (
-        results.assign(peak_rss_gib=results.peak_rss_bytes / 2**30)
-        .groupby(["estimator", "implementation", "status"], dropna=False)
-        .agg(max_n=("n", "max"), max_peak_rss_gib=("peak_rss_gib", "max"))
-        .reset_index()
-    )
-    display(frontier)
-```
+### Dimension conventions
+
+- Tabular, GLM, IV, survival, moment, balancing, and semiparametric estimators:
+  `n` rows and `k` covariates/instruments.
+- Synthetic control: `n` pre-treatment periods and `k` donor series.
+- Other panel estimators: `n` periods and `k` units; this is a matrix stress
+  dimension, not an ordinary covariate count.
+- Dynamic estimators: approximately `n/4` units, four decision periods, and `k`
+  history covariates.
+
+### Randomness and comparability
+
+All cells use seed 1729 and single-threaded BLAS/OpenMP/Rcpp settings. Native and
+external adapters reconstruct the same DGP and shape. The experiment measures
+systems scaling, not statistical accuracy. Only references with a defensible
+generic-grid adapter enter timing comparisons; related-but-different estimators
+remain linked as provenance and are explicitly described below.
 
 ## Matched reference ratios
 
@@ -130,6 +250,224 @@ if not results.empty:
         .reset_index()
     )
     display(ratios)
+```
+
+## Estimator-by-estimator results
+
+Each subsection gives the exact DGP, fitted tuning values, reference status,
+completion frontier, median log-log runtime slope, and two scaling plots. A
+log-log slope near one indicates approximately linear empirical scaling along a
+fixed-`k` path; it is descriptive and can mix solver regimes over this short
+grid.
+
+### ABCOLS
+
+```{python}
+#| echo: false
+render_estimator("ABCOLS")
+```
+
+### OLS
+
+```{python}
+#| echo: false
+render_estimator("OLS")
+```
+
+### FixedEffectsOLS
+
+```{python}
+#| echo: false
+render_estimator("FixedEffectsOLS")
+```
+
+### ElasticNet
+
+```{python}
+#| echo: false
+render_estimator("ElasticNet")
+```
+
+### Ridge
+
+```{python}
+#| echo: false
+render_estimator("Ridge")
+```
+
+### BaggedPolynomialRegressor
+
+```{python}
+#| echo: false
+render_estimator("BaggedPolynomialRegressor")
+```
+
+### Logit
+
+```{python}
+#| echo: false
+render_estimator("Logit")
+```
+
+### MultinomialLogit
+
+```{python}
+#| echo: false
+render_estimator("MultinomialLogit")
+```
+
+### Poisson
+
+```{python}
+#| echo: false
+render_estimator("Poisson")
+```
+
+### ExponentialPH
+
+```{python}
+#| echo: false
+render_estimator("ExponentialPH")
+```
+
+### WeibullPH
+
+```{python}
+#| echo: false
+render_estimator("WeibullPH")
+```
+
+### CoxPH
+
+```{python}
+#| echo: false
+render_estimator("CoxPH")
+```
+
+### AndersenGill
+
+```{python}
+#| echo: false
+render_estimator("AndersenGill")
+```
+
+### TwoSLS
+
+```{python}
+#| echo: false
+render_estimator("TwoSLS")
+```
+
+### HorizontalPanelRidge
+
+```{python}
+#| echo: false
+render_estimator("HorizontalPanelRidge")
+```
+
+### SyntheticControl
+
+```{python}
+#| echo: false
+render_estimator("SyntheticControl")
+```
+
+### SyntheticDID
+
+```{python}
+#| echo: false
+render_estimator("SyntheticDID")
+```
+
+### AugmentedBalancing
+
+```{python}
+#| echo: false
+render_estimator("AugmentedBalancing")
+```
+
+### MatrixCompletion
+
+```{python}
+#| echo: false
+render_estimator("MatrixCompletion")
+```
+
+### InteractiveFixedEffects
+
+```{python}
+#| echo: false
+render_estimator("InteractiveFixedEffects")
+```
+
+### BalancingWeights
+
+```{python}
+#| echo: false
+render_estimator("BalancingWeights")
+```
+
+### MEstimator
+
+```{python}
+#| echo: false
+render_estimator("MEstimator")
+```
+
+### GMM
+
+```{python}
+#| echo: false
+render_estimator("GMM")
+```
+
+### EPLM
+
+```{python}
+#| echo: false
+render_estimator("EPLM")
+```
+
+### AverageDerivative
+
+```{python}
+#| echo: false
+render_estimator("AverageDerivative")
+```
+
+### PartiallyLinearDML
+
+```{python}
+#| echo: false
+render_estimator("PartiallyLinearDML")
+```
+
+### AIPW
+
+```{python}
+#| echo: false
+render_estimator("AIPW")
+```
+
+### DynamicCovariateBalance
+
+```{python}
+#| echo: false
+render_estimator("DynamicCovariateBalance")
+```
+
+### ParallelTrendsSNMM
+
+```{python}
+#| echo: false
+render_estimator("ParallelTrendsSNMM")
+```
+
+### RegressionBlip
+
+```{python}
+#| echo: false
+render_estimator("RegressionBlip")
 ```
 
 ## Interpretation

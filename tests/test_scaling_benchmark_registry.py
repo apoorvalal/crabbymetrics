@@ -15,6 +15,15 @@ def load_registry():
     return module
 
 
+def load_report_metadata():
+    path = Path(__file__).parents[1] / "benchmarks" / "scaling" / "report_metadata.py"
+    spec = importlib.util.spec_from_file_location("scaling_report_metadata", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_scaling_registry_covers_every_exported_estimator():
     registry = load_registry()
     expected = {
@@ -55,4 +64,10 @@ def test_scaling_registry_covers_every_exported_estimator():
         reference in registry.REFERENCE_URLS
         for spec in registry.ESTIMATORS.values()
         for reference in spec["references"]
+    )
+    report_metadata = load_report_metadata()
+    assert set(report_metadata.EXPERIMENT_DETAILS) == expected
+    assert all(
+        detail["dgp"] and detail["fit"] and detail["comparison"]
+        for detail in report_metadata.EXPERIMENT_DETAILS.values()
     )
