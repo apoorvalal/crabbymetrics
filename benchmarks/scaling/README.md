@@ -65,6 +65,23 @@ each estimator separately. Those descriptions live in
 [`report_metadata.py`](report_metadata.py), and the registry coverage test
 requires one complete description for every exported estimator.
 
+## Reference parity gate
+
+The scaling adapters are backed by small deterministic solution-parity tests in
+[`tests/test_external_reference_parity.py`](../../tests/test_external_reference_parity.py).
+The suite checks OLS, ridge, centered-design elastic net, binary and multinomial
+logit, Poisson, and horizontal panel ridge against scikit-learn; one-way fixed
+effects and overidentified 2SLS under IID and HC1 covariance against PyFixest;
+and Andersen--Gill against lifelines' time-varying Cox fitter. The existing
+survival and polynomial-regression tests add Cox, exponential, Weibull, and
+polynomial-pipeline reference coverage.
+
+Install every reference package and run the gate with:
+
+```bash
+uv run --group test pytest -q tests/test_external_reference_parity.py
+```
+
 ## Estimator inventory and references
 
 | Crabbymetrics estimator | Preferred reference(s) | Generic-grid status |

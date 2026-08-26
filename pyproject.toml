@@ -20,7 +20,9 @@ docs = [
 ]
 test = [
     "lifelines>=0.30.0",
+    "pandas>=2.3.3",
     "pyfixest>=0.50.1",
+    "pytest>=8.3.5",
     "scikit-learn>=1.7.2",
     "scipy>=1.15.3",
     "statsmodels>=0.14.6",
@@ -72,6 +74,7 @@ docs = [
 ]
 test = [
     "lifelines>=0.30.0",
+    "pandas>=2.3.3",
     "pyfixest>=0.50.1",
     "pytest>=8.3.5",
     "scikit-learn>=1.7.2",

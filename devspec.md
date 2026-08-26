@@ -457,6 +457,7 @@ Success condition:
 
 - all exported estimators appear in the registry and native grid
 - all runnable reference adapters pass a smoke test on the same shapes
+- small deterministic unit tests verify fitted solutions against every executable reference stack used by the generic grid
 - unsafe cells are skipped or killed without destabilizing the benchmark host
 - the ablation page distinguishes fit time, process RSS, timeout boundaries, and non-equivalent provenance references
 - every estimator has an explicit DGP/fitting/reference description and its own observed runtime and memory scaling summary
