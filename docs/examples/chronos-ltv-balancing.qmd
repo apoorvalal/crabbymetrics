@@ -24,7 +24,7 @@ The estimation strategy in Qiu, Kuang, Liskovich, Rauh, and Wager's [*What Is th
 1. a dynamic identification argument converts a long-run policy derivative into a weighted contrast of cumulative future rewards;
 2. the feasible estimator is a small, static covariate-balancing problem over order occasions.
 
-The first step is where the substantive assumptions live. Once it is accepted, the computational core is indeed simple. This vignette implements the paper's exact two-equation CBPS system with `crabbymetrics.Optimizers`, then shows that two calls to `crabbymetrics.BalancingWeights` solve the same balance targets with a direct entropy-calibration parameterization.
+The first step is where the substantive assumptions live. Once it is accepted, the computational core is indeed simple. This vignette uses `crabbymetrics.MPE_CBPS`, a native Rust implementation checked against the authors' released A/B and switchback code, then compares it with two direct entropy-calibration fits from `crabbymetrics.BalancingWeights`.
 
 ## Setup and target
 
@@ -108,19 +108,40 @@ $$
 =\mathbb E\left[O\frac{1-D}{1-\pi(X)}b(X)\right].
 $$
 
-The paper posits a logistic propensity score and estimates **two** coefficient vectors. Including an intercept in $b(X)$, they solve
+The paper estimates **two** coefficient vectors. In the authors' released code, let $W_i^{(a)}=1\{D_i=a\}$, $z_i=(1,b(X_i)')'$, and $\dot\pi_i$ be the derivative of the treatment probability with respect to the policy perturbation. For each arm $a\in\{0,1\}$, it minimizes the convex loss
 
 $$
-\sum O_iD_i\{1+e^{-b_i^\top\widehat\beta_1}\}b_i
-=\sum O_i b_i,
+L_a(\theta_a)
+=\frac{1}{n}\sum_i \dot\pi_i
+\left[W_i^{(a)}e^{-z_i^\top\theta_a}
++(1-W_i^{(a)})z_i^\top\theta_a\right].
 $$
 
+Its score is
+
 $$
-\sum O_i(1-D_i)\{1+e^{b_i^\top\widehat\beta_0}\}b_i
-=\sum O_i b_i.
+\nabla L_a(\theta_a)
+=\frac{1}{n}\sum_i \dot\pi_i z_i
+\left[(1-W_i^{(a)})-W_i^{(a)}e^{-z_i^\top\theta_a}\right].
 $$
 
-The redundant pair $(\widehat\beta_1,\widehat\beta_0)$ supplies enough degrees of freedom to balance the delayed and non-delayed groups separately. These equations are the first-order conditions of two convex tailored losses, which can be solved with Newton or Gauss--Newton steps.
+When $\dot\pi_i$ is constant, the first-order condition implies
+
+$$
+\sum_i W_i^{(a)}\{1+e^{-z_i^\top\widehat\theta_a}\}z_i
+=\sum_i z_i.
+$$
+
+Thus $w_i^{(a)}=1+e^{-z_i^\top\widehat\theta_a}$ balances each arm separately to the complete sample, including its total mass through the intercept. `MPE_CBPS` solves both convex programs with analytic gradients and Hessians in Rust and reports the resulting weights, moments, effective sample sizes, and optimization diagnostics.
+
+### Matching the authors' repository
+
+The released repository contains the same implementation twice:
+
+- [A/B validation CBPS objective, weights, standardization, and policy-gradient aggregation](https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/ab_validation/run_simulation.py#L91-L120);
+- [switchback validation CBPS objective and aggregation](https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/switchback_validation/run_simulation.py#L188-L241).
+
+CrabbyMetrics reproduces those equations rather than treating a nearby calibration estimator as canonical. The parity tests transcribe the released MIT-licensed SciPy/BFGS reference at commit `06c29f4`, solve the same deterministic samples with `MPE_CBPS`, and compare both coefficient vectors, all observation-level weights, and the final normalized policy-gradient estimate. Coefficients agree within $2\times10^{-7}$ and the exponentially transformed weights within $5\times10^{-6}$; the normalized policy-gradient comparison is tighter than $2\times10^{-9}$ in absolute value.
 
 ### Exact CBPS versus `BalancingWeights`
 
@@ -136,7 +157,7 @@ $$
 \sum w_i^{(d)}=1.
 $$
 
-Consequently, CrabbyMetrics handles the balancing core directly:
+Consequently, CrabbyMetrics also handles the balance targets with its generic calibration API:
 
 ```python
 delayed = cm.BalancingWeights(objective="entropy")
@@ -151,7 +172,22 @@ w0 = np.asarray(not_delayed.get_weights())
 tau_k = w1 @ gamma_k[delay == 1] - w0 @ gamma_k[delay == 0]
 ```
 
-If the panel includes periods with no order, this normalized weighted-mean contrast must be multiplied by the empirical order rate $N_{\mathrm{orders}}/(nT)$ to recover the paper's normalization. The executable example below treats every recorded row as an order occasion, so this factor is one.
+The exact paper estimator is now a direct API call:
+
+```python
+model = cm.MPE_CBPS()
+model.fit(basis, delay.astype(np.int32))
+tau_k = model.estimate(gamma_k)
+```
+
+For the paper's percentage-of-baseline-spend normalization, pass the additive policy derivative during `fit` and baseline spend during `estimate`:
+
+```python
+model.fit(basis, delay, policy_derivative=np.full(n, 0.01).tolist())
+beta_k = model.estimate(gamma_k, denominator=baseline_spend.sum())
+```
+
+If the panel includes periods with no order, the normalized weighted-mean contrast must additionally reflect the empirical order rate $N_{\mathrm{orders}}/(nT)$. The executable example below treats every recorded row as an order occasion, so this factor is one.
 
 ## A dynamic stress test with known truth
 
@@ -277,64 +313,19 @@ print(f"delay rate: {delay.mean():.3f}")
 print(f"propensity range: [{propensity.min():.3f}, {propensity.max():.3f}]")
 ```
 
-## Fit the paper and CrabbyMetrics estimators
+## Fit the exact and generic CrabbyMetrics estimators
 
-The exact paper moments are square systems. The implementation below initializes them with `cm.Logit`, then uses `cm.Optimizers.minimize_gauss_newton_ls` with analytic Jacobians. Clipping is only a numerical guard for trial iterates; fitted indices stay well inside the clipping range.
+`MPE_CBPS` internally adds an intercept and standardizes the supplied basis with the same population-standard-deviation convention as the released code. It returns the canonical raw weights: each arm's active weights sum to the full sample size. `estimate()` applies the arm masks, policy derivative, and requested denominator without re-normalizing.
 
 ```{python}
 #| label: estimators
-def _safe_exp(value):
-    return np.exp(np.clip(value, -30.0, 30.0))
-
-
-def fit_exact_chronos_cbps(b, d):
-    design = np.column_stack([np.ones(len(b)), b])
-
-    start_model = cm.Logit(alpha=0.0, max_iterations=300)
-    start_model.fit(b, d.astype(np.int32))
-    start_summary = start_model.summary()
-    start = np.concatenate(
-        [[start_summary["intercept"]], np.asarray(start_summary["coef"])]
-    )
-
-    def residual_one(beta):
-        eta = design @ beta
-        return design.T @ (d * _safe_exp(-eta) - (1.0 - d)) / len(d)
-
-    def jacobian_one(beta):
-        slope = d * _safe_exp(-(design @ beta))
-        return -(design.T * slope) @ design / len(d)
-
-    def residual_zero(beta):
-        eta = design @ beta
-        return design.T @ ((1.0 - d) * _safe_exp(eta) - d) / len(d)
-
-    def jacobian_zero(beta):
-        slope = (1.0 - d) * _safe_exp(design @ beta)
-        return (design.T * slope) @ design / len(d)
-
-    fit_one = cm.Optimizers.minimize_gauss_newton_ls(
-        residual_one,
-        start,
-        jacobian_one,
-        max_iterations=100,
-        tolerance=1e-9,
-    )
-    fit_zero = cm.Optimizers.minimize_gauss_newton_ls(
-        residual_zero,
-        start,
-        jacobian_zero,
-        max_iterations=100,
-        tolerance=1e-9,
-    )
-
-    beta_one = np.asarray(fit_one["x"])
-    beta_zero = np.asarray(fit_zero["x"])
-    weight_one = d * (1.0 + _safe_exp(-(design @ beta_one)))
-    weight_zero = (1.0 - d) * (1.0 + _safe_exp(design @ beta_zero))
-    weight_one /= weight_one.sum()
-    weight_zero /= weight_zero.sum()
-    return weight_one, weight_zero, fit_one, fit_zero
+def fit_mpe_cbps(b, d):
+    model = cm.MPE_CBPS(max_iterations=500, tolerance=1e-9)
+    model.fit(b, d.astype(np.int32))
+    summary = model.summary()
+    weight_one = d * np.asarray(summary["weights_one"]) / len(d)
+    weight_zero = (1.0 - d) * np.asarray(summary["weights_zero"]) / len(d)
+    return weight_one, weight_zero, model
 
 
 def fit_crabby_balance(b, d):
@@ -354,7 +345,7 @@ def fit_crabby_balance(b, d):
     return weight_one, weight_zero, delayed, not_delayed
 
 
-cbps_w1, cbps_w0, cbps_fit1, cbps_fit0 = fit_exact_chronos_cbps(basis, delay)
+cbps_w1, cbps_w0, cbps_model = fit_mpe_cbps(basis, delay)
 crabby_w1, crabby_w0, crabby_fit1, crabby_fit0 = fit_crabby_balance(basis, delay)
 
 target_mean = basis.mean(axis=0)
@@ -368,7 +359,7 @@ crabby_control_smd = (crabby_w0 @ basis - target_mean) / target_sd
 
 balance_table = pd.DataFrame(
     {
-        "weights": ["unweighted", "paper CBPS", "Crabby entropy"],
+        "weights": ["unweighted", "MPE_CBPS (canonical)", "BalancingWeights (entropy)"],
         "max |SMD|, delayed": [
             np.max(np.abs(raw_delayed_smd)),
             np.max(np.abs(cbps_delayed_smd)),
@@ -384,31 +375,31 @@ balance_table = pd.DataFrame(
 balance_table.round(8)
 ```
 
-Both balancing methods remove the chosen moment discrepancies to numerical precision. The exact CBPS roots converge in a few Newton-style steps; the direct calibration fits expose effective sample size and maximum residual imbalance through `summary()`.
+Both balancing methods remove the chosen moment discrepancies to numerical precision. `MPE_CBPS` exposes the exact released objective's two sets of diagnostics; the generic calibration fits expose their own effective sample sizes and maximum residual imbalance through `summary()`.
 
 ```{python}
 diagnostics = pd.DataFrame(
     [
         {
-            "fit": "paper CBPS delayed",
-            "converged": cbps_fit1["success"],
-            "iterations": cbps_fit1["nit"],
-            "ESS": 1.0 / np.sum(cbps_w1**2),
+            "fit": "MPE_CBPS delayed",
+            "converged": cbps_model.summary()["converged_one"],
+            "iterations": cbps_model.summary()["iterations_one"],
+            "ESS": cbps_model.summary()["effective_sample_size_one"],
         },
         {
-            "fit": "paper CBPS not delayed",
-            "converged": cbps_fit0["success"],
-            "iterations": cbps_fit0["nit"],
-            "ESS": 1.0 / np.sum(cbps_w0**2),
+            "fit": "MPE_CBPS not delayed",
+            "converged": cbps_model.summary()["converged_zero"],
+            "iterations": cbps_model.summary()["iterations_zero"],
+            "ESS": cbps_model.summary()["effective_sample_size_zero"],
         },
         {
-            "fit": "Crabby delayed",
+            "fit": "entropy delayed",
             "converged": crabby_fit1.success,
             "iterations": crabby_fit1.nit,
             "ESS": crabby_fit1.summary()["effective_sample_size"],
         },
         {
-            "fit": "Crabby not delayed",
+            "fit": "entropy not delayed",
             "converged": crabby_fit0.success,
             "iterations": crabby_fit0.nit,
             "ESS": crabby_fit0.summary()["effective_sample_size"],
@@ -434,8 +425,8 @@ for horizon in [0, 1, 3, 7, 14, 28]:
             "oracle IPW": np.mean(
                 (delay / propensity - (1.0 - delay) / (1.0 - propensity)) * gamma
             ),
-            "paper CBPS": cbps_w1 @ gamma - cbps_w0 @ gamma,
-            "Crabby entropy": crabby_w1 @ gamma - crabby_w0 @ gamma,
+            "MPE_CBPS": cbps_model.estimate(gamma),
+            "BalancingWeights entropy": crabby_w1 @ gamma - crabby_w0 @ gamma,
         }
     )
 
@@ -447,8 +438,13 @@ results.round(4)
 #| label: horizon-plot
 fig, ax = plt.subplots(figsize=(9.5, 5.4), constrained_layout=True)
 ax.plot(results["K"], results["truth"], marker="o", linewidth=2.5, label="finite-K truth")
-ax.plot(results["K"], results["paper CBPS"], marker="s", label="paper CBPS")
-ax.plot(results["K"], results["Crabby entropy"], marker="^", label="Crabby entropy")
+ax.plot(results["K"], results["MPE_CBPS"], marker="s", label="MPE_CBPS (canonical)")
+ax.plot(
+    results["K"],
+    results["BalancingWeights entropy"],
+    marker="^",
+    label="BalancingWeights (entropy)",
+)
 ax.plot(results["K"], results["oracle IPW"], marker="d", alpha=0.75, label="oracle IPW")
 ax.plot(results["K"], results["naive"], marker="x", linestyle="--", label="naive contrast")
 ax.axhline(
@@ -468,7 +464,7 @@ The oracle IPW estimate is not automatically the least noisy line. Long-horizon 
 
 ## Unit-clustered bootstrap
 
-The paper resamples customers, not customer-period rows, and re-estimates the weights inside each bootstrap draw. The same rule is used here for the $K=28$ CrabbyMetrics estimator.
+The paper resamples customers, not customer-period rows, and re-estimates the weights inside each bootstrap draw. The same rule is used here for the exact $K=28$ `MPE_CBPS` estimator.
 
 ```{python}
 #| label: cluster-bootstrap
@@ -480,13 +476,14 @@ def cluster_bootstrap(panel, horizon=28, repetitions=80, seed=9102):
         b = panel["basis"][sampled_units, :USABLE_PERIODS].reshape(-1, 6)
         d = panel["delay"][sampled_units, :USABLE_PERIODS].reshape(-1)
         gamma = forward_reward(panel["reward"][sampled_units], horizon)
-        w1, w0, _, _ = fit_crabby_balance(b, d)
-        estimates.append(w1 @ gamma - w0 @ gamma)
+        model = cm.MPE_CBPS(max_iterations=500, tolerance=1e-8)
+        model.fit(b, d.astype(np.int32))
+        estimates.append(model.estimate(gamma))
     return np.asarray(estimates)
 
 
 bootstrap_draws = cluster_bootstrap(panel)
-point = float(results.loc[results["K"] == 28, "Crabby entropy"].iloc[0])
+point = float(results.loc[results["K"] == 28, "MPE_CBPS"].iloc[0])
 ci_low, ci_high = np.quantile(bootstrap_draws, [0.025, 0.975])
 true_k28 = DIRECT_EFFECT + CARRY_EFFECT * (1.0 - RHO**28) / (1.0 - RHO)
 
@@ -533,7 +530,7 @@ For an applied panel:
 1. Define an order-level delay or service-defect indicator and a reward measured on a stable time grid.
 2. Construct $\Gamma_{it}^K$ for several substantively meaningful horizons rather than choosing one horizon after seeing results.
 3. Build a balance basis from variables determined before the delay: the paper uses rolling delay exposure, order frequency, spend, recency, lifetime orders, same-day orders, distance, preparation time, tip, day of week, and hour of day.
-4. Fit delayed orders to the all-order target and non-delayed orders to the same target with separate `BalancingWeights` objects.
+4. Fit `MPE_CBPS` once to the pre-delay basis and delay indicator. Use `BalancingWeights` only when a generic calibration family is substantively preferred.
 5. Inspect maximum imbalance, effective sample size, and weight tails. Relax balance or restrict the target population when overlap is weak.
 6. Form the weighted cumulative-reward contrast, multiplying by the order rate if the denominator is customer-periods rather than order occasions.
 7. Resample customers or other independent units and repeat the full weighting procedure for inference.
@@ -542,7 +539,7 @@ For an applied panel:
 ## Limits of the simple translation
 
 - **The dynamic theorem is indispensable.** A successful balance solver does not justify treating cumulative future outcomes as causal.
-- **The Crabby fit is a calibrated analogue, not the paper's exact inverse-logit family.** Use the explicit `Optimizers` system above when exact replication matters.
+- **Entropy calibration is an analogue, not the paper's exact inverse-logit family.** `MPE_CBPS` is the exact family; `BalancingWeights(objective="entropy")` remains useful as a sensitivity check.
 - **This is a local policy derivative.** It supports adjacent changes to delay rates, not arbitrary large policy changes without further approximation error.
 - **Observed state must be rich enough.** Hidden states may mediate long-run effects, but cannot continue to predict delay after $X$ is fixed.
 - **Order timing matters.** Features contaminated by the current delay or post-delay behavior invalidate the balance design.
@@ -555,4 +552,3 @@ For an applied panel:
 - Kosuke Imai and Marc Ratkovic. [“Covariate Balancing Propensity Score.”](https://doi.org/10.1111/rssb.12027) *JRSS B*, 2014.
 - Qingyuan Zhao. [“Covariate Balancing Propensity Score by Tailored Loss Functions.”](https://doi.org/10.1214/18-AOS1698) *Annals of Statistics*, 2019.
 - Davide Viviano and Jelena Bradic. [“Dynamic Covariate Balancing: Estimating Treatment Effects over Time.”](https://arxiv.org/abs/2103.01280), revised 2026.
-

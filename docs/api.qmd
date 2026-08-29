@@ -164,6 +164,7 @@ Reference pages:
 
 - [TwoSLS](reference/TwoSLS.qmd)
 - [BalancingWeights](reference/BalancingWeights.qmd)
+- [MPE_CBPS](reference/MPE_CBPS.qmd)
 - [EPLM](reference/EPLM.qmd)
 - [AverageDerivative](reference/AverageDerivative.qmd)
 - [PartiallyLinearDML](reference/PartiallyLinearDML.qmd)
@@ -173,6 +174,7 @@ Worked docs:
 
 - [TwoSLS](examples/twosls.qmd)
 - [Balancing Weights](examples/balancing-weights.qmd)
+- [Chronos LTV Balancing](examples/chronos-ltv-balancing.qmd)
 - [Cressie--Read and Rényi Balancing](examples/cressie-read-balancing.qmd)
 - [EPLM](examples/eplm.qmd)
 - [Average Derivative](examples/average-derivative.qmd)
@@ -184,6 +186,7 @@ display(HTML(html_table(
     class_rows([
         cm.TwoSLS,
         cm.BalancingWeights,
+        cm.MPE_CBPS,
         cm.EPLM,
         cm.AverageDerivative,
         cm.PartiallyLinearDML,

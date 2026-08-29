@@ -19,6 +19,15 @@ Release packaging now excludes both rendered `docs/` content and the local untra
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## Chronos Marginal-Policy-Effect CBPS (2026-08-28)
+
+- Cloned and audited the authors' MIT-licensed `chenyuqiu/ltv_of_reliability` repository at commit `06c29f4`. Its A/B and switchback pipelines contain the same arm-specific tailored-loss CBPS objective, analytic score, inverse-logit weights, standardization, and policy-gradient aggregation.
+- Added public `MPE_CBPS`, implemented in `src/estimators/mpe_cbps.rs`. Both convex arm problems use analytic gradients and Hessians, damped Newton steps, Armijo backtracking, and a vanishing scale-relative ridge for the dense linear solve; the optimization and aggregation path is native Rust.
+- Added `tests/test_mpe_cbps.py`, which runs the canonical SciPy/BFGS formulas on deterministic samples and checks coefficient, weight, and final normalized-estimate parity, plus balance and validation contracts.
+- Added `docs/reference/MPE_CBPS.qmd` and expanded `docs/examples/chronos-ltv-balancing.qmd` to use the public class, link the exact released source, compare the exact inverse-logit family with generic entropy calibration, and re-fit the exact estimator inside the unit bootstrap.
+- Updated API navigation, the live API overview, and `docs/llms.txt` for the new public class.
+- Validation passes 179 Python tests and 6 Rust tests. Both new/changed Quarto pages execute successfully, and all 99 site pages render with execution disabled to regenerate shared navigation. A full live-execution pass reaches the Ding replication section before stopping because this isolated worktree intentionally lacks the external `ding_w_source` data link.
+
 ## Dynamic Treatment Effects (2026-08-10)
 
 The branch adds `src/estimators/dynamic.rs` and exports three public classes:
