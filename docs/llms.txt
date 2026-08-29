@@ -78,6 +78,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
 - Covariate balancing/calibration weights: `cm.BalancingWeights()`; use `objective="cressie_read"` for Cressie-Read / power-divergence calibration.
+- Dynamic marginal policy effects from cumulative future rewards under the Chronos LTV identification assumptions: fit separate `cm.BalancingWeights(objective="entropy")` objects for treated and untreated order occasions against the all-order target; see `docs/examples/chronos-ltv-balancing.qmd`. This direct calibration solves the paper's balance targets but does not use its exact inverse-logit weight family.
 - Longitudinal additive blips under sequential ignorability: `cm.RegressionBlip()`.
 - Longitudinal additive blips under conditional parallel trends: `cm.ParallelTrendsSNMM()`.
 - A final mean potential outcome under a specified binary treatment path using sequential balance: `cm.DynamicCovariateBalance()`; fit one object per path and difference the fitted path means for a contrast.
