@@ -1,0 +1,554 @@
+---
+title: "Chronos LTV With Balancing Weights"
+subtitle: "Estimating the long-run marginal value of reliability from short-run observational variation"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: true
+    code-summary: "Show code"
+jupyter: python3
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+freeze: auto
+---
+
+The estimation strategy in Qiu, Kuang, Liskovich, Rauh, and Wager's [*What Is the Long-Term Value of Reliability?*](https://arxiv.org/abs/2606.11526) has a useful separation:
+
+1. a dynamic identification argument converts a long-run policy derivative into a weighted contrast of cumulative future rewards;
+2. the feasible estimator is a small, static covariate-balancing problem over order occasions.
+
+The first step is where the substantive assumptions live. Once it is accepted, the computational core is indeed simple. This vignette uses `crabbymetrics.MPE_CBPS`, a native Rust implementation checked against the authors' released A/B and switchback code, then compares it with two direct entropy-calibration fits from `crabbymetrics.BalancingWeights`.
+
+## Setup and target
+
+For customer $i$ at time $t$, let
+
+- $U_{it}$ be a latent state such as satisfaction, beliefs, or intent;
+- $X_{it}$ be observed order characteristics, with $X_{it}=\varnothing$ when no order is placed;
+- $D_{it}\in\{0,1\}$ indicate a delay;
+- $Y_{it}$ be a reward such as spend, order frequency, or retention value.
+
+The status-quo average reward is
+
+$$
+V_0=\mathbb E\left[\frac{1}{T}\sum_{t=1}^T Y_{it}\right].
+$$
+
+On order occasions, perturb the conditional delay probability additively:
+
+$$
+\pi_\varepsilon(x)
+=\Pr_\varepsilon(D_{it}=1\mid X_{it}=x)
+=\pi_0(x)+\varepsilon.
+$$
+
+The marginal policy effect is
+
+$$
+\tau
+=\left.\frac{dV_\varepsilon}{d\varepsilon}\right|_{\varepsilon=0}.
+$$
+
+Thus $0.01\tau$ is the effect of increasing the delay probability by one percentage point. A reliability improvement has $\Delta\text{Delay}<0$, so its predicted value effect is $\Delta\text{Delay}\times\tau$.
+
+Delays play the mathematical role of MDP actions, but are not actions in the operational sense: the platform does not deliberately choose to delay an order. The intervention modifies their conditional distribution.
+
+## Identification is the hard part
+
+The paper assumes:
+
+1. $(U_{it},X_{it},D_{it})$ is Markov and rewards depend on this current state;
+2. delays are sequentially unconfounded after observed order characteristics are fixed,
+   $$D_{it}\perp (S_{i,t-1},U_{it})\mid X_{it};$$
+3. the effect of a delay on rewards $k$ periods later decays no more slowly than $Ce^{-k/\nu}$;
+4. delay probabilities are bounded away from zero and one.
+
+Define the forward reward through horizon $K$,
+
+$$
+\Gamma_{it}^K
+=\sum_{s=t}^{\min(t+K,T)}Y_{is},
+$$
+
+and let $O_{it}=1\{X_{it}\ne\varnothing\}$. The paper's policy-gradient argument gives the oracle estimator
+
+$$
+\widehat\tau_K^*
+=\frac{1}{nT}\sum_{i,t}O_{it}
+\left\{
+\frac{D_{it}}{\pi(X_{it})}
+-\frac{1-D_{it}}{1-\pi(X_{it})}
+\right\}\Gamma_{it}^K,
+$$
+
+with truncation bias bounded by
+
+$$
+\left|\mathbb E[\widehat\tau_K^*]-\tau\right|
+\le
+\frac{C}{1-e^{-1/\nu}}e^{-K/\nu}.
+$$
+
+This result is what permits hidden consumer states: $U_{it}$ need not be measured, provided it does not still confound the contemporaneous delay after conditioning on $X_{it}$. Increasing $K$ reduces truncation bias but increases noise because each observation carries a longer cumulative reward.
+
+## Why it becomes a balancing problem
+
+Inverse-probability weights balance every chosen basis $b(X)$ in expectation:
+
+$$
+\mathbb E\left[O\frac{D}{\pi(X)}b(X)\right]
+=\mathbb E[Ob(X)]
+=\mathbb E\left[O\frac{1-D}{1-\pi(X)}b(X)\right].
+$$
+
+The paper estimates **two** coefficient vectors. In the authors' released code, let $W_i^{(a)}=1\{D_i=a\}$, $z_i=(1,b(X_i)')'$, and $\dot\pi_i$ be the derivative of the treatment probability with respect to the policy perturbation. For each arm $a\in\{0,1\}$, it minimizes the convex loss
+
+$$
+L_a(\theta_a)
+=\frac{1}{n}\sum_i \dot\pi_i
+\left[W_i^{(a)}e^{-z_i^\top\theta_a}
++(1-W_i^{(a)})z_i^\top\theta_a\right].
+$$
+
+Its score is
+
+$$
+\nabla L_a(\theta_a)
+=\frac{1}{n}\sum_i \dot\pi_i z_i
+\left[(1-W_i^{(a)})-W_i^{(a)}e^{-z_i^\top\theta_a}\right].
+$$
+
+When $\dot\pi_i$ is constant, the first-order condition implies
+
+$$
+\sum_i W_i^{(a)}\{1+e^{-z_i^\top\widehat\theta_a}\}z_i
+=\sum_i z_i.
+$$
+
+Thus $w_i^{(a)}=1+e^{-z_i^\top\widehat\theta_a}$ balances each arm separately to the complete sample, including its total mass through the intercept. `MPE_CBPS` solves both convex programs with analytic gradients and Hessians in Rust and reports the resulting weights, moments, effective sample sizes, and optimization diagnostics.
+
+### Matching the authors' repository
+
+The released repository contains the same implementation twice:
+
+- [A/B validation CBPS objective, weights, standardization, and policy-gradient aggregation](https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/ab_validation/run_simulation.py#L91-L120);
+- [switchback validation CBPS objective and aggregation](https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/switchback_validation/run_simulation.py#L188-L241).
+
+CrabbyMetrics reproduces those equations rather than treating a nearby calibration estimator as canonical. The parity tests transcribe the released MIT-licensed SciPy/BFGS reference at commit `06c29f4`, solve the same deterministic samples with `MPE_CBPS`, and compare both coefficient vectors, all observation-level weights, and the final normalized policy-gradient estimate. Coefficients agree within $2\times10^{-7}$ and the exponentially transformed weights within $5\times10^{-6}$; the normalized policy-gradient comparison is tighter than $2\times10^{-9}$ in absolute value.
+
+### Exact CBPS versus `BalancingWeights`
+
+The paper's weights use the inverse-logit links $1+e^{-b^\top\beta_1}$ and $1+e^{b^\top\beta_0}$. Entropy calibration in `BalancingWeights` instead uses an exponential tilt. These are not algebraically identical weight families.
+
+They do, however, impose the same sample targets:
+
+$$
+\sum_{D=1}w_i^{(1)}b_i=\bar b_{\mathrm{orders}},
+\qquad
+\sum_{D=0}w_i^{(0)}b_i=\bar b_{\mathrm{orders}},
+\qquad
+\sum w_i^{(d)}=1.
+$$
+
+Consequently, CrabbyMetrics also handles the balance targets with its generic calibration API:
+
+```python
+delayed = cm.BalancingWeights(objective="entropy")
+delayed.fit(basis[delay == 1], basis)
+
+not_delayed = cm.BalancingWeights(objective="entropy")
+not_delayed.fit(basis[delay == 0], basis)
+
+w1 = np.asarray(delayed.get_weights())
+w0 = np.asarray(not_delayed.get_weights())
+
+tau_k = w1 @ gamma_k[delay == 1] - w0 @ gamma_k[delay == 0]
+```
+
+The exact paper estimator is now a direct API call:
+
+```python
+model = cm.MPE_CBPS()
+model.fit(basis, delay.astype(np.int32))
+tau_k = model.estimate(gamma_k)
+```
+
+For the paper's percentage-of-baseline-spend normalization, pass the additive policy derivative during `fit` and baseline spend during `estimate`:
+
+```python
+model.fit(basis, delay, policy_derivative=np.full(n, 0.01).tolist())
+beta_k = model.estimate(gamma_k, denominator=baseline_spend.sum())
+```
+
+If the panel includes periods with no order, the normalized weighted-mean contrast must additionally reflect the empirical order rate $N_{\mathrm{orders}}/(nT)$. The executable example below treats every recorded row as an order occasion, so this factor is one.
+
+## A dynamic stress test with known truth
+
+The simulation deliberately has an unobserved persistent state:
+
+$$
+U_{i,t+1}=\rho U_{it}+aD_{it}+0.10X_{it,1}+\eta_{it},
+$$
+
+$$
+Y_{it}=m(X_{it})+U_{it}+cD_{it}+\varepsilon_{it}.
+$$
+
+Current delays have a direct effect $c$ and change all future rewards through $U$. Delay assignment depends only on an observed nonlinear basis $b(X_{it})$, so sequential unconfoundedness holds even though $U$ is hidden. Under an additive perturbation to the delay probability, the true horizon-$K$ effect is
+
+$$
+\tau_K=c+a\sum_{h=0}^{K-1}\rho^h
+=c+a\frac{1-\rho^K}{1-\rho},
+$$
+
+and the long-run effect is $\tau_\infty=c+a/(1-\rho)$.
+
+```{python}
+#| label: setup
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import crabbymetrics as cm
+
+SEED = 260611526
+N_CUSTOMERS = 400
+N_PERIODS = 84
+BURN_IN = 50
+MAX_HORIZON = 28
+RHO = 0.86
+CARRY_EFFECT = -0.11
+DIRECT_EFFECT = -0.22
+
+
+def simulate_panel(seed=SEED):
+    rng = np.random.default_rng(seed)
+    persistent_type = rng.normal(size=N_CUSTOMERS)
+    hidden_state = rng.normal(scale=0.30, size=N_CUSTOMERS)
+
+    basis, delay, reward, propensity = [], [], [], []
+    for time in range(BURN_IN + N_PERIODS):
+        weekday = time % 7
+        week_sin = np.sin(2.0 * np.pi * weekday / 7.0)
+        week_cos = np.cos(2.0 * np.pi * weekday / 7.0)
+
+        x1 = 0.65 * persistent_type + rng.normal(scale=0.75, size=N_CUSTOMERS)
+        x2 = rng.binomial(1, 0.35, size=N_CUSTOMERS).astype(float)
+        b = np.column_stack(
+            [
+                x1,
+                x2,
+                x1 * x2,
+                x1**2,
+                np.full(N_CUSTOMERS, week_sin),
+                np.full(N_CUSTOMERS, week_cos),
+            ]
+        )
+
+        logit = (
+            -0.30
+            + 0.48 * x1
+            - 0.34 * x2
+            + 0.20 * x1 * x2
+            + 0.06 * x1**2
+            + 0.20 * week_sin
+            - 0.12 * week_cos
+        )
+        pi = 1.0 / (1.0 + np.exp(-logit))
+        d = rng.binomial(1, pi).astype(float)
+
+        y = (
+            1.0
+            + 0.45 * x1
+            - 0.20 * x2
+            + 0.15 * x1 * x2
+            + hidden_state
+            + DIRECT_EFFECT * d
+            + rng.normal(scale=0.50, size=N_CUSTOMERS)
+        )
+        hidden_state = (
+            RHO * hidden_state
+            + CARRY_EFFECT * d
+            + 0.10 * x1
+            + rng.normal(scale=0.22, size=N_CUSTOMERS)
+        )
+
+        if time >= BURN_IN:
+            basis.append(b)
+            delay.append(d)
+            reward.append(y)
+            propensity.append(pi)
+
+    return {
+        "basis": np.stack(basis, axis=1),
+        "delay": np.stack(delay, axis=1),
+        "reward": np.stack(reward, axis=1),
+        "propensity": np.stack(propensity, axis=1),
+    }
+
+
+panel = simulate_panel()
+USABLE_PERIODS = N_PERIODS - MAX_HORIZON
+
+basis = panel["basis"][:, :USABLE_PERIODS].reshape(-1, 6)
+delay = panel["delay"][:, :USABLE_PERIODS].reshape(-1)
+propensity = panel["propensity"][:, :USABLE_PERIODS].reshape(-1)
+
+
+def forward_reward(reward_panel, horizon, usable_periods=USABLE_PERIODS):
+    cumulative = np.pad(np.cumsum(reward_panel, axis=1), ((0, 0), (1, 0)))
+    start = np.arange(usable_periods)
+    return (cumulative[:, start + horizon + 1] - cumulative[:, start]).reshape(-1)
+
+
+print(f"order occasions used: {len(delay):,}")
+print(f"delay rate: {delay.mean():.3f}")
+print(f"propensity range: [{propensity.min():.3f}, {propensity.max():.3f}]")
+```
+
+## Fit the exact and generic CrabbyMetrics estimators
+
+`MPE_CBPS` internally adds an intercept and standardizes the supplied basis with the same population-standard-deviation convention as the released code. It returns the canonical raw weights: each arm's active weights sum to the full sample size. `estimate()` applies the arm masks, policy derivative, and requested denominator without re-normalizing.
+
+```{python}
+#| label: estimators
+def fit_mpe_cbps(b, d):
+    model = cm.MPE_CBPS(max_iterations=500, tolerance=1e-9)
+    model.fit(b, d.astype(np.int32))
+    summary = model.summary()
+    weight_one = d * np.asarray(summary["weights_one"]) / len(d)
+    weight_zero = (1.0 - d) * np.asarray(summary["weights_zero"]) / len(d)
+    return weight_one, weight_zero, model
+
+
+def fit_crabby_balance(b, d):
+    delayed = cm.BalancingWeights(
+        objective="entropy", solver="auto", max_iterations=500, tolerance=1e-8
+    )
+    not_delayed = cm.BalancingWeights(
+        objective="entropy", solver="auto", max_iterations=500, tolerance=1e-8
+    )
+    delayed.fit(b[d == 1], b)
+    not_delayed.fit(b[d == 0], b)
+
+    weight_one = np.zeros(len(d))
+    weight_zero = np.zeros(len(d))
+    weight_one[d == 1] = np.asarray(delayed.get_weights())
+    weight_zero[d == 0] = np.asarray(not_delayed.get_weights())
+    return weight_one, weight_zero, delayed, not_delayed
+
+
+cbps_w1, cbps_w0, cbps_model = fit_mpe_cbps(basis, delay)
+crabby_w1, crabby_w0, crabby_fit1, crabby_fit0 = fit_crabby_balance(basis, delay)
+
+target_mean = basis.mean(axis=0)
+target_sd = basis.std(axis=0)
+raw_delayed_smd = (basis[delay == 1].mean(axis=0) - target_mean) / target_sd
+raw_control_smd = (basis[delay == 0].mean(axis=0) - target_mean) / target_sd
+cbps_delayed_smd = (cbps_w1 @ basis - target_mean) / target_sd
+cbps_control_smd = (cbps_w0 @ basis - target_mean) / target_sd
+crabby_delayed_smd = (crabby_w1 @ basis - target_mean) / target_sd
+crabby_control_smd = (crabby_w0 @ basis - target_mean) / target_sd
+
+balance_table = pd.DataFrame(
+    {
+        "weights": ["unweighted", "MPE_CBPS (canonical)", "BalancingWeights (entropy)"],
+        "max |SMD|, delayed": [
+            np.max(np.abs(raw_delayed_smd)),
+            np.max(np.abs(cbps_delayed_smd)),
+            np.max(np.abs(crabby_delayed_smd)),
+        ],
+        "max |SMD|, not delayed": [
+            np.max(np.abs(raw_control_smd)),
+            np.max(np.abs(cbps_control_smd)),
+            np.max(np.abs(crabby_control_smd)),
+        ],
+    }
+)
+balance_table.round(8)
+```
+
+Both balancing methods remove the chosen moment discrepancies to numerical precision. `MPE_CBPS` exposes the exact released objective's two sets of diagnostics; the generic calibration fits expose their own effective sample sizes and maximum residual imbalance through `summary()`.
+
+```{python}
+diagnostics = pd.DataFrame(
+    [
+        {
+            "fit": "MPE_CBPS delayed",
+            "converged": cbps_model.summary()["converged_one"],
+            "iterations": cbps_model.summary()["iterations_one"],
+            "ESS": cbps_model.summary()["effective_sample_size_one"],
+        },
+        {
+            "fit": "MPE_CBPS not delayed",
+            "converged": cbps_model.summary()["converged_zero"],
+            "iterations": cbps_model.summary()["iterations_zero"],
+            "ESS": cbps_model.summary()["effective_sample_size_zero"],
+        },
+        {
+            "fit": "entropy delayed",
+            "converged": crabby_fit1.success,
+            "iterations": crabby_fit1.nit,
+            "ESS": crabby_fit1.summary()["effective_sample_size"],
+        },
+        {
+            "fit": "entropy not delayed",
+            "converged": crabby_fit0.success,
+            "iterations": crabby_fit0.nit,
+            "ESS": crabby_fit0.summary()["effective_sample_size"],
+        },
+    ]
+)
+diagnostics.round(2)
+```
+
+## Horizon path
+
+```{python}
+#| label: horizon-results
+rows = []
+for horizon in [0, 1, 3, 7, 14, 28]:
+    gamma = forward_reward(panel["reward"], horizon)
+    true_effect = DIRECT_EFFECT + CARRY_EFFECT * (1.0 - RHO**horizon) / (1.0 - RHO)
+    rows.append(
+        {
+            "K": horizon,
+            "truth": true_effect,
+            "naive": gamma[delay == 1].mean() - gamma[delay == 0].mean(),
+            "oracle IPW": np.mean(
+                (delay / propensity - (1.0 - delay) / (1.0 - propensity)) * gamma
+            ),
+            "MPE_CBPS": cbps_model.estimate(gamma),
+            "BalancingWeights entropy": crabby_w1 @ gamma - crabby_w0 @ gamma,
+        }
+    )
+
+results = pd.DataFrame(rows)
+results.round(4)
+```
+
+```{python}
+#| label: horizon-plot
+fig, ax = plt.subplots(figsize=(9.5, 5.4), constrained_layout=True)
+ax.plot(results["K"], results["truth"], marker="o", linewidth=2.5, label="finite-K truth")
+ax.plot(results["K"], results["MPE_CBPS"], marker="s", label="MPE_CBPS (canonical)")
+ax.plot(
+    results["K"],
+    results["BalancingWeights entropy"],
+    marker="^",
+    label="BalancingWeights (entropy)",
+)
+ax.plot(results["K"], results["oracle IPW"], marker="d", alpha=0.75, label="oracle IPW")
+ax.plot(results["K"], results["naive"], marker="x", linestyle="--", label="naive contrast")
+ax.axhline(
+    DIRECT_EFFECT + CARRY_EFFECT / (1.0 - RHO),
+    color="black",
+    linestyle=":",
+    label="long-run truth",
+)
+ax.set(xlabel="forward horizon K", ylabel="marginal reward effect", title="Longer horizons recover persistent damage from a delay")
+ax.legend(ncol=2)
+plt.show()
+```
+
+The naive contrast has the wrong sign because orders with characteristics associated with higher baseline value are also more likely to be delayed. Both balanced estimators reverse that confounding. Their estimates become more negative with $K$, approaching the long-run effect as the hidden-state response propagates.
+
+The oracle IPW estimate is not automatically the least noisy line. Long-horizon outcomes and inverse probabilities can be volatile; exact finite-sample balance is a stabilization device, not merely a route to asymptotic consistency. This is the central empirical motivation for the paper's preference for CBPS over a prediction-tuned propensity model.
+
+## Unit-clustered bootstrap
+
+The paper resamples customers, not customer-period rows, and re-estimates the weights inside each bootstrap draw. The same rule is used here for the exact $K=28$ `MPE_CBPS` estimator.
+
+```{python}
+#| label: cluster-bootstrap
+def cluster_bootstrap(panel, horizon=28, repetitions=80, seed=9102):
+    rng = np.random.default_rng(seed)
+    estimates = []
+    for _ in range(repetitions):
+        sampled_units = rng.integers(0, N_CUSTOMERS, size=N_CUSTOMERS)
+        b = panel["basis"][sampled_units, :USABLE_PERIODS].reshape(-1, 6)
+        d = panel["delay"][sampled_units, :USABLE_PERIODS].reshape(-1)
+        gamma = forward_reward(panel["reward"][sampled_units], horizon)
+        model = cm.MPE_CBPS(max_iterations=500, tolerance=1e-8)
+        model.fit(b, d.astype(np.int32))
+        estimates.append(model.estimate(gamma))
+    return np.asarray(estimates)
+
+
+bootstrap_draws = cluster_bootstrap(panel)
+point = float(results.loc[results["K"] == 28, "MPE_CBPS"].iloc[0])
+ci_low, ci_high = np.quantile(bootstrap_draws, [0.025, 0.975])
+true_k28 = DIRECT_EFFECT + CARRY_EFFECT * (1.0 - RHO**28) / (1.0 - RHO)
+
+pd.DataFrame(
+    {
+        "K": [28],
+        "estimate": [point],
+        "bootstrap SE": [bootstrap_draws.std(ddof=1)],
+        "95% percentile low": [ci_low],
+        "95% percentile high": [ci_high],
+        "finite-K truth": [true_k28],
+    }
+).round(4)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(8.5, 4.7), constrained_layout=True)
+ax.hist(bootstrap_draws, bins=18, color="#4c78a8", alpha=0.78, edgecolor="white")
+ax.axvline(point, color="#f58518", linewidth=2.2, label="point estimate")
+ax.axvline(true_k28, color="black", linestyle="--", linewidth=2.0, label="finite-K truth")
+ax.set(xlabel="bootstrapped marginal effect", ylabel="count", title="Customer-clustered bootstrap, K=28")
+ax.legend()
+plt.show()
+```
+
+## What the paper finds
+
+In the paper's marketplace simulation, a naive future-outcome contrast overstates the long-run reliability effect by roughly an order of magnitude. IPW with a prediction-tuned MLP propensity model removes much of the bias but remains about three times too large and produces a wide interval. CBPS-IPW predicts 92--97% of the long-run randomized-experiment effect at 56- and 70-day horizons.
+
+They then combine two pieces:
+
+$$
+\widehat{\Delta V}^{\text{long run}}
+=\widehat{\Delta\text{Delay}}^{\text{switchback}}
+\times\widehat\tau^{\text{Chronos}}.
+$$
+
+The switchback experiment identifies how added supply changes the market-level delay rate; Chronos estimates how a marginal delay-rate change maps into long-run customer value. This product predicts persistent-rollout value much better than reading customer value directly from the short switchback.
+
+## Practical recipe
+
+For an applied panel:
+
+1. Define an order-level delay or service-defect indicator and a reward measured on a stable time grid.
+2. Construct $\Gamma_{it}^K$ for several substantively meaningful horizons rather than choosing one horizon after seeing results.
+3. Build a balance basis from variables determined before the delay: the paper uses rolling delay exposure, order frequency, spend, recency, lifetime orders, same-day orders, distance, preparation time, tip, day of week, and hour of day.
+4. Fit `MPE_CBPS` once to the pre-delay basis and delay indicator. Use `BalancingWeights` only when a generic calibration family is substantively preferred.
+5. Inspect maximum imbalance, effective sample size, and weight tails. Relax balance or restrict the target population when overlap is weak.
+6. Form the weighted cumulative-reward contrast, multiplying by the order rate if the denominator is customer-periods rather than order occasions.
+7. Resample customers or other independent units and repeat the full weighting procedure for inference.
+8. Report a horizon curve. Stability across large $K$ is evidence about mixing; it is not proof of sequential unconfoundedness.
+
+## Limits of the simple translation
+
+- **The dynamic theorem is indispensable.** A successful balance solver does not justify treating cumulative future outcomes as causal.
+- **Entropy calibration is an analogue, not the paper's exact inverse-logit family.** `MPE_CBPS` is the exact family; `BalancingWeights(objective="entropy")` remains useful as a sensitivity check.
+- **This is a local policy derivative.** It supports adjacent changes to delay rates, not arbitrary large policy changes without further approximation error.
+- **Observed state must be rich enough.** Hidden states may mediate long-run effects, but cannot continue to predict delay after $X$ is fixed.
+- **Order timing matters.** Features contaminated by the current delay or post-delay behavior invalidate the balance design.
+- **Spillovers are separate.** The estimator targets long-run direct customer effects. Market-wide feedback through congestion or shared supply requires another design, such as the paper's switchback component.
+- **A doubly robust extension is possible.** The paper points to a debiased machine-learning alternative. The present vignette isolates the transparent weighting estimator.
+
+## References
+
+- Chenyu Qiu, Xu Kuang, Inessa Liskovich, Ali Rauh, and Stefan Wager. [*What Is the Long-Term Value of Reliability?*](https://arxiv.org/abs/2606.11526), 2026.
+- Kosuke Imai and Marc Ratkovic. [“Covariate Balancing Propensity Score.”](https://doi.org/10.1111/rssb.12027) *JRSS B*, 2014.
+- Qingyuan Zhao. [“Covariate Balancing Propensity Score by Tailored Loss Functions.”](https://doi.org/10.1214/18-AOS1698) *Annals of Statistics*, 2019.
+- Davide Viviano and Jelena Bradic. [“Dynamic Covariate Balancing: Estimating Treatment Effects over Time.”](https://arxiv.org/abs/2103.01280), revised 2026.

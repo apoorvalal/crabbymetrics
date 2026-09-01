@@ -57,6 +57,12 @@ The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07
 
 ## Current Extension Status
 
+### In review: canonical Chronos marginal-policy-effect CBPS
+
+The `docs/chronos-ltv-vignette` branch adds `MPE_CBPS`, a focused native implementation of the two-arm tailored-loss CBPS estimator released with Qiu, Kuang, Liskovich, Rauh, and Wager (2026). It keeps the paper's inverse-logit weight family rather than relabeling generic entropy calibration as exact parity. The class standardizes the supplied basis, adds an intercept, solves both convex arm losses with analytic damped Newton steps in Rust, and aggregates cumulative future rewards with a supplied policy derivative and denominator.
+
+Canonical parity is tied to commit `06c29f4` of `chenyuqiu/ltv_of_reliability`. Tests transcribe the released SciPy/BFGS A/B and switchback helper functions and compare both coefficient vectors, every observation-level weight, and the final normalized policy-gradient estimate. A dedicated class reference and the expanded Chronos vignette document the dynamic identification argument, exact implementation, entropy-calibration sensitivity check, horizon path, and unit-clustered bootstrap. Analytic inference remains out of scope; the vignette re-fits the complete estimator inside unit bootstrap draws.
+
 ### Recently landed: faithful augmented panel balancing
 
 `master` now includes the R experiment's estimator family without treating horizontal ridge as a universal panel estimator. `AugmentedBalancing` supports outcome-only, unit-only, time-only, and double balancing; cohort or individual unit targets; pooled or period-specific time targets; raw-outcome or residual balance inputs; and ridge or penalized-SCM donor losses. Unit and time weights enter the full augmented score in every balancing mode, including the uniform weights used for a dimension that is not optimized.

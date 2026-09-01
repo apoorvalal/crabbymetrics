@@ -78,6 +78,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
 - Covariate balancing/calibration weights: `cm.BalancingWeights()`; use `objective="cressie_read"` for Cressie-Read / power-divergence calibration.
+- Dynamic marginal policy effects from cumulative future rewards under the Chronos LTV identification assumptions: use `cm.MPE_CBPS()`, the native Rust implementation of the authors' released two-arm inverse-logit CBPS estimator. Fit once on pre-delay covariates and the binary delay indicator, then call `estimate(gamma_k)` for each forward horizon. Pass a positive `policy_derivative` list and `denominator` to reproduce the paper's percentage-of-baseline-value normalization. `cm.BalancingWeights(objective="entropy")` is a useful calibration sensitivity check but uses a different weight family. See `docs/reference/MPE_CBPS.qmd` and `docs/examples/chronos-ltv-balancing.qmd`.
 - Longitudinal additive blips under sequential ignorability: `cm.RegressionBlip()`.
 - Longitudinal additive blips under conditional parallel trends: `cm.ParallelTrendsSNMM()`.
 - A final mean potential outcome under a specified binary treatment path using sequential balance: `cm.DynamicCovariateBalance()`; fit one object per path and difference the fitted path means for a contrast.
@@ -327,6 +328,16 @@ summary()
 ```
 
 Low-level calibration/reweighting API. `objective` can be `"quadratic"`, `"entropy"`, `"cressie_read"`, or alias `"power_divergence"`; `solver` can be `"auto"`, `"gauss_newton"`, `"lbfgs"`, or `"bfgs"`. For Cressie-Read, `divergence_power` is the index lambda: `0.0` is the entropy/KL limit and `1.0` is the Pearson chi-square member. `dual_ridge` adds optional stabilization on non-intercept dual coefficients. `solver_converged` and the generic convergence fields describe the scaled calibration system; `success` additionally checks normalized weight feasibility. `scaled_residual_norm` and `solver_objective` are numerical diagnostics, while `original_balance_l2` and `original_balance_max_abs` remain in user-supplied units. Summary keys also include `weights`, `beta`, `weighted_mean`, `target_mean`, `mean_diff`, `effective_sample_size`, `divergence_power`, and `dual_ridge`.
+
+```python
+cm.MPE_CBPS(standardize=True, max_iterations=500, tolerance=1e-8, max_log_weight=50.0)
+fit(covariates, treatment, policy_derivative=None)
+estimate(outcome, denominator=None)
+get_weights(arm)
+summary()
+```
+
+Qiu--Kuang--Liskovich--Rauh--Wager / Chronos marginal-policy-effect CBPS. The class fits the released estimator's two arm-specific convex inverse-logit calibration losses with analytic Newton steps in Rust. `treatment` is an `int32` 0/1 vector. `policy_derivative` defaults to one and must otherwise be a positive finite Python list. `estimate()` returns the weighted cumulative-outcome policy gradient divided by `denominator`, which defaults to the sample size. To reproduce the paper's reported normalization, fit with the additive delay-probability derivative and estimate with total baseline spend as the denominator. Summary keys include both arm coefficients and raw weights, convergence and iteration counts, objective and gradient norms, original-scale balance, weight sums, and effective sample sizes. The canonical SciPy/BFGS parity tests are in `tests/test_mpe_cbps.py`; the mathematical and executable guide is `docs/examples/chronos-ltv-balancing.qmd`.
 
 ```python
 cm.EPLM(fd_eps=1e-6)
@@ -600,6 +611,7 @@ If you need to inspect or modify source, start here:
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
 - `src/estimators/dynamic.rs`: RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance.
 - `src/estimators/balancing.rs`: BalancingWeights and the shared internal quadratic-calibration engine used by DynamicCovariateBalance.
+- `src/estimators/mpe_cbps.rs`: MPE_CBPS, the native two-arm Chronos marginal-policy-effect CBPS estimator and policy-gradient aggregator.
 - `src/estimators/gmm.rs`: GMM.
 - `src/estimators/transforms.rs`: PCA, RandomizedPCA, KernelBasis, NystromBasis, and RandomFourierFeatures.
 - `src/fit.rs`: shared convergence status and fit diagnostics.
