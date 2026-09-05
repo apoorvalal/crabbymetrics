@@ -1,10 +1,10 @@
 use crate::hyptests::wald_test_arrays;
 use crate::rla::sketch_ols_params;
 use crate::utils::{
-    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
-    pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
-    solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_u32, take_rows_vec,
-    to_array1, to_array1_i64, to_array2, to_array2_u32, validate_sample_weight,
+    add_intercept, apply_sqrt_weights, bootstrap_indices, diag_sqrt, invert_matrix,
+    pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores,
+    solve_least_squares_vec, take_rows, take_rows_u32, take_rows_vec, to_array1, to_array1_i64,
+    to_array2, to_array2_u32, validate_sample_weight,
 };
 use ndarray::{s, Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
@@ -92,18 +92,6 @@ pub(crate) fn split_params(params: &Array1<f64>, fit_intercept: bool) -> (f64, A
         (params[0], params.slice(s![1..]).to_owned())
     } else {
         (0.0, params.clone())
-    }
-}
-
-pub(crate) fn apply_sqrt_weights(
-    design: &Array2<f64>,
-    values: &Array1<f64>,
-    sample_weight: Option<&Array1<f64>>,
-) -> Result<(Array2<f64>, Array1<f64>), String> {
-    let sqrt_weight = sqrt_sample_weight(sample_weight, design.nrows())?;
-    match sqrt_weight.as_ref() {
-        Some(scale) => Ok((scale_rows(design, scale)?, scale_vec(values, scale)?)),
-        None => Ok((design.clone(), values.clone())),
     }
 }
 

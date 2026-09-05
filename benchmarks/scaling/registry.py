@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+# Increment when adapter semantics change; old timings are not interchangeable.
+ADAPTER_REVISION = 2
+
 
 class EstimatorSpec(TypedDict):
     family: str

@@ -9,15 +9,47 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.8.1` is published to PyPI and GitHub Releases. The matching 92-page documentation site is live from `gh-pages`.
+Current release state: the package is `v0.8.2`; its release and packaging checks are recorded in the 2026-08-20 entry below. Documentation is deployed separately through `gh-pages`.
 
-Current development state: PR #17 squash-merged into `master` as `854a63b`. The released code removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
+Current development state: `speedtest` includes the 30-estimator scaling inventory/report and external-reference parity tests on top of `v0.8.2`. The September cleanup hardens benchmark execution and persistence, corrects adapter comparisons, and reduces shared numerical-helper allocations. The historical scaling data has not been regenerated.
 
-The `feature/snmm-blips` branch adds three experimental dynamic-treatment estimators for review: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
+The current public surface includes the three experimental dynamic-treatment estimators originally developed on `feature/snmm-blips`: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
+
+## Speedtest Cleanup (2026-09-05)
+
+- Extracted process monitoring into `benchmarks/scaling/process_runner.py`.
+  Temporary-file output capture avoids pipe-buffer deadlocks; bounded output
+  tails, process-group cleanup, exit-code checks, and result validation preserve
+  timeout/RSS/error outcomes even for noisy or disappearing child processes.
+- Validated and sorted grids, rejected invalid budgets and unavailable adapter
+  selections, removed the memory-cap floor that could consume the system reserve,
+  and pruned missing-dependency paths. Completed cells are written immediately;
+  CSV append preserves column meaning and expands the schema without dropping
+  earlier rows. Host metadata retains previous append-run configurations.
+- Replaced the global Python fit timer with per-cell state and centralized the
+  shared 2SLS DGP. Corrected unpenalized sklearn GLMs, centered elastic net, the
+  horizontal donor-regression comparison, and the R fit-only timer. New output
+  records adapter revision 2; the original report explicitly marks its retained
+  August results as historical and requiring reruns for affected comparisons.
+- Consolidated square-root weighting across linear, IV, and ridge modules.
+  Removed full score-matrix copies from Newey-West lags, per-row cluster-score
+  copies, redundant Fisher-information copies, and per-row NumPy output buffers.
+  Matrix output still owns independent storage and supports empty dimensions.
+- Added failure-path, exact-adapter-input, array-layout/ownership, and hand-worked
+  covariance tests. The unchanged baseline passed 187 Python tests before edits.
+- Final verification: 238 Python tests and 8 Rust tests pass after a release-mode
+  extension rebuild; all 24 smoke-grid cells pass, including sklearn, PyFixest,
+  lifelines, and the runnable R references. Ruff, Rust formatting, and diff checks
+  pass. Clippy completes with the same 36 pre-existing structural/style warnings.
+  The scaling page renders all 33 executable cells with `jupyter: python3`,
+  avoiding the stale local kernel path. A 525 KiB sdist excludes rendered docs;
+  generated render artifacts were moved out of the source checkout.
+- Kept the likelihood expansion plan in `devspec.md`; NB2, grouped binomial,
+  discrete-time hazards, probit, and survival follow-ons remain future work.
 
 ## Dynamic Treatment Effects (2026-08-10)
 

@@ -1,14 +1,17 @@
 ---
 title: "Estimator scaling and reference implementations"
 description: "Guarded sample-size and dimension scaling for every exported estimator"
+jupyter: python3
 format:
   html:
     toc: true
     toc-depth: 3
     code-fold: true
 execute:
+  cache: true
   warning: false
   message: false
+freeze: auto
 ---
 
 This ablation inventories all 30 estimator classes exported by Crabbymetrics and
@@ -20,6 +23,18 @@ the common data-generating process preserves the estimator's semantics.
 
 The full source inventory, exact GitHub references, dimension conventions, and
 commands are in the [benchmark README](https://github.com/apoorvalal/crabbymetrics/blob/speedtest/benchmarks/scaling/README.md).
+
+::: {.callout-warning}
+## Historical Adapter Results
+
+The committed August 2026 measurements predate adapter revision 2. The September
+cleanup corrected sklearn logit/Poisson penalties, centered elastic-net inputs,
+the horizontal-panel ridge reference design, shared 2SLS sample draws, and the R
+fit-timing boundary. The figures below retain the original measurements; the
+affected comparisons require a fresh run before drawing performance conclusions.
+New rows include `adapter_revision` and should be analyzed separately from these
+historical results. The benchmark README records the exact corrections.
+:::
 
 ## Guard rails
 

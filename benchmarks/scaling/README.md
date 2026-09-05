@@ -28,10 +28,48 @@ Every cell runs in a fresh subprocess. The driver:
   after a timeout, hard-RSS kill, preflight rejection, or execution error;
 - writes both a long-form CSV and a host/configuration JSON file.
 
+Grid dimensions are validated, deduplicated, and sorted before execution so
+pruning always proceeds from smaller to larger samples. Missing executables and
+dependencies are recorded as `missing_dependency` and prune the remaining path.
+Unknown or provenance-only implementation names fail before launching the grid.
+
+Results are persisted after each cell. `--append` preserves existing CSV column
+order, extends the schema when new fields appear, and retains prior host/run
+configurations in `previous_runs`. Output is spooled to temporary files while
+the parent monitors the process, with bounded tails retained in memory. On POSIX
+systems, cleanup terminates the cell's process group, including surviving workers.
+Nonzero exits and invalid/nonfinite result payloads cannot be recorded as success.
+
 The automatic cap is the smaller of 40% of physical RAM and currently available
 RAM minus a 4 GiB system reserve. Override it only deliberately with
 `--memory-gib`. A `10_000_000 x 100` `float64` matrix is 8 GB before copies or
 solver workspaces, so large cells are expected to be skipped on ordinary hosts.
+An explicit cap never exceeds available memory minus the reserve; when that
+headroom is exhausted, all cells are rejected before launch.
+
+## Adapter revisions
+
+New rows and host metadata carry `adapter_revision=2` and the data-generation
+seed. The committed August 2026 results predate this revision and are retained
+as historical measurements, not silently relabeled as corrected comparisons.
+Rerun affected paths before using their timings for comparative conclusions:
+
+- sklearn logit and multinomial logit now explicitly use `C=np.inf`; Poisson
+  uses `alpha=0.0`, matching the native unpenalized objectives.
+- Both elastic-net adapters center the same design and response before fitting,
+  matching the centered-design parity contract.
+- Horizontal panel ridge now compares the native panel fit with the actual
+  sklearn donor regression on the same panel. The previous sklearn adapter
+  incorrectly fit an ordinary tabular ridge problem.
+- Native and PyFixest 2SLS now share outcome, treatment, and instrument draws.
+- R timing now excludes data-frame construction, package loading, and checksum
+  calculation, like the Python fit timer. R and NumPy still use independent RNGs:
+  these are distribution-matched designs, not identical sample realizations.
+
+The Python timer is per cell rather than module-global. The requested seed also
+initializes NumPy's legacy RNG for reproducible DoubleML fold draws; estimator
+adapters with an explicit internal seed retain the documented fixed value 1729.
+Different adapter revisions should not be pooled into a single timing summary.
 
 Run the full guarded grid:
 
@@ -81,6 +119,10 @@ Install every reference package and run the gate with:
 ```bash
 uv run --group test pytest -q tests/test_external_reference_parity.py
 ```
+
+The runner and adapter regression gate is `tests/test_scaling_runner.py`. It
+checks process cleanup, output capture, CSV persistence, pruning, budget
+validation, and the exact data/objectives passed to the corrected adapters.
 
 ## Estimator inventory and references
 

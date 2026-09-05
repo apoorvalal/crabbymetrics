@@ -10,23 +10,31 @@ import platform
 import time
 import traceback
 from collections.abc import Callable
+from dataclasses import dataclass
+from functools import partial
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 import numpy as np
-from registry import ESTIMATORS
 
-_LAST_FIT_SECONDS: float | None = None
+if __package__:
+    from .registry import ADAPTER_REVISION, ESTIMATORS, runnable_implementations
+else:
+    from registry import ADAPTER_REVISION, ESTIMATORS, runnable_implementations
 
 
-def measured_fit(function: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-    """Time only the estimator call, excluding deterministic data construction."""
+@dataclass
+class FitTimer:
+    """Per-cell fit timing, excluding data construction and result inspection."""
 
-    global _LAST_FIT_SECONDS
-    started = time.perf_counter()
-    result = function(*args, **kwargs)
-    _LAST_FIT_SECONDS = time.perf_counter() - started
-    return result
+    seconds: float | None = None
+
+    def __call__(self, function: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        self.seconds = None
+        started = time.perf_counter()
+        result = function(*args, **kwargs)
+        self.seconds = time.perf_counter() - started
+        return result
 
 
 def package_version(name: str) -> str:
@@ -45,6 +53,8 @@ def tabular_data(n: int, k: int, rng: np.random.Generator) -> dict[str, np.ndarr
 
 def panel_data(n: int, k: int, rng: np.random.Generator) -> dict[str, np.ndarray]:
     # Here n means periods and k means units, matching the registry's explicit semantics.
+    if n < 3 or k < 4:
+        raise ValueError("panel benchmarks require at least 3 periods and 4 units")
     n_controls = max(3, k // 2)
     n_treated = k - n_controls
     control_loadings = rng.normal(size=(n_controls, 2))
@@ -91,12 +101,12 @@ def result_checksum(model: Any) -> float:
     ):
         if hasattr(model, name):
             values = np.asarray(getattr(model, name), dtype=float).reshape(-1)
-            return float(np.nansum(values[: min(values.size, 64)]))
+            return float(np.sum(values[:64]))
     return 0.0
 
 
 def run_crabbymetrics(
-    estimator: str, n: int, k: int, rng: np.random.Generator
+    estimator: str, n: int, k: int, rng: np.random.Generator, *, measured_fit: FitTimer
 ) -> float:
     import crabbymetrics as cm
 
@@ -124,6 +134,8 @@ def run_crabbymetrics(
         model = cm.FixedEffectsOLS()
         measured_fit(model.fit, x, fe, y)
     elif estimator == "ElasticNet":
+        x -= x.mean(axis=0)
+        y -= y.mean()
         model = cm.ElasticNet(penalty=0.01, l1_ratio=0.5, max_iterations=300)
         measured_fit(model.fit, x, y)
     elif estimator == "Ridge":
@@ -164,16 +176,12 @@ def run_crabbymetrics(
         model = cm.AndersenGill()
         measured_fit(model.fit, x, start, stop, event)
     elif estimator == "TwoSLS":
-        z = rng.normal(size=(n, k))
-        endog = 0.7 * z[:, :1] + rng.normal(size=(n, 1))
-        exog = x
-        outcome = endog[:, 0] + data["signal"] + rng.normal(size=n)
+        z, endog, outcome = iv_data(data, rng)
         model = cm.TwoSLS()
-        measured_fit(model.fit, endog, exog, z, outcome)
+        measured_fit(model.fit, endog, x, z, outcome)
     elif estimator == "HorizontalPanelRidge":
-        pd = panel_data(max(8, n), max(4, k), rng)
         model = cm.HorizontalPanelRidge(penalty=1.0)
-        measured_fit(model.fit, pd["y"], pd["w"])
+        measured_fit(model.fit, data["y"], data["w"])
     elif estimator == "SyntheticControl":
         donors = rng.normal(size=(n, k))
         treated = donors @ (np.ones(k) / k) + rng.normal(scale=0.1, size=n)
@@ -264,7 +272,38 @@ def run_crabbymetrics(
     return result_checksum(model)
 
 
-def run_sklearn(implementation: str, n: int, k: int, rng: np.random.Generator) -> float:
+def iv_data(
+    data: dict[str, np.ndarray], rng: np.random.Generator
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    n, k = data["x"].shape
+    z = rng.normal(size=(n, k))
+    endog = 0.7 * z[:, :1] + rng.normal(size=(n, 1))
+    outcome = endog[:, 0] + data["signal"] + rng.normal(size=n)
+    return z, endog, outcome
+
+
+def run_horizontal_ridge(
+    n: int, k: int, rng: np.random.Generator, *, measured_fit: FitTimer
+) -> float:
+    from sklearn.linear_model import Ridge
+
+    data = panel_data(n, k, rng)
+    n_controls = max(3, k // 2)
+    t_pre = max(2, n * 2 // 3)
+    controls = data["y"][:n_controls, :t_pre].T
+    treated_mean = data["y"][n_controls:, :t_pre].mean(axis=0)
+    model = measured_fit(Ridge(alpha=1.0).fit, controls, treated_mean)
+    return float(np.sum(model.coef_))
+
+
+def run_sklearn(
+    implementation: str,
+    n: int,
+    k: int,
+    rng: np.random.Generator,
+    *,
+    measured_fit: FitTimer,
+) -> float:
     from sklearn.ensemble import BaggingRegressor
     from sklearn.linear_model import (
         ElasticNet,
@@ -283,19 +322,21 @@ def run_sklearn(implementation: str, n: int, k: int, rng: np.random.Generator) -
     elif implementation == "sklearn-ridge":
         model = measured_fit(Ridge(alpha=1.0).fit, x, y)
     elif implementation == "sklearn-elastic-net":
+        x -= x.mean(axis=0)
+        y -= y.mean()
         model = measured_fit(
             ElasticNet(alpha=0.01, l1_ratio=0.5, max_iter=300).fit, x, y
         )
     elif implementation == "sklearn-poisson-regressor":
         target = rng.poisson(np.exp(np.clip(data["signal"], -1.5, 1.5)))
-        model = measured_fit(PoissonRegressor(max_iter=100).fit, x, target)
+        model = measured_fit(PoissonRegressor(alpha=0.0, max_iter=100).fit, x, target)
     elif implementation in {"sklearn-logistic-regression", "sklearn-multinomial-logit"}:
         if implementation == "sklearn-logistic-regression":
             target = (data["signal"] + rng.logistic(size=n) > 0).astype(int)
         else:
             target = np.digitize(data["signal"] + rng.normal(size=n), [-0.5, 0.5])
         model = measured_fit(
-            LogisticRegression(max_iter=100, solver="lbfgs").fit, x, target
+            LogisticRegression(C=np.inf, max_iter=100, solver="lbfgs").fit, x, target
         )
     elif implementation == "sklearn-bagged-polynomial":
         base = make_pipeline(
@@ -323,7 +364,12 @@ def run_sklearn(implementation: str, n: int, k: int, rng: np.random.Generator) -
 
 
 def run_pyfixest(
-    implementation: str, n: int, k: int, rng: np.random.Generator
+    implementation: str,
+    n: int,
+    k: int,
+    rng: np.random.Generator,
+    *,
+    measured_fit: FitTimer,
 ) -> float:
     import pandas as pd
     import pyfixest as pf
@@ -336,11 +382,11 @@ def run_pyfixest(
         frame["fe"] = np.arange(n) % max(2, min(n // 20, 1000))
         model = measured_fit(pf.feols, f"y~{x_terms}|fe", data=frame, vcov="iid")
     elif implementation == "pyfixest-iv":
-        z = rng.normal(size=(n, k))
+        z, endog, outcome = iv_data(data, rng)
         z_names = [f"z{j}" for j in range(k)]
         frame = pd.concat([frame, pd.DataFrame(z, columns=z_names)], axis=1)
-        frame["d"] = 0.7 * z[:, 0] + rng.normal(size=n)
-        frame["y"] += frame["d"]
+        frame["d"] = endog[:, 0]
+        frame["y"] = outcome
         z_terms = "+".join(z_names)
         model = measured_fit(
             pf.feols, f"y~{x_terms}|d~{z_terms}", data=frame, vcov="iid"
@@ -350,7 +396,9 @@ def run_pyfixest(
     return float(np.sum(np.asarray(model.coef())))
 
 
-def run_lifelines(n: int, k: int, rng: np.random.Generator) -> float:
+def run_lifelines(
+    n: int, k: int, rng: np.random.Generator, *, measured_fit: FitTimer
+) -> float:
     import pandas as pd
     from lifelines import CoxPHFitter
 
@@ -365,7 +413,12 @@ def run_lifelines(n: int, k: int, rng: np.random.Generator) -> float:
 
 
 def run_doubleml(
-    implementation: str, n: int, k: int, rng: np.random.Generator
+    implementation: str,
+    n: int,
+    k: int,
+    rng: np.random.Generator,
+    *,
+    measured_fit: FitTimer,
 ) -> float:
     import doubleml as dml
     from doubleml.utils import PSProcessorConfig
@@ -402,10 +455,8 @@ def run_doubleml(
     return float(np.sum(np.asarray(model.coef)))
 
 
-PYTHON_RUNNERS: dict[str, Callable[[int, int, np.random.Generator], float]] = {
-    name: (
-        lambda n, k, rng, implementation=name: run_sklearn(implementation, n, k, rng)
-    )
+PYTHON_RUNNERS: dict[str, Callable[..., float]] = {
+    name: partial(run_sklearn, name)
     for name in (
         "sklearn-linear-regression",
         "sklearn-ridge",
@@ -418,11 +469,11 @@ PYTHON_RUNNERS: dict[str, Callable[[int, int, np.random.Generator], float]] = {
 }
 PYTHON_RUNNERS.update(
     {
-        "pyfixest-feols": lambda n, k, rng: run_pyfixest("pyfixest-feols", n, k, rng),
-        "pyfixest-iv": lambda n, k, rng: run_pyfixest("pyfixest-iv", n, k, rng),
+        "pyfixest-feols": partial(run_pyfixest, "pyfixest-feols"),
+        "pyfixest-iv": partial(run_pyfixest, "pyfixest-iv"),
         "lifelines-cox-ph": run_lifelines,
-        "doubleml-plr": lambda n, k, rng: run_doubleml("doubleml-plr", n, k, rng),
-        "doubleml-irm": lambda n, k, rng: run_doubleml("doubleml-irm", n, k, rng),
+        "doubleml-plr": partial(run_doubleml, "doubleml-plr"),
+        "doubleml-irm": partial(run_doubleml, "doubleml-irm"),
     }
 )
 
@@ -446,15 +497,33 @@ def main() -> int:
         "k": args.k,
         "python": platform.python_version(),
         "status": "ok",
+        "adapter_revision": ADAPTER_REVISION,
+        "seed": args.seed,
     }
     rng = np.random.default_rng(args.seed)
+    np.random.seed(args.seed % 2**32)
+    measured_fit = FitTimer()
     try:
+        if args.n <= 0 or args.k <= 0:
+            raise ValueError("n and k must be positive")
+        if args.implementation not in runnable_implementations(args.estimator):
+            raise ValueError(
+                "implementation is not a runnable reference for this estimator"
+            )
         cell_started = time.perf_counter()
         if args.implementation == "crabbymetrics":
-            checksum = run_crabbymetrics(args.estimator, args.n, args.k, rng)
+            checksum = run_crabbymetrics(
+                args.estimator, args.n, args.k, rng, measured_fit=measured_fit
+            )
             result["library_version"] = package_version("crabbymetrics")
         elif args.implementation in PYTHON_RUNNERS:
-            checksum = PYTHON_RUNNERS[args.implementation](args.n, args.k, rng)
+            runner = (
+                run_horizontal_ridge
+                if args.estimator == "HorizontalPanelRidge"
+                and args.implementation == "sklearn-ridge"
+                else PYTHON_RUNNERS[args.implementation]
+            )
+            checksum = runner(args.n, args.k, rng, measured_fit=measured_fit)
             package = {
                 "sklearn": "scikit-learn",
                 "pyfixest": "pyfixest",
@@ -469,9 +538,11 @@ def main() -> int:
                 "reference is provenance-only or lacks an exact runnable comparator"
             )
         result["cell_seconds"] = time.perf_counter() - cell_started
-        if _LAST_FIT_SECONDS is None:
+        if measured_fit.seconds is None:
             raise RuntimeError("benchmark adapter did not mark an estimator fit call")
-        result["fit_seconds"] = _LAST_FIT_SECONDS
+        if not math.isfinite(checksum):
+            raise RuntimeError("benchmark adapter returned a nonfinite checksum")
+        result["fit_seconds"] = measured_fit.seconds
         result["checksum"] = checksum
     except (ImportError, PackageNotFoundError) as exc:
         result.update(status="missing_dependency", error=str(exc))

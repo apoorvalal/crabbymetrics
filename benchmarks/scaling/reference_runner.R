@@ -36,12 +36,17 @@ require_or_emit <- function(package) {
   }
 }
 
+time_fit <- function(expr) {
+  started <- proc.time()[["elapsed"]]
+  model <- force(expr)
+  list(model = model, seconds = proc.time()[["elapsed"]] - started)
+}
+
 x <- matrix(rnorm(n * k), nrow = n, ncol = k)
 beta <- seq(0.2, 1.0, length.out = k) / sqrt(k)
 y <- as.vector(x %*% beta + rnorm(n))
 
 tryCatch({
-  started <- proc.time()[["elapsed"]]
   if (implementation == "r-fixest-feols") {
     require_or_emit("fixest")
     frame <- as.data.frame(x)
@@ -49,27 +54,27 @@ tryCatch({
     frame$y <- y
     frame$fe <- rep(seq_len(max(2L, min(n %/% 20L, 1000L))), length.out = n)
     rhs <- paste(names(frame)[seq_len(k)], collapse = "+")
-    model <- fixest::feols(as.formula(paste0("y~", rhs, "|fe")), data = frame, vcov = "iid")
-    checksum <- sum(stats::coef(model))
+    formula <- as.formula(paste0("y~", rhs, "|fe"))
+    timed <- time_fit(fixest::feols(formula, data = frame, vcov = "iid"))
   } else if (implementation == "r-survival-coxph") {
     require_or_emit("survival")
     tt <- rexp(n, exp(pmax(-1, pmin(1, as.vector(x %*% beta))))) + 0.01
     event <- rbinom(n, 1, 0.8)
     frame <- data.frame(time = tt, event = event, x)
-    model <- survival::coxph(survival::Surv(time, event) ~ ., data = frame, ties = "breslow")
-    checksum <- sum(stats::coef(model))
+    timed <- time_fit(survival::coxph(survival::Surv(time, event) ~ ., data = frame, ties = "breslow"))
   } else if (implementation == "r-survival-andersen-gill") {
     require_or_emit("survival")
     start <- runif(n)
     stop <- start + rexp(n) + 0.01
     event <- rbinom(n, 1, 0.7)
     frame <- data.frame(start = start, stop = stop, event = event, x)
-    model <- survival::coxph(survival::Surv(start, stop, event) ~ ., data = frame, ties = "breslow")
-    checksum <- sum(stats::coef(model))
+    timed <- time_fit(survival::coxph(survival::Surv(start, stop, event) ~ ., data = frame, ties = "breslow"))
   } else {
     stop("reference is registered for provenance but has no semantically exact generic-grid runner")
   }
-  emit("ok", proc.time()[["elapsed"]] - started, checksum)
+  checksum <- sum(stats::coef(timed$model))
+  if (!is.finite(checksum)) stop("benchmark fit returned nonfinite coefficients")
+  emit("ok", timed$seconds, checksum)
 }, error = function(exc) {
   emit("error", error = paste(class(exc)[[1]], conditionMessage(exc), sep = ": "))
   quit(status = 1)

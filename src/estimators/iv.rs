@@ -1,11 +1,11 @@
-use super::linear::{apply_sqrt_weights, linear_covariance, split_params};
+use super::linear::{linear_covariance, split_params};
 use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::count_sketch_joint;
 use crate::utils::{
-    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
-    pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
-    solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec,
-    to_array1, to_array1_i64, to_array2,
+    add_intercept, apply_sqrt_weights, bootstrap_indices, diag_sqrt, invert_matrix,
+    pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows,
+    scale_vec, solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows,
+    take_rows_vec, to_array1, to_array1_i64, to_array2,
 };
 use ndarray::{concatenate, s, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};

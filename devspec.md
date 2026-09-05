@@ -18,7 +18,40 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
-## v0.8.1 API-Hardening Release Status (2026-07-12)
+## Current Branch State (2026-09-05)
+
+The package version is `0.8.2`. The `speedtest` branch includes the augmented
+balancing release, the inventory and scaling report for all 30 estimators, and
+deterministic external-reference parity tests. The likelihood-method expansion
+plan below remains pending; this cleanup does not introduce new estimator APIs.
+
+The cleanup separates subprocess monitoring from grid orchestration, validates
+grid/budget inputs, honors the memory reserve, checkpoints each result, preserves
+CSV schemas and previous run metadata on append, and records missing dependencies
+and invalid child results. Benchmark adapter revision 2 fixes unpenalized GLM
+comparators, centered elastic net, same-panel horizontal ridge, same-sample 2SLS,
+and the R fit-only timing boundary. August measurements remain historical and
+must not be treated as timings of these corrected adapters.
+
+Shared square-root weighting now lives in `src/utils.rs`, used by linear, IV,
+and ridge estimators. Covariance helpers use views and in-place accumulation;
+NumPy matrix outputs cross the ndarray-version boundary with a flat owned buffer.
+Public estimator signatures, covariance formulas, and fitted-state ownership
+remain unchanged. Runner failure-path tests and array-layout tests supplement
+the existing numerical parity suite.
+
+Validation on this checkout passes 238 Python tests, 8 Rust tests, and 24 live
+benchmark smoke cells. The scaling page renders and the docs-excluded sdist is
+525 KiB. Clippy still reports 36 pre-existing structural/style warnings; this
+pass does not rename public estimator acronyms or reshape public signatures to
+silence those diagnostics.
+
+Follow-up priorities remain Cox risk-set performance and subject-clustered
+Andersen--Gill inference, followed by NB2 under the likelihood-method plan. Full
+scaling reruns should record adapter revision, environment, and convergence
+outcomes before making speed comparisons.
+
+## v0.8.1 API-Hardening Release History (2026-07-12)
 
 PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, after the `v0.8.0` refactor and estimator-audit release. Release `v0.8.1` now packages the remaining P0--P1 hardening items identified by the stocktake:
 

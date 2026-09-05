@@ -1,6 +1,8 @@
 use linfa_linalg::qr::{LeastSquaresQrInto, QRInto};
-use ndarray::{concatenate, Array1, Array2, Axis};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use ndarray::{s, Array1, Array2, Axis};
+use numpy::{
+    PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods,
+};
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -9,8 +11,23 @@ use std::collections::BTreeMap;
 pub(crate) use crate::validation::validate_sample_weight;
 
 pub fn add_intercept(x: &Array2<f64>) -> Array2<f64> {
-    let ones = Array2::ones((x.nrows(), 1));
-    concatenate(Axis(1), &[ones.view(), x.view()]).expect("failed to add intercept")
+    let mut design = Array2::ones((x.nrows(), x.ncols() + 1));
+    design.slice_mut(s![.., 1..]).assign(x);
+    design
+}
+
+pub(crate) fn apply_sqrt_weights(
+    design: &Array2<f64>,
+    values: &Array1<f64>,
+    sample_weight: Option<&Array1<f64>>,
+) -> Result<(Array2<f64>, Array1<f64>), String> {
+    if design.nrows() != values.len() {
+        return Err("response length must match the number of observations".to_string());
+    }
+    match sqrt_sample_weight(sample_weight, design.nrows())? {
+        Some(scale) => Ok((scale_rows(design, &scale)?, scale_vec(values, &scale)?)),
+        None => Ok((design.clone(), values.clone())),
+    }
 }
 
 pub fn sqrt_sample_weight(
@@ -91,10 +108,11 @@ pub fn score_cov_newey_west(scores: &Array2<f64>, lags: usize) -> Array2<f64> {
     let max_lag = lags.min(n - 1);
     for lag in 1..=max_lag {
         let weight = 1.0 - lag as f64 / (max_lag as f64 + 1.0);
-        let lead = scores.slice(ndarray::s![lag.., ..]).to_owned();
-        let lagged = scores.slice(ndarray::s![..(n - lag), ..]).to_owned();
+        let lead = scores.slice(s![lag.., ..]);
+        let lagged = scores.slice(s![..(n - lag), ..]);
         let gamma = lead.t().dot(&lagged);
-        cov = cov + weight * (&gamma + &gamma.t().to_owned());
+        cov.scaled_add(weight, &gamma);
+        cov.scaled_add(weight, &gamma.t());
     }
 
     cov
@@ -115,15 +133,15 @@ pub fn score_cov_cluster(
         let entry = grouped
             .entry(clusters[i])
             .or_insert_with(|| Array1::<f64>::zeros(p));
-        *entry = &*entry + &scores.row(i).to_owned();
+        *entry += &scores.row(i);
     }
 
     let n_clusters = grouped.len();
     let mut cov = Array2::<f64>::zeros((p, p));
     for summed in grouped.values() {
-        let col = summed.clone().insert_axis(Axis(1));
-        let row = summed.clone().insert_axis(Axis(0));
-        cov = cov + col.dot(&row);
+        let col = summed.view().insert_axis(Axis(1));
+        let row = summed.view().insert_axis(Axis(0));
+        cov += &col.dot(&row);
     }
 
     Ok((cov, n_clusters))
@@ -204,8 +222,7 @@ pub fn fisher_cov_binary(x: &Array2<f64>, probs: &Array1<f64>) -> Result<Array2<
         }
     }
 
-    let info = weighted.t().dot(&weighted);
-    let mut info_reg = info.clone();
+    let mut info_reg = weighted.t().dot(&weighted);
     for i in 0..k {
         info_reg[[i, i]] += 1e-8;
     }
@@ -227,8 +244,7 @@ pub fn fisher_cov_poisson(x: &Array2<f64>, mu: &Array1<f64>) -> Result<Array2<f6
         }
     }
 
-    let info = weighted.t().dot(&weighted);
-    let mut info_reg = info.clone();
+    let mut info_reg = weighted.t().dot(&weighted);
     for i in 0..k {
         info_reg[[i, i]] += 1e-8;
     }
@@ -399,17 +415,66 @@ pub fn pyarray1_from_i32<'py>(py: Python<'py>, data: &Array1<i32>) -> Bound<'py,
 }
 
 pub fn pyarray2_from_f64<'py>(py: Python<'py>, data: &Array2<f64>) -> Bound<'py, PyArray2<f64>> {
-    if data.nrows() == 0 || data.ncols() == 0 {
-        return PyArray2::zeros(py, [data.nrows(), data.ncols()], false);
-    }
-    let vec2: Vec<Vec<f64>> = data.rows().into_iter().map(|row| row.to_vec()).collect();
-    PyArray2::from_vec2(py, &vec2).expect("failed to build array")
+    // NumPy and the solvers can resolve different ndarray versions. Transfer a
+    // flat buffer across that boundary, preserving logical row-major order.
+    PyArray1::from_vec(py, data.iter().copied().collect())
+        .reshape([data.nrows(), data.ncols()])
+        .expect("array dimensions must match the flat buffer")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::diag_sqrt;
-    use ndarray::array;
+    use super::*;
+    use ndarray::{array, ShapeBuilder};
+
+    #[test]
+    fn weighted_design_preserves_inputs_and_validates_shapes() {
+        let design = array![[1.0, 2.0], [3.0, 4.0]];
+        let values = array![5.0, 6.0];
+        let (x, y) = apply_sqrt_weights(&design, &values, Some(&array![0.0, 4.0])).unwrap();
+        assert_eq!(x, array![[0.0, 0.0], [6.0, 8.0]]);
+        assert_eq!(y, array![0.0, 12.0]);
+        assert_eq!(design, array![[1.0, 2.0], [3.0, 4.0]]);
+        assert_eq!(
+            apply_sqrt_weights(&design, &values, None).unwrap(),
+            (design.clone(), values)
+        );
+        assert!(apply_sqrt_weights(&design, &array![1.0], None).is_err());
+        assert!(apply_sqrt_weights(&design, &array![1.0, 2.0], Some(&array![0.0, 0.0])).is_err());
+    }
+
+    #[test]
+    fn intercept_handles_column_major_and_empty_designs() {
+        let x = Array2::from_shape_vec((2, 2).f(), vec![1.0, 3.0, 2.0, 4.0]).unwrap();
+        assert_eq!(add_intercept(&x), array![[1.0, 1.0, 2.0], [1.0, 3.0, 4.0]]);
+        assert_eq!(add_intercept(&Array2::zeros((0, 2))).dim(), (0, 3));
+        assert_eq!(
+            add_intercept(&Array2::zeros((2, 0))),
+            Array2::<f64>::ones((2, 1))
+        );
+    }
+
+    #[test]
+    fn covariance_helpers_match_hand_calculated_scores() {
+        let scores = array![[1.0, 2.0], [3.0, -1.0], [-2.0, 4.0]];
+        assert_eq!(score_cov_iid(&scores), array![[14.0, -9.0], [-9.0, 21.0]]);
+        assert_eq!(
+            score_cov_newey_west(&scores, 1),
+            array![[11.0, 0.5], [0.5, 15.0]]
+        );
+        assert_eq!(
+            score_cov_newey_west(&scores, 100),
+            score_cov_newey_west(&scores, 2)
+        );
+        let (clustered, groups) = score_cov_cluster(&scores, &array![-4, 2, -4]).unwrap();
+        assert_eq!(groups, 2);
+        assert_eq!(clustered, array![[10.0, -9.0], [-9.0, 37.0]]);
+        assert!(score_cov_cluster(&scores, &array![1]).is_err());
+        assert_eq!(
+            score_cov_newey_west(&Array2::zeros((0, 2)), 3),
+            Array2::<f64>::zeros((2, 2))
+        );
+    }
 
     #[test]
     fn diag_sqrt_accepts_valid_covariance() {
