@@ -1,0 +1,410 @@
+{
+  "commit": "921fd2c140f9ed0f1359c9c424e777413eb49482",
+  "python": "3.12.9",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "packages": {
+    "crabbymetrics": "0.8.2",
+    "numpy": "2.5.2",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.0"
+  },
+  "thread_environment": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "RCPP_PARALLEL_NUM_THREADS": "1"
+  },
+  "cases": {
+    "prediction_width": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "OLS": {
+            "status": "PanicException",
+            "message": "ndarray: inputs 120 \u00d7 2 and 3 \u00d7 1 are not compatible for matrix multiplication"
+          },
+          "Ridge": {
+            "status": "PanicException",
+            "message": "ndarray: inputs 120 \u00d7 2 and 3 \u00d7 1 are not compatible for matrix multiplication"
+          },
+          "ElasticNet": {
+            "status": "PanicException",
+            "message": "ndarray: inputs 120 \u00d7 2 and 3 \u00d7 1 are not compatible for matrix multiplication"
+          }
+        }
+      },
+      "wall_seconds": 0.05969162494875491,
+      "peak_rss_bytes": 15007744,
+      "returncode": 0
+    },
+    "ridge_bad_weights": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "scalar": {
+            "status": "ValueError",
+            "message": "sample_weight length must match the number of observations"
+          },
+          "grid": {
+            "status": "PanicException",
+            "message": "ndarray: index out of bounds"
+          }
+        }
+      },
+      "wall_seconds": 0.06598004105035216,
+      "peak_rss_bytes": 15187968,
+      "returncode": 0
+    },
+    "nonfinite_inputs": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "OLS": {
+            "status": "returned",
+            "value": {
+              "finite_predictions": false
+            }
+          },
+          "Ridge": {
+            "status": "returned",
+            "value": {
+              "finite_predictions": false
+            }
+          },
+          "SyntheticControl_one_donor": {
+            "status": "returned",
+            "value": {
+              "weights": [
+                1.0
+              ],
+              "pre_rmse": "nan",
+              "converged": true
+            }
+          },
+          "KernelBasis_nan_bandwidth": {
+            "status": "returned",
+            "value": {
+              "finite_basis": false
+            }
+          }
+        }
+      },
+      "wall_seconds": 0.0674297499936074,
+      "peak_rss_bytes": 13402112,
+      "returncode": 0
+    },
+    "failed_refit": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "OLS": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "returned",
+              "value": true
+            }
+          },
+          "Ridge": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "returned",
+              "value": true
+            }
+          },
+          "ElasticNet": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "ValueError",
+              "message": "ElasticNet model is not fitted"
+            }
+          },
+          "Logit": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "ValueError",
+              "message": "Logit model is not fitted"
+            }
+          }
+        }
+      },
+      "wall_seconds": 0.06700233300216496,
+      "peak_rss_bytes": 14745600,
+      "returncode": 0
+    },
+    "elasticnet_translation": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "native": {
+            "max_prediction_change": 1.988493119069107,
+            "centered_mse": 0.24276452110240504,
+            "shifted_mse": 0.6802067597846675,
+            "shifted_converged": true
+          },
+          "sklearn": {
+            "max_prediction_change": 3.7192471324942744e-15,
+            "centered_mse": 0.24276452110240493,
+            "shifted_mse": 0.24276452110240498
+          }
+        }
+      },
+      "wall_seconds": 0.710870125098154,
+      "peak_rss_bytes": 156418048,
+      "returncode": 0
+    },
+    "zero_weight_rows": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "max_prediction_change": 0.0,
+          "vanilla_se_ratio": [
+            0.6979824404521128,
+            0.6979824404521129,
+            0.6979824404521128
+          ],
+          "expected_df_ratio": 0.6979824404521128
+        }
+      },
+      "wall_seconds": 0.11897325003519654,
+      "peak_rss_bytes": 16023552,
+      "returncode": 0
+    },
+    "gmm_moment_scale": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "expected_mean": 4.0,
+          "fits": {
+            "1.0": {
+              "coef": [
+                3.999999959999997
+              ],
+              "converged": true,
+              "nit": 1,
+              "criterion": 8.000001179961075e-16
+            },
+            "1e-06": {
+              "coef": [
+                0.00039996000399960006
+              ],
+              "converged": true,
+              "nit": 1,
+              "criterion": 7.998400239968004e-12
+            },
+            "1e-10": {
+              "coef": [
+                0.0
+              ],
+              "converged": true,
+              "nit": 0,
+              "criterion": 8.000000000000001e-20
+            }
+          }
+        }
+      },
+      "wall_seconds": 0.06605062505695969,
+      "peak_rss_bytes": 12910592,
+      "returncode": 0
+    },
+    "gmm_vanilla": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "vanilla_se": [
+            0.07071067776510137
+          ],
+          "sandwich_se": [
+            0.1968263141049896
+          ],
+          "expected_se": 0.19682631607325268
+        }
+      },
+      "wall_seconds": 0.06604620802681893,
+      "peak_rss_bytes": 15400960,
+      "returncode": 0
+    },
+    "callback_data_mutation": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "before_first_summary": [
+            0.4665223442108408
+          ],
+          "after_first_summary": [
+            0.1166305860527102
+          ],
+          "original_se": 0.1166305860514025
+        }
+      },
+      "wall_seconds": 0.0660773750860244,
+      "peak_rss_bytes": 14499840,
+      "returncode": 0
+    },
+    "cox_translation": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "0.0": {
+            "status": "returned",
+            "value": {
+              "coef": [
+                0.7747293152826578
+              ],
+              "log_likelihood": -581.206735706821,
+              "converged": true,
+              "iterations": 4
+            }
+          },
+          "100.0": {
+            "status": "ValueError",
+            "message": "CoxPH optimization did not converge after 50 iterations: Maximum number of iterations reached"
+          },
+          "1000.0": {
+            "status": "ValueError",
+            "message": "CoxPH optimization did not converge after 50 iterations: Maximum number of iterations reached"
+          }
+        }
+      },
+      "wall_seconds": 0.1315071249846369,
+      "peak_rss_bytes": 13205504,
+      "returncode": 0
+    },
+    "cox_scaling": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "measurements": [
+            {
+              "n": 100,
+              "median_seconds": 0.00031712499912828207,
+              "iterations": 4
+            },
+            {
+              "n": 200,
+              "median_seconds": 0.0008267909288406372,
+              "iterations": 3
+            },
+            {
+              "n": 400,
+              "median_seconds": 0.0035731670213863254,
+              "iterations": 3
+            },
+            {
+              "n": 800,
+              "median_seconds": 0.013730457983911037,
+              "iterations": 3
+            }
+          ],
+          "log_log_slope": 1.8420161868247695
+        }
+      },
+      "wall_seconds": 0.13312074996065348,
+      "peak_rss_bytes": 44498944,
+      "returncode": 0
+    },
+    "ill_conditioned_ols": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "condition_number": 21189140.009371214,
+          "native_se": [
+            58854.71410439645,
+            58854.713603885815
+          ],
+          "qr_reference_se": [
+            57664.67484446441,
+            57664.67435407412
+          ],
+          "max_relative_se_error": 0.020637231773904308
+        }
+      },
+      "wall_seconds": 0.06676395796239376,
+      "peak_rss_bytes": 12484608,
+      "returncode": 0
+    },
+    "matrix_completion_diagnostics": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "recorded_last_rmse": 0.9079435897476538,
+          "returned_fit_rmse": 0.7664352292637815,
+          "starting_zero_fit_rmse": 0.9079435897476537,
+          "converged": false,
+          "summary_completed_counterfactual_share_memory": false
+        }
+      },
+      "wall_seconds": 0.0659672919427976,
+      "peak_rss_bytes": 14974976,
+      "returncode": 0
+    },
+    "balancing_nan": {
+      "result": {
+        "status": "timeout"
+      },
+      "wall_seconds": 20.004229375044815,
+      "peak_rss_bytes": 43270144,
+      "returncode": -15
+    },
+    "logit_rank_deficiency": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "design_rank": 1,
+          "parameter_count": 2,
+          "coef": [
+            0.0
+          ],
+          "intercept": 0.0,
+          "coef_se": [
+            7071.068963055778
+          ],
+          "intercept_se": 7071.06896305578,
+          "inference_available": true,
+          "converged": true
+        }
+      },
+      "wall_seconds": 0.06829904101323336,
+      "peak_rss_bytes": 15499264,
+      "returncode": 0
+    },
+    "gil_responsiveness": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "requested_timer_delay": 0.01,
+          "sleep_control": {
+            "call_seconds": 0.16009595897048712,
+            "timer_delay_seconds": 0.015098167001269758
+          },
+          "native_fits": [
+            {
+              "call_seconds": 0.1772098750807345,
+              "timer_delay_seconds": 0.17719433410093188
+            },
+            {
+              "call_seconds": 0.17006620904430747,
+              "timer_delay_seconds": 0.1700545420171693
+            }
+          ]
+        }
+      },
+      "wall_seconds": 0.588229208951816,
+      "peak_rss_bytes": 43237376,
+      "returncode": 0
+    }
+  }
+}

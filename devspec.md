@@ -46,8 +46,24 @@ benchmark smoke cells. The scaling page renders and the docs-excluded sdist is
 pass does not rename public estimator acronyms or reshape public signatures to
 silence those diagnostics.
 
-Follow-up priorities remain Cox risk-set performance and subject-clustered
-Andersen--Gill inference, followed by NB2 under the likelihood-method plan. Full
+The cleanup is pushed as `921fd2c` on `origin/speedtest`. A subsequent review-only
+estimator audit is recorded in `reviews/estimator-hardening/index.qmd`, with a
+resource-guarded synthetic probe harness and JSON evidence. It covers 30
+estimators and five adjacent transformers, identifies 15 correctness/contract
+findings and seven performance proposals, and leaves implementation pending
+user review. The report is published for review at
+<https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
+
+Proposed priorities now start with boundary validation and allocation guards,
+ElasticNet intercept centering, GMM scale-aware convergence, stable Cox risk
+sums, and weighted/rank-aware inference. Refit and callback-ownership policies
+require explicit decisions. Follow-on performance work includes Cox risk-set
+sweeps, reusable ridge factorizations, bounded panel/bootstrap allocations, and
+GIL release around owned pure-Rust work. No estimator implementation has changed
+as part of this audit; its acceptance criteria are a proposal, not completed work.
+
+Subject-clustered Andersen--Gill inference and NB2 remain queued under the
+likelihood-method plan after the relevant hardening work. Full
 scaling reruns should record adapter revision, environment, and convergence
 outcomes before making speed comparisons.
 

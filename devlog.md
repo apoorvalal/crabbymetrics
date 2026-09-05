@@ -19,6 +19,29 @@ Release packaging now excludes both rendered `docs/` content and the local untra
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## Estimator Audit for Review (2026-09-05)
+
+- Pushed the completed cleanup as `921fd2c` to `origin/speedtest`.
+- Reviewed all 30 estimator exports, five feature transformers, and shared
+  numerical helpers. Added a standalone Quarto review under
+  `reviews/estimator-hardening/`, a 16-case isolated synthetic probe harness,
+  and machine-readable evidence tied to the audited commit.
+- Reproduced prediction/CV panics, nonfinite-input failures, ElasticNet's known
+  intercept-centering debt, GMM scale-sensitive false convergence, Cox clipping
+  non-invariance, zero-weight degrees-of-freedom effects, rank-deficient Logit
+  inference, mutable callback-data inference, and misaligned panel diagnostics.
+  The report distinguishes reproduced defects from source-only concerns,
+  existing limitations, and API policy choices.
+- Added seven performance proposals with equivalence and measurement gates,
+  including Cox risk-set sweeps, repeated ridge factorization reuse, allocation
+  reductions, streaming bootstrap indices, and pure-Rust GIL release.
+- The unchanged estimator implementation still passes all 238 Python tests
+  (15 warnings). The NaN balancing probe exceeds its 20-second guard; this is
+  recorded as a timeout, not an asserted infinite loop. Large allocation risks
+  are derived from source and were not stress-executed.
+- Review URL: <https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
+  Estimator implementation and new likelihood-family work await user approval.
+
 ## Speedtest Cleanup (2026-09-05)
 
 - Extracted process monitoring into `benchmarks/scaling/process_runner.py`.
