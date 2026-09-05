@@ -1,11 +1,12 @@
 use crate::hyptests::wald_test_arrays;
 use crate::rla::sketch_ols_params;
 use crate::utils::{
-    add_intercept, apply_sqrt_weights, bootstrap_indices, diag_sqrt, invert_matrix,
-    pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores,
+    add_intercept, apply_sqrt_weights, bootstrap_indices, diag_sqrt, inverse_crossproduct,
+    invert_matrix, pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores,
     solve_least_squares_vec, take_rows, take_rows_u32, take_rows_vec, to_array1, to_array1_i64,
-    to_array2, to_array2_u32, validate_sample_weight,
+    to_array2, to_array2_u32, validate_sample_weight, weighted_inference_sample,
 };
+use crate::validation::{validate_finite, validate_prediction};
 use ndarray::{s, Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -87,6 +88,25 @@ fn absorbed_fe_rank(fe: &Array2<u32>) -> Result<(usize, &'static str), String> {
     }
 }
 
+fn weighted_fe_rank(
+    fe: &Array2<u32>,
+    weights: Option<&Array1<f64>>,
+) -> Result<(usize, &'static str), String> {
+    if let Some(w) = weights {
+        let keep: Vec<usize> = w
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| (v > 0.0).then_some(i))
+            .collect();
+        return absorbed_fe_rank(&fe.select(ndarray::Axis(0), &keep));
+    }
+    absorbed_fe_rank(fe)
+}
+
+fn positive_n(n: usize, weights: Option<&Array1<f64>>) -> usize {
+    weights.map_or(n, |w| w.iter().filter(|&&v| v > 0.0).count())
+}
+
 pub(crate) fn split_params(params: &Array1<f64>, fit_intercept: bool) -> (f64, Array1<f64>) {
     if fit_intercept {
         (params[0], params.slice(s![1..]).to_owned())
@@ -151,8 +171,7 @@ fn ols_hc_covariance(
         return Err("need more observations than regressors".to_string());
     }
 
-    let xtx = design.t().dot(design);
-    let xtx_inv = invert_matrix(&xtx)?;
+    let xtx_inv = inverse_crossproduct(design)?;
     let mut weighted_design = design.clone();
     for i in 0..n {
         let leverage = design.row(i).dot(&xtx_inv.dot(&design.row(i).to_owned()));
@@ -193,14 +212,13 @@ pub(crate) fn linear_covariance(
 
     match vcov {
         "vanilla" => {
-            let xtx_inv = invert_matrix(&design.t().dot(design))?;
+            let xtx_inv = inverse_crossproduct(design)?;
             let sigma2 = residuals.dot(residuals) / df_resid;
             Ok(xtx_inv.mapv(|value| value * sigma2))
         }
         "hc0" | "hc1" | "hc2" | "hc3" => ols_hc_covariance(design, residuals, vcov, df_resid),
         "newey_west" | "cluster" => {
-            let xtx = design.t().dot(design);
-            let bread = invert_matrix(&xtx)?;
+            let bread = inverse_crossproduct(design)?;
             let param_scores = linear_parameter_scores(design, residuals, &bread)?;
             sandwich_cov_from_parameter_scores(&param_scores, vcov, df_resid, lags, clusters)
         }
@@ -255,6 +273,8 @@ fn fit_fixed_effects_ols(
     fe: &Array2<u32>,
     sample_weight: Option<&Array1<f64>>,
 ) -> PyResult<FixedEffectsOlsFitResult> {
+    validate_finite("x", x).map_err(PyValueError::new_err)?;
+    validate_finite("y", y).map_err(PyValueError::new_err)?;
     if x.nrows() != y.len() || fe.nrows() != y.len() {
         return Err(PyValueError::new_err("row count mismatch"));
     }
@@ -266,6 +286,30 @@ fn fit_fixed_effects_ols(
     }
     if let Some(weights) = sample_weight {
         validate_sample_weight(weights, y.len()).map_err(PyValueError::new_err)?;
+        let keep: Vec<usize> = weights
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| (v > 0.0).then_some(i))
+            .collect();
+        if keep.len() < y.len() {
+            let fit = fit_fixed_effects_ols(
+                &take_rows(x, &keep),
+                &take_rows_vec(y, &keep),
+                &take_rows_u32(fe, &keep),
+                Some(&take_rows_vec(weights, &keep)),
+            )?;
+            let mut x_resid = Array2::zeros(x.raw_dim());
+            let mut y_resid = Array1::zeros(y.len());
+            for (i, &row) in keep.iter().enumerate() {
+                x_resid.row_mut(row).assign(&fit.x_resid.row(i));
+                y_resid[row] = fit.y_resid[i];
+            }
+            return Ok(FixedEffectsOlsFitResult {
+                coef: fit.coef,
+                x_resid,
+                y_resid,
+            });
+        }
     }
 
     let params = WithinSolverParams::default();
@@ -324,6 +368,18 @@ pub struct OLS {
     x: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
     sample_weight: Option<Array1<f64>>,
+    sketch: Option<(usize, Option<u64>)>,
+}
+
+impl OLS {
+    fn clear_fit(&mut self) {
+        self.coef = None;
+        self.x = None;
+        self.y = None;
+        self.sample_weight = None;
+        self.intercept = 0.0;
+        self.sketch = None;
+    }
 }
 
 #[pymethods]
@@ -337,10 +393,12 @@ impl OLS {
             x: None,
             y: None,
             sample_weight: None,
+            sketch: None,
         }
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let y = to_array1(&y);
         if x.nrows() != y.len() {
@@ -363,6 +421,7 @@ impl OLS {
         y: PyReadonlyArray1<f64>,
         sample_weight: Vec<f64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let y = to_array1(&y);
         if x.nrows() != y.len() {
@@ -388,12 +447,16 @@ impl OLS {
         sketch_size: usize,
         seed: Option<u64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let y = to_array1(&y);
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
+        validate_finite("y", &y).map_err(PyValueError::new_err)?;
         if x.nrows() != y.len() {
             return Err(PyValueError::new_err("x rows must match y length"));
         }
         let params = sketch_ols_params(&x, &y, self.fit_intercept, sketch_size, seed)?;
+        self.sketch = Some((sketch_size, seed));
         let (intercept, coef) = split_params(&params, self.fit_intercept);
         self.intercept = intercept;
         self.coef = Some(coef);
@@ -413,6 +476,7 @@ impl OLS {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("OLS model is not fitted"))?;
         let x = to_array2(&x);
+        validate_prediction(&x, coef.len()).map_err(PyValueError::new_err)?;
         let pred = x.dot(coef) + self.intercept;
         Ok(pyarray1_from_f64(py, &pred))
     }
@@ -456,9 +520,13 @@ impl OLS {
         }
         let fitted = design.dot(&params);
         let residuals = y - &fitted;
-        let (design_work, residuals_work) = apply_sqrt_weights(&design, &residuals, sample_weight)
-            .map_err(PyValueError::new_err)?;
-        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let (design_work, residuals_work, cluster_ids) = weighted_inference_sample(
+            &design,
+            &residuals,
+            sample_weight,
+            clusters.as_ref().map(to_array1_i64),
+        )
+        .map_err(PyValueError::new_err)?;
         let vcov_normalized = vcov.to_ascii_lowercase();
         let cov = linear_covariance(
             &design_work,
@@ -490,12 +558,19 @@ impl OLS {
         dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov_normalized.as_str())?;
         dict.set_item("anytime_valid", anytime_valid)?;
+        dict.set_item("nobs", design_work.nrows())?;
+        dict.set_item("weight_type", "analytic")?;
+        dict.set_item("sketch_size", self.sketch.map(|s| s.0))?;
+        dict.set_item("sketch_seed", self.sketch.and_then(|s| s.1))?;
+        dict.set_item("inference_approximate", self.sketch.is_some())?;
+        dict.set_item("original_nobs", y.len())?;
+        dict.set_item("sketch_method", self.sketch.map(|_| "count_sketch"))?;
 
         if anytime_valid {
             if !(0.0..1.0).contains(&level) {
                 return Err(PyValueError::new_err("level must be in (0, 1)"));
             }
-            let n = design.nrows();
+            let n = design_work.nrows();
             let p = design.ncols();
             let nu = (n - p) as f64;
             let t_values = &params / &se_all;
@@ -575,10 +650,13 @@ impl OLS {
             params.assign(coef);
         }
         let residuals = y - &design.dot(&params);
-        let (design_work, residuals_work) =
-            apply_sqrt_weights(&design, &residuals, self.sample_weight.as_ref())
-                .map_err(PyValueError::new_err)?;
-        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let (design_work, residuals_work, cluster_ids) = weighted_inference_sample(
+            &design,
+            &residuals,
+            self.sample_weight.as_ref(),
+            clusters.as_ref().map(to_array1_i64),
+        )
+        .map_err(PyValueError::new_err)?;
         let cov = linear_covariance(
             &design_work,
             &residuals_work,
@@ -615,7 +693,8 @@ impl OLS {
             n_bootstrap,
             x.ncols() + if self.fit_intercept { 1 } else { 0 },
         ));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
             let wb = sample_weight.map(|weights| take_rows_vec(weights, idx));
@@ -706,6 +785,18 @@ pub struct FixedEffectsOLS {
     y_resid: Option<Array1<f64>>,
 }
 
+impl FixedEffectsOLS {
+    fn clear_fit(&mut self) {
+        self.coef = None;
+        self.x = None;
+        self.y = None;
+        self.fe = None;
+        self.sample_weight = None;
+        self.x_resid = None;
+        self.y_resid = None;
+    }
+}
+
 #[pymethods]
 impl FixedEffectsOLS {
     #[new]
@@ -727,6 +818,7 @@ impl FixedEffectsOLS {
         fe: PyReadonlyArray2<u32>,
         y: PyReadonlyArray1<f64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let fe = to_array2_u32(&fe);
         let y = to_array1(&y);
@@ -749,6 +841,7 @@ impl FixedEffectsOLS {
         y: PyReadonlyArray1<f64>,
         sample_weight: Vec<f64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let fe = to_array2_u32(&fe);
         let y = to_array1(&y);
@@ -790,8 +883,10 @@ impl FixedEffectsOLS {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
         let (absorbed_df, absorbed_df_method) =
-            absorbed_fe_rank(fe).map_err(PyValueError::new_err)?;
-        let residual_df = y_resid.len() as f64 - x_resid.ncols() as f64 - absorbed_df as f64;
+            weighted_fe_rank(fe, self.sample_weight.as_ref()).map_err(PyValueError::new_err)?;
+        let residual_df = positive_n(y_resid.len(), self.sample_weight.as_ref()) as f64
+            - x_resid.ncols() as f64
+            - absorbed_df as f64;
         if residual_df <= 0.0 {
             return Err(PyValueError::new_err(
                 "absorbed fixed effects leave no residual degrees of freedom",
@@ -800,9 +895,13 @@ impl FixedEffectsOLS {
         let sample_weight = self.sample_weight.as_ref();
 
         let residuals = y_resid - &x_resid.dot(coef);
-        let (design_work, residuals_work) = apply_sqrt_weights(x_resid, &residuals, sample_weight)
-            .map_err(PyValueError::new_err)?;
-        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let (design_work, residuals_work, cluster_ids) = weighted_inference_sample(
+            x_resid,
+            &residuals,
+            sample_weight,
+            clusters.as_ref().map(to_array1_i64),
+        )
+        .map_err(PyValueError::new_err)?;
         let cov = linear_covariance(
             &design_work,
             &residuals_work,
@@ -851,8 +950,11 @@ impl FixedEffectsOLS {
             .fe
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
-        let (absorbed_df, _) = absorbed_fe_rank(fe).map_err(PyValueError::new_err)?;
-        let residual_df = y_resid.len() as f64 - x_resid.ncols() as f64 - absorbed_df as f64;
+        let (absorbed_df, _) =
+            weighted_fe_rank(fe, self.sample_weight.as_ref()).map_err(PyValueError::new_err)?;
+        let residual_df = positive_n(y_resid.len(), self.sample_weight.as_ref()) as f64
+            - x_resid.ncols() as f64
+            - absorbed_df as f64;
         if residual_df <= 0.0 {
             return Err(PyValueError::new_err(
                 "absorbed fixed effects leave no residual degrees of freedom",
@@ -860,10 +962,13 @@ impl FixedEffectsOLS {
         }
         let vcov = vcov.unwrap_or("hc1");
         let residuals = y_resid - &x_resid.dot(coef);
-        let (design_work, residuals_work) =
-            apply_sqrt_weights(x_resid, &residuals, self.sample_weight.as_ref())
-                .map_err(PyValueError::new_err)?;
-        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let (design_work, residuals_work, cluster_ids) = weighted_inference_sample(
+            x_resid,
+            &residuals,
+            self.sample_weight.as_ref(),
+            clusters.as_ref().map(to_array1_i64),
+        )
+        .map_err(PyValueError::new_err)?;
         let cov = linear_covariance(
             &design_work,
             &residuals_work,
@@ -901,7 +1006,8 @@ impl FixedEffectsOLS {
 
         let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
         let mut out = Array2::<f64>::zeros((n_bootstrap, x.ncols()));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
             let feb = take_rows_u32(fe, idx);

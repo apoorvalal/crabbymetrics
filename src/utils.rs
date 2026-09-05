@@ -21,6 +21,8 @@ pub(crate) fn apply_sqrt_weights(
     values: &Array1<f64>,
     sample_weight: Option<&Array1<f64>>,
 ) -> Result<(Array2<f64>, Array1<f64>), String> {
+    crate::validation::validate_finite("design", design)?;
+    crate::validation::validate_finite("response", values)?;
     if design.nrows() != values.len() {
         return Err("response length must match the number of observations".to_string());
     }
@@ -76,7 +78,68 @@ pub fn invert_matrix(a: &Array2<f64>) -> Result<Array2<f64>, String> {
         .map_err(|err| err.to_string())
 }
 
+/// Invert X'X through R, without forming a condition-number-squaring Gram matrix.
+pub(crate) fn inverse_crossproduct(x: &Array2<f64>) -> Result<Array2<f64>, String> {
+    crate::validation::validate_finite("design", x)?;
+    if x.ncols() == 0 || x.nrows() < x.ncols() {
+        return Err("inference requires a nonempty, full-column-rank design".to_string());
+    }
+    let r = x.clone().qr_into().map_err(|err| err.to_string())?.into_r();
+    let scale = r.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+    let tolerance = f64::EPSILON * x.nrows().max(x.ncols()) as f64 * scale;
+    if r.diag().iter().any(|v| v.abs() <= tolerance) {
+        return Err("inference unavailable: design is rank deficient".to_string());
+    }
+    let p = r.ncols();
+    let mut inv = Array2::<f64>::eye(p);
+    for col in 0..p {
+        for row in (0..p).rev() {
+            let mut value = inv[[row, col]];
+            for j in row + 1..p {
+                value -= r[[row, j]] * inv[[j, col]];
+            }
+            inv[[row, col]] = value / r[[row, row]];
+        }
+    }
+    Ok(inv.dot(&inv.t()))
+}
+
+type InferenceSample = (Array2<f64>, Array1<f64>, Option<Array1<i64>>);
+
+pub(crate) fn weighted_inference_sample(
+    design: &Array2<f64>,
+    residuals: &Array1<f64>,
+    weights: Option<&Array1<f64>>,
+    clusters: Option<Array1<i64>>,
+) -> Result<InferenceSample, String> {
+    // Analytic weights: zero-mass rows do not count as observations or clusters.
+    if clusters.as_ref().is_some_and(|c| c.len() != design.nrows()) {
+        return Err("clusters length must match the number of observations".to_string());
+    }
+    let (x, e) = apply_sqrt_weights(design, residuals, weights)?;
+    if let Some(w) = weights {
+        let keep: Vec<usize> = w
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| (v > 0.0).then_some(i))
+            .collect();
+        if keep.len() != w.len() {
+            return Ok((
+                x.select(Axis(0), &keep),
+                e.select(Axis(0), &keep),
+                clusters.map(|c| c.select(Axis(0), &keep)),
+            ));
+        }
+    }
+    Ok((x, e, clusters))
+}
+
 pub fn solve_least_squares_vec(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>, String> {
+    crate::validation::validate_finite("design", a)?;
+    crate::validation::validate_finite("response", b)?;
+    if a.nrows() == 0 || a.ncols() == 0 || a.nrows() != b.len() {
+        return Err("least squares requires a nonempty design and matching response".to_string());
+    }
     let solution = a
         .to_owned()
         .least_squares_into(b.to_owned().insert_axis(Axis(1)))
@@ -85,6 +148,11 @@ pub fn solve_least_squares_vec(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array
 }
 
 pub fn solve_least_squares_mat(a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>, String> {
+    crate::validation::validate_finite("design", a)?;
+    crate::validation::validate_finite("response", b)?;
+    if a.nrows() == 0 || a.ncols() == 0 || a.nrows() != b.nrows() {
+        return Err("least squares requires a nonempty design and matching response".to_string());
+    }
     a.to_owned()
         .least_squares_into(b.to_owned())
         .map_err(|err| err.to_string())
@@ -222,11 +290,7 @@ pub fn fisher_cov_binary(x: &Array2<f64>, probs: &Array1<f64>) -> Result<Array2<
         }
     }
 
-    let mut info_reg = weighted.t().dot(&weighted);
-    for i in 0..k {
-        info_reg[[i, i]] += 1e-8;
-    }
-    invert_matrix(&info_reg)
+    inverse_crossproduct(&weighted)
 }
 
 pub fn fisher_cov_poisson(x: &Array2<f64>, mu: &Array1<f64>) -> Result<Array2<f64>, String> {
@@ -238,17 +302,13 @@ pub fn fisher_cov_poisson(x: &Array2<f64>, mu: &Array1<f64>) -> Result<Array2<f6
 
     let mut weighted = Array2::<f64>::zeros((n, k));
     for i in 0..n {
-        let w = mu[i].max(1e-12);
+        let w = mu[i];
         for j in 0..k {
             weighted[[i, j]] = x[[i, j]] * w.sqrt();
         }
     }
 
-    let mut info_reg = weighted.t().dot(&weighted);
-    for i in 0..k {
-        info_reg[[i, i]] += 1e-8;
-    }
-    invert_matrix(&info_reg)
+    inverse_crossproduct(&weighted)
 }
 
 pub fn qmle_cov_poisson(
@@ -327,21 +387,29 @@ pub fn fisher_cov_multinomial(
         }
     }
 
-    for i in 0..dim {
-        h[[i, i]] += 1e-8;
+    inverse_crossproduct(x)?;
+    let scale = h.diag().iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+    let eig = nalgebra::DMatrix::from_row_iterator(dim, dim, h.iter().copied()).symmetric_eigen();
+    if eig
+        .eigenvalues
+        .iter()
+        .any(|v| *v <= f64::EPSILON * n.max(dim) as f64 * scale)
+    {
+        return Err("inference unavailable: Fisher information is rank deficient".to_string());
     }
-
     invert_matrix(&h)
 }
 
-pub fn bootstrap_indices(n: usize, n_bootstrap: usize, seed: Option<u64>) -> Vec<Vec<usize>> {
+pub fn bootstrap_indices(
+    n: usize,
+    n_bootstrap: usize,
+    seed: Option<u64>,
+) -> impl Iterator<Item = Vec<usize>> {
     let mut rng = match seed {
         Some(s) => StdRng::seed_from_u64(s),
         None => StdRng::from_entropy(),
     };
-    (0..n_bootstrap)
-        .map(|_| (0..n).map(|_| rng.gen_range(0..n)).collect())
-        .collect()
+    (0..n_bootstrap).map(move |_| (0..n).map(|_| rng.gen_range(0..n)).collect())
 }
 
 pub fn take_rows(x: &Array2<f64>, idx: &[usize]) -> Array2<f64> {
@@ -493,5 +561,21 @@ mod tests {
     fn diag_sqrt_rejects_nonfinite_or_nonsquare_covariance() {
         assert!(diag_sqrt(&array![[f64::NAN]]).is_err());
         assert!(diag_sqrt(&array![[1.0, 0.0]]).is_err());
+    }
+
+    #[test]
+    fn bootstrap_stream_preserves_rng_sequence() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let expected: Vec<Vec<usize>> = (0..7)
+            .map(|_| (0..13).map(|_| rng.gen_range(0..13)).collect())
+            .collect();
+        assert_eq!(
+            bootstrap_indices(13, 7, Some(42)).collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(
+            bootstrap_indices(0, 2, Some(42)).collect::<Vec<_>>(),
+            vec![Vec::<usize>::new(); 2]
+        );
     }
 }

@@ -190,7 +190,7 @@ def test_gmm_summary_supports_vanilla_newey_west_and_cluster_covariances():
     )
     model.fit({"x": x, "y": y}, np.zeros(3), weighting="identity")
 
-    vanilla = model.summary(vcov="vanilla")
+    vanilla = model.summary(vcov="vanilla", assume_optimal_weighting=True)
     cluster = model.summary(vcov="sandwich", omega="cluster", clusters=clusters)
     hac = model.summary(vcov="sandwich", omega="newey_west", lags=4)
 
@@ -250,8 +250,8 @@ def test_gmm_fit_sketch_tracks_many_moment_linear_iv():
         weighting="identity",
         seed=33,
     )
-    full_summary = full.summary(vcov="vanilla")
-    sketch_summary = sketch.summary(vcov="vanilla")
+    full_summary = full.summary(vcov="vanilla", assume_optimal_weighting=True)
+    sketch_summary = sketch.summary(vcov="vanilla", assume_optimal_weighting=True)
 
     assert sketch_summary["n_moments"] == 16
     assert sketch_summary["original_n_moments"] == m

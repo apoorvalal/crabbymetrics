@@ -70,6 +70,9 @@ fn parse_kernel_method(
     coef0: f64,
     degree: f64,
 ) -> PyResult<KernelMethod<f64>> {
+    if !bandwidth.is_finite() || !coef0.is_finite() || !degree.is_finite() {
+        return Err(PyValueError::new_err("kernel parameters must be finite"));
+    }
     match kernel.to_ascii_lowercase().as_str() {
         "gaussian" | "rbf" => {
             if bandwidth <= 0.0 {
@@ -110,6 +113,9 @@ fn cross_kernel_matrix(
     x_train: &Array2<f64>,
     method: &KernelMethod<f64>,
 ) -> PyResult<Array2<f64>> {
+    crate::validation::validate_finite("x", x_new).map_err(PyValueError::new_err)?;
+    crate::validation::validate_dense_capacity("cross-kernel", x_new.nrows(), x_train.nrows())
+        .map_err(PyValueError::new_err)?;
     if x_new.ncols() != x_train.ncols() {
         return Err(PyValueError::new_err(
             "x columns must match the fitted training design",
@@ -339,11 +345,16 @@ impl KernelBasis {
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>) -> PyResult<()> {
+        self.train_x = None;
+        self.train_basis = None;
         let x = to_array2(&x);
         if x.nrows() == 0 {
             return Err(PyValueError::new_err("x must have at least one row"));
         }
 
+        crate::validation::validate_finite("x", &x).map_err(PyValueError::new_err)?;
+        crate::validation::validate_dense_capacity("kernel", x.nrows(), x.nrows())
+            .map_err(PyValueError::new_err)?;
         let method = parse_kernel_method(&self.kernel, self.bandwidth, self.coef0, self.degree)?;
         let params = Kernel::<f64>::params().method(method);
         let fitted = params.transform(&x);

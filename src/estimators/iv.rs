@@ -2,11 +2,12 @@ use super::linear::{linear_covariance, split_params};
 use crate::hyptests::{f_sf, wald_test_arrays};
 use crate::rla::count_sketch_joint;
 use crate::utils::{
-    add_intercept, apply_sqrt_weights, bootstrap_indices, diag_sqrt, invert_matrix,
-    pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows,
-    scale_vec, solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows,
-    take_rows_vec, to_array1, to_array1_i64, to_array2,
+    add_intercept, bootstrap_indices, diag_sqrt, invert_matrix, pyarray1_from_f64,
+    pyarray2_from_f64, sandwich_cov_from_parameter_scores, scale_rows, scale_vec,
+    solve_least_squares_mat, solve_least_squares_vec, sqrt_sample_weight, take_rows, take_rows_vec,
+    to_array1, to_array1_i64, to_array2,
 };
+use crate::validation::{validate_finite, validate_prediction};
 use ndarray::{concatenate, s, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -38,6 +39,9 @@ fn build_iv_designs(
     z: &Array2<f64>,
     fit_intercept: bool,
 ) -> PyResult<(Array2<f64>, Array2<f64>)> {
+    validate_finite("x_endog", x_endog).map_err(PyValueError::new_err)?;
+    validate_finite("x_exog", x_exog).map_err(PyValueError::new_err)?;
+    validate_finite("z", z).map_err(PyValueError::new_err)?;
     if x_endog.nrows() != x_exog.nrows() || x_endog.nrows() != z.nrows() {
         return Err(PyValueError::new_err("row count mismatch"));
     }
@@ -82,11 +86,34 @@ fn twosls_covariance(
     vcov: &str,
     lags: Option<usize>,
     clusters: Option<&Array1<i64>>,
+    sample_weight: Option<&Array1<f64>>,
 ) -> Result<Array2<f64>, String> {
     let n = x_design.nrows();
     let p = x_design.ncols();
     if residuals.len() != n || z_design.nrows() != n {
         return Err("residual length mismatch".to_string());
+    }
+    if clusters.is_some_and(|c| c.len() != n) {
+        return Err("clusters length must match the number of observations".to_string());
+    }
+    if let Some(weights) = sample_weight {
+        let keep: Vec<usize> = weights
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| (v > 0.0).then_some(i))
+            .collect();
+        if keep.len() != n {
+            let ids = clusters.map(|c| c.select(Axis(0), &keep));
+            return twosls_covariance(
+                &take_rows(x_design, &keep),
+                &take_rows(z_design, &keep),
+                &take_rows_vec(residuals, &keep),
+                vcov,
+                lags,
+                ids.as_ref(),
+                None,
+            );
+        }
     }
 
     let n_f64 = n as f64;
@@ -217,6 +244,20 @@ pub struct TwoSLS {
     z: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
     sample_weight: Option<Array1<f64>>,
+    sketch: Option<(usize, Option<u64>)>,
+}
+
+impl TwoSLS {
+    fn clear_fit(&mut self) {
+        self.coef = None;
+        self.intercept = 0.0;
+        self.x_endog = None;
+        self.x_exog = None;
+        self.z = None;
+        self.y = None;
+        self.sample_weight = None;
+        self.sketch = None;
+    }
 }
 
 #[pymethods]
@@ -232,6 +273,7 @@ impl TwoSLS {
             z: None,
             y: None,
             sample_weight: None,
+            sketch: None,
         }
     }
 
@@ -242,6 +284,7 @@ impl TwoSLS {
         z: PyReadonlyArray2<f64>,
         y: PyReadonlyArray1<f64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x_endog = to_array2(&x_endog);
         let x_exog = to_array2(&x_exog);
         let z = to_array2(&z);
@@ -268,6 +311,7 @@ impl TwoSLS {
         y: PyReadonlyArray1<f64>,
         sample_weight: Vec<f64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x_endog = to_array2(&x_endog);
         let x_exog = to_array2(&x_exog);
         let z = to_array2(&z);
@@ -304,6 +348,7 @@ impl TwoSLS {
         sketch_size: usize,
         seed: Option<u64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x_endog = to_array2(&x_endog);
         let x_exog = to_array2(&x_exog);
         let z = to_array2(&z);
@@ -318,7 +363,7 @@ impl TwoSLS {
             seed,
         )?;
         let (intercept, coef) = split_params(&fit.params, self.fit_intercept);
-
+        self.sketch = Some((sketch_size, seed));
         self.coef = Some(coef);
         self.intercept = intercept;
         self.x_endog = Some(x_endog);
@@ -339,6 +384,7 @@ impl TwoSLS {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("TwoSLS model is not fitted"))?;
         let x = to_array2(&x);
+        validate_prediction(&x, coef.len()).map_err(PyValueError::new_err)?;
         let pred: Array1<f64> = x.dot(coef) + self.intercept;
         Ok(pyarray1_from_f64(py, &pred))
     }
@@ -401,6 +447,7 @@ impl TwoSLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            self.sample_weight.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
         let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
@@ -418,6 +465,15 @@ impl TwoSLS {
         dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
         dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
+        dict.set_item("sketch_size", self.sketch.map(|s| s.0))?;
+        dict.set_item("sketch_seed", self.sketch.and_then(|s| s.1))?;
+        dict.set_item("inference_approximate", self.sketch.is_some())?;
+        dict.set_item(
+            "nobs",
+            sample_weight.map_or(y.len(), |w| w.iter().filter(|&&v| v > 0.0).count()),
+        )?;
+        dict.set_item("original_nobs", y.len())?;
+        dict.set_item("sketch_method", self.sketch.map(|_| "count_sketch"))?;
         Ok(dict.into())
     }
 
@@ -480,6 +536,7 @@ impl TwoSLS {
             vcov,
             lags,
             cluster_ids.as_ref(),
+            self.sample_weight.as_ref(),
         )
         .map_err(PyValueError::new_err)?;
         let rmat = to_array2(&r);
@@ -540,13 +597,16 @@ impl TwoSLS {
             ));
         }
 
-        let (design_work, y_work) =
-            apply_sqrt_weights(&design, &y_null, self.sample_weight.as_ref())
-                .map_err(PyValueError::new_err)?;
+        let (design_work, y_work, cluster_ids) = crate::utils::weighted_inference_sample(
+            &design,
+            &y_null,
+            self.sample_weight.as_ref(),
+            clusters.as_ref().map(to_array1_i64),
+        )
+        .map_err(PyValueError::new_err)?;
         let params =
             solve_least_squares_vec(&design_work, &y_work).map_err(PyValueError::new_err)?;
         let residuals = y_work - &design_work.dot(&params);
-        let cluster_ids = clusters.as_ref().map(to_array1_i64);
         let cov = linear_covariance(
             &design_work,
             &residuals,
@@ -617,7 +677,8 @@ impl TwoSLS {
             n_bootstrap,
             coef.len() + if self.fit_intercept { 1 } else { 0 },
         ));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let x_endog_b = take_rows(x, idx);
             let x_exog_b = take_rows(x_exog, idx);
             let z_b = take_rows(z, idx);

@@ -928,6 +928,10 @@ impl BalancingWeights {
         self.diagnostics = None;
         let covariates = to_array2(&covariates);
         let target_covariates = to_array2(&target_covariates);
+        crate::validation::validate_finite("covariates", &covariates)
+            .map_err(PyValueError::new_err)?;
+        crate::validation::validate_finite("target_covariates", &target_covariates)
+            .map_err(PyValueError::new_err)?;
         if covariates.ncols() != target_covariates.ncols() {
             return Err(PyValueError::new_err(
                 "covariates and target_covariates must have the same number of columns",

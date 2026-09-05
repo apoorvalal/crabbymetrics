@@ -1,8 +1,9 @@
 use super::balancing::fit_quadratic_calibration;
 use crate::utils::{
     add_intercept, diag_sqrt, invert_matrix, pyarray1_from_f64, pyarray2_from_f64,
-    sandwich_cov_from_parameter_scores, solve_least_squares_mat, solve_least_squares_vec,
+    sandwich_cov_from_parameter_scores, solve_least_squares_vec,
 };
+use linfa_linalg::qr::QRInto;
 use ndarray::{Array1, Array2, Array3};
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::exceptions::PyValueError;
@@ -57,18 +58,6 @@ fn ridge_fit_vec(x: &Array2<f64>, y: &Array1<f64>, penalty: f64) -> Result<Array
     let mut augmented_y = Array1::<f64>::zeros(augmented_x.nrows());
     augmented_y.slice_mut(ndarray::s![..y.len()]).assign(y);
     solve_least_squares_vec(&augmented_x, &augmented_y)
-}
-
-fn ridge_fit_mat(x: &Array2<f64>, y: &Array2<f64>, penalty: f64) -> Result<Array2<f64>, String> {
-    if x.nrows() != y.nrows() {
-        return Err("ridge row count mismatch".to_string());
-    }
-    let augmented_x = ridge_augmented_design(x, penalty);
-    let mut augmented_y = Array2::<f64>::zeros((augmented_x.nrows(), y.ncols()));
-    augmented_y
-        .slice_mut(ndarray::s![..y.nrows(), ..])
-        .assign(y);
-    solve_least_squares_mat(&augmented_x, &augmented_y)
 }
 
 fn ridge_predict_vec(x: &Array2<f64>, coef: &Array1<f64>) -> Result<Array1<f64>, String> {
@@ -607,6 +596,15 @@ impl ParallelTrendsSNMM {
         treatment: PyReadonlyArray2<f64>,
         history: Option<PyReadonlyArray3<f64>>,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.vcov = None;
+        self.se = None;
+        self.n_units = None;
+        self.n_periods = None;
+        self.n_moment_rows = None;
+        self.propensity_min = None;
+        self.propensity_max = None;
+        self.max_abs_moment = None;
         let y = Array2::from_shape_vec(
             (y.shape()[0], y.shape()[1]),
             y.as_array().iter().copied().collect(),
@@ -682,6 +680,11 @@ impl ParallelTrendsSNMM {
                 }
 
                 let available_horizons = self.max_horizon.min(n_treat_periods - m);
+                let augmented_design = ridge_augmented_design(&x_train, self.nuisance_penalty);
+                let augmented_rows = augmented_design.nrows();
+                let nuisance_factor = augmented_design
+                    .qr_into()
+                    .map_err(|err| PyValueError::new_err(err.to_string()))?;
                 for horizon in 1..=available_horizons {
                     let k = m + horizon;
                     let mut nuisance_targets =
@@ -694,9 +697,14 @@ impl ParallelTrendsSNMM {
                             nuisance_targets[[row, 1 + column]] = design_diff[column];
                         }
                     }
-                    let nuisance_coef =
-                        ridge_fit_mat(&x_train, &nuisance_targets, self.nuisance_penalty)
-                            .map_err(PyValueError::new_err)?;
+                    let mut augmented_targets =
+                        Array2::zeros((augmented_rows, nuisance_targets.ncols()));
+                    augmented_targets
+                        .slice_mut(ndarray::s![..train_units.len(), ..])
+                        .assign(&nuisance_targets);
+                    let nuisance_coef = nuisance_factor
+                        .solve(&augmented_targets)
+                        .map_err(|err| PyValueError::new_err(err.to_string()))?;
                     let nuisance_prediction = ridge_predict_mat(&x_test, &nuisance_coef)
                         .map_err(PyValueError::new_err)?;
 
@@ -927,6 +935,10 @@ impl RegressionBlip {
         treatment: PyReadonlyArray2<f64>,
         history: Option<PyReadonlyArray3<f64>>,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.stage_se = None;
+        self.n_units = None;
+        self.n_periods = None;
         let y = Array2::from_shape_vec(
             (y.shape()[0], y.shape()[1]),
             y.as_array().iter().copied().collect(),
@@ -1002,7 +1014,7 @@ impl RegressionBlip {
                 Some(&unit_ids),
             )
             .map_err(PyValueError::new_err)?;
-            stage_se[lag] = covariance[[1, 1]].abs().sqrt();
+            stage_se[lag] = diag_sqrt(&covariance).map_err(PyValueError::new_err)?[1];
         }
 
         self.coef = Some(coef);

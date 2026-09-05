@@ -583,58 +583,158 @@ impl WeibullPH {
     }
 }
 
+struct RiskMoments {
+    log_scale: f64,
+    mass: f64,
+    first: Array1<f64>,
+    second: Array2<f64>,
+}
+
+impl RiskMoments {
+    fn new(p: usize) -> Self {
+        Self {
+            log_scale: f64::NEG_INFINITY,
+            mass: 0.0,
+            first: Array1::zeros(p),
+            second: Array2::zeros((p, p)),
+        }
+    }
+
+    fn add(&mut self, eta: f64, x: ndarray::ArrayView1<'_, f64>, derivatives: bool) {
+        if eta > self.log_scale {
+            let factor = (self.log_scale - eta).exp();
+            self.mass *= factor;
+            self.first *= factor;
+            self.second *= factor;
+            self.log_scale = eta;
+        }
+        let weight = (eta - self.log_scale).exp();
+        self.mass += weight;
+        if derivatives {
+            for a in 0..x.len() {
+                self.first[a] += weight * x[a];
+                for b in 0..x.len() {
+                    self.second[[a, b]] += weight * x[a] * x[b];
+                }
+            }
+        }
+    }
+}
+
 fn cox_ll_grad_hess(
     beta: &Array1<f64>,
     x: &Array2<f64>,
     start: Option<&Array1<f64>>,
     stop: &Array1<f64>,
     event: &Array1<f64>,
+    order: &[usize],
+    derivatives: bool,
 ) -> (f64, Array1<f64>, Array2<f64>) {
     let n = stop.len();
     let p = x.ncols();
     let eta = x.dot(beta);
-    let risk_score = eta.mapv(|v| v.clamp(-40.0, 40.0).exp());
     let mut ll = 0.0;
     let mut grad = Array1::<f64>::zeros(p);
     let mut hess = Array2::<f64>::zeros((p, p));
-    for i in 0..n {
-        if event[i] != 1.0 {
-            continue;
+    if eta.iter().any(|v| !v.is_finite()) {
+        return (f64::NAN, grad, hess);
+    }
+    let mut risk = RiskMoments::new(p);
+    let mut first = 0;
+    while first < n {
+        let t = stop[order[first]];
+        let mut end = first + 1;
+        while end < n && stop[order[end]] == t {
+            end += 1;
         }
-        let t = stop[i];
-        let mut denom = 0.0;
-        let mut xbar_num = Array1::<f64>::zeros(p);
-        let mut xx_num = Array2::<f64>::zeros((p, p));
-        for r in 0..n {
-            let enters = start.map(|s| s[r] < t).unwrap_or(true);
-            if enters && stop[r] >= t {
-                let w = risk_score[r];
-                denom += w;
-                for a in 0..p {
-                    xbar_num[a] += w * x[[r, a]];
+        if let Some(entry) = start {
+            risk = RiskMoments::new(p);
+            for r in 0..n {
+                if entry[r] < t && stop[r] >= t {
+                    risk.add(eta[r], x.row(r), derivatives);
                 }
+            }
+        } else {
+            // Descending stop times make right-censored risk sets cumulative.
+            for &r in &order[first..end] {
+                risk.add(eta[r], x.row(r), derivatives);
+            }
+        }
+        for &i in &order[first..end] {
+            if event[i] != 1.0 {
+                continue;
+            }
+            if risk.mass <= 0.0 {
+                return (f64::NAN, grad, hess);
+            }
+            ll += (eta[i] - risk.log_scale) - risk.mass.ln();
+            if derivatives {
                 for a in 0..p {
+                    let mean_a = risk.first[a] / risk.mass;
+                    grad[a] += x[[i, a]] - mean_a;
                     for b in 0..p {
-                        xx_num[[a, b]] += w * x[[r, a]] * x[[r, b]];
+                        hess[[a, b]] -=
+                            risk.second[[a, b]] / risk.mass - mean_a * risk.first[b] / risk.mass;
                     }
                 }
             }
         }
-        if denom <= 0.0 {
-            continue;
-        }
-        let xbar = xbar_num.mapv(|v| v / denom);
-        ll += eta[i] - denom.ln();
-        for a in 0..p {
-            grad[a] += x[[i, a]] - xbar[a];
-        }
-        for a in 0..p {
-            for b in 0..p {
-                hess[[a, b]] -= xx_num[[a, b]] / denom - xbar[a] * xbar[b];
+        first = end;
+    }
+    (ll, grad, hess)
+}
+
+#[cfg(test)]
+mod cox_tests {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn risk_sums_match_breslow_and_finite_differences() {
+        let x = array![
+            [0.2, -1.0],
+            [1.0, 0.3],
+            [-0.7, 0.8],
+            [0.1, 0.6],
+            [0.8, -0.2]
+        ];
+        let stop = array![2.0, 3.0, 3.0, 5.0, 7.0];
+        let entry = array![0.0, 1.0, 0.0, 2.0, 3.0];
+        let event = array![1.0, 1.0, 0.0, 1.0, 1.0];
+        let beta = array![0.4, -0.2];
+        let order = vec![4, 3, 1, 2, 0];
+        for start in [None, Some(&entry)] {
+            let (ll, grad, hess) = cox_ll_grad_hess(&beta, &x, start, &stop, &event, &order, true);
+            let eta = x.dot(&beta);
+            let mut reference = 0.0;
+            for i in 0..stop.len() {
+                if event[i] == 1.0 {
+                    let sum: f64 = (0..stop.len())
+                        .filter(|&j| stop[j] >= stop[i] && start.is_none_or(|s| s[j] < stop[i]))
+                        .map(|j| eta[j].exp())
+                        .sum();
+                    reference += eta[i] - sum.ln();
+                }
+            }
+            assert!((ll - reference).abs() < 1e-12);
+            assert!(
+                (ll - cox_ll_grad_hess(&beta, &x, start, &stop, &event, &order, false).0).abs()
+                    < 1e-12
+            );
+            for j in 0..2 {
+                let mut hi = beta.clone();
+                let mut lo = beta.clone();
+                hi[j] += 1e-5;
+                lo[j] -= 1e-5;
+                let upper = cox_ll_grad_hess(&hi, &x, start, &stop, &event, &order, true);
+                let lower = cox_ll_grad_hess(&lo, &x, start, &stop, &event, &order, true);
+                assert!((grad[j] - (upper.0 - lower.0) / 2e-5).abs() < 1e-8);
+                for k in 0..2 {
+                    assert!((hess[[k, j]] - (upper.1[k] - lower.1[k]) / 2e-5).abs() < 1e-8);
+                }
             }
         }
     }
-    (ll, grad, hess)
 }
 
 fn fit_cox_core(
@@ -651,13 +751,23 @@ fn fit_cox_core(
     if !tol.is_finite() || tol <= 0.0 {
         return Err("tolerance must be positive and finite".to_string());
     }
+    if event.iter().all(|&v| v == 0.0) {
+        return Err("Cox inference requires at least one event".to_string());
+    }
+    let center = x
+        .mean_axis(ndarray::Axis(0))
+        .ok_or("x must have observations")?;
+    let centered = x - &center;
+    let x = &centered;
+    let mut order: Vec<usize> = (0..stop.len()).collect();
+    order.sort_by(|&a, &b| stop[b].total_cmp(&stop[a]));
     let p = x.ncols();
     let mut beta = Array1::<f64>::zeros(p);
     let mut termination_reason = None;
     let mut used = 0_u64;
     for iter in 0..max_iter {
         used = (iter + 1) as u64;
-        let (ll, grad, hess) = cox_ll_grad_hess(&beta, x, start, stop, event);
+        let (ll, grad, hess) = cox_ll_grad_hess(&beta, x, start, stop, event, &order, true);
         if max_abs(&grad) < tol {
             termination_reason = Some("Gradient tolerance reached".to_string());
             break;
@@ -668,7 +778,7 @@ fn fit_cox_core(
         let mut accepted = false;
         for _ in 0..30 {
             let cand = &beta - &(step.mapv(|v| scale * v));
-            let (cand_ll, _, _) = cox_ll_grad_hess(&cand, x, start, stop, event);
+            let (cand_ll, _, _) = cox_ll_grad_hess(&cand, x, start, stop, event, &order, false);
             if cand_ll.is_finite() && cand_ll >= ll - 1e-10 {
                 beta = cand;
                 accepted = true;
@@ -686,7 +796,7 @@ fn fit_cox_core(
             break;
         }
     }
-    let (log_likelihood, _, hess) = cox_ll_grad_hess(&beta, x, start, stop, event);
+    let (log_likelihood, _, hess) = cox_ll_grad_hess(&beta, x, start, stop, event, &order, true);
     let diagnostics = FitDiagnostics::new(
         termination_reason.is_some(),
         used,
@@ -731,6 +841,7 @@ impl CoxPH {
     #[pyo3(signature = (x, time, event, max_iterations=50, tolerance=1e-8))]
     fn fit(
         &mut self,
+        py: Python<'_>,
         x: PyReadonlyArray2<f64>,
         time: PyReadonlyArray1<f64>,
         event: PyReadonlyArray1<f64>,
@@ -746,7 +857,8 @@ impl CoxPH {
         validate_x(&x, time.len())?;
         validate_binary_event(&event, time.len())?;
         validate_positive("time", &time).map_err(PyValueError::new_err)?;
-        let fit = fit_cox_core(&x, None, &time, &event, max_iterations, tolerance)
+        let fit = py
+            .detach(|| fit_cox_core(&x, None, &time, &event, max_iterations, tolerance))
             .map_err(PyValueError::new_err)?;
         self.coef = Some(fit.params);
         self.vcov = Some(fit.vcov);
@@ -842,6 +954,7 @@ impl AndersenGill {
     #[pyo3(signature = (x, start, stop, event, max_iterations=50, tolerance=1e-8))]
     fn fit(
         &mut self,
+        py: Python<'_>,
         x: PyReadonlyArray2<f64>,
         start: PyReadonlyArray1<f64>,
         stop: PyReadonlyArray1<f64>,
@@ -872,7 +985,8 @@ impl AndersenGill {
                 ));
             }
         }
-        let fit = fit_cox_core(&x, Some(&start), &stop, &event, max_iterations, tolerance)
+        let fit = py
+            .detach(|| fit_cox_core(&x, Some(&start), &stop, &event, max_iterations, tolerance))
             .map_err(PyValueError::new_err)?;
         self.coef = Some(fit.params);
         self.vcov = Some(fit.vcov);

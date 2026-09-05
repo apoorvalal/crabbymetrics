@@ -517,6 +517,21 @@ impl AugmentedBalancing {
         w: PyReadonlyArray2<f64>,
         outcome_model: Option<PyReadonlyArray2<f64>>,
     ) -> PyResult<()> {
+        self.att = None;
+        self.unit_weights = None;
+        self.time_weights = None;
+        self.counterfactual = None;
+        self.treatment_effect_values = None;
+        self.outcome_model = None;
+        self.pre_rmse = None;
+        self.fitted_zeta_omega = None;
+        self.fitted_zeta_lambda = None;
+        self.target_units = None;
+        self.target_cohorts = None;
+        self.time_target_periods = None;
+        self.time_target_cohorts = None;
+        self.treatment_info = None;
+        self.y = None;
         let y = to_array2(&y);
         let w = to_array2(&w);
         let outcome_model = outcome_model

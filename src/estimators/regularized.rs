@@ -4,7 +4,7 @@ use crate::utils::{
     pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores,
     solve_least_squares_vec, take_rows, take_rows_vec, to_array1, to_array1_i64, to_array2,
 };
-use crate::validation::validate_finite;
+use crate::validation::{validate_finite, validate_prediction, validate_sample_weight};
 use linfa::prelude::{Fit, Predict};
 use linfa::Dataset;
 use linfa_elasticnet::ElasticNet as LinfaElasticNet;
@@ -151,6 +151,60 @@ fn ridge_fit_path(
     let mut intercept_path = Array1::<f64>::zeros(n_penalties);
     let mut coef_path = Array2::<f64>::zeros((n_features, n_penalties));
 
+    if n_penalties > 1 && n_features > 0 {
+        validate_finite("x", x)?;
+        validate_finite("y", y)?;
+        if x.nrows() != y.len() || x.nrows() == 0 {
+            return Err("x rows must match nonempty y".to_string());
+        }
+        let weights = sample_weight
+            .cloned()
+            .unwrap_or_else(|| Array1::ones(y.len()));
+        validate_sample_weight(&weights, y.len())?;
+        let mass = weights.sum();
+        if !mass.is_finite() {
+            return Err("sample_weight sum must be finite".to_string());
+        }
+        let x_mean = if fit_intercept {
+            x.t().dot(&weights) / mass
+        } else {
+            Array1::zeros(n_features)
+        };
+        let y_mean = if fit_intercept {
+            y.dot(&weights) / mass
+        } else {
+            0.0
+        };
+        let (x_work, y_work) = apply_sqrt_weights(&(x - &x_mean), &(y - y_mean), Some(&weights))?;
+        let svd =
+            nalgebra::DMatrix::from_row_iterator(x.nrows(), n_features, x_work.iter().copied())
+                .svd(true, true);
+        let u = svd.u.ok_or("ridge SVD did not return U")?;
+        let vt = svd.v_t.ok_or("ridge SVD did not return Vt")?;
+        let projected =
+            u.transpose() * nalgebra::DVector::from_iterator(y.len(), y_work.iter().copied());
+        for (j, &penalty) in penalties.iter().enumerate() {
+            if penalty == 0.0 {
+                let params = fit_ridge_params(&design, y, penalty, fit_intercept, sample_weight)?;
+                let (intercept, coef) = super::linear::split_params(&params, fit_intercept);
+                intercept_path[j] = intercept;
+                coef_path.column_mut(j).assign(&coef);
+            } else {
+                let factors = nalgebra::DVector::from_iterator(
+                    svd.singular_values.len(),
+                    svd.singular_values
+                        .iter()
+                        .enumerate()
+                        .map(|(k, &d)| projected[k] * d / (d * d + penalty)),
+                );
+                let coef = Array1::from_iter((vt.transpose() * factors).iter().copied());
+                intercept_path[j] = y_mean - x_mean.dot(&coef);
+                coef_path.column_mut(j).assign(&coef);
+            }
+        }
+        return Ok((intercept_path, coef_path));
+    }
+
     for (j, penalty) in penalties.iter().enumerate() {
         let params = fit_ridge_params(&design, y, *penalty, fit_intercept, sample_weight)?;
         if fit_intercept {
@@ -176,6 +230,11 @@ fn ridge_cv_mse(
     if n != y.len() {
         return Err("x rows must match y length".to_string());
     }
+    validate_finite("x", x)?;
+    validate_finite("y", y)?;
+    if let Some(weights) = sample_weight {
+        validate_sample_weight(weights, n)?;
+    }
     let n_folds = cv.min(n);
     if n_folds < 2 {
         return Err(
@@ -186,41 +245,29 @@ fn ridge_cv_mse(
     let fold_id: Vec<usize> = (0..n).map(|i| i % n_folds).collect();
     let mut scores = Array1::<f64>::zeros(penalties.len());
 
-    for (j, penalty) in penalties.iter().enumerate() {
-        let mut fold_mse = 0.0;
-        for fold in 0..n_folds {
-            let train_idx: Vec<usize> = (0..n).filter(|i| fold_id[*i] != fold).collect();
-            let test_idx: Vec<usize> = (0..n).filter(|i| fold_id[*i] == fold).collect();
+    for fold in 0..n_folds {
+        let train_idx: Vec<usize> = (0..n).filter(|i| fold_id[*i] != fold).collect();
+        let test_idx: Vec<usize> = (0..n).filter(|i| fold_id[*i] == fold).collect();
 
-            let x_train = take_rows(x, &train_idx);
-            let y_train = take_rows_vec(y, &train_idx);
-            let x_test = take_rows(x, &test_idx);
-            let y_test = take_rows_vec(y, &test_idx);
-            let w_train = sample_weight.map(|weights| take_rows_vec(weights, &train_idx));
-            let w_test = sample_weight.map(|weights| take_rows_vec(weights, &test_idx));
+        let x_train = take_rows(x, &train_idx);
+        let y_train = take_rows_vec(y, &train_idx);
+        let x_test = take_rows(x, &test_idx);
+        let y_test = take_rows_vec(y, &test_idx);
+        let w_train = sample_weight.map(|weights| take_rows_vec(weights, &train_idx));
+        let w_test = sample_weight.map(|weights| take_rows_vec(weights, &test_idx));
 
-            let design_train = if fit_intercept {
-                add_intercept(&x_train)
-            } else {
-                x_train
-            };
-            let design_test = if fit_intercept {
-                add_intercept(&x_test)
-            } else {
-                x_test
-            };
-
-            let params = fit_ridge_params(
-                &design_train,
-                &y_train,
-                *penalty,
-                fit_intercept,
-                w_train.as_ref(),
-            )?;
-            let pred = design_test.dot(&params);
-            fold_mse += weighted_mean_squared_error(&y_test, &pred, w_test.as_ref())?;
+        let (intercepts, coefs) = ridge_fit_path(
+            &x_train,
+            &y_train,
+            penalties,
+            fit_intercept,
+            w_train.as_ref(),
+        )?;
+        for j in 0..penalties.len() {
+            let pred = x_test.dot(&coefs.column(j)) + intercepts[j];
+            scores[j] +=
+                weighted_mean_squared_error(&y_test, &pred, w_test.as_ref())? / n_folds as f64;
         }
-        scores[j] = fold_mse / (n_folds as f64);
     }
 
     Ok(scores)
@@ -433,6 +480,21 @@ pub struct Ridge {
     sample_weight: Option<Array1<f64>>,
 }
 
+impl Ridge {
+    fn clear_fit(&mut self) {
+        self.intercept = 0.0;
+        self.coef = None;
+        self.intercept_path = None;
+        self.coef_path = None;
+        self.selected_penalty = None;
+        self.best_penalty_index = None;
+        self.cv_mse = None;
+        self.x = None;
+        self.y = None;
+        self.sample_weight = None;
+    }
+}
+
 #[pymethods]
 impl Ridge {
     #[new]
@@ -463,6 +525,7 @@ impl Ridge {
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let y = to_array1(&y);
         if x.nrows() != y.len() {
@@ -510,6 +573,7 @@ impl Ridge {
         y: PyReadonlyArray1<f64>,
         sample_weight: Vec<f64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let x = to_array2(&x);
         let y = to_array1(&y);
         if x.nrows() != y.len() {
@@ -569,6 +633,7 @@ impl Ridge {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Ridge model is not fitted"))?;
         let x = to_array2(&x);
+        validate_prediction(&x, coef.len()).map_err(PyValueError::new_err)?;
         let pred: Array1<f64> = x.dot(coef) + self.intercept;
         Ok(pyarray1_from_f64(py, &pred))
     }
@@ -612,9 +677,13 @@ impl Ridge {
         }
         let fitted = design.dot(&params);
         let residuals = y - &fitted;
-        let (design_work, residuals_work) = apply_sqrt_weights(&design, &residuals, sample_weight)
-            .map_err(PyValueError::new_err)?;
-        let cluster_ids = clusters.as_ref().map(to_array1_i64);
+        let (design_work, residuals_work, cluster_ids) = crate::utils::weighted_inference_sample(
+            &design,
+            &residuals,
+            sample_weight,
+            clusters.as_ref().map(to_array1_i64),
+        )
+        .map_err(PyValueError::new_err)?;
         let cov = ridge_covariance(
             &design_work,
             &residuals_work,
@@ -700,7 +769,8 @@ impl Ridge {
         let design_cols = x.ncols() + if self.fit_intercept { 1 } else { 0 };
         let idxs = bootstrap_indices(x.nrows(), n_bootstrap, seed);
         let mut out = Array2::<f64>::zeros((n_bootstrap, design_cols));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
             let wb = sample_weight.map(|weights| take_rows_vec(weights, idx));
@@ -785,6 +855,12 @@ impl BaggedPolynomialRegressor {
     }
 
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
+        self.learners = None;
+        self.n_features_in = None;
+        self.max_features_fitted = None;
+        self.max_samples_fitted = None;
+        self.n_terms = None;
+        self.oob_mse = None;
         let x = to_array2(&x);
         let y = to_array1(&y);
         if x.nrows() != y.len() {
@@ -1005,6 +1081,23 @@ fn elastic_net_objective(
         + 0.5 * penalty * (1.0 - l1_ratio) * coef.dot(coef)
 }
 
+struct ElasticNetModel {
+    coef: Array1<f64>,
+    intercept: f64,
+}
+
+impl ElasticNetModel {
+    fn hyperplane(&self) -> &Array1<f64> {
+        &self.coef
+    }
+    fn intercept(&self) -> f64 {
+        self.intercept
+    }
+    fn predict(&self, x: &Array2<f64>) -> Array1<f64> {
+        x.dot(&self.coef) + self.intercept
+    }
+}
+
 fn fit_elastic_net(
     x: &Array2<f64>,
     y: &Array1<f64>,
@@ -1013,7 +1106,7 @@ fn fit_elastic_net(
     fit_intercept: bool,
     tolerance: f64,
     max_iterations: u32,
-) -> Result<(linfa_elasticnet::ElasticNet<f64>, FitDiagnostics, f64, f64), String> {
+) -> Result<(ElasticNetModel, FitDiagnostics, f64, f64), String> {
     if x.nrows() != y.len() {
         return Err("x rows must match y length".to_string());
     }
@@ -1035,7 +1128,38 @@ fn fit_elastic_net(
         return Err("max_iterations must be positive".to_string());
     }
 
-    let dataset = Dataset::new(x.clone(), y.clone());
+    if l1_ratio == 0.0 || penalty == 0.0 {
+        let design = if fit_intercept {
+            add_intercept(x)
+        } else {
+            x.clone()
+        };
+        let params = fit_ridge_params(&design, y, x.nrows() as f64 * penalty, fit_intercept, None)?;
+        let (intercept, coef) = super::linear::split_params(&params, fit_intercept);
+        let residual = y - &(x.dot(&coef) + intercept);
+        let objective =
+            0.5 * residual.dot(&residual) / x.nrows() as f64 + 0.5 * penalty * coef.dot(&coef);
+        let diagnostics = FitDiagnostics::new(
+            true,
+            1,
+            "Closed-form QR solution".to_string(),
+            Some(objective),
+        );
+        return Ok((
+            ElasticNetModel { coef, intercept },
+            diagnostics,
+            tolerance * y.dot(y),
+            0.0,
+        ));
+    }
+
+    let x_mean = if fit_intercept {
+        x.mean_axis(ndarray::Axis(0)).unwrap()
+    } else {
+        Array1::zeros(x.ncols())
+    };
+    let x_centered = x - &x_mean;
+    let dataset = Dataset::new(x_centered.clone(), y.clone());
     let params = LinfaElasticNet::params()
         .penalty(penalty)
         .l1_ratio(l1_ratio)
@@ -1048,8 +1172,13 @@ fn fit_elastic_net(
     } else {
         y.clone()
     };
-    let duality_gap =
-        elastic_net_duality_gap(x, &y_centered, model.hyperplane(), l1_ratio, penalty);
+    let duality_gap = elastic_net_duality_gap(
+        &x_centered,
+        &y_centered,
+        model.hyperplane(),
+        l1_ratio,
+        penalty,
+    );
     let duality_gap_tolerance = tolerance * y_centered.dot(&y_centered);
     let converged = duality_gap.is_finite() && duality_gap <= duality_gap_tolerance;
     let termination_reason = if converged {
@@ -1063,9 +1192,19 @@ fn fit_elastic_net(
         converged,
         u64::from(model.n_steps()),
         termination_reason,
-        Some(elastic_net_objective(x, y, &model, penalty, l1_ratio)),
+        Some(elastic_net_objective(
+            &x_centered,
+            y,
+            &model,
+            penalty,
+            l1_ratio,
+        )),
     );
     diagnostics.require_converged("ElasticNet")?;
+    let model = ElasticNetModel {
+        intercept: model.intercept() - x_mean.dot(model.hyperplane()),
+        coef: model.hyperplane().clone(),
+    };
     Ok((model, diagnostics, duality_gap_tolerance, duality_gap))
 }
 
@@ -1076,7 +1215,7 @@ pub struct ElasticNet {
     fit_intercept: bool,
     tolerance: f64,
     max_iterations: u32,
-    model: Option<linfa_elasticnet::ElasticNet<f64>>,
+    model: Option<ElasticNetModel>,
     diagnostics: Option<FitDiagnostics>,
     duality_gap_tolerance: Option<f64>,
     duality_gap: Option<f64>,
@@ -1142,6 +1281,7 @@ impl ElasticNet {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("ElasticNet model is not fitted"))?;
         let x = to_array2(&x);
+        validate_prediction(&x, model.hyperplane().len()).map_err(PyValueError::new_err)?;
         let pred = model.predict(&x);
         Ok(pyarray1_from_f64(py, &pred))
     }
@@ -1190,7 +1330,8 @@ impl ElasticNet {
             n_bootstrap,
             x.ncols() + if self.fit_intercept { 1 } else { 0 },
         ));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
             let (model, _, _, _) = fit_elastic_net(
@@ -1207,11 +1348,9 @@ impl ElasticNet {
             })?;
             if self.fit_intercept {
                 out[[i, 0]] = model.intercept();
-                out.row_mut(i)
-                    .slice_mut(s![1..])
-                    .assign(&model.hyperplane());
+                out.row_mut(i).slice_mut(s![1..]).assign(model.hyperplane());
             } else {
-                out.row_mut(i).assign(&model.hyperplane());
+                out.row_mut(i).assign(model.hyperplane());
             }
         }
         Ok(pyarray2_from_f64(py, &out))

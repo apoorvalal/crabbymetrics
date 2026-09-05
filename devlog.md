@@ -11,13 +11,40 @@
 
 Current release state: the package is `v0.8.2`; its release and packaging checks are recorded in the 2026-08-20 entry below. Documentation is deployed separately through `gh-pages`.
 
-Current development state: `speedtest` includes the 30-estimator scaling inventory/report and external-reference parity tests on top of `v0.8.2`. The September cleanup hardens benchmark execution and persistence, corrects adapter comparisons, and reduces shared numerical-helper allocations. The historical scaling data has not been regenerated.
+Current development state: `speedtest` includes the 30-estimator scaling inventory/report and external-reference parity tests on top of `v0.8.2`. The September cleanup hardens benchmark execution and persistence, corrects adapter comparisons, and reduces shared numerical-helper allocations. The user-approved estimator patches below fix numerical defects and implement bounded performance improvements. The historical scaling data has not been regenerated.
 
 The current public surface includes the three experimental dynamic-treatment estimators originally developed on `feature/snmm-blips`: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
+
+## Approved Estimator Patches (2026-09-05)
+
+- Implemented the confirmed estimator audit corrections, including ElasticNet
+  predictor centering, dimensionless GMM stabilization and undamped convergence
+  checks, stable Cox risk sums, analytic-weight inference counts, and rank-aware
+  GLM inference. The pure-L2 ElasticNet endpoint uses QR instead of an unsuitable
+  dual-gap stopping path.
+- Standardized fit-state invalidation across estimator families; snapshotted
+  GMM inference inputs and eagerly computed MEstimator covariance. Added explicit
+  optimal-weight assertions for GMM vanilla covariance and sketch provenance for
+  linear/IV fits. Hardened finite inputs, categorical/kernel capacities, variance
+  diagonals, and MatrixCompletion diagnostics.
+- Reduced Cox risk-set and line-search work, detached owned Cox/AndersenGill
+  fits from the GIL, reused ridge-grid and SNMM factorizations, streamed bootstrap
+  indices, removed dense SVT diagonal matrices, and added optional lightweight
+  MatrixCompletion summaries. Unimplemented performance proposals remain queued.
+- GMM damping is confined to the optimizer: two-step weights and covariance
+  use undamped inverses. Added regression coverage with nontrivial damping and
+  changing callback observation counts during numerical differentiation.
+- Verification: release build, 309 Python tests, and 10 Rust tests pass. New tests
+  cover the original numerical defects, weighted summary/Wald consistency,
+  ridge-grid parity, Cox derivative/tie semantics, GIL responsiveness, and exact
+  bootstrap RNG replay. An unrelated process-cleanup test had one transient OS
+  permission failure and passed on targeted and subsequent full reruns.
+- The Quarto report is being updated with completed/partial/backlog status and
+  before/after evidence, preserving the original audit measurements.
 
 ## Estimator Audit for Review (2026-09-05)
 
@@ -40,7 +67,8 @@ This file is meant to record the current architecture and the design choices tha
   recorded as a timeout, not an asserted infinite loop. Large allocation risks
   are derived from source and were not stress-executed.
 - Review URL: <https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
-  Estimator implementation and new likelihood-family work await user approval.
+  This historical review preceded approval; estimator patches are recorded above.
+  New likelihood-family work remains queued.
 
 ## Speedtest Cleanup (2026-09-05)
 

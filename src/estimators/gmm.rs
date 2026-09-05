@@ -3,6 +3,7 @@ use crate::utils::{
     default_newey_west_lags, diag_sqrt, invert_matrix, pyarray1_from_f64, pyarray2_from_f64,
     score_cov_cluster, score_cov_iid, score_cov_newey_west, to_array1, to_array1_i64, to_array2,
 };
+use crate::validation::validate_finite;
 use ndarray::{Array1, Array2, Axis};
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
@@ -29,7 +30,26 @@ fn with_diagonal_ridge(a: &Array2<f64>, ridge: f64) -> Array2<f64> {
 }
 
 fn invert_with_ridge(a: &Array2<f64>, ridge: f64) -> Result<Array2<f64>, String> {
-    invert_matrix(&with_diagonal_ridge(a, ridge))
+    validate_finite("information matrix", a)?;
+    let scale = a.diag().mapv(f64::sqrt);
+    if scale.iter().any(|v| !v.is_finite() || *v <= 0.0) {
+        return Err("information matrix is rank deficient".to_string());
+    }
+    let normalized = Array2::from_shape_fn(a.raw_dim(), |(i, j)| a[[i, j]] / scale[i] / scale[j]);
+    let dim = a.nrows();
+    let eigen = nalgebra::DMatrix::from_row_iterator(dim, dim, normalized.iter().copied())
+        .symmetric_eigen();
+    if eigen
+        .eigenvalues
+        .iter()
+        .any(|v| *v <= f64::EPSILON * dim as f64 * 10.0)
+    {
+        return Err("information matrix is rank deficient".to_string());
+    }
+    let inverse = invert_matrix(&with_diagonal_ridge(&normalized, ridge))?;
+    Ok(Array2::from_shape_fn(a.raw_dim(), |(i, j)| {
+        inverse[[i, j]] / scale[i] / scale[j]
+    }))
 }
 
 fn sample_mean_moments(moments: &Array2<f64>) -> Result<Array1<f64>, String> {
@@ -59,6 +79,7 @@ fn call_moments(
             "moment_fn must return a non-empty (n_obs, n_moments) array",
         ));
     }
+    validate_finite("moments", &moments).map_err(PyValueError::new_err)?;
 
     Ok(moments)
 }
@@ -77,7 +98,9 @@ fn call_jacobian_callback(
     let jacobian_py = result
         .cast_bound::<PyArray2<f64>>(py)
         .map_err(|_| PyValueError::new_err("jacobian_fn must return a 2D numpy array"))?;
-    Ok(to_array2(&jacobian_py.readonly()))
+    let jacobian = to_array2(&jacobian_py.readonly());
+    validate_finite("jacobian", &jacobian).map_err(PyValueError::new_err)?;
+    Ok(jacobian)
 }
 
 fn numerical_jacobian(
@@ -100,14 +123,20 @@ fn numerical_jacobian(
         theta_hi[j] += h;
         theta_lo[j] -= h;
 
-        let g_hi = sample_mean_moments(&call_moments(py, moment_fn, &theta_hi, data)?)
-            .map_err(PyValueError::new_err)?;
-        let g_lo = sample_mean_moments(&call_moments(py, moment_fn, &theta_lo, data)?)
-            .map_err(PyValueError::new_err)?;
+        let moments_hi = call_moments(py, moment_fn, &theta_hi, data)?;
+        let moments_lo = call_moments(py, moment_fn, &theta_lo, data)?;
+        if moments_hi.dim() != base_moments.dim() || moments_lo.dim() != base_moments.dim() {
+            return Err(PyValueError::new_err(
+                "moment shape changed during differentiation",
+            ));
+        }
+        let g_hi = sample_mean_moments(&moments_hi).map_err(PyValueError::new_err)?;
+        let g_lo = sample_mean_moments(&moments_lo).map_err(PyValueError::new_err)?;
         let diff = (&g_hi - &g_lo) / (2.0 * h);
         jacobian.column_mut(j).assign(&diff);
     }
 
+    validate_finite("numerical jacobian", &jacobian).map_err(PyValueError::new_err)?;
     Ok(jacobian)
 }
 
@@ -221,10 +250,18 @@ fn solve_gauss_newton(
 ) -> PyResult<FitResult> {
     let mut theta = theta0.clone();
     let mut iter = 0usize;
+    let mut expected_shape = None;
 
     loop {
         let moments = project_moments(call_moments(py, moment_fn, &theta, data)?, projection)?;
+        if expected_shape.is_some_and(|shape| shape != moments.dim()) {
+            return Err(PyValueError::new_err("moment shape changed during fitting"));
+        }
+        expected_shape = Some(moments.dim());
         let gbar = sample_mean_moments(&moments).map_err(PyValueError::new_err)?;
+        if gbar.len() != weight.nrows() {
+            return Err(PyValueError::new_err("moment count changed during fitting"));
+        }
         let jacobian = project_jacobian(
             sample_jacobian(py, moment_fn, jacobian_fn, &theta, data, fd_eps)?,
             projection,
@@ -244,21 +281,40 @@ fn solve_gauss_newton(
         let wg = weight.dot(&gbar);
         let normal = jacobian.t().dot(weight).dot(&jacobian);
         let rhs = jacobian.t().dot(&wg);
+        // Check undamped estimating equations; damping must not certify convergence.
+        let newton_step = invert_with_ridge(&normal, 0.0)
+            .map_err(PyValueError::new_err)?
+            .dot(&rhs);
+        let moment_scale = (moments.dot(weight) * &moments).sum() / moments.nrows() as f64;
+        let score = rhs
+            .iter()
+            .enumerate()
+            .map(|(j, &v)| v * v / normal[[j, j]])
+            .sum::<f64>()
+            .sqrt()
+            / moment_scale.max(f64::MIN_POSITIVE).sqrt();
+        let relative_step = newton_step
+            .iter()
+            .zip(theta.iter())
+            .map(|(s, t)| s.abs() / (1.0 + t.abs()))
+            .fold(0.0_f64, f64::max);
         let step = invert_with_ridge(&normal, ridge)
             .map_err(PyValueError::new_err)?
             .dot(&rhs);
 
-        if step.dot(&step).sqrt() < tolerance {
+        if score <= tolerance && relative_step <= tolerance {
             return Ok(FitResult {
                 theta,
                 criterion: current_criterion,
                 nit: iter,
             });
         }
+        if iter >= max_iterations {
+            return Err(PyValueError::new_err(format!("GMM optimization did not converge within {max_iterations} iterations (scaled score {score:.3e})")));
+        }
 
         let mut alpha = 1.0;
         let mut accepted_theta = None;
-        let mut accepted_criterion = current_criterion;
 
         while alpha >= 1e-8 {
             let candidate = &theta - &(step.mapv(|v| alpha * v));
@@ -266,11 +322,15 @@ fn solve_gauss_newton(
                 project_moments(call_moments(py, moment_fn, &candidate, data)?, projection)?;
             let candidate_gbar =
                 sample_mean_moments(&candidate_moments).map_err(PyValueError::new_err)?;
+            if candidate_moments.raw_dim() != moments.raw_dim() {
+                return Err(PyValueError::new_err(
+                    "moment shape changed during line search",
+                ));
+            }
             let candidate_criterion = criterion_value(&candidate_gbar, weight);
 
             if candidate_criterion < current_criterion {
                 accepted_theta = Some(candidate);
-                accepted_criterion = candidate_criterion;
                 break;
             }
 
@@ -283,20 +343,6 @@ fn solve_gauss_newton(
 
         iter += 1;
         theta = candidate;
-
-        if (current_criterion - accepted_criterion).abs() < tolerance {
-            return Ok(FitResult {
-                theta,
-                criterion: accepted_criterion,
-                nit: iter,
-            });
-        }
-        if iter >= max_iterations {
-            return Err(PyValueError::new_err(format!(
-                "GMM optimization did not converge within {} iterations",
-                max_iterations
-            )));
-        }
     }
 }
 
@@ -309,7 +355,8 @@ pub struct GMM {
     moment_fn: Py<PyAny>,
     jacobian_fn: Option<Py<PyAny>>,
     theta: Option<Array1<f64>>,
-    data: Option<Py<PyAny>>,
+    fitted_moments: Option<Array2<f64>>,
+    fitted_jacobian: Option<Array2<f64>>,
     weight_matrix: Option<Array2<f64>>,
     first_step_theta: Option<Array1<f64>>,
     criterion: Option<f64>,
@@ -319,6 +366,65 @@ pub struct GMM {
     n_moments: Option<usize>,
     original_n_moments: Option<usize>,
     moment_projection: Option<Array2<f64>>,
+}
+
+impl GMM {
+    fn clear_fit(&mut self) {
+        self.theta = None;
+        self.fitted_moments = None;
+        self.fitted_jacobian = None;
+        self.weight_matrix = None;
+        self.first_step_theta = None;
+        self.criterion = None;
+        self.nit = None;
+        self.weighting = None;
+        self.n_obs = None;
+        self.n_moments = None;
+        self.original_n_moments = None;
+        self.moment_projection = None;
+    }
+
+    fn snapshot(
+        &self,
+        py: Python,
+        theta: &Array1<f64>,
+        data: &Py<PyAny>,
+        projection: Option<&Array2<f64>>,
+    ) -> PyResult<(Array2<f64>, Array2<f64>)> {
+        let moments = project_moments(call_moments(py, &self.moment_fn, theta, data)?, projection)?;
+        let jacobian = project_jacobian(
+            sample_jacobian(
+                py,
+                &self.moment_fn,
+                self.jacobian_fn.as_ref(),
+                theta,
+                data,
+                self.fd_eps,
+            )?,
+            projection,
+        )?;
+        if jacobian.dim() != (moments.ncols(), theta.len()) {
+            return Err(PyValueError::new_err(
+                "jacobian shape does not match fitted moments and parameters",
+            ));
+        }
+        Ok((moments, jacobian))
+    }
+
+    fn validate_vanilla(
+        &self,
+        vcov: &str,
+        omega: &str,
+        assume_optimal_weighting: bool,
+    ) -> PyResult<()> {
+        if vcov == "vanilla"
+            && !assume_optimal_weighting
+            && !(self.weighting.as_deref() == Some("two_step") && omega == "iid")
+        {
+            return Err(PyValueError::new_err("vanilla covariance requires optimal iid weighting; use sandwich or explicitly set assume_optimal_weighting=True"));
+        }
+        Ok(())
+    }
 }
 
 #[pymethods]
@@ -336,13 +442,13 @@ impl GMM {
         if max_iterations == 0 {
             return Err(PyValueError::new_err("max_iterations must be positive"));
         }
-        if tolerance <= 0.0 {
+        if !tolerance.is_finite() || tolerance <= 0.0 {
             return Err(PyValueError::new_err("tolerance must be positive"));
         }
-        if ridge < 0.0 {
+        if !ridge.is_finite() || ridge < 0.0 {
             return Err(PyValueError::new_err("ridge must be nonnegative"));
         }
-        if fd_eps <= 0.0 {
+        if !fd_eps.is_finite() || fd_eps <= 0.0 {
             return Err(PyValueError::new_err("fd_eps must be positive"));
         }
 
@@ -354,7 +460,8 @@ impl GMM {
             moment_fn,
             jacobian_fn,
             theta: None,
-            data: None,
+            fitted_moments: None,
+            fitted_jacobian: None,
             weight_matrix: None,
             first_step_theta: None,
             criterion: None,
@@ -375,7 +482,12 @@ impl GMM {
         theta0: PyReadonlyArray1<f64>,
         weighting: &str,
     ) -> PyResult<()> {
+        self.clear_fit();
         let theta0 = to_array1(&theta0);
+        validate_finite("theta0", &theta0).map_err(PyValueError::new_err)?;
+        if theta0.is_empty() {
+            return Err(PyValueError::new_err("theta0 must not be empty"));
+        }
         let initial_moments = call_moments(py, &self.moment_fn, &theta0, &data)?;
         let n = initial_moments.nrows();
         let m = initial_moments.ncols();
@@ -426,44 +538,49 @@ impl GMM {
             self.fd_eps,
         )?;
 
-        let (theta, criterion, nit, weight_matrix, first_step_theta) =
-            if chosen_weighting == "two_step" {
-                let first_moments = call_moments(py, &self.moment_fn, &first_step.theta, &data)?;
-                let omega = omega_iid(&first_moments);
-                let weight_matrix =
-                    invert_with_ridge(&omega, self.ridge).map_err(PyValueError::new_err)?;
-                let second_step = solve_gauss_newton(
-                    py,
-                    &self.moment_fn,
-                    self.jacobian_fn.as_ref(),
-                    &data,
-                    &first_step.theta,
-                    &weight_matrix,
-                    None,
-                    self.max_iterations,
-                    self.tolerance,
-                    self.ridge,
-                    self.fd_eps,
-                )?;
-                (
-                    second_step.theta,
-                    second_step.criterion,
-                    first_step.nit + second_step.nit,
-                    weight_matrix,
-                    Some(first_step.theta),
-                )
-            } else {
-                (
-                    first_step.theta,
-                    first_step.criterion,
-                    first_step.nit,
-                    identity,
-                    None,
-                )
-            };
+        let (theta, criterion, nit, weight_matrix, first_step_theta) = if chosen_weighting
+            == "two_step"
+        {
+            let first_moments = call_moments(py, &self.moment_fn, &first_step.theta, &data)?;
+            let omega = omega_iid(&first_moments);
+            let weight_matrix = invert_with_ridge(&omega, 0.0).map_err(PyValueError::new_err)?;
+            let second_step = solve_gauss_newton(
+                py,
+                &self.moment_fn,
+                self.jacobian_fn.as_ref(),
+                &data,
+                &first_step.theta,
+                &weight_matrix,
+                None,
+                self.max_iterations,
+                self.tolerance,
+                self.ridge,
+                self.fd_eps,
+            )?;
+            (
+                second_step.theta,
+                second_step.criterion,
+                first_step.nit + second_step.nit,
+                weight_matrix,
+                Some(first_step.theta),
+            )
+        } else {
+            (
+                first_step.theta,
+                first_step.criterion,
+                first_step.nit,
+                identity,
+                None,
+            )
+        };
 
+        let (moments, jacobian) = self.snapshot(py, &theta, &data, None)?;
+        if moments.dim() != (n, m) {
+            return Err(PyValueError::new_err("moment shape changed during fitting"));
+        }
         self.theta = Some(theta);
-        self.data = Some(data);
+        self.fitted_moments = Some(moments);
+        self.fitted_jacobian = Some(jacobian);
         self.weight_matrix = Some(weight_matrix);
         self.first_step_theta = first_step_theta;
         self.criterion = Some(criterion);
@@ -486,7 +603,12 @@ impl GMM {
         weighting: &str,
         seed: Option<u64>,
     ) -> PyResult<()> {
+        self.clear_fit();
         let theta0 = to_array1(&theta0);
+        validate_finite("theta0", &theta0).map_err(PyValueError::new_err)?;
+        if theta0.is_empty() {
+            return Err(PyValueError::new_err("theta0 must not be empty"));
+        }
         let initial_moments_full = call_moments(py, &self.moment_fn, &theta0, &data)?;
         let n = initial_moments_full.nrows();
         let m_full = initial_moments_full.ncols();
@@ -540,47 +662,52 @@ impl GMM {
             self.ridge,
             self.fd_eps,
         )?;
-        let (theta, criterion, nit, weight_matrix, first_step_theta) =
-            if chosen_weighting == "two_step" {
-                let first_moments = project_moments(
-                    call_moments(py, &self.moment_fn, &first_step.theta, &data)?,
-                    Some(&projection),
-                )?;
-                let omega = omega_iid(&first_moments);
-                let weight_matrix =
-                    invert_with_ridge(&omega, self.ridge).map_err(PyValueError::new_err)?;
-                let second_step = solve_gauss_newton(
-                    py,
-                    &self.moment_fn,
-                    self.jacobian_fn.as_ref(),
-                    &data,
-                    &first_step.theta,
-                    &weight_matrix,
-                    Some(&projection),
-                    self.max_iterations,
-                    self.tolerance,
-                    self.ridge,
-                    self.fd_eps,
-                )?;
-                (
-                    second_step.theta,
-                    second_step.criterion,
-                    first_step.nit + second_step.nit,
-                    weight_matrix,
-                    Some(first_step.theta),
-                )
-            } else {
-                (
-                    first_step.theta,
-                    first_step.criterion,
-                    first_step.nit,
-                    identity,
-                    None,
-                )
-            };
+        let (theta, criterion, nit, weight_matrix, first_step_theta) = if chosen_weighting
+            == "two_step"
+        {
+            let first_moments = project_moments(
+                call_moments(py, &self.moment_fn, &first_step.theta, &data)?,
+                Some(&projection),
+            )?;
+            let omega = omega_iid(&first_moments);
+            let weight_matrix = invert_with_ridge(&omega, 0.0).map_err(PyValueError::new_err)?;
+            let second_step = solve_gauss_newton(
+                py,
+                &self.moment_fn,
+                self.jacobian_fn.as_ref(),
+                &data,
+                &first_step.theta,
+                &weight_matrix,
+                Some(&projection),
+                self.max_iterations,
+                self.tolerance,
+                self.ridge,
+                self.fd_eps,
+            )?;
+            (
+                second_step.theta,
+                second_step.criterion,
+                first_step.nit + second_step.nit,
+                weight_matrix,
+                Some(first_step.theta),
+            )
+        } else {
+            (
+                first_step.theta,
+                first_step.criterion,
+                first_step.nit,
+                identity,
+                None,
+            )
+        };
 
+        let (moments, jacobian) = self.snapshot(py, &theta, &data, Some(&projection))?;
+        if moments.dim() != (n, sketch_size) {
+            return Err(PyValueError::new_err("moment shape changed during fitting"));
+        }
         self.theta = Some(theta);
-        self.data = Some(data);
+        self.fitted_moments = Some(moments);
+        self.fitted_jacobian = Some(jacobian);
         self.weight_matrix = Some(weight_matrix);
         self.first_step_theta = first_step_theta;
         self.criterion = Some(criterion);
@@ -593,7 +720,7 @@ impl GMM {
         Ok(())
     }
 
-    #[pyo3(signature = (vcov="sandwich", omega="iid", lags=None, clusters=None))]
+    #[pyo3(signature = (vcov="sandwich", omega="iid", lags=None, clusters=None, *, assume_optimal_weighting=false))]
     fn summary<'py>(
         &self,
         py: Python<'py>,
@@ -601,34 +728,27 @@ impl GMM {
         omega: &str,
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
+        assume_optimal_weighting: bool,
     ) -> PyResult<Py<PyAny>> {
+        self.validate_vanilla(vcov, omega, assume_optimal_weighting)?;
         let theta = self
             .theta
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("GMM model is not fitted"))?;
-        let data = self
-            .data
+        let moments = self
+            .fitted_moments
             .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+            .ok_or_else(|| PyValueError::new_err("No fitted moments stored"))?;
+        let jacobian = self
+            .fitted_jacobian
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fitted jacobian stored"))?;
         let weight_matrix = self
             .weight_matrix
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No fitted weight matrix stored"))?;
 
-        let projection = self.moment_projection.as_ref();
-        let moments = project_moments(call_moments(py, &self.moment_fn, theta, data)?, projection)?;
-        let gbar = sample_mean_moments(&moments).map_err(PyValueError::new_err)?;
-        let jacobian = project_jacobian(
-            sample_jacobian(
-                py,
-                &self.moment_fn,
-                self.jacobian_fn.as_ref(),
-                theta,
-                data,
-                self.fd_eps,
-            )?,
-            projection,
-        )?;
+        let gbar = sample_mean_moments(moments).map_err(PyValueError::new_err)?;
 
         if jacobian.nrows() != moments.ncols() || jacobian.ncols() != theta.len() {
             return Err(PyValueError::new_err(format!(
@@ -640,17 +760,17 @@ impl GMM {
             )));
         }
 
-        let a_matrix = jacobian.t().dot(weight_matrix).dot(&jacobian);
-        let a_inv = invert_with_ridge(&a_matrix, self.ridge).map_err(PyValueError::new_err)?;
+        let a_matrix = jacobian.t().dot(weight_matrix).dot(jacobian);
+        let a_inv = invert_with_ridge(&a_matrix, 0.0).map_err(PyValueError::new_err)?;
         let n = moments.nrows();
 
         let covariance = match vcov {
             "vanilla" => a_inv.mapv(|v| v / (n as f64)),
             "sandwich" => {
                 let omega_hat = match omega {
-                    "iid" => omega_iid(&moments),
+                    "iid" => omega_iid(moments),
                     "newey_west" => omega_newey_west(
-                        &moments,
+                        moments,
                         lags.unwrap_or_else(|| default_newey_west_lags(n)),
                     ),
                     "cluster" => {
@@ -658,7 +778,7 @@ impl GMM {
                             PyValueError::new_err("clusters must be provided for omega='cluster'")
                         })?;
                         let cluster_ids = to_array1_i64(&clusters);
-                        omega_cluster(&moments, &cluster_ids).map_err(PyValueError::new_err)?
+                        omega_cluster(moments, &cluster_ids).map_err(PyValueError::new_err)?
                     }
                     _ => {
                         return Err(PyValueError::new_err(
@@ -671,7 +791,7 @@ impl GMM {
                     .dot(weight_matrix)
                     .dot(&omega_hat)
                     .dot(weight_matrix)
-                    .dot(&jacobian);
+                    .dot(jacobian);
                 a_inv.dot(&middle).dot(&a_inv).mapv(|v| v / (n as f64))
             }
             _ => {
@@ -696,6 +816,20 @@ impl GMM {
         dict.set_item("criterion", self.criterion)?;
         dict.set_item("nit", self.nit)?;
         dict.set_item("converged", true)?;
+        dict.set_item(
+            "termination_reason",
+            "Scaled first-order and Newton-step tolerances reached",
+        )?;
+        dict.set_item("inference_data", "fit_time_snapshot")?;
+        dict.set_item("assume_optimal_weighting", assume_optimal_weighting)?;
+        dict.set_item(
+            "j_test_valid",
+            self.weighting.as_deref() == Some("two_step") && omega == "iid",
+        )?;
+        dict.set_item(
+            "j_test_assumptions",
+            "iid observations, valid moments, identification, and optimal weighting",
+        )?;
         dict.set_item("weighting", self.weighting.clone())?;
         dict.set_item("vcov_type", vcov)?;
         dict.set_item(
@@ -719,7 +853,7 @@ impl GMM {
         Ok(dict.into())
     }
 
-    #[pyo3(signature = (r, q=None, vcov="sandwich", omega="iid", lags=None, clusters=None))]
+    #[pyo3(signature = (r, q=None, vcov="sandwich", omega="iid", lags=None, clusters=None, *, assume_optimal_weighting=false))]
     fn wald_test<'py>(
         &self,
         py: Python<'py>,
@@ -729,33 +863,25 @@ impl GMM {
         omega: &str,
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
+        assume_optimal_weighting: bool,
     ) -> PyResult<Bound<'py, PyDict>> {
+        self.validate_vanilla(vcov, omega, assume_optimal_weighting)?;
         let theta = self
             .theta
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("GMM model is not fitted"))?;
-        let data = self
-            .data
+        let moments = self
+            .fitted_moments
             .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No training data stored"))?;
+            .ok_or_else(|| PyValueError::new_err("No fitted moments stored"))?;
+        let jacobian = self
+            .fitted_jacobian
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fitted jacobian stored"))?;
         let weight_matrix = self
             .weight_matrix
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No fitted weight matrix stored"))?;
-
-        let projection = self.moment_projection.as_ref();
-        let moments = project_moments(call_moments(py, &self.moment_fn, theta, data)?, projection)?;
-        let jacobian = project_jacobian(
-            sample_jacobian(
-                py,
-                &self.moment_fn,
-                self.jacobian_fn.as_ref(),
-                theta,
-                data,
-                self.fd_eps,
-            )?,
-            projection,
-        )?;
 
         if jacobian.nrows() != moments.ncols() || jacobian.ncols() != theta.len() {
             return Err(PyValueError::new_err(format!(
@@ -767,16 +893,16 @@ impl GMM {
             )));
         }
 
-        let a_matrix = jacobian.t().dot(weight_matrix).dot(&jacobian);
-        let a_inv = invert_with_ridge(&a_matrix, self.ridge).map_err(PyValueError::new_err)?;
+        let a_matrix = jacobian.t().dot(weight_matrix).dot(jacobian);
+        let a_inv = invert_with_ridge(&a_matrix, 0.0).map_err(PyValueError::new_err)?;
         let n = moments.nrows();
         let covariance = match vcov {
             "vanilla" => a_inv.mapv(|v| v / (n as f64)),
             "sandwich" => {
                 let omega_hat = match omega {
-                    "iid" => omega_iid(&moments),
+                    "iid" => omega_iid(moments),
                     "newey_west" => omega_newey_west(
-                        &moments,
+                        moments,
                         lags.unwrap_or_else(|| default_newey_west_lags(n)),
                     ),
                     "cluster" => {
@@ -784,7 +910,7 @@ impl GMM {
                             PyValueError::new_err("clusters must be provided for omega='cluster'")
                         })?;
                         let cluster_ids = to_array1_i64(&clusters);
-                        omega_cluster(&moments, &cluster_ids).map_err(PyValueError::new_err)?
+                        omega_cluster(moments, &cluster_ids).map_err(PyValueError::new_err)?
                     }
                     _ => {
                         return Err(PyValueError::new_err(
@@ -797,7 +923,7 @@ impl GMM {
                     .dot(weight_matrix)
                     .dot(&omega_hat)
                     .dot(weight_matrix)
-                    .dot(&jacobian);
+                    .dot(jacobian);
                 a_inv.dot(&middle).dot(&a_inv).mapv(|v| v / (n as f64))
             }
             _ => {

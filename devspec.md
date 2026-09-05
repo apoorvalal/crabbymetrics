@@ -23,7 +23,8 @@ Any new work here should usually satisfy most of the following:
 The package version is `0.8.2`. The `speedtest` branch includes the augmented
 balancing release, the inventory and scaling report for all 30 estimators, and
 deterministic external-reference parity tests. The likelihood-method expansion
-plan below remains pending; this cleanup does not introduce new estimator APIs.
+plan below remains pending. The approved estimator-hardening patches add small
+inference/provenance controls but no new estimator classes.
 
 The cleanup separates subprocess monitoring from grid orchestration, validates
 grid/budget inputs, honors the memory reserve, checkpoints each result, preserves
@@ -36,11 +37,12 @@ must not be treated as timings of these corrected adapters.
 Shared square-root weighting now lives in `src/utils.rs`, used by linear, IV,
 and ridge estimators. Covariance helpers use views and in-place accumulation;
 NumPy matrix outputs cross the ndarray-version boundary with a flat owned buffer.
-Public estimator signatures, covariance formulas, and fitted-state ownership
-remain unchanged. Runner failure-path tests and array-layout tests supplement
+The initial cleanup left estimator signatures, covariance formulas, and fitted-state
+ownership unchanged; the subsequent approved patches below intentionally change
+those contracts. Runner failure-path tests and array-layout tests supplement
 the existing numerical parity suite.
 
-Validation on this checkout passes 238 Python tests, 8 Rust tests, and 24 live
+Validation of the initial cleanup passed 238 Python tests, 8 Rust tests, and 24 live
 benchmark smoke cells. The scaling page renders and the docs-excluded sdist is
 525 KiB. Clippy still reports 36 pre-existing structural/style warnings; this
 pass does not rename public estimator acronyms or reshape public signatures to
@@ -50,17 +52,35 @@ The cleanup is pushed as `921fd2c` on `origin/speedtest`. A subsequent review-on
 estimator audit is recorded in `reviews/estimator-hardening/index.qmd`, with a
 resource-guarded synthetic probe harness and JSON evidence. It covers 30
 estimators and five adjacent transformers, identifies 15 correctness/contract
-findings and seven performance proposals, and leaves implementation pending
-user review. The report is published for review at
+findings and seven performance proposals. The user subsequently approved the
+patches described below. The report and before/after evidence are published at
 <https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
 
-Proposed priorities now start with boundary validation and allocation guards,
-ElasticNet intercept centering, GMM scale-aware convergence, stable Cox risk
-sums, and weighted/rank-aware inference. Refit and callback-ownership policies
-require explicit decisions. Follow-on performance work includes Cox risk-set
-sweeps, reusable ridge factorizations, bounded panel/bootstrap allocations, and
-GIL release around owned pure-Rust work. No estimator implementation has changed
-as part of this audit; its acceptance criteria are a proposal, not completed work.
+### Approved Hardening Implementation
+
+The estimator patches are now implemented and pass 309 Python tests and 10 Rust
+tests on a release-mode extension build. Confirmed fixes cover prediction/CV
+validation, nonfinite input shortcuts, ElasticNet centering and pure-L2 fitting,
+scale-aware GMM convergence, stable Cox likelihoods, zero-weight inference,
+rank-aware GLM covariance, checked variance diagonals, fit-state invalidation,
+fit-time callback inference snapshots, GMM inference assumptions, panel traces,
+bounded categorical/kernel allocation, and QR-based OLS covariance. Sketched
+linear/IV summaries now disclose approximation provenance; coverage validation
+remains future work.
+
+Implemented performance work includes cumulative right-censored Cox risk sets,
+likelihood-only line search, GIL release for CoxPH/AndersenGill, ridge-grid SVD
+reuse, SNMM horizon QR reuse, streamed bootstrap indices, and leaner panel SVT
+and optional matrix-free summaries. General Andersen--Gill entry/exit sweeps,
+broader likelihood scratch-buffer work, wider GIL rollout, and simplex-solver
+replacement remain separate measured follow-ups, not completed changes.
+
+Weight semantics are analytic, excluding zero-weight rows from inference. Failed
+fit validation/solver calls clear state; Python argument-conversion errors before
+entering Rust are outside that guarantee. GMM stores fitted moments/Jacobians;
+MEstimator stores covariance at fit time, while its bootstrap data must remain
+immutable. Vanilla GMM covariance now requires optimal iid weighting or an
+explicit information-identity assertion.
 
 Subject-clustered Andersen--Gill inference and NB2 remain queued under the
 likelihood-method plan after the relevant hardening work. Full

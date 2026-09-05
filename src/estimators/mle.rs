@@ -524,7 +524,17 @@ impl Logit {
             } else {
                 x.clone()
             };
-            let cov = fisher_cov_binary(&design, &probs).map_err(PyValueError::new_err)?;
+            let cov = match fisher_cov_binary(&design, &probs) {
+                Ok(cov) => cov,
+                Err(reason) => {
+                    dict.set_item("inference_available", false)?;
+                    dict.set_item("inference_reason", reason)?;
+                    dict.set_item("intercept_se", py.None())?;
+                    dict.set_item("coef_se", py.None())?;
+                    dict.set_item("vcov", py.None())?;
+                    return Ok(dict.into());
+                }
+            };
             let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
             if self.fit_intercept {
                 dict.set_item("intercept_se", se_all[0])?;
@@ -605,7 +615,8 @@ impl Logit {
             n_bootstrap,
             x.ncols() + if self.fit_intercept { 1 } else { 0 },
         ));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_i32(y, idx);
             let model = fit_binary_logit(
@@ -803,8 +814,16 @@ impl MultinomialLogit {
 
         if self.alpha == 0.0 {
             let probs = softmax_rows(&multinomial_logits(x, model));
-            let cov = fisher_cov_multinomial(&design, &probs, reference_index)
-                .map_err(PyValueError::new_err)?;
+            let cov = match fisher_cov_multinomial(&design, &probs, reference_index) {
+                Ok(cov) => cov,
+                Err(reason) => {
+                    dict.set_item("inference_available", false)?;
+                    dict.set_item("inference_reason", reason)?;
+                    dict.set_item("se", py.None())?;
+                    dict.set_item("vcov", py.None())?;
+                    return Ok(dict.into());
+                }
+            };
             let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
             let se = Array2::from_shape_vec((c - 1, k), se_all.to_vec())
                 .map_err(|err| PyValueError::new_err(err.to_string()))?;
@@ -841,7 +860,8 @@ impl MultinomialLogit {
             .classes
             .len();
         let mut out = Array2::<f64>::zeros((n_bootstrap, k * (c - 1)));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_i32(y, idx);
             let model = fit_multinomial_logit(
@@ -1156,12 +1176,22 @@ impl Poisson {
             } else {
                 x.clone()
             };
-            let cov = match vcov {
-                "vanilla" => fisher_cov_poisson(&design, &mu).map_err(PyValueError::new_err)?,
-                "sandwich" | "qmle" => {
-                    qmle_cov_poisson(&design, y, &mu).map_err(PyValueError::new_err)?
-                }
+            let covariance = match vcov {
+                "vanilla" => fisher_cov_poisson(&design, &mu),
+                "sandwich" | "qmle" => qmle_cov_poisson(&design, y, &mu),
                 _ => unreachable!(),
+            };
+            let cov = match covariance {
+                Ok(cov) => cov,
+                Err(reason) => {
+                    dict.set_item("inference_available", false)?;
+                    dict.set_item("inference_reason", reason)?;
+                    dict.set_item("intercept_se", py.None())?;
+                    dict.set_item("coef_se", py.None())?;
+                    dict.set_item("vcov", py.None())?;
+                    dict.set_item("vcov_type", vcov)?;
+                    return Ok(dict.into());
+                }
             };
             let se_all = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
             if self.fit_intercept {
@@ -1260,7 +1290,8 @@ impl Poisson {
             n_bootstrap,
             x.ncols() + if self.fit_intercept { 1 } else { 0 },
         ));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let xb = take_rows(x, idx);
             let yb = take_rows_vec(y, idx);
             let mut coef = Array1::<f64>::zeros(xb.ncols());
@@ -1352,6 +1383,9 @@ impl CostFunction for MEstimatorProblem {
                 argmin::core::Error::msg(format!("Failed to extract objective: {}", e))
             })?;
 
+            if !obj_value.is_finite() {
+                return Err(argmin::core::Error::msg("objective must be finite"));
+            }
             Ok(obj_value)
         })
     }
@@ -1388,6 +1422,11 @@ impl Gradient for MEstimatorProblem {
                 .map_err(|_| argmin::core::Error::msg("Gradient must be a numpy array"))?;
 
             let grad = to_array1(&grad_py.readonly());
+            if grad.len() != theta.len() || grad.iter().any(|v| !v.is_finite()) {
+                return Err(argmin::core::Error::msg(
+                    "gradient must be finite and match theta shape",
+                ));
+            }
             Ok(grad)
         })
     }
@@ -1410,6 +1449,7 @@ fn call_mestimator_scores(
     if scores.nrows() == 0 {
         return Err(PyValueError::new_err("score_fn returned no observations"));
     }
+    validate_finite("scores", &scores).map_err(PyValueError::new_err)?;
     Ok(scores)
 }
 
@@ -1444,6 +1484,9 @@ impl MEstimator {
         self.diagnostics = None;
         let theta_init = to_array1(&theta0);
         validate_finite("theta0", &theta_init).map_err(PyValueError::new_err)?;
+        if theta_init.is_empty() {
+            return Err(PyValueError::new_err("theta0 must not be empty"));
+        }
         if self.max_iterations == 0 {
             return Err(PyValueError::new_err("max_iterations must be positive"));
         }
@@ -1500,6 +1543,13 @@ impl MEstimator {
         self.theta = Some(theta);
         self.data = Some(data);
         self.diagnostics = Some(diagnostics);
+        if let Err(error) = self.compute_vcov(py) {
+            self.theta = None;
+            self.data = None;
+            self.diagnostics = None;
+            self.vcov = None;
+            return Err(error);
+        }
         Ok(())
     }
 
