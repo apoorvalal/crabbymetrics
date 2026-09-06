@@ -53,17 +53,17 @@ With mean-moment Jacobian $D=\partial\bar g(\theta)/\partial\theta'$, one Gauss-
 $$
 \Delta
 =
-(D'WD+\rho I)^{-1}D'W\bar g,
+(A+\rho\operatorname{diag}(A))^{-1}D'W\bar g,\qquad A=D'WD,
 $$
 
-where $\rho$ is the configured numerical ridge. A backtracking line search updates $\theta\leftarrow\theta-a\Delta$ only when the criterion decreases. Convergence is based on the step norm or criterion change; exhausting the iteration budget raises.
+where $\rho$ is dimensionless solver damping. The implementation normalizes by the square roots of $A$'s diagonal before solving and rejects numerical rank deficiency. A backtracking line search accepts only criterion decreases. Convergence requires both the undamped relative Newton step and a moment-scale-normalized first-order residual to meet tolerance; a small damped step or absolute criterion change is insufficient. Exhausting the iteration budget raises.
 
 Identity weighting uses $W=I_m$. Automatic weighting uses identity when $m=p$ and otherwise performs two steps: it first obtains $\tilde\theta$ under identity weighting, computes
 
 $$
 \hat\Omega_1=\frac1n\sum_i g_i(\tilde\theta)g_i(\tilde\theta)',
 \qquad
-W=(\hat\Omega_1+\rho I)^{-1},
+W=\hat\Omega_1^{-1},
 $$
 
 and re-optimizes from $\tilde\theta$. This is iid two-step GMM; the fit-stage weight cannot be HAC or clustered.
@@ -76,13 +76,13 @@ The callback bridge, numerical differentiation, Gauss-Newton loop, two-step weig
 
 1. The first callback evaluation at $\theta_0$ establishes $n$ and $m$ and must return a nonempty two-dimensional float array. The fit rejects $m<p$. Callback outputs are copied from NumPy into owned Rust arrays on every evaluation.
 2. Without a Jacobian callback, the solver first evaluates the base moment shape, then calls `moment_fn` at $\theta\pm h_je_j$ for every parameter and central-differences the column means. With a callback, the returned matrix is used directly and checked against $(m,p)$ after any sketch projection.
-3. One Gauss-Newton iteration evaluates moments and Jacobian, forms $D'WD$, adds `ridge` to its diagonal, explicitly inverts it, and computes $\Delta=(D'WD+\rho I)^{-1}D'W\bar g$. A step norm below tolerance returns before updating.
+3. Each iteration evaluates finite moments and Jacobian with stable shapes. It computes the diagonally normalized damped direction and a separate undamped Newton direction. Convergence checks the latter relative to $1+|\theta_j|$, together with $\{\sum_j (D'W\bar g)_j^2/A_{jj}\}^{1/2}/\{n^{-1}\sum_i g_i'Wg_i\}^{1/2}$.
 4. Otherwise the solver tries $\theta-\alpha\Delta$ for $\alpha=1,1/2,1/4,\ldots$ down to $10^{-8}$. Every trial calls the Python moment function again. Only a strict criterion decrease is accepted; failure to find one raises rather than returning the current iterate.
-5. An accepted criterion improvement below tolerance counts as convergence. The iteration counter increments only after an accepted step. Reaching `max_iterations` raises and no partial fit is installed.
-6. Identity weighting runs this loop once. Two-step weighting computes the uncentered iid outer product of first-step moment rows, adds the numerical ridge before inversion, and starts a second complete Gauss-Newton solve at the first-step estimate. Reported iterations add both stages and `first_step_theta` is retained internally.
-7. Summary reevaluates moments and the Jacobian at the stored estimate. It reconstructs $A=D'WD$, applies the same diagonal ridge to its inverse, builds the requested moment covariance, and then forms either $A^{-1}/n$ or the full sandwich. Wald tests duplicate this covariance path rather than caching it.
+5. The iteration counter increments after an accepted step. Both convergence checks are evaluated at the next iterate before checking the budget. Failure clears the old fit and does not install a partial solution.
+6. Two-step weighting uses the undamped inverse of the first-step iid moment outer product. Damping does not change the statistical weighting matrix or covariance bread. Reported iterations add both stages.
+7. Fitted moments and their Jacobian are owned snapshots. Summary and Wald inference use these arrays without calling Python again, reconstruct the undamped covariance bread, and form either $A^{-1}/n$ or the sandwich. No arbitrary Python data deep copy is attempted.
 
-The line search makes the local quadratic method robust to a poor full step, but it also magnifies Python callback traffic. The diagonal ridge is a numerical device in fitting, weight inversion, and reported covariance; a successful inverse is not evidence of strong identification.
+The line search magnifies Python callback traffic. Numerical rank checks reject singular systems but do not establish strong statistical identification. Callback-based optimization is not detached from the GIL.
 
 ## Moment sketch
 
@@ -104,7 +104,7 @@ $$
 \widehat V_{\mathrm{vanilla}}=\frac1nA^{-1},
 $$
 
-which assumes the fitted $W$ is the inverse moment covariance. The sandwich option returns
+which assumes the fitted $W$ is the inverse moment covariance. This option requires two-step iid weighting unless `assume_optimal_weighting=True` is explicitly supplied to `summary()` or `wald_test()`. The assertion does not repair a nonoptimal weight. The default sandwich option returns
 
 $$
 \widehat V_{\mathrm{sandwich}}
@@ -113,7 +113,7 @@ $$
 A^{-1}D'W\hat\Omega WD A^{-1}.
 $$
 
-Available $\hat\Omega$ estimators are uncentered iid moment outer products, Bartlett Newey-West autocovariances, and cluster sums. The cluster version has no finite-cluster correction. Default Newey-West lags are $\max\{1,\lfloor4(n/100)^{2/9}\rfloor\}$. The numerical ridge is also used in covariance inversions.
+Available $\hat\Omega$ estimators are uncentered iid moment outer products, Bartlett Newey-West autocovariances, and cluster sums. The cluster version has no finite-cluster correction. Default Newey-West lags are $\max\{1,\lfloor4(n/100)^{2/9}\rfloor\}$. Covariance inversion is undamped.
 
 For $m>p$, the summary reports
 
@@ -121,11 +121,11 @@ $$
 J=n\,\bar g(\hat\theta)'W\bar g(\hat\theta)
 $$
 
-with $m-p$ degrees of freedom, but does not compute a $p$-value. Wald tests use the requested covariance.
+with $m-p$ degrees of freedom, but does not compute a $p$-value. `j_test_valid` flags the intended two-step iid weighting regime, while `j_test_assumptions` lists additional unverified regularity assumptions. A raw `j_stat` under identity or dependent-data weighting is not automatically chi-square calibrated. Wald tests use the requested covariance.
 
 ## Performance and numerical behavior
 
-Each numerical-Jacobian evaluation calls the Python moment function at least $2p+1$ times, and each line-search trial calls it again. With dense moments, weight construction and fitting use $m\times m$ matrices and parameter systems of size $p$. Two-step fitting roughly doubles optimization work. A callback Jacobian is therefore important when moments are expensive. Weak identification appears as an ill-conditioned $D'WD$; the ridge may permit a numerical answer without establishing statistical identification.
+Each numerical-Jacobian evaluation calls Python at least $2p+1$ times, and each line-search trial calls it again. Dense fitting uses $m\times m$ weights and $p\times p$ parameter systems; snapshots retain $n\times m$ fitted moments. A callback Jacobian matters when moments are expensive. Damping is not a remedy for weak identification, and rank checks are not a statistical identification test.
 
 ## Python API
 

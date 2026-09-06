@@ -70,14 +70,14 @@ Analytic inference is available only when $\lambda=0$. Let $\tilde X=[\mathbf1,X
 $$
 \widehat V
 =
-(\tilde X'W\tilde X+10^{-8}I)^{-1}.
+(\tilde X'W\tilde X)^{-1}.
 $$
 
-The $10^{-8}$ diagonal ridge is numerical stabilization, not a reported statistical penalty. The implementation has no heteroskedastic or cluster-robust logit sandwich option. Wald tests use this Fisher covariance. The pairs bootstrap refits the same fixed penalty in each sample; a resample on which the binary fit cannot be estimated aborts the bootstrap.
+The inverse is computed through QR of $W^{1/2}\tilde X$, without an inference ridge. Rank-deficient information leaves the point estimate available but returns `inference_available=False`, null covariance/SEs, and an `inference_reason`; Wald inference raises. There is no robust logit sandwich. The pairs bootstrap refits the same penalty and aborts on an unestimable resample.
 
 ## Performance and numerical behavior
 
-Each L-BFGS objective and gradient evaluation is $O(np)$, with solver state linear in $p$ for a fixed memory size. Computing the Fisher covariance forms a dense $(p+1)\times(p+1)$ information matrix in $O(np^2)$ and inverts it in $O(p^3)$. Complete or near separation can drive coefficients to large magnitudes and make the information matrix nearly singular; the small diagonal ridge can make inversion succeed without resolving the inferential weakness. Bootstrap multiplies the full optimization cost by the number of draws, and any nonconverged replicate aborts the bootstrap.
+Each L-BFGS objective and gradient evaluation is $O(np)$, with solver state linear in $p$. Fisher covariance adds $O(np^2+p^3)$ QR/triangular-solve work. Complete or near separation can still make inference unreliable even if numerical rank checks pass. Bootstrap multiplies the optimization cost by the draw count; indices are streamed one replicate at a time.
 
 ## Python API
 

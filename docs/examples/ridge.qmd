@@ -14,7 +14,12 @@ freeze: auto
 jupyter: python3
 ---
 
-This page focuses on the fast closed-form `Ridge` estimator. Unlike `ElasticNet`, this path does not go through an iterative elastic-net solver. It stays close to OLS by solving penalized least squares through an augmented QR least-squares system.
+This page focuses on the closed-form `Ridge` estimator. Scalar penalties use an
+augmented QR least-squares system. Penalty grids reuse a centered, weighted SVD
+within each CV fold and the full-data path; zero penalties retain the QR path.
+CV still uses deterministic row-modulo folds. Weights are validated before
+splitting, zero-weight rows do not count toward inference, and failed refits clear
+fitted state.
 
 ## Imports
 

@@ -66,7 +66,7 @@ The class implements a masked soft-impute-style loop with explicit additive-effe
 3. Every outer iteration first runs `effect_iterations` coordinate sweeps. A unit effect is the mean of $Y_{it}-L_{it}-b_t$ over that unit's observed cells; a time effect is the analogous mean of $Y_{it}-L_{it}-a_i$. After each sweep, a centering routine shifts constants between the two vectors without changing $a_i+b_t$ and leaves the time effects mean-zero.
 4. The projection matrix begins as the current $L$. On observed cells only, the current residual $Y-a-b-L$ is added, producing $L+P_\Omega(Y-a-b-L)$. Missing treated cells therefore retain their current low-rank value before thresholding.
 5. Exact mode computes a dense SVD, replaces every singular value $s_j$ by $(s_j-\lambda_L|\Omega|/2)_+$, and reconstructs $L$. Randomized mode first obtains only the requested approximate singular triplets, applies the same threshold to them, and reconstructs inside that truncated range. Its seed, when supplied, is incremented by the outer-iteration number.
-6. The displayed objective is evaluated after the new low-rank matrix. The RMSE history, however, is based on residuals measured immediately before the singular-value update. Relative objective change is checked from the second iteration onward.
+6. The objective and RMSE history are both evaluated after the new low-rank matrix. Relative objective change is checked from the second iteration onward, and an objective increase cannot certify convergence. Exact SVT reconstructs by scaling singular-vector columns rather than allocating a dense diagonal matrix.
 7. Completion adds stored unit and time effects to the final $L$ everywhere. The treatment-effect matrix is filled for every ever-treated unit and every period, including pre-periods, while ATT selects only cells where $W=1$. A budget-exhausted iterate is retained with `converged=False` rather than discarded.
 
 Exact mode is a recognizable proximal update for the displayed convex objective conditional on the effect block. Randomized truncation changes that update, and changing its seed each iteration means the approximate map itself varies over the optimization path.
@@ -78,7 +78,7 @@ The completed counterfactual surface is $\hat Y_{it}(0)=\hat a_i+\hat b_t+\hat L
 There is no analytic or resampling inference, rank selection, or penalty cross-validation. If $Q_k$ denotes the displayed objective after iteration $k$, convergence requires
 
 $$
-\frac{|Q_{k-1}-Q_k|}{|Q_{k-1}|+10^{-12}}<\text{tolerance}.
+0\leq\frac{Q_{k-1}-Q_k}{|Q_{k-1}|+10^{-12}}<\text{tolerance}.
 $$
 
 Unlike likelihood estimators in this package, `MatrixCompletion` retains the final iterate when the budget is exhausted because a partial completion can still be diagnostically useful. It does not call that outcome convergence: `summary()` reports `converged=False`, `iterations`, `termination_reason='Maximum number of iterations reached'`, and the final `objective`, together with both histories. Identification requires untreated observations to reveal the relevant low-rank and additive structure; optimizer convergence cannot diagnose failure of that causal assumption.
@@ -92,6 +92,10 @@ Each exact iteration performs a dense SVD with roughly $O(\min\{NT^2,N^2T\})$ ti
 Constructor: `cm.MatrixCompletion`
 
 Call `MatrixCompletion(...).fit(y, w)`. `predict()` returns completed/counterfactual values and `summary()` reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective and RMSE histories, fit diagnostics, and panel summaries. Check `converged` before treating the retained solution as numerically settled.
+
+`summary(include_matrices=False)` omits `completed`, `counterfactual`,
+`treatment_effects`, and `low_rank` copies. The default remains `True`, with
+independent owned arrays even when two returned surfaces contain the same values.
 
 ```{python}
 print(inspect.signature(cm.MatrixCompletion))

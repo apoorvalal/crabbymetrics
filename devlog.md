@@ -43,8 +43,23 @@ This file is meant to record the current architecture and the design choices tha
   ridge-grid parity, Cox derivative/tie semantics, GIL responsiveness, and exact
   bootstrap RNG replay. An unrelated process-cleanup test had one transient OS
   permission failure and passed on targeted and subsequent full reruns.
-- The Quarto report is being updated with completed/partial/backlog status and
-  before/after evidence, preserving the original audit measurements.
+- Committed the implementation as `f728fb9`. Reran the 18-case guarded probe
+  harness against that clean source and recorded `evidence-after.json`, preserving
+  the original audit evidence. The 800-row Cox probe fell from 13.73 ms to
+  0.127 ms with the same three iterations; this is a small local measurement,
+  not a new production scaling run. Ridge's repeated-scalar comparison is labeled
+  a proxy rather than a measurement of the old native grid.
+- Updated the Quarto report with finding status, compatibility decisions,
+  before/after tables, performance evidence, and remaining work. Rendered the
+  report and all 21 changed API/example pages successfully. Updated `docs/llms.txt`
+  and implementation walkthroughs to remove stale centering, covariance,
+  callback, risk-set, and ridge-path descriptions.
+- Published the report and both evidence files at
+  <https://lalten.org/pages/crabbymetrics-estimator-hardening/> and verified HTTP
+  content hashes. Staged the updated API pages over the published docs tree at
+  <https://lalten.org/drafts/crabbymetrics-estimator-hardening/>; unchanged pages
+  reuse their published renders. Rendered HTML/cache artifacts are not committed
+  to the source branch.
 
 ## Estimator Audit for Review (2026-09-05)
 

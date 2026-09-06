@@ -81,7 +81,7 @@ H_{ab}
 \tilde x_i\tilde x_i'.
 $$
 
-The returned covariance is $(H+10^{-8}I)^{-1}$. It is model-based only; there is no robust sandwich or Wald-test method on this class. Penalized fits return no covariance. The pairs bootstrap reports class-versus-reference contrasts, but it raises an error if any resample omits an outcome class.
+The returned covariance is $H^{-1}$, with rank checks on the design and identified-contrast information and no artificial inference ridge. A rank-deficient fit retains point estimates but reports `inference_available=False`, null covariance/SEs, and an `inference_reason`. Covariance is model-based only; there is no robust sandwich or Wald method. Penalized fits return no covariance. The pairs bootstrap reports class-versus-reference contrasts and raises if a resample omits an outcome class.
 
 ## Performance and numerical behavior
 

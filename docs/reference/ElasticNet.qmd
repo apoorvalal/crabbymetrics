@@ -24,18 +24,18 @@ from _api_doc_utils import *
 
 **Group:** Regression
 
-`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. The current delegated coordinate-descent implementation centers the outcome, but not the feature columns. With $\bar y=n^{-1}\sum_i y_i$ and $y_c=y-\bar y\mathbf1$, it solves
+`ElasticNet` estimates a penalized linear model with a convex combination of L1 and L2 penalties. With an intercept it centers both predictors and outcome: $X_c=X-\mathbf1\bar x'$ and $y_c=y-\bar y\mathbf1$. It solves
 
 $$
 \begin{aligned}
 \min_{\beta}\quad
-&\frac{1}{2n}\|y_c-X\beta\|_2^2 \\
+&\frac{1}{2n}\|y_c-X_c\beta\|_2^2 \\
 &+\lambda\rho\|\beta\|_1
 +\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2.
 \end{aligned}
 $$
 
-and predicts $\hat y=\bar y\mathbf1+X\hat\beta$. Thus the reported intercept is $\bar y$, not $\bar y-\bar x'\hat\beta$. This equals the usual jointly optimized unpenalized-intercept formulation when feature columns are centered; otherwise it is a different criterion. This behavior is retained for compatibility and should be accounted for when preparing features.
+The reconstructed intercept is $\hat b_0=\bar y-\bar x'\hat\beta$, and predictions are $\hat b_0+X\hat\beta$. This corrects the old outcome-only centering behavior: shifted-design predictions can change relative to earlier releases. With `fit_intercept=False`, neither array is centered and the intercept is zero.
 
 ## Criterion and solver
 
@@ -43,8 +43,8 @@ Here $\lambda$ is `penalty` and $\rho$ is `l1_ratio`. Coordinate updates use sof
 
 $$
 \begin{aligned}
-r&=y_c-X\hat\beta, \\
-a&=X'r-n\lambda(1-\rho)\hat\beta, \\
+r&=y_c-X_c\hat\beta, \\
+a&=X_c'r-n\lambda(1-\rho)\hat\beta, \\
 L&=n\lambda\rho.
 \end{aligned}
 $$
@@ -68,13 +68,13 @@ The class does not standardize $X$. Because both the L1 and L2 penalties act on 
 
 Coordinate descent itself is delegated to `linfa-elasticnet`; the surrounding fit contract and convergence audit are package-owned.
 
-1. The wrapper clears prior state, validates the dense arrays and every hyperparameter, clones the arrays into a Linfa dataset, and configures Linfa with the requested penalty, mixing ratio, intercept flag, tolerance, and iteration cap. It performs no feature centering or scaling before delegation.
+1. The wrapper clears prior state, validates the dense arrays and every hyperparameter, centers feature columns when fitting an intercept, and delegates the mixed/L1 problem to Linfa. Linfa centers the outcome. No feature standardization is performed.
 2. Linfa runs coordinate descent and returns its hyperplane, intercept, and number of sweeps. The package does not expose or modify individual coordinate updates, active-set rules, or Linfa's internal stopping decision.
 3. Crabbymetrics independently reconstructs $y_c$ when an intercept is requested, computes the residual and elastic-net dual certificate shown above, and compares the gap with `tolerance * dot(y_centered, y_centered)`. This second check, not merely Linfa returning a model, decides whether the public fit succeeds.
-4. It separately recomputes the public primal objective from Linfa predictions and coefficients. A finite accepted gap produces package-standard `FitDiagnostics`; an excessive or nonfinite gap is labeled as iteration-budget failure and the wrapper raises without installing the returned model.
-5. Prediction delegates to the accepted Linfa object. `summary()` extracts its intercept and hyperplane but combines them with package-owned gap and termination fields. The pairs bootstrap repeats this entire delegated-fit-plus-native-audit pipeline and aborts at the first failed replicate.
+4. The primal objective and gap use the same centered problem. The pure-L2 or zero-penalty endpoint instead uses augmented QR, with slope penalty $n\lambda$, and reports a zero duality gap for the direct solve.
+5. The wrapper owns the accepted coefficients and reconstructed original-scale intercept. Prediction validates feature width and finiteness before multiplying; empty batches are allowed. The pairs bootstrap repeats the corrected fitting pipeline and aborts at the first failed replicate.
 
-This boundary is why the page documents the observed intercept convention rather than assuming the textbook jointly centered problem. The wrapper can validate the returned solution against the criterion it exposes, but it cannot change the coordinate-descent mechanics without replacing the delegated solver.
+Centering changes the wrapper's statistical contract without replacing Linfa's coordinate-descent mechanics. Prediction does not retain a borrowed view of the training data.
 
 ## Inference
 
@@ -82,7 +82,7 @@ The summary deliberately returns no analytic covariance or standard errors. L1 s
 
 ## Performance and numerical behavior
 
-One complete coordinate sweep is $O(np)$ for dense input, so runtime is approximately $O(Inp)$ for $I$ iterations. The solver uses $O(n+p)$ working memory in addition to the dense $O(np)$ input retained by the estimator. The final gap check costs another $O(np)$. Sparse coefficients do not reduce the stored dense design. Highly correlated or poorly scaled columns can slow coordinate descent and make the selected support unstable. At $\rho=0$ this solver is a coordinate-descent ridge fit with a different penalty normalization from the package's dedicated `Ridge` class; the same numeric penalty therefore does not imply the same objective.
+One complete coordinate sweep is $O(np)$ for dense input, so runtime is approximately $O(Inp)$ for $I$ iterations. Centering and the final gap check add dense $O(np)$ work. Sparse coefficients do not reduce stored design size. Highly correlated or poorly scaled columns can slow coordinate descent. The pure-L2 endpoint uses QR; its equivalent dedicated `Ridge` penalty is $n\lambda$, not $\lambda$.
 
 ## Python API
 

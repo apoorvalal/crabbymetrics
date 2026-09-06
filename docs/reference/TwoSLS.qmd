@@ -52,6 +52,13 @@ $$
 
 Weighted fitting applies $\sqrt{w_i}$ to $y_i$, every regressor, and every instrument before constructing the projection. The sketched method applies one joint CountSketch to $y$, $\tilde X$, and $\tilde Z$ and performs both stages in the sketched sample; it is an approximate point estimate.
 
+Weights are analytic, not frequency weights. Zero-weight rows and zero-only
+clusters do not count toward summary, Wald, or Anderson-Rubin inference; HAC
+uses the active-row ordering. Prediction validates finite inputs and trained
+width, and failed refits clear old state. Sketched summaries record method,
+size, seed, original sample count, and `inference_approximate=True`; covariance
+does not account for sketch randomization.
+
 ## Implementation walkthrough
 
 The estimator implements 2SLS as two rectangular least-squares problems, avoiding an explicit $n\times n$ projection matrix.

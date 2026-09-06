@@ -41,6 +41,12 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 - OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS fit an intercept internally.
 - `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
 - Weighted fits exist for OLS, Ridge, FixedEffectsOLS, and TwoSLS.
+- On the hardened `speedtest` branch, those weights are analytic, not frequency weights. Zero-weight rows and zero-only clusters are excluded from inference counts; HAC lags use the active-row sequence. Ridge CV retains row-modulo fold assignment.
+- Estimator fit methods clear prior learned state on entry, including failed numerical/validation refits. Python argument conversion errors occur before Rust fit entry and cannot enforce this reset.
+- ElasticNet now centers both predictors and outcome for an intercept, reconstructs the original-scale intercept, and uses a QR solve at the pure-L2 endpoint. This fixes earlier shifted-design behavior.
+- GMM snapshots fitted moments/Jacobians; MEstimator computes covariance at fit time. Keep MEstimator callback data immutable for later bootstrap. GMM vanilla covariance requires two-step iid weighting or `assume_optimal_weighting=True`; default sandwich inference remains available. Solver damping does not regularize statistical weights or covariance.
+- Unpenalized Logit/MultinomialLogit/Poisson may retain valid coefficients while returning `inference_available=False` for rank-deficient information. Check this flag before using standard errors.
+- MatrixCompletion supports `summary(include_matrices=False)` to omit dense surface copies. Default summaries preserve independent array ownership.
 - Robust covariance conventions vary by estimator; the main linear estimators share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", lags=None, clusters=None)`.
 - Iterative likelihood and callback estimators expose `converged`, `iterations`, `termination_reason`, and `objective` in `summary()`. They reject budget-exhausted fits unless the estimator explicitly documents retention of a diagnostic best iterate, as `MatrixCompletion` does.
 - The package does not require pandas, scikit-learn, scipy, statsmodels, or polars at runtime. If you start from a DataFrame, convert to NumPy explicitly before fitting.
@@ -205,7 +211,7 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage. The implementation solves against `y - mean(y)` without centering `X`, then predicts `mean(y) + X @ coef`; this differs from jointly optimizing an unpenalized intercept unless `X` is column-centered. `summary()` exposes the final duality gap and fit diagnostics and marks analytic inference unavailable. A nonconverged fit raises.
+`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage. Intercept fits center both `X` and `y`, then reconstruct `mean(y) - mean(X) @ coef`. The pure-L2 endpoint uses QR and corresponds to dedicated Ridge penalty `n * penalty`. `summary()` exposes the final duality gap and fit diagnostics and marks analytic inference unavailable. A nonconverged fit raises.
 
 ```python
 cm.Logit(alpha=0.0, max_iterations=100, gradient_tolerance=1e-4)

@@ -82,6 +82,13 @@ MEstimator stores covariance at fit time, while its bootstrap data must remain
 immutable. Vanilla GMM covariance now requires optimal iid weighting or an
 explicit information-identity assertion.
 
+Implementation commit `f728fb9` is recorded in the after-evidence JSON with clean
+source provenance. Solver damping is excluded from GMM statistical weights and
+covariance. The updated review includes the original and post-patch probes,
+scoped completion status, and explicit caveats on local performance measurements.
+The 21 affected API/example pages have been rendered and staged over the existing
+published docs at <https://lalten.org/drafts/crabbymetrics-estimator-hardening/>.
+
 Subject-clustered Andersen--Gill inference and NB2 remain queued under the
 likelihood-method plan after the relevant hardening work. Full
 scaling reruns should record adapter revision, environment, and convergence

@@ -196,7 +196,7 @@ def gmm_vanilla():
     model = cm.GMM(lambda t, y: (y - t[0])[:, None], lambda t, y: np.array([[-1.0]]))
     model.fit(data, np.zeros(1))
     return {
-        "vanilla_se": model.summary(vcov="vanilla")["se"],
+        "vanilla": outcome(lambda: model.summary(vcov="vanilla")["se"]),
         "sandwich_se": model.summary()["se"],
         "expected_se": float(data.std(ddof=0) / np.sqrt(data.size)),
     }
@@ -356,9 +356,8 @@ def logit_rank_deficiency():
     }
 
 
-def gil_responsiveness():
+def gil_responsiveness(n=2600):
     rng = np.random.default_rng(45)
-    n = 2600
     x = rng.normal(size=(n, 3))
     duration = rng.exponential(np.exp(-0.4 * x[:, 0])) + 0.01
     event = rng.binomial(1, 0.8, n).astype(float)
@@ -381,9 +380,46 @@ def gil_responsiveness():
         model = cm.CoxPH()
         elapsed.append(timed_call(lambda model=model: model.fit(x, duration, event)))
     return {
+        "n": n,
         "requested_timer_delay": 0.01,
         "sleep_control": baseline,
         "native_fits": elapsed,
+    }
+
+
+def gil_responsiveness_large():
+    return gil_responsiveness(n=200000)
+
+
+def ridge_grid_reuse():
+    _, x, y = sample(n=1200, p=24)
+    penalties = np.logspace(-2, 2, 8)
+    records = {}
+    for label in ("grid", "repeated_scalar_fits"):
+        times = []
+        for _ in range(3):
+            started = time.perf_counter()
+            if label == "grid":
+                model = cm.Ridge(penalty=penalties, cv=5)
+                model.fit(x, y)
+            else:
+                for penalty in penalties:
+                    for fold in range(5):
+                        keep = np.arange(len(y)) % 5 != fold
+                        model = cm.Ridge(penalty=float(penalty))
+                        model.fit(x[keep], y[keep])
+                        model.predict(x[~keep])
+                    model = cm.Ridge(penalty=float(penalty))
+                    model.fit(x, y)
+            times.append(time.perf_counter() - started)
+        records[label] = {"median_seconds": float(np.median(times)), "times": times}
+    return {
+        "n": len(y),
+        "p": x.shape[1],
+        "penalties": len(penalties),
+        "folds": 5,
+        "timings": records,
+        "note": "Repeated scalar fits are a work-equivalent QR proxy, not the old native grid implementation.",
     }
 
 
@@ -406,6 +442,8 @@ CASES = {
         balancing_nan,
         logit_rank_deficiency,
         gil_responsiveness,
+        gil_responsiveness_large,
+        ridge_grid_reuse,
     ]
 }
 
@@ -428,7 +466,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--case", choices=CASES)
     parser.add_argument(
-        "--output", type=Path, default=Path(__file__).with_name("evidence.json")
+        "--output", type=Path, default=Path(__file__).with_name("evidence-after.json")
     )
     args = parser.parse_args()
     if args.case:
@@ -467,6 +505,21 @@ def main():
     ).strip()
     evidence = {
         "commit": commit,
+        "source_dirty": bool(
+            subprocess.check_output(
+                [
+                    "git",
+                    "status",
+                    "--porcelain",
+                    "--",
+                    "src",
+                    "Cargo.toml",
+                    "Cargo.lock",
+                ],
+                cwd=ROOT,
+                text=True,
+            ).strip()
+        ),
         "python": platform.python_version(),
         "platform": platform.platform(),
         "packages": {

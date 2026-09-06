@@ -1,6 +1,6 @@
 ---
 title: "Crabbymetrics: Estimator Hardening Review"
-subtitle: "Correctness, numerical reliability, API contracts, and performance"
+subtitle: "Implemented patches, before/after evidence, and remaining work"
 author: "Development review"
 date: "2026-09-05"
 jupyter: python3
@@ -14,19 +14,244 @@ format:
     code-tools: true
     embed-resources: true
     html-math-method: mathjax
+    include-in-header:
+      text: |
+        <style>
+        .quarto-figure img { max-width: 100%; height: auto; }
+        </style>
 execute:
   echo: true
   warning: false
   error: false
 ---
 
-## Decision Summary
+## Implementation Update
 
-**Review only. No estimator implementation has been changed.** The benchmark and
-shared-helper cleanup was pushed to `speedtest` as
+**The approved patches are implemented on `speedtest`.** These were not only
+footguns: the original audit reproduced incorrect ElasticNet predictions,
+false GMM convergence, an inconsistent Cox objective, and incorrect inference
+counts with zero-weight rows. Input contracts and performance were additional
+parts of the work.
+
+Implementation commit:
+[`f728fb9`](https://github.com/apoorvalal/crabbymetrics/commit/f728fb9).
+The release-mode extension passes **309 Python tests and 10 Rust tests**.
+The Python suite includes 71 new hardening cases and the existing external
+reference checks. Formatting, changed-Python lint, and diff whitespace checks
+pass. Clippy completes with 35 existing-style/structural warnings; this is not a
+claim of a warning-free codebase.
+
+The original audit and its exact measurements are preserved below as historical
+evidence. Downloads: [current Quarto source](index.qmd), [current probe harness](probes.py),
+[original evidence](evidence.json), and [post-patch evidence](evidence-after.json).
+The after harness contains 18 cases, including two additional performance probes.
+All data are synthetic. The report does not claim that every future proposal or
+every possible invalid input has been exhausted.
+
+### Finding Status
+
+"Implemented" means the identified defect/contract has been patched with focused
+regression coverage. It does not mean every exploratory acceptance experiment
+listed in the original audit has been completed.
+
+| Finding | Status | What changed |
+|---|---|---|
+| F01 | Implemented | OLS/Ridge/ElasticNet/TwoSLS prediction checks width and finite values; Ridge validates complete CV weights before indexing. Empty prediction batches remain valid. |
+| F02 | Implemented for identified paths | Finite preflight covers shared linear solves, balancing, the one-donor synthetic-control shortcut, kernel parameters/arrays, and GMM/MEstimator callbacks. Masked panel outcomes retain their existing missing-data contract. |
+| F03 | Correctness fix | ElasticNet centers predictors with the outcome and reconstructs the intercept. Pure-L2 and zero-penalty fits use QR with the original objective normalization. |
+| F04 | Correctness fix | GMM uses normalized linear systems plus undamped first-order and relative Newton-step convergence checks. Absolute objective change alone no longer certifies success. Callback shapes are checked, including finite-difference observation counts. |
+| F05 | Correctness fix | Cox/AndersenGill use dynamically rescaled risk moments and centered covariates instead of clipping indices. Breslow ties and open-left/closed-right start-stop intervals are preserved. |
+| F06 | Correctness fix and explicit policy | OLS, FE OLS, Ridge, and TwoSLS use analytic weights. Zero-weight observations and zero-only clusters do not enter inference counts; zero-only FE levels do not enter absorbed rank. Summary and Wald paths agree. |
+| F07 | Implemented | Unpenalized Logit, MultinomialLogit, and Poisson no longer add an artificial inference ridge. Rank-deficient information yields unavailable inference rather than fabricated precision. |
+| F08 | Implemented | ABCOLS, semiparametric, and blip summaries use checked covariance diagonals. Materially negative/nonfinite variances raise; only roundoff-scale negatives are clipped. |
+| F09 | Implemented across estimators | Fit methods clear learned state on Rust entry; failed validation/numerical refits leave the object unfitted. Python argument conversion errors occur before that entry and are outside this guarantee. |
+| F10 | Implemented | GMM stores fitted moment/Jacobian snapshots. MEstimator computes and caches covariance before accepting a fit. Summaries no longer depend on later data mutation. MEstimator bootstrap still requires immutable callback data. |
+| F11 | Implemented | Vanilla GMM covariance requires two-step iid weighting or an explicit assumption. J-stat metadata states the intended weighting regime and unverified regularity assumptions. Solver damping is excluded from statistical weights and covariance. |
+| F12 | Correctness fix | MatrixCompletion objective and RMSE histories describe the same post-update state. An objective increase cannot satisfy convergence. |
+| F13 | Implemented | ABCOLS rejects oversized sparse codes before allocation, checks expanded dimensions, and caps dense design/workspace matrices. KernelBasis/cross-kernel allocation is guarded. The cap is 512 MiB per matrix, not a total-process memory budget. |
+| F14 | Implemented for OLS/shared linear covariance | The covariance bread uses design QR and triangular solves rather than a preformed Gram inverse. Related IV/panel Gram refactors remain separate work. |
+| F15 | Partial | OLS/TwoSLS summaries now record sketch method, size, seed, original n, and approximate inference. Full-data estimating-equation gates and repeated-data/repeated-sketch coverage studies remain unimplemented. |
+
+### Compatibility Decisions
+
+1. **ElasticNet results intentionally change** on noncentered designs with an
+   intercept. The dedicated Ridge equivalent at `l1_ratio=0` uses penalty
+   $n\lambda$, reflecting the existing $1/(2n)$ ElasticNet loss normalization.
+2. **Weights are analytic, not frequency counts.** Positive noninteger weights
+   scale the least-squares criterion. Zero weights remove observations from
+   inference and HAC ordering; they do not duplicate observations. Ridge CV's
+   deterministic row-modulo folds are unchanged, so adding zero rows can still
+   change fold membership and selected penalties.
+3. **Failed refits clear state.** This prevents accidental reuse of an old fit
+   after a numerical failure. The contract applies after Python argument binding.
+4. **Inference and optimization are separate.** Valid GLM coefficients can
+   remain available when rank-deficient information makes covariance unavailable.
+   GMM `ridge` is dimensionless optimizer damping, not statistical regularization.
+5. **Callback inference is fixed at fit time.** GMM snapshots sufficient arrays;
+   MEstimator eagerly computes its existing iid sandwich. No arbitrary Python
+   object is deep-copied. Invalid MEstimator score inference now fails the fit.
+6. **Additive controls:** `GMM.summary()` and `wald_test()` accept keyword-only
+   `assume_optimal_weighting=False`; `MatrixCompletion.summary()` accepts
+   keyword-only `include_matrices=True`. Existing default matrix ownership is
+   preserved. Sketched linear/IV summaries label their approximation explicitly.
+
+### Numerical Before And After
+
+```{python}
+#| label: implementation-evidence
+#| output: asis
+import json
+from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
+
+baseline = json.loads(Path("evidence.json").read_text())
+updated = json.loads(Path("evidence-after.json").read_text())
+
+def measured(data, name):
+    record = data["cases"][name]["result"]
+    assert record["status"] == "returned", (name, record)
+    return record["value"]
+
+def before(name):
+    return measured(baseline, name)
+
+def after(name):
+    return measured(updated, name)
+
+print(f"After-source commit: `{updated['commit']}`; "
+      f"source dirty: `{updated['source_dirty']}`.\n")
+rows = [
+    ("ElasticNet max prediction change after shifting X",
+     before("elasticnet_translation")["native"]["max_prediction_change"],
+     after("elasticnet_translation")["native"]["max_prediction_change"]),
+    ("GMM estimate with moment scale 1e-6 (target 4)",
+     before("gmm_moment_scale")["fits"]["1e-06"]["coef"][0],
+     after("gmm_moment_scale")["fits"]["1e-06"]["coef"][0]),
+    ("GMM estimate with moment scale 1e-10 (target 4)",
+     before("gmm_moment_scale")["fits"]["1e-10"]["coef"][0],
+     after("gmm_moment_scale")["fits"]["1e-10"]["coef"][0]),
+    ("OLS SE ratio after adding zero-weight rows (target 1)",
+     before("zero_weight_rows")["vanilla_se_ratio"][0],
+     after("zero_weight_rows")["vanilla_se_ratio"][0]),
+    ("Ill-conditioned OLS max relative SE error against QR",
+     before("ill_conditioned_ols")["max_relative_se_error"],
+     after("ill_conditioned_ols")["max_relative_se_error"]),
+    ("MEstimator SE / original SE after pre-summary data mutation",
+     before("callback_data_mutation")["before_first_summary"][0] /
+     before("callback_data_mutation")["original_se"],
+     after("callback_data_mutation")["before_first_summary"][0] /
+     after("callback_data_mutation")["original_se"]),
+    ("MatrixCompletion last-trace versus returned-fit RMSE gap",
+     abs(before("matrix_completion_diagnostics")["recorded_last_rmse"] -
+         before("matrix_completion_diagnostics")["returned_fit_rmse"]),
+     abs(after("matrix_completion_diagnostics")["recorded_last_rmse"] -
+         after("matrix_completion_diagnostics")["returned_fit_rmse"])),
+]
+print("| Quantity | Before | After |\n|---|---:|---:|")
+for label, old, new in rows:
+    print(f"| {label} | {old:.8g} | {new:.8g} |")
+```
+
+Cox shifts of 100 and 1000 previously exhausted the optimizer budget. They now
+converge in the same four iterations as the unshifted fit, with matching slopes
+and likelihood. The invalid prediction/CV probes now return `ValueError`, the
+NaN balancing case returns promptly instead of hitting its guard, and the
+rank-deficient Logit fit reports unavailable inference. Identity-weighted GMM
+now rejects unqualified vanilla inference; its sandwich SE matches the direct
+sample-mean reference.
+
+The new tests additionally check moment scales from $10^{-10}$ through $10^{10}$
+with both analytic and numerical Jacobians, ElasticNet L1/L2 endpoints against
+sklearn, weighted covariance/Wald invariance, tall/wide Ridge grid parity against
+independent scalar QR fits, Cox derivative/tie/row-order semantics, failed-refit
+state, lightweight-summary ownership, capacity guards, and bootstrap RNG replay.
+This is targeted regression evidence, not a universal numerical proof.
+
+### Performance Delivered
+
+| Proposal | Status | Delivered and remaining scope |
+|---|---|---|
+| P01 | Partial, main Cox path implemented | CoxPH caches stop-time order and accumulates stable risk moments. Backtracking skips derivatives. AndersenGill shares stable sums but still scans intervals at each distinct event time; its full add/remove sweep is deferred. |
+| P02 | Implemented locally | Ridge reuses centered weighted SVDs across positive penalties and folds; zero penalties retain QR. ParallelTrendsSNMM reuses each fold/period QR across target horizons. No global cache or fold-policy change. |
+| P03 | Deferred except Cox line searches | General GLM scratch buffers, fused objective/gradient passes, and parametric-survival allocation work require profiling and derivative parity before implementation. |
+| P04 | Implemented bounded changes | Exact SVT scales singular-vector columns without a dense diagonal; MatrixCompletion can omit four dense summary surfaces. Wider panel conversion/RSS work is deferred. |
+| P05 | Implemented index streaming | All shared-helper callers consume one bootstrap index vector at a time, preserving exact seeded draw order. Existing replicate failure/resampling policies are unchanged and still need a separate audit. |
+| P06 | Partial | CoxPH and AndersenGill detach only owned pure-Rust fitting from the GIL. Other estimators, callback reacquisition, cancellation, and oversubscription studies are deferred. |
+| P07 | Deferred | No replacement of SyntheticControl's optimizer. The simplex-QP candidate still needs objective/KKT and boundary-solution comparisons. |
+
+```{python}
+#| label: fig-cox-before-after
+#| fig-cap: "Same synthetic CoxPH probe, three fit repetitions per size. Local timings, not a production scaling claim."
+#| fig-width: 8
+#| fig-height: 3.7
+fig, ax = plt.subplots(figsize=(8, 3.7), layout="constrained")
+for data, label, color in [(baseline, "Before", "#ba4357"),
+                           (updated, "After", "#087e8b")]:
+    records = measured(data, "cox_scaling")["measurements"]
+    ax.loglog([r["n"] for r in records],
+              [1000*r["median_seconds"] for r in records],
+              "o-", label=label, color=color)
+ax.set(xlabel="Observations", ylabel="Fit median (ms)", xticks=[100, 200, 400, 800])
+ax.set_xticklabels([100, 200, 400, 800])
+ax.minorticks_off()
+ax.grid(alpha=0.18)
+ax.legend(frameon=False)
+plt.show()
+```
+
+```{python}
+#| output: asis
+old_cox = before("cox_scaling")["measurements"][-1]
+new_cox = after("cox_scaling")["measurements"][-1]
+print(f"At n=800, median fit time was {old_cox['median_seconds']*1000:.3f} ms "
+      f"before and {new_cox['median_seconds']*1000:.3f} ms after, "
+      f"with {old_cox['iterations']} and {new_cox['iterations']} iterations.\n")
+ridge_probe = after("ridge_grid_reuse")
+timings = ridge_probe["timings"]
+print(f"For n={ridge_probe['n']}, p={ridge_probe['p']}, "
+      f"{ridge_probe['penalties']} penalties and {ridge_probe['folds']} folds, "
+      f"native grid median was {1000*timings['grid']['median_seconds']:.2f} ms; "
+      f"repeated scalar QR fits took "
+      f"{1000*timings['repeated_scalar_fits']['median_seconds']:.2f} ms.\n")
+print("The repeated-scalar comparison is a work-equivalent proxy with Python "
+      "dispatch overhead, **not a measurement of the previous native grid implementation**.\n")
+gil_after = after("gil_responsiveness_large")
+print("| Large Cox call (n=200000) | Fit duration (ms) | 10-ms timer fired after (ms) |\n|---|---:|---:|")
+for i, row in enumerate(gil_after["native_fits"], 1):
+    print(f"| {i} | {1000*row['call_seconds']:.2f} | {1000*row['timer_delay_seconds']:.2f} |")
+```
+
+The original 2600-row responsiveness workload now finishes before its 10-ms
+timer, so it cannot establish GIL release. The additional 200000-row case shows
+the timer firing during native work; it is **not** a before/after timing pair.
+No multicore throughput, cancellation, or total-RSS claim follows from it.
+Bootstrap and SVT allocation reductions are source-level structural improvements;
+large memory stress benchmarks were not run.
+
+### Remaining Work
+
+The immediate defect patches are complete. Remaining work is explicitly scoped:
+sketch estimating-equation checks and coverage simulations; AndersenGill's full
+start/stop sweep and subject-clustered inference; profiling-led GLM/parametric
+survival allocation reductions; wider panel/IV factorization changes; bootstrap
+failure-policy review; broader GIL/concurrency studies; and validation of the
+simplex optimizer candidate. New likelihood families remain in `devspec.md`'s
+separate expansion plan. None was silently substituted into this patch.
+
+## Original Decision Summary (Historical)
+
+::: {.callout-note}
+Everything from this section through the original probe ledger describes the
+**pre-patch** source and measurements. "Proposed change" and acceptance lists are
+retained as the audit record, not current implementation status. The status
+tables above supersede them. Source anchors below intentionally remain pinned to
+the old commit.
+:::
+
+The benchmark and shared-helper cleanup was pushed to `speedtest` as
 [`921fd2c`](https://github.com/apoorvalal/crabbymetrics/commit/921fd2c140f9ed0f1359c9c424e777413eb49482).
-This report audits that exact commit, not a proposed replacement implementation.
-It is a queue for review and approval before coding begins.
+The original report audited that exact commit before the user approved coding.
 
 The highest-value first pass is **correctness and input contracts**, followed by
 **Cox risk-set computation and repeated ridge factorizations**. Speed claims
@@ -55,7 +280,7 @@ ordinary public input. P2 means numerical or API hardening that should accompany
 the next substantive estimator pass. These are engineering priorities, not a
 claim of exploitability or a release-blocking policy already agreed upon.
 
-### Review Decisions
+### Original Review Decisions
 
 1. Approve correcting ElasticNet's intercept semantics even though shifted-design
    coefficients and predictions will change relative to older releases.
@@ -125,7 +350,8 @@ large-allocation cases below are derived from source and were deliberately not
 run. Timer and small-sample scaling results are descriptive local measurements,
 not production throughput claims.
 
-To reproduce from the audited checkout with its release-built extension:
+To rerun the current probes on the release-built extension (default output is
+`evidence-after.json`, preserving the baseline):
 
 ```bash
 .venv/bin/python reviews/estimator-hardening/probes.py
@@ -407,7 +633,7 @@ and regularity assumptions; the current code does not itself supply a p-value.
 assumptions, and gate or explicitly opt into vanilla inference. Distinguish a
 raw minimized criterion from a calibrated overidentification test.
 **Acceptance:** scalar variance scaling, one-/two-step overidentified examples,
-user-supplied W, clusters/HAC, and near-singular optimal weighting. Probe:
+identity versus two-step W, clusters/HAC, and near-singular optimal weighting. Probe:
 `gmm_vanilla`; J-stat interpretation is a source-level contract concern.
 
 ### F12: MatrixCompletion Histories Refer to Different Iterates
@@ -514,11 +740,12 @@ evaluation][cox-fit] even when it needs only the candidate likelihood.
 measurements = result("cox_scaling")["measurements"]
 ns = np.array([r["n"] for r in measurements])
 ms = np.array([r["median_seconds"] * 1000 for r in measurements])
-fig, ax = plt.subplots(layout="constrained")
+fig, ax = plt.subplots(figsize=(8, 3.7), layout="constrained")
 ax.loglog(ns, ms, "o-", color="#087e8b", label="Measured fit median")
 ax.loglog(ns, ms[-1] * (ns / ns[-1])**2, "--", color="#ba4357", label="Quadratic reference")
 ax.set(xlabel="Observations", ylabel="Fit time (milliseconds)", xticks=ns)
 ax.set_xticklabels(ns)
+ax.minorticks_off()
 ax.grid(alpha=0.18)
 ax.legend(frameon=False)
 plt.show()
@@ -731,8 +958,8 @@ clearly rather than changing the estimator or suppressing failure.
 
 ## Staged Implementation Plan
 
-No phase below is authorized by publication of this report. After review,
-implement narrowly scoped commits, each with tests and a concise devlog entry.
+This was the proposed work order before approval. The implementation update above
+records what is now delivered and which validation or exploratory work remains.
 
 | Phase | Work units | Exit gate |
 |---|---|---|
@@ -795,7 +1022,7 @@ for name, row in cases.items():
 
 ## Source Anchors
 
-All implementation links throughout this report point to the audited
+The historical implementation links below point to the audited
 commit, so they remain stable after follow-up work. No external technical
 literature is required to reproduce the reported cases; mathematical reference
 calculations are explicit in the harness. The sklearn comparison uses the
