@@ -1,4 +1,22 @@
-use ndarray::{Array1, ArrayBase, Data, Dimension};
+use ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
+
+pub(crate) fn validate_prediction(x: &Array2<f64>, n_features: usize) -> Result<(), String> {
+    if x.ncols() != n_features {
+        return Err(format!(
+            "x must have {n_features} columns, got {}",
+            x.ncols()
+        ));
+    }
+    validate_finite("x", x)
+}
+
+pub(crate) fn validate_dense_capacity(name: &str, rows: usize, cols: usize) -> Result<(), String> {
+    let bytes = rows.checked_mul(cols).and_then(|n| n.checked_mul(8));
+    if bytes.is_none_or(|n| n > 512 * 1024 * 1024) {
+        return Err(format!("{name} shape ({rows}, {cols}) exceeds the 512 MiB dense-matrix limit; use an approximate basis or smaller design"));
+    }
+    Ok(())
+}
 
 pub(crate) fn validate_finite<S, D>(name: &str, values: &ArrayBase<S, D>) -> Result<(), String>
 where

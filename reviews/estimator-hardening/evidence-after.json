@@ -1,0 +1,473 @@
+{
+  "commit": "f728fb9774841029fcfedeb61867fd84ea9c7a46",
+  "source_dirty": false,
+  "python": "3.12.9",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "packages": {
+    "crabbymetrics": "0.8.2",
+    "numpy": "2.5.2",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.0"
+  },
+  "thread_environment": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "RCPP_PARALLEL_NUM_THREADS": "1"
+  },
+  "cases": {
+    "prediction_width": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "OLS": {
+            "status": "ValueError",
+            "message": "x must have 3 columns, got 2"
+          },
+          "Ridge": {
+            "status": "ValueError",
+            "message": "x must have 3 columns, got 2"
+          },
+          "ElasticNet": {
+            "status": "ValueError",
+            "message": "x must have 3 columns, got 2"
+          }
+        }
+      },
+      "wall_seconds": 0.06305358395911753,
+      "peak_rss_bytes": 13205504,
+      "returncode": 0
+    },
+    "ridge_bad_weights": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "scalar": {
+            "status": "ValueError",
+            "message": "sample_weight length must match the number of observations"
+          },
+          "grid": {
+            "status": "ValueError",
+            "message": "sample_weight length must match the number of observations"
+          }
+        }
+      },
+      "wall_seconds": 0.06677912501618266,
+      "peak_rss_bytes": 13025280,
+      "returncode": 0
+    },
+    "nonfinite_inputs": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "OLS": {
+            "status": "ValueError",
+            "message": "design must contain only finite values"
+          },
+          "Ridge": {
+            "status": "ValueError",
+            "message": "design must contain only finite values"
+          },
+          "SyntheticControl_one_donor": {
+            "status": "ValueError",
+            "message": "donors must contain only finite values"
+          },
+          "KernelBasis_nan_bandwidth": {
+            "status": "ValueError",
+            "message": "kernel parameters must be finite"
+          }
+        }
+      },
+      "wall_seconds": 0.06632475007791072,
+      "peak_rss_bytes": 13352960,
+      "returncode": 0
+    },
+    "failed_refit": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "OLS": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "ValueError",
+              "message": "OLS model is not fitted"
+            }
+          },
+          "Ridge": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "ValueError",
+              "message": "Ridge model is not fitted"
+            }
+          },
+          "ElasticNet": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "ValueError",
+              "message": "ElasticNet model is not fitted"
+            }
+          },
+          "Logit": {
+            "refit": {
+              "status": "ValueError",
+              "message": "x rows must match y length"
+            },
+            "old_predictions_remain": {
+              "status": "ValueError",
+              "message": "Logit model is not fitted"
+            }
+          }
+        }
+      },
+      "wall_seconds": 0.06250658305361867,
+      "peak_rss_bytes": 14860288,
+      "returncode": 0
+    },
+    "elasticnet_translation": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "native": {
+            "max_prediction_change": 1.4210854715202004e-14,
+            "centered_mse": 0.24276452110240504,
+            "shifted_mse": 0.24276452110240493,
+            "shifted_converged": true
+          },
+          "sklearn": {
+            "max_prediction_change": 3.7192471324942744e-15,
+            "centered_mse": 0.24276452110240493,
+            "shifted_mse": 0.24276452110240498
+          }
+        }
+      },
+      "wall_seconds": 0.7136875839205459,
+      "peak_rss_bytes": 158842880,
+      "returncode": 0
+    },
+    "zero_weight_rows": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "max_prediction_change": 0.0,
+          "vanilla_se_ratio": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "expected_df_ratio": 0.6979824404521128
+        }
+      },
+      "wall_seconds": 0.06463475001510233,
+      "peak_rss_bytes": 14974976,
+      "returncode": 0
+    },
+    "gmm_moment_scale": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "expected_mean": 4.0,
+          "fits": {
+            "1.0": {
+              "coef": [
+                3.999999959999997
+              ],
+              "converged": true,
+              "nit": 1,
+              "criterion": 8.000001179961075e-16
+            },
+            "1e-06": {
+              "coef": [
+                3.9999999600000007
+              ],
+              "converged": true,
+              "nit": 1,
+              "criterion": 7.999999786989359e-28
+            },
+            "1e-10": {
+              "coef": [
+                3.999999960000001
+              ],
+              "converged": true,
+              "nit": 1,
+              "criterion": 7.999999528437519e-36
+            }
+          }
+        }
+      },
+      "wall_seconds": 0.0678143750410527,
+      "peak_rss_bytes": 15826944,
+      "returncode": 0
+    },
+    "gmm_vanilla": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "vanilla": {
+            "status": "ValueError",
+            "message": "vanilla covariance requires optimal iid weighting; use sandwich or explicitly set assume_optimal_weighting=True"
+          },
+          "sandwich_se": [
+            0.19682631607325274
+          ],
+          "expected_se": 0.19682631607325268
+        }
+      },
+      "wall_seconds": 0.0678347919601947,
+      "peak_rss_bytes": 15400960,
+      "returncode": 0
+    },
+    "callback_data_mutation": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "before_first_summary": [
+            0.1166305860527102
+          ],
+          "after_first_summary": [
+            0.1166305860527102
+          ],
+          "original_se": 0.1166305860514025
+        }
+      },
+      "wall_seconds": 0.06629045901354402,
+      "peak_rss_bytes": 12746752,
+      "returncode": 0
+    },
+    "cox_translation": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "0.0": {
+            "status": "returned",
+            "value": {
+              "coef": [
+                0.7747293152826582
+              ],
+              "log_likelihood": -581.2067357068212,
+              "converged": true,
+              "iterations": 4
+            }
+          },
+          "100.0": {
+            "status": "returned",
+            "value": {
+              "coef": [
+                0.7747293152826581
+              ],
+              "log_likelihood": -581.206735706821,
+              "converged": true,
+              "iterations": 4
+            }
+          },
+          "1000.0": {
+            "status": "returned",
+            "value": {
+              "coef": [
+                0.774729315282658
+              ],
+              "log_likelihood": -581.2067357068211,
+              "converged": true,
+              "iterations": 4
+            }
+          }
+        }
+      },
+      "wall_seconds": 0.06756299990229309,
+      "peak_rss_bytes": 15695872,
+      "returncode": 0
+    },
+    "cox_scaling": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "measurements": [
+            {
+              "n": 100,
+              "median_seconds": 2.6999972760677338e-05,
+              "iterations": 4
+            },
+            {
+              "n": 200,
+              "median_seconds": 3.4541008062660694e-05,
+              "iterations": 3
+            },
+            {
+              "n": 400,
+              "median_seconds": 7.058307528495789e-05,
+              "iterations": 3
+            },
+            {
+              "n": 800,
+              "median_seconds": 0.00012700003571808338,
+              "iterations": 3
+            }
+          ],
+          "log_log_slope": 0.7732409238996255
+        }
+      },
+      "wall_seconds": 0.06455216696485877,
+      "peak_rss_bytes": 15466496,
+      "returncode": 0
+    },
+    "ill_conditioned_ols": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "condition_number": 21189140.009371214,
+          "native_se": [
+            57664.67484634246,
+            57664.67435595218
+          ],
+          "qr_reference_se": [
+            57664.67484446441,
+            57664.67435407412
+          ],
+          "max_relative_se_error": 3.256861447198389e-11
+        }
+      },
+      "wall_seconds": 0.0665959999896586,
+      "peak_rss_bytes": 12992512,
+      "returncode": 0
+    },
+    "matrix_completion_diagnostics": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "recorded_last_rmse": 0.7664352292637819,
+          "returned_fit_rmse": 0.7664352292637815,
+          "starting_zero_fit_rmse": 0.9079435897476537,
+          "converged": false,
+          "summary_completed_counterfactual_share_memory": false
+        }
+      },
+      "wall_seconds": 0.06545799993909895,
+      "peak_rss_bytes": 13123584,
+      "returncode": 0
+    },
+    "balancing_nan": {
+      "result": {
+        "status": "ValueError",
+        "message": "covariates must contain only finite values"
+      },
+      "wall_seconds": 0.06602499994914979,
+      "peak_rss_bytes": 12877824,
+      "returncode": 0
+    },
+    "logit_rank_deficiency": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "design_rank": 1,
+          "parameter_count": 2,
+          "coef": [
+            0.0
+          ],
+          "intercept": 0.0,
+          "coef_se": null,
+          "intercept_se": null,
+          "inference_available": false,
+          "converged": true
+        }
+      },
+      "wall_seconds": 0.06609829107765108,
+      "peak_rss_bytes": 13385728,
+      "returncode": 0
+    },
+    "gil_responsiveness": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "n": 2600,
+          "requested_timer_delay": 0.01,
+          "sleep_control": {
+            "call_seconds": 0.16007737501058728,
+            "timer_delay_seconds": 0.015095375012606382
+          },
+          "native_fits": [
+            {
+              "call_seconds": 0.0010909999255090952,
+              "timer_delay_seconds": 0.015093124937266111
+            },
+            {
+              "call_seconds": 0.0010110000148415565,
+              "timer_delay_seconds": 0.015088125015608966
+            }
+          ]
+        }
+      },
+      "wall_seconds": 0.2669263338902965,
+      "peak_rss_bytes": 42893312,
+      "returncode": 0
+    },
+    "gil_responsiveness_large": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "n": 200000,
+          "requested_timer_delay": 0.01,
+          "sleep_control": {
+            "call_seconds": 0.16009958391077816,
+            "timer_delay_seconds": 0.01510145899374038
+          },
+          "native_fits": [
+            {
+              "call_seconds": 0.07253825000952929,
+              "timer_delay_seconds": 0.01510287495329976
+            },
+            {
+              "call_seconds": 0.050638125045225024,
+              "timer_delay_seconds": 0.015057791024446487
+            }
+          ]
+        }
+      },
+      "wall_seconds": 0.387885959004052,
+      "peak_rss_bytes": 68059136,
+      "returncode": 0
+    },
+    "ridge_grid_reuse": {
+      "result": {
+        "status": "returned",
+        "value": {
+          "n": 1200,
+          "p": 24,
+          "penalties": 8,
+          "folds": 5,
+          "timings": {
+            "grid": {
+              "median_seconds": 0.002936249948106706,
+              "times": [
+                0.0029708329821005464,
+                0.0029342080233618617,
+                0.002936249948106706
+              ]
+            },
+            "repeated_scalar_fits": {
+              "median_seconds": 0.024834708077833056,
+              "times": [
+                0.024827291956171393,
+                0.024834708077833056,
+                0.02494079095777124
+              ]
+            }
+          },
+          "note": "Repeated scalar fits are a work-equivalent QR proxy, not the old native grid implementation."
+        }
+      },
+      "wall_seconds": 0.19202183303423226,
+      "peak_rss_bytes": 46039040,
+      "returncode": 0
+    }
+  }
+}

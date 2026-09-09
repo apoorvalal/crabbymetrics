@@ -78,7 +78,7 @@ Analytic inference is disabled for $\lambda>0$. For an unpenalized fit, the vani
 $$
 \widehat V_{\mathrm{vanilla}}
 =
-(\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I)^{-1}.
+(\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X)^{-1}.
 $$
 
 The sandwich, also accepted under the alias QMLE, is
@@ -92,10 +92,15 @@ B^{-1}
 \right\}
 B^{-1},
 \qquad
-B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X+10^{-8}I.
+B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X.
 $$
 
 No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw, and any nonconverged replicate aborts the bootstrap.
+
+Inference uses QR of the Fisher-weighted design, without the optimization
+ridge or a floor on fitted means. Numerically rank-deficient information returns
+`inference_available=False`, null covariance/SEs, and `inference_reason` while
+preserving valid point estimates; Wald inference raises.
 
 ## Performance and numerical behavior
 

@@ -9,15 +9,122 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.8.1` is published to PyPI and GitHub Releases. The matching 92-page documentation site is live from `gh-pages`.
+Current release state: the package is `v0.8.2`; its release and packaging checks are recorded in the 2026-08-20 entry below. Documentation is deployed separately through `gh-pages`.
 
-Current development state: PR #17 squash-merged into `master` as `854a63b`. The released code removes the incoherent FTRL wrapper, replaces delegated logit fits with native convergence-checked likelihoods, hardens iterative estimator status, and ships the source-level implementation walkthroughs across all estimator reference pages.
+Current development state: `speedtest` includes the 30-estimator scaling inventory/report and external-reference parity tests on top of `v0.8.2`. The September cleanup hardens benchmark execution and persistence, corrects adapter comparisons, and reduces shared numerical-helper allocations. The user-approved estimator patches below fix numerical defects and implement bounded performance improvements. The historical scaling data has not been regenerated.
 
-The `feature/snmm-blips` branch adds three experimental dynamic-treatment estimators for review: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
+The current public surface includes the three experimental dynamic-treatment estimators originally developed on `feature/snmm-blips`: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
+
+## Upstream Merge (2026-09-09)
+
+- Merged `origin/master` at `042f757` into `speedtest`, retaining both the
+  estimator-hardening history and upstream's Chronos/MPE_CBPS additions.
+- The existing scaling inventory and audit cover the original 30 estimators;
+  upstream's new `MPE_CBPS` is additional to that historical scope.
+- Verification: the merged release build passes 314 Python tests and 11 Rust
+  tests. No unresolved conflicts or Markdown conflict markers remain.
+
+## Approved Estimator Patches (2026-09-05)
+
+- Implemented the confirmed estimator audit corrections, including ElasticNet
+  predictor centering, dimensionless GMM stabilization and undamped convergence
+  checks, stable Cox risk sums, analytic-weight inference counts, and rank-aware
+  GLM inference. The pure-L2 ElasticNet endpoint uses QR instead of an unsuitable
+  dual-gap stopping path.
+- Standardized fit-state invalidation across estimator families; snapshotted
+  GMM inference inputs and eagerly computed MEstimator covariance. Added explicit
+  optimal-weight assertions for GMM vanilla covariance and sketch provenance for
+  linear/IV fits. Hardened finite inputs, categorical/kernel capacities, variance
+  diagonals, and MatrixCompletion diagnostics.
+- Reduced Cox risk-set and line-search work, detached owned Cox/AndersenGill
+  fits from the GIL, reused ridge-grid and SNMM factorizations, streamed bootstrap
+  indices, removed dense SVT diagonal matrices, and added optional lightweight
+  MatrixCompletion summaries. Unimplemented performance proposals remain queued.
+- GMM damping is confined to the optimizer: two-step weights and covariance
+  use undamped inverses. Added regression coverage with nontrivial damping and
+  changing callback observation counts during numerical differentiation.
+- Verification: release build, 309 Python tests, and 10 Rust tests pass. New tests
+  cover the original numerical defects, weighted summary/Wald consistency,
+  ridge-grid parity, Cox derivative/tie semantics, GIL responsiveness, and exact
+  bootstrap RNG replay. An unrelated process-cleanup test had one transient OS
+  permission failure and passed on targeted and subsequent full reruns.
+- Committed the implementation as `f728fb9`. Reran the 18-case guarded probe
+  harness against that clean source and recorded `evidence-after.json`, preserving
+  the original audit evidence. The 800-row Cox probe fell from 13.73 ms to
+  0.127 ms with the same three iterations; this is a small local measurement,
+  not a new production scaling run. Ridge's repeated-scalar comparison is labeled
+  a proxy rather than a measurement of the old native grid.
+- Updated the Quarto report with finding status, compatibility decisions,
+  before/after tables, performance evidence, and remaining work. Rendered the
+  report and all 21 changed API/example pages successfully. Updated `docs/llms.txt`
+  and implementation walkthroughs to remove stale centering, covariance,
+  callback, risk-set, and ridge-path descriptions.
+- Published the report and both evidence files at
+  <https://lalten.org/pages/crabbymetrics-estimator-hardening/> and verified HTTP
+  content hashes. Staged the updated API pages over the published docs tree at
+  <https://lalten.org/drafts/crabbymetrics-estimator-hardening/>; unchanged pages
+  reuse their published renders. Rendered HTML/cache artifacts are not committed
+  to the source branch.
+
+## Estimator Audit for Review (2026-09-05)
+
+- Pushed the completed cleanup as `921fd2c` to `origin/speedtest`.
+- Reviewed all 30 estimator exports, five feature transformers, and shared
+  numerical helpers. Added a standalone Quarto review under
+  `reviews/estimator-hardening/`, a 16-case isolated synthetic probe harness,
+  and machine-readable evidence tied to the audited commit.
+- Reproduced prediction/CV panics, nonfinite-input failures, ElasticNet's known
+  intercept-centering debt, GMM scale-sensitive false convergence, Cox clipping
+  non-invariance, zero-weight degrees-of-freedom effects, rank-deficient Logit
+  inference, mutable callback-data inference, and misaligned panel diagnostics.
+  The report distinguishes reproduced defects from source-only concerns,
+  existing limitations, and API policy choices.
+- Added seven performance proposals with equivalence and measurement gates,
+  including Cox risk-set sweeps, repeated ridge factorization reuse, allocation
+  reductions, streaming bootstrap indices, and pure-Rust GIL release.
+- The unchanged estimator implementation still passes all 238 Python tests
+  (15 warnings). The NaN balancing probe exceeds its 20-second guard; this is
+  recorded as a timeout, not an asserted infinite loop. Large allocation risks
+  are derived from source and were not stress-executed.
+- Review URL: <https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
+  This historical review preceded approval; estimator patches are recorded above.
+  New likelihood-family work remains queued.
+
+## Speedtest Cleanup (2026-09-05)
+
+- Extracted process monitoring into `benchmarks/scaling/process_runner.py`.
+  Temporary-file output capture avoids pipe-buffer deadlocks; bounded output
+  tails, process-group cleanup, exit-code checks, and result validation preserve
+  timeout/RSS/error outcomes even for noisy or disappearing child processes.
+- Validated and sorted grids, rejected invalid budgets and unavailable adapter
+  selections, removed the memory-cap floor that could consume the system reserve,
+  and pruned missing-dependency paths. Completed cells are written immediately;
+  CSV append preserves column meaning and expands the schema without dropping
+  earlier rows. Host metadata retains previous append-run configurations.
+- Replaced the global Python fit timer with per-cell state and centralized the
+  shared 2SLS DGP. Corrected unpenalized sklearn GLMs, centered elastic net, the
+  horizontal donor-regression comparison, and the R fit-only timer. New output
+  records adapter revision 2; the original report explicitly marks its retained
+  August results as historical and requiring reruns for affected comparisons.
+- Consolidated square-root weighting across linear, IV, and ridge modules.
+  Removed full score-matrix copies from Newey-West lags, per-row cluster-score
+  copies, redundant Fisher-information copies, and per-row NumPy output buffers.
+  Matrix output still owns independent storage and supports empty dimensions.
+- Added failure-path, exact-adapter-input, array-layout/ownership, and hand-worked
+  covariance tests. The unchanged baseline passed 187 Python tests before edits.
+- Final verification: 238 Python tests and 8 Rust tests pass after a release-mode
+  extension rebuild; all 24 smoke-grid cells pass, including sklearn, PyFixest,
+  lifelines, and the runnable R references. Ruff, Rust formatting, and diff checks
+  pass. Clippy completes with the same 36 pre-existing structural/style warnings.
+  The scaling page renders all 33 executable cells with `jupyter: python3`,
+  avoiding the stale local kernel path. A 525 KiB sdist excludes rendered docs;
+  generated render artifacts were moved out of the source checkout.
+- Kept the likelihood expansion plan in `devspec.md`; NB2, grouped binomial,
+  discrete-time hazards, probit, and survival follow-ons remain future work.
 
 ## Chronos Marginal-Policy-Effect CBPS (2026-08-28)
 
@@ -719,3 +826,16 @@ That is the current state the next extension branch should assume.
 - The workflow passed the Python 3.10 and 3.12 test jobs, built Linux and macOS wheels for Python 3.10 through 3.14, published 10 wheels plus a 506,522-byte sdist, created the GitHub Release, and published to PyPI.
 - A pre-release local sdist check produced a 496 KiB archive containing no rendered docs, HTML, or search index. A clean Python 3.12 environment then installed `crabbymetrics==0.8.2` from the public PyPI index and successfully fit `AugmentedBalancing`.
 - Release links: PyPI `https://pypi.org/project/crabbymetrics/0.8.2/`; GitHub Release `https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.8.2`.
+
+## 2026-08-25 Estimator Scaling And Reference Audit
+
+- Created `speedtest` from `origin/master`, opened PR #21, and inventoried all 30 estimator classes exported by Crabbymetrics.
+- Mapped every estimator to scikit-learn, PyFixest, DoubleML/lifelines, or a canonical R/GitHub implementation. Searches found no exact public implementation for the Shahn et al. parallel-trends SNMM, the Viviano--Bradic dynamic covariate-balancing estimator, or Crabbymetrics' abundance-based constrained least squares; those are explicitly marked native-only or nearest-reference rather than given false comparators.
+- Added an isolated scaling harness over $n=10^3$ through $10^7$ and $k=5,10,20,50,100$, with family-specific meanings for panel and dynamic dimensions.
+- Added preflight allocation estimates, a 4 GiB system reserve, descendant-process RSS monitoring, hard process-tree termination, 15-second run-level timeouts, single-thread numerical-kernel settings, and pruning of larger cells after hard failure.
+- The 16 GiB host selected a 1.83 GiB cell cap. The committed run contains 1,150 rows: 731 completed, 198 preflight OOM skips, 27 timeouts, five RSS kills, and 189 monotone-pruned cells, with no unclassified execution errors.
+- Added executable comparison adapters for scikit-learn linear, regularized, polynomial-bagging, logistic, multinomial, and Poisson models; PyFixest fixed-effects OLS and IV; DoubleML PLR and IRM; lifelines Cox PH; and R `fixest` and `survival` references.
+- Added `docs/ablations/estimator-scaling.qmd`, linked it from the Ablations menu and site index, and added a registry-coverage test that fails if any of the 30 exported estimators disappears from the benchmark inventory.
+- Expanded the report into 30 estimator-specific sections. Each records the DGP, exact fitting configuration, reference interpretation, completion/failure frontier, median log-log runtime slope, maximum observed RSS, and runtime/memory scaling plots.
+- Rendered the complete report and staged the review artifact at `https://lalten.org/pages/crabbymetrics-estimator-scaling/ablations/estimator-scaling.html`; the deployed HTML is byte-identical to the verified local render.
+- Added 12 deterministic external solution-parity cases: seven scikit-learn comparisons, PyFixest fixed-effects and IV comparisons under both IID and HC1 covariance, and lifelines Andersen--Gill parity. `pandas` is now an explicit test extra rather than only a transitive dependency.

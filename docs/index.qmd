@@ -82,6 +82,7 @@ execute:
 - [Panel Estimator DGP Comparisons](ablations/panel-dgp-comparisons.html): cached Monte Carlo ATT comparisons for TWFE, synthetic control, synthetic DID, and matrix completion across additive, factor, and selected-adoption panel DGPs.
 - [Randomized Sketching And Least Squares](ablations/randomized-sketching-ols.html): math notes and cached ablations for randomized QR/SVD sketches, CountSketch OLS, and sketched IV/2SLS on tall designs.
 - [Same Root Panel Case Studies](ablations/same-root-panel-cases.html): cached Basque Country and California Proposition 99 case-study comparisons that put simulation, horizontal/vertical estimators, synthetic DID, matrix completion, and donor-placebo inference in one workflow.
+- [Estimator Scaling And References](ablations/estimator-scaling.html): guarded $10^3$--$10^7$ sample-size and $k=5$--$100$ dimension sweeps for every exported estimator, with explicit scikit-learn, PyFixest, and R reference provenance.
 
 ## Optimization
 

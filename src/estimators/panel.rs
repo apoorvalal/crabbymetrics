@@ -50,7 +50,7 @@ fn svt(matrix: &Array2<f64>, threshold: f64) -> PyResult<(Array2<f64>, Array1<f6
     let data: Vec<f64> = matrix.iter().copied().collect();
     let dm = DMatrix::from_row_slice(rows, cols, &data);
     let svd = dm.svd(true, true);
-    let u = svd
+    let mut u = svd
         .u
         .ok_or_else(|| PyValueError::new_err("SVD failed to return left singular vectors"))?;
     let vt = svd
@@ -58,13 +58,12 @@ fn svt(matrix: &Array2<f64>, threshold: f64) -> PyResult<(Array2<f64>, Array1<f6
         .ok_or_else(|| PyValueError::new_err("SVD failed to return right singular vectors"))?;
     let k = svd.singular_values.len();
     let mut shrunk = Array1::<f64>::zeros(k);
-    let mut diag = DMatrix::<f64>::zeros(k, k);
     for j in 0..k {
         let value = (svd.singular_values[j] - threshold).max(0.0);
         shrunk[j] = value;
-        diag[(j, j)] = value;
+        u.column_mut(j).scale_mut(value);
     }
-    let reconstructed = u * diag * vt;
+    let reconstructed = u * vt;
     let mut out = Array2::<f64>::zeros((rows, cols));
     for i in 0..rows {
         for j in 0..cols {
@@ -912,6 +911,14 @@ impl InteractiveFixedEffects {
     }
 
     fn fit(&mut self, y: PyReadonlyArray2<f64>) -> PyResult<()> {
+        self.fit = None;
+        self.residuals = None;
+        self.mu = None;
+        self.alpha = None;
+        self.xi = None;
+        self.factor = None;
+        self.loading = None;
+        self.vnt = None;
         let y = to_array2(&y);
         if y.nrows() == 0 || y.ncols() == 0 {
             return Err(PyValueError::new_err("y must be a non-empty 2D matrix"));
@@ -1227,14 +1234,12 @@ impl MatrixCompletion {
             );
 
             let mut projected = low_rank.clone();
-            let mut rss = 0.0;
             for i in 0..y_work.nrows() {
                 for t in 0..y_work.ncols() {
                     if mask_arr[[i, t]] {
                         let fitted = low_rank[[i, t]] + row_effects[i] + col_effects[t];
                         let residual = y_work[[i, t]] - fitted;
                         projected[[i, t]] += residual;
-                        rss += residual * residual;
                     }
                 }
             }
@@ -1263,11 +1268,21 @@ impl MatrixCompletion {
                 lambda_l,
             );
             self.history_objective.push(obj);
+            let mut rss = 0.0;
+            for i in 0..y_work.nrows() {
+                for t in 0..y_work.ncols() {
+                    if mask_arr[[i, t]] {
+                        let residual =
+                            y_work[[i, t]] - low_rank[[i, t]] - row_effects[i] - col_effects[t];
+                        rss += residual * residual;
+                    }
+                }
+            }
             self.history_rmse.push((rss / n_obs).sqrt());
             final_iteration = iteration + 1;
             if let Some(prev) = previous_obj {
                 let rel = (prev - obj).abs() / (prev.abs() + 1e-12);
-                if rel < self.tolerance {
+                if obj <= prev && rel < self.tolerance {
                     converged = true;
                     break;
                 }
@@ -1324,7 +1339,8 @@ impl MatrixCompletion {
         Ok(pyarray2_from_f64(py, completed))
     }
 
-    fn summary<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
+    #[pyo3(signature = (*, include_matrices=true))]
+    fn summary<'py>(&self, py: Python<'py>, include_matrices: bool) -> PyResult<Py<PyAny>> {
         let completed = self
             .completed
             .as_ref()
@@ -1361,8 +1377,13 @@ impl MatrixCompletion {
         let (event_study, group_means) = panel_summaries_to_dict(py, &summaries)?;
 
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("completed", pyarray2_from_f64(py, completed))?;
-        dict.set_item("low_rank", pyarray2_from_f64(py, low_rank))?;
+        if include_matrices {
+            dict.set_item("completed", pyarray2_from_f64(py, completed))?;
+            dict.set_item("low_rank", pyarray2_from_f64(py, low_rank))?;
+            dict.set_item("counterfactual", pyarray2_from_f64(py, completed))?;
+            dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
+        }
+        dict.set_item("include_matrices", include_matrices)?;
         dict.set_item("unit_effects", pyarray1_from_f64(py, unit_effects))?;
         dict.set_item("time_effects", pyarray1_from_f64(py, time_effects))?;
         dict.set_item("singular_values", pyarray1_from_f64(py, singular_values))?;
@@ -1378,8 +1399,6 @@ impl MatrixCompletion {
         dict.set_item("svd_oversamples", self.svd_oversamples)?;
         dict.set_item("svd_power_iter", self.svd_power_iter)?;
         dict.set_item("att", self.att)?;
-        dict.set_item("counterfactual", pyarray2_from_f64(py, completed))?;
-        dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
         dict.set_item("event_study", event_study)?;
         dict.set_item("group_means", group_means)?;
         dict.set_item("control_units", treatment_info.never_treated.clone())?;
@@ -1434,6 +1453,18 @@ impl HorizontalPanelRidge {
     }
 
     fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
+        self.cohort_intercepts = None;
+        self.cohort_coef = None;
+        self.counterfactual = None;
+        self.treatment_effect = None;
+        self.att = None;
+        self.pre_rmse = None;
+        self.control_units = None;
+        self.treated_units = None;
+        self.cohorts = None;
+        self.treatment_info = None;
+        self.y = None;
+        self.w = None;
         let y = to_array2(&y);
         let w = to_array2(&w);
         let treatment_info = infer_panel_treatment(&y, &w)?;

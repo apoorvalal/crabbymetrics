@@ -1,4 +1,6 @@
-use crate::utils::{invert_matrix, solve_least_squares_vec, to_array1, to_array2, to_array2_u32};
+use crate::utils::{
+    diag_sqrt, invert_matrix, solve_least_squares_vec, to_array1, to_array2, to_array2_u32,
+};
 use nalgebra::{DMatrix, SymmetricEigen};
 use ndarray::{Array1, Array2};
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
@@ -89,6 +91,7 @@ impl ABCOLS {
         cat_cat_interactions: Option<Vec<(usize, usize)>>,
         center_continuous: bool,
     ) -> PyResult<()> {
+        *self = Self::new();
         let y = to_array1(&y);
         let x_raw = to_array2(&x);
         let cats = to_array2_u32(&categories);
@@ -155,7 +158,7 @@ impl ABCOLS {
         let ztz_inv = invert_matrix(&z.t().dot(&z)).map_err(PyRuntimeError::new_err)?;
         let v_phi = ztz_inv.mapv(|v| v * sigma2);
         let v_theta = q.dot(&v_phi).dot(&q.t());
-        let se = v_theta.diag().mapv(|v| v.abs().sqrt());
+        let se = diag_sqrt(&v_theta).map_err(PyValueError::new_err)?;
         let violation = if constraints.nrows() == 0 {
             0.0
         } else {
@@ -304,6 +307,11 @@ fn infer_levels(cats: &Array2<u32>) -> PyResult<Vec<usize>> {
     let mut levels = Vec::with_capacity(cats.ncols());
     for k in 0..cats.ncols() {
         let max_level = cats.column(k).iter().copied().max().unwrap_or(0) as usize;
+        if max_level >= cats.nrows() {
+            return Err(PyValueError::new_err(format!(
+                "categorical column {k} must use contiguous observed codes starting at 0"
+            )));
+        }
         let mut counts = vec![0usize; max_level + 1];
         for &value in cats.column(k) {
             counts[value as usize] += 1;
@@ -379,6 +387,27 @@ fn build_design(
 ) -> PyResult<(Array2<f64>, Vec<ColumnKind>, Vec<String>)> {
     validate_category_bounds(cats, n_levels)?;
     let n = x.nrows();
+    let mut width = 1usize
+        .checked_add(x.ncols())
+        .ok_or_else(|| PyValueError::new_err("design width overflow"))?;
+    for extra in n_levels
+        .iter()
+        .copied()
+        .chain(cont_cat.iter().map(|&(_, k)| n_levels[k]))
+        .chain(
+            cat_cat
+                .iter()
+                .map(|&(a, b)| n_levels[a].saturating_mul(n_levels[b])),
+        )
+    {
+        width = width
+            .checked_add(extra)
+            .ok_or_else(|| PyValueError::new_err("design width overflow"))?;
+    }
+    crate::validation::validate_dense_capacity("ABCOLS design", n, width)
+        .map_err(PyValueError::new_err)?;
+    crate::validation::validate_dense_capacity("ABCOLS constraint workspace", width, width)
+        .map_err(PyValueError::new_err)?;
     let mut cols: Vec<Array1<f64>> = Vec::new();
     let mut kinds = Vec::new();
     let mut names = Vec::new();

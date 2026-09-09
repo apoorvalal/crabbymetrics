@@ -48,15 +48,15 @@ x_i'\beta
 \right].
 $$
 
-Tied stop-time events use the Breslow denominator. Optimization is the same Newton method as CoxPH: analytic score and Hessian, a $10^{-8}$ solve ridge, step clipping, backtracking, and risk-score index clipping to $[-40,40]$ inside the risk sets. Convergence requires either $\|\nabla\ell_p\|_\infty<\tau$ or an accepted partial-likelihood change below $\tau(1+|\ell_p|)$.
+Tied stop-time events use the Breslow denominator. Optimization shares CoxPH's Newton solver, $10^{-8}$ solve ridge, step clipping, and backtracking. Risk moments use stable log rescaling, not index clipping. Convergence requires either $\|\nabla\ell_p\|_\infty<\tau$ or an accepted partial-likelihood change below $\tau(1+|\ell_p|)$.
 
 ## Implementation walkthrough
 
 `AndersenGill` calls the same native partial-likelihood kernel and Newton loop as `CoxPH`, with one additional entry-time predicate.
 
 1. The wrapper validates aligned arrays, finite covariates, binary events, and every interval condition $0\leq s_i<t_i$. It has no subject identifier and therefore cannot validate interval ordering or overlap within a subject.
-2. Slopes start at zero. At each candidate, raw indices are computed once and risk scores use $\exp\{\operatorname{clip}(x_i'\beta,-40,40)\}$. For every event record $i$, the inner scan includes record $r$ precisely when $s_r<t_i\leq t_r$, matching the open-left, closed-right counting-process interval.
-3. That scan accumulates the same scalar denominator and weighted first and second covariate moments as `CoxPH`. It adds one raw event index to the numerator and one log denominator per event, so equal stop-time events receive Breslow handling.
+2. Slopes start at zero and covariates are centered internally. For each distinct stop time with events, the inner scan includes record $r$ precisely when $s_r<t_i\leq t_r$, matching the open-left, closed-right interval.
+3. The scan accumulates dynamically rescaled mass and covariate moments, with one numerator contribution and shared denominator per tied event. Likelihood-only backtracking skips derivatives. Validated owned fitting runs detached from the GIL.
 4. The shared Newton step explicitly inverts a Hessian with $10^{-8}$ subtracted from its diagonal, clips step coordinates to $[-1,1]$, and backtracks through at most 30 halvings. Maximum-score or relative-objective convergence is required; the iteration cap is failure.
 5. Final covariance is the inverse observed information across interval rows. The code has no cluster-score accumulation stage, so repeated records from one subject are treated as separate contributions to this model-based information.
 6. Prediction ignores interval endpoints because the fitted object is only a relative-risk model: it returns $X\hat\beta$ or $\exp(X\hat\beta)$. It does not estimate a baseline hazard or a subject-specific event process.
@@ -75,7 +75,7 @@ The class also does not validate that a subject's intervals are nonoverlapping o
 
 ## Performance and numerical behavior
 
-Every event scans every interval to reconstruct its delayed-entry risk set and accumulates dense second moments, for about $O(Enp^2)$ work per Newton iteration plus an $O(p^3)$ solve. Splitting subjects into more intervals therefore increases both $n$ and often $E$. Risk-set exponentials are clipped but new-data relative-risk predictions are not. This implementation is usable for small counting-process designs and point estimates, but its naive risk-set algorithm and missing subject-cluster covariance are material limitations for production recurrent-event work.
+Each distinct event time still scans every interval, costing about $O(Unp^2)$ per derivative evaluation for $U$ distinct event times, plus an $O(p^3)$ solve. A complete start/stop sweep remains future work. Stable risk sums fix the old clipping inconsistency, but new-data relative risks can still overflow. Missing subject-cluster covariance remains a material limitation for recurrent-event inference.
 
 ## Python API
 

@@ -17,6 +17,12 @@ jupyter: python3
 
 This example uses a genuinely low-rank untreated panel, adds unit and time effects, masks treated cells through `W`, and asks `MatrixCompletion` to fill the counterfactual surface.
 
+Objective and RMSE histories refer to the same post-update iterate. An objective
+increase no longer satisfies the convergence check. `summary(include_matrices=False)`
+omits the four large arrays `completed`, `low_rank`, `counterfactual`, and
+`treatment_effect`; diagnostics, effects summaries, and one-dimensional arrays
+remain available. The default still returns independent owned matrices.
+
 ## Simulate A Low-Rank Panel
 
 ```{python}

@@ -54,6 +54,11 @@ The iterative absorption must converge for the outcome and every regressor; othe
 
 ## Implementation walkthrough
 
+Weights have analytic, not frequency, semantics. Zero-weight rows are removed
+before absorption and excluded from observation counts, fixed-effect level/rank
+counts, HAC lag ordering, and cluster counts. Summary and Wald inference use the
+same active sample. A failed refit clears prior fitted state.
+
 This class has a narrow delegation boundary: the `within` Rust crate performs absorption, while crabbymetrics owns orchestration, the slope solve, degrees of freedom, covariance, and Python behavior.
 
 1. The wrapper validates aligned rows, at least one regressor and fixed-effect dimension, and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to `within::Solver` using that crate's default convergence parameters.

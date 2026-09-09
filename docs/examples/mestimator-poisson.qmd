@@ -14,6 +14,12 @@ jupyter: python3
 
 This page mirrors `examples/mestimator_poisson_example.py` and shows how to match the built-in Poisson estimator with custom objective and score callbacks.
 
+`fit()` now computes and stores the score-based covariance before returning,
+using the fitted score Jacobian. Later mutation of the callback data cannot
+change `summary()`. Invalid scores or failed covariance construction reject the
+fit and clear its state. The original callback data is still retained for
+bootstrap resampling and must remain unchanged when using `bootstrap()`.
+
 ## Define The Objective And Scores
 
 ```{python}

@@ -75,6 +75,8 @@ fn fit_synthetic_control_weights(
     treated: &Array1<f64>,
     max_iterations: u64,
 ) -> PyResult<Array1<f64>> {
+    crate::validation::validate_finite("donors", donors).map_err(PyValueError::new_err)?;
+    crate::validation::validate_finite("treated", treated).map_err(PyValueError::new_err)?;
     if max_iterations == 0 {
         return Err(PyValueError::new_err("max_iterations must be positive"));
     }
@@ -431,6 +433,9 @@ impl SyntheticControl {
         donors: PyReadonlyArray2<f64>,
         treated: PyReadonlyArray1<f64>,
     ) -> PyResult<()> {
+        self.weights = None;
+        self.donors = None;
+        self.treated = None;
         let donors = to_array2(&donors);
         let treated = to_array1(&treated);
         let weights = fit_synthetic_control_weights(&donors, &treated, self.max_iterations)?;
@@ -499,7 +504,8 @@ impl SyntheticControl {
 
         let idxs = bootstrap_indices(donors.nrows(), n_bootstrap, seed);
         let mut out = Array2::<f64>::zeros((n_bootstrap, donors.ncols()));
-        for (i, idx) in idxs.iter().enumerate() {
+        for (i, idx) in idxs.enumerate() {
+            let idx = &idx;
             let donors_b = take_rows(donors, idx);
             let treated_b = take_rows_vec(treated, idx);
             let weights_b =
@@ -853,6 +859,22 @@ impl SyntheticDID {
     }
 
     fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
+        self.att = None;
+        self.unit_weights = None;
+        self.time_weights = None;
+        self.counterfactual = None;
+        self.treatment_effect = None;
+        self.pre_rmse = None;
+        self.unit_intercept = None;
+        self.time_intercept = None;
+        self.fitted_zeta_omega = None;
+        self.fitted_zeta_lambda = None;
+        self.control_units = None;
+        self.treated_units = None;
+        self.cohorts = None;
+        self.treatment_info = None;
+        self.y = None;
+        self.w = None;
         let y = to_array2(&y);
         let w = to_array2(&w);
         let fit = fit_synthetic_did_panel(

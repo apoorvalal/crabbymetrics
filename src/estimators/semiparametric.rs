@@ -1,7 +1,7 @@
 use crate::utils::{
-    add_intercept, pyarray1_from_f64, pyarray2_from_f64, sandwich_cov_from_parameter_scores,
-    scale_rows, score_cov_iid, solve_least_squares_mat, solve_least_squares_vec, take_rows,
-    take_rows_vec, to_array1, to_array1_i64, to_array2,
+    add_intercept, diag_sqrt, pyarray1_from_f64, pyarray2_from_f64,
+    sandwich_cov_from_parameter_scores, scale_rows, score_cov_iid, solve_least_squares_mat,
+    solve_least_squares_vec, take_rows, take_rows_vec, to_array1, to_array1_i64, to_array2,
 };
 use crate::validation::validate_finite;
 use ndarray::{concatenate, Array1, Array2, Axis};
@@ -567,6 +567,10 @@ impl EPLM {
         d: PyReadonlyArray1<f64>,
         w: PyReadonlyArray2<f64>,
     ) -> PyResult<()> {
+        self.theta = None;
+        self.y = None;
+        self.d = None;
+        self.w = None;
         let y = to_array1(&y);
         let d = to_array1(&d);
         let w = to_array2(&w);
@@ -622,7 +626,7 @@ impl EPLM {
         let p = w.ncols() + 1;
         let nuisance = theta.slice(ndarray::s![..p]).to_owned();
         let coef = theta[p];
-        let se = cov[[p, p]].abs().sqrt();
+        let se = diag_sqrt(&cov).map_err(PyValueError::new_err)?[p];
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", coef)?;
@@ -677,6 +681,10 @@ impl AverageDerivative {
         d: PyReadonlyArray1<f64>,
         w: PyReadonlyArray2<f64>,
     ) -> PyResult<()> {
+        self.theta = None;
+        self.y = None;
+        self.d = None;
+        self.w = None;
         let y = to_array1(&y);
         let d = to_array1(&d);
         let w = to_array2(&w);
@@ -760,7 +768,7 @@ impl AverageDerivative {
         let cov = exact_identified_covariance(&moments, &jac, vcov, lags, cluster_ids.as_ref())
             .map_err(PyValueError::new_err)?;
         let coef = theta[coef_index];
-        let se = cov[[coef_index, coef_index]].abs().sqrt();
+        let se = diag_sqrt(&cov).map_err(PyValueError::new_err)?[coef_index];
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("method", self.method.clone())?;
@@ -840,6 +848,14 @@ impl PartiallyLinearDML {
         d: PyReadonlyArray1<f64>,
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<()> {
+        self.coef = None;
+        self.y = None;
+        self.d = None;
+        self.x = None;
+        self.l_hat = None;
+        self.m_hat = None;
+        self.outcome_penalties = None;
+        self.treatment_penalties = None;
         let y = to_array1(&y);
         let d = to_array1(&d);
         let x = to_array2(&x);
@@ -937,7 +953,7 @@ impl PartiallyLinearDML {
         let jac = Array2::from_elem((1, 1), -d_resid.dot(&d_resid) / (d_resid.len() as f64));
         let cov = exact_identified_covariance(&score, &jac, vcov, lags, cluster_ids.as_ref())
             .map_err(PyValueError::new_err)?;
-        let se = cov[[0, 0]].abs().sqrt();
+        let se = diag_sqrt(&cov).map_err(PyValueError::new_err)?[0];
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("coef", coef)?;
@@ -1024,6 +1040,16 @@ impl AIPW {
         d: PyReadonlyArray1<f64>,
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<()> {
+        self.ate = None;
+        self.y = None;
+        self.d = None;
+        self.x = None;
+        self.mu0_hat = None;
+        self.mu1_hat = None;
+        self.pi_hat = None;
+        self.outcome0_penalties = None;
+        self.outcome1_penalties = None;
+        self.propensity_penalties = None;
         let y = to_array1(&y);
         let d = to_array1(&d);
         let x = to_array2(&x);
@@ -1150,7 +1176,7 @@ impl AIPW {
         let jac = Array2::from_elem((1, 1), -1.0);
         let cov = exact_identified_covariance(&score, &jac, vcov, lags, cluster_ids.as_ref())
             .map_err(PyValueError::new_err)?;
-        let se = cov[[0, 0]].abs().sqrt();
+        let se = diag_sqrt(&cov).map_err(PyValueError::new_err)?[0];
 
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("ate", ate)?;

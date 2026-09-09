@@ -14,6 +14,12 @@ jupyter: python3
 
 This page mirrors `examples/elastic_net_example.py`.
 
+Fits center both predictors and the response for an unpenalized intercept, then
+return the intercept in the original predictor coordinates. Predictions are
+therefore invariant to adding constants to predictor columns. This corrects
+the older outcome-only centering behavior. Pure L2 (`l1_ratio=0`) and zero-penalty
+fits use a closed-form QR solution; other fits retain duality-gap checks.
+
 ## Fit A Regularized Linear Model
 
 ```{python}

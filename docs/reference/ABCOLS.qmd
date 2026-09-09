@@ -86,7 +86,7 @@ $$
 Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
 $$
 
-The reported standard errors are the square roots of the final diagonal. The class does not implement heteroskedastic, clustered, serial-correlation-robust, or bootstrap covariance. It also treats the abundance constraints as fixed rather than accounting for their sampling variation.
+The reported standard errors use a checked covariance diagonal: only tiny negative roundoff is clipped, while materially negative or nonfinite variances raise. The class does not implement robust or bootstrap covariance. It treats the abundance constraints as fixed rather than accounting for their sampling variation.
 
 ## Performance and numerical behavior
 
@@ -97,6 +97,10 @@ The main risk is feature expansion. If $p_f$ is the width of the full design, th
 Constructor: `cm.ABCOLS`
 
 Call `fit(y, x, categories, cont_cat_interactions=None, cat_cat_interactions=None, center_continuous=True)`. Categorical inputs are zero-based dense `uint32` codes. `predict(x, categories)` returns fitted means for new rows under the same coding scheme. `summary()` reports constrained coefficients, standard errors, column names, constraint names, residual variance, residual degrees of freedom, rank, and a maximum-constraint-violation diagnostic.
+
+Sparse enormous category codes are rejected before count-array allocation.
+Checked interaction dimensions and a 512 MiB per-matrix limit guard the expanded
+design and constraint workspace. This is not a total-process memory guarantee.
 
 ```{python}
 print(inspect.signature(cm.ABCOLS))

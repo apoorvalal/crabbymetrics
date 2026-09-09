@@ -1,6 +1,8 @@
 use linfa_linalg::qr::{LeastSquaresQrInto, QRInto};
-use ndarray::{concatenate, Array1, Array2, Axis};
-use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use ndarray::{s, Array1, Array2, Axis};
+use numpy::{
+    PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods,
+};
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -9,8 +11,25 @@ use std::collections::BTreeMap;
 pub(crate) use crate::validation::validate_sample_weight;
 
 pub fn add_intercept(x: &Array2<f64>) -> Array2<f64> {
-    let ones = Array2::ones((x.nrows(), 1));
-    concatenate(Axis(1), &[ones.view(), x.view()]).expect("failed to add intercept")
+    let mut design = Array2::ones((x.nrows(), x.ncols() + 1));
+    design.slice_mut(s![.., 1..]).assign(x);
+    design
+}
+
+pub(crate) fn apply_sqrt_weights(
+    design: &Array2<f64>,
+    values: &Array1<f64>,
+    sample_weight: Option<&Array1<f64>>,
+) -> Result<(Array2<f64>, Array1<f64>), String> {
+    crate::validation::validate_finite("design", design)?;
+    crate::validation::validate_finite("response", values)?;
+    if design.nrows() != values.len() {
+        return Err("response length must match the number of observations".to_string());
+    }
+    match sqrt_sample_weight(sample_weight, design.nrows())? {
+        Some(scale) => Ok((scale_rows(design, &scale)?, scale_vec(values, &scale)?)),
+        None => Ok((design.clone(), values.clone())),
+    }
 }
 
 pub fn sqrt_sample_weight(
@@ -59,7 +78,68 @@ pub fn invert_matrix(a: &Array2<f64>) -> Result<Array2<f64>, String> {
         .map_err(|err| err.to_string())
 }
 
+/// Invert X'X through R, without forming a condition-number-squaring Gram matrix.
+pub(crate) fn inverse_crossproduct(x: &Array2<f64>) -> Result<Array2<f64>, String> {
+    crate::validation::validate_finite("design", x)?;
+    if x.ncols() == 0 || x.nrows() < x.ncols() {
+        return Err("inference requires a nonempty, full-column-rank design".to_string());
+    }
+    let r = x.clone().qr_into().map_err(|err| err.to_string())?.into_r();
+    let scale = r.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+    let tolerance = f64::EPSILON * x.nrows().max(x.ncols()) as f64 * scale;
+    if r.diag().iter().any(|v| v.abs() <= tolerance) {
+        return Err("inference unavailable: design is rank deficient".to_string());
+    }
+    let p = r.ncols();
+    let mut inv = Array2::<f64>::eye(p);
+    for col in 0..p {
+        for row in (0..p).rev() {
+            let mut value = inv[[row, col]];
+            for j in row + 1..p {
+                value -= r[[row, j]] * inv[[j, col]];
+            }
+            inv[[row, col]] = value / r[[row, row]];
+        }
+    }
+    Ok(inv.dot(&inv.t()))
+}
+
+type InferenceSample = (Array2<f64>, Array1<f64>, Option<Array1<i64>>);
+
+pub(crate) fn weighted_inference_sample(
+    design: &Array2<f64>,
+    residuals: &Array1<f64>,
+    weights: Option<&Array1<f64>>,
+    clusters: Option<Array1<i64>>,
+) -> Result<InferenceSample, String> {
+    // Analytic weights: zero-mass rows do not count as observations or clusters.
+    if clusters.as_ref().is_some_and(|c| c.len() != design.nrows()) {
+        return Err("clusters length must match the number of observations".to_string());
+    }
+    let (x, e) = apply_sqrt_weights(design, residuals, weights)?;
+    if let Some(w) = weights {
+        let keep: Vec<usize> = w
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| (v > 0.0).then_some(i))
+            .collect();
+        if keep.len() != w.len() {
+            return Ok((
+                x.select(Axis(0), &keep),
+                e.select(Axis(0), &keep),
+                clusters.map(|c| c.select(Axis(0), &keep)),
+            ));
+        }
+    }
+    Ok((x, e, clusters))
+}
+
 pub fn solve_least_squares_vec(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>, String> {
+    crate::validation::validate_finite("design", a)?;
+    crate::validation::validate_finite("response", b)?;
+    if a.nrows() == 0 || a.ncols() == 0 || a.nrows() != b.len() {
+        return Err("least squares requires a nonempty design and matching response".to_string());
+    }
     let solution = a
         .to_owned()
         .least_squares_into(b.to_owned().insert_axis(Axis(1)))
@@ -68,6 +148,11 @@ pub fn solve_least_squares_vec(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array
 }
 
 pub fn solve_least_squares_mat(a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>, String> {
+    crate::validation::validate_finite("design", a)?;
+    crate::validation::validate_finite("response", b)?;
+    if a.nrows() == 0 || a.ncols() == 0 || a.nrows() != b.nrows() {
+        return Err("least squares requires a nonempty design and matching response".to_string());
+    }
     a.to_owned()
         .least_squares_into(b.to_owned())
         .map_err(|err| err.to_string())
@@ -91,10 +176,11 @@ pub fn score_cov_newey_west(scores: &Array2<f64>, lags: usize) -> Array2<f64> {
     let max_lag = lags.min(n - 1);
     for lag in 1..=max_lag {
         let weight = 1.0 - lag as f64 / (max_lag as f64 + 1.0);
-        let lead = scores.slice(ndarray::s![lag.., ..]).to_owned();
-        let lagged = scores.slice(ndarray::s![..(n - lag), ..]).to_owned();
+        let lead = scores.slice(s![lag.., ..]);
+        let lagged = scores.slice(s![..(n - lag), ..]);
         let gamma = lead.t().dot(&lagged);
-        cov = cov + weight * (&gamma + &gamma.t().to_owned());
+        cov.scaled_add(weight, &gamma);
+        cov.scaled_add(weight, &gamma.t());
     }
 
     cov
@@ -115,15 +201,15 @@ pub fn score_cov_cluster(
         let entry = grouped
             .entry(clusters[i])
             .or_insert_with(|| Array1::<f64>::zeros(p));
-        *entry = &*entry + &scores.row(i).to_owned();
+        *entry += &scores.row(i);
     }
 
     let n_clusters = grouped.len();
     let mut cov = Array2::<f64>::zeros((p, p));
     for summed in grouped.values() {
-        let col = summed.clone().insert_axis(Axis(1));
-        let row = summed.clone().insert_axis(Axis(0));
-        cov = cov + col.dot(&row);
+        let col = summed.view().insert_axis(Axis(1));
+        let row = summed.view().insert_axis(Axis(0));
+        cov += &col.dot(&row);
     }
 
     Ok((cov, n_clusters))
@@ -204,12 +290,7 @@ pub fn fisher_cov_binary(x: &Array2<f64>, probs: &Array1<f64>) -> Result<Array2<
         }
     }
 
-    let info = weighted.t().dot(&weighted);
-    let mut info_reg = info.clone();
-    for i in 0..k {
-        info_reg[[i, i]] += 1e-8;
-    }
-    invert_matrix(&info_reg)
+    inverse_crossproduct(&weighted)
 }
 
 pub fn fisher_cov_poisson(x: &Array2<f64>, mu: &Array1<f64>) -> Result<Array2<f64>, String> {
@@ -221,18 +302,13 @@ pub fn fisher_cov_poisson(x: &Array2<f64>, mu: &Array1<f64>) -> Result<Array2<f6
 
     let mut weighted = Array2::<f64>::zeros((n, k));
     for i in 0..n {
-        let w = mu[i].max(1e-12);
+        let w = mu[i];
         for j in 0..k {
             weighted[[i, j]] = x[[i, j]] * w.sqrt();
         }
     }
 
-    let info = weighted.t().dot(&weighted);
-    let mut info_reg = info.clone();
-    for i in 0..k {
-        info_reg[[i, i]] += 1e-8;
-    }
-    invert_matrix(&info_reg)
+    inverse_crossproduct(&weighted)
 }
 
 pub fn qmle_cov_poisson(
@@ -311,21 +387,29 @@ pub fn fisher_cov_multinomial(
         }
     }
 
-    for i in 0..dim {
-        h[[i, i]] += 1e-8;
+    inverse_crossproduct(x)?;
+    let scale = h.diag().iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+    let eig = nalgebra::DMatrix::from_row_iterator(dim, dim, h.iter().copied()).symmetric_eigen();
+    if eig
+        .eigenvalues
+        .iter()
+        .any(|v| *v <= f64::EPSILON * n.max(dim) as f64 * scale)
+    {
+        return Err("inference unavailable: Fisher information is rank deficient".to_string());
     }
-
     invert_matrix(&h)
 }
 
-pub fn bootstrap_indices(n: usize, n_bootstrap: usize, seed: Option<u64>) -> Vec<Vec<usize>> {
+pub fn bootstrap_indices(
+    n: usize,
+    n_bootstrap: usize,
+    seed: Option<u64>,
+) -> impl Iterator<Item = Vec<usize>> {
     let mut rng = match seed {
         Some(s) => StdRng::seed_from_u64(s),
         None => StdRng::from_entropy(),
     };
-    (0..n_bootstrap)
-        .map(|_| (0..n).map(|_| rng.gen_range(0..n)).collect())
-        .collect()
+    (0..n_bootstrap).map(move |_| (0..n).map(|_| rng.gen_range(0..n)).collect())
 }
 
 pub fn take_rows(x: &Array2<f64>, idx: &[usize]) -> Array2<f64> {
@@ -399,17 +483,66 @@ pub fn pyarray1_from_i32<'py>(py: Python<'py>, data: &Array1<i32>) -> Bound<'py,
 }
 
 pub fn pyarray2_from_f64<'py>(py: Python<'py>, data: &Array2<f64>) -> Bound<'py, PyArray2<f64>> {
-    if data.nrows() == 0 || data.ncols() == 0 {
-        return PyArray2::zeros(py, [data.nrows(), data.ncols()], false);
-    }
-    let vec2: Vec<Vec<f64>> = data.rows().into_iter().map(|row| row.to_vec()).collect();
-    PyArray2::from_vec2(py, &vec2).expect("failed to build array")
+    // NumPy and the solvers can resolve different ndarray versions. Transfer a
+    // flat buffer across that boundary, preserving logical row-major order.
+    PyArray1::from_vec(py, data.iter().copied().collect())
+        .reshape([data.nrows(), data.ncols()])
+        .expect("array dimensions must match the flat buffer")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::diag_sqrt;
-    use ndarray::array;
+    use super::*;
+    use ndarray::{array, ShapeBuilder};
+
+    #[test]
+    fn weighted_design_preserves_inputs_and_validates_shapes() {
+        let design = array![[1.0, 2.0], [3.0, 4.0]];
+        let values = array![5.0, 6.0];
+        let (x, y) = apply_sqrt_weights(&design, &values, Some(&array![0.0, 4.0])).unwrap();
+        assert_eq!(x, array![[0.0, 0.0], [6.0, 8.0]]);
+        assert_eq!(y, array![0.0, 12.0]);
+        assert_eq!(design, array![[1.0, 2.0], [3.0, 4.0]]);
+        assert_eq!(
+            apply_sqrt_weights(&design, &values, None).unwrap(),
+            (design.clone(), values)
+        );
+        assert!(apply_sqrt_weights(&design, &array![1.0], None).is_err());
+        assert!(apply_sqrt_weights(&design, &array![1.0, 2.0], Some(&array![0.0, 0.0])).is_err());
+    }
+
+    #[test]
+    fn intercept_handles_column_major_and_empty_designs() {
+        let x = Array2::from_shape_vec((2, 2).f(), vec![1.0, 3.0, 2.0, 4.0]).unwrap();
+        assert_eq!(add_intercept(&x), array![[1.0, 1.0, 2.0], [1.0, 3.0, 4.0]]);
+        assert_eq!(add_intercept(&Array2::zeros((0, 2))).dim(), (0, 3));
+        assert_eq!(
+            add_intercept(&Array2::zeros((2, 0))),
+            Array2::<f64>::ones((2, 1))
+        );
+    }
+
+    #[test]
+    fn covariance_helpers_match_hand_calculated_scores() {
+        let scores = array![[1.0, 2.0], [3.0, -1.0], [-2.0, 4.0]];
+        assert_eq!(score_cov_iid(&scores), array![[14.0, -9.0], [-9.0, 21.0]]);
+        assert_eq!(
+            score_cov_newey_west(&scores, 1),
+            array![[11.0, 0.5], [0.5, 15.0]]
+        );
+        assert_eq!(
+            score_cov_newey_west(&scores, 100),
+            score_cov_newey_west(&scores, 2)
+        );
+        let (clustered, groups) = score_cov_cluster(&scores, &array![-4, 2, -4]).unwrap();
+        assert_eq!(groups, 2);
+        assert_eq!(clustered, array![[10.0, -9.0], [-9.0, 37.0]]);
+        assert!(score_cov_cluster(&scores, &array![1]).is_err());
+        assert_eq!(
+            score_cov_newey_west(&Array2::zeros((0, 2)), 3),
+            Array2::<f64>::zeros((2, 2))
+        );
+    }
 
     #[test]
     fn diag_sqrt_accepts_valid_covariance() {
@@ -428,5 +561,21 @@ mod tests {
     fn diag_sqrt_rejects_nonfinite_or_nonsquare_covariance() {
         assert!(diag_sqrt(&array![[f64::NAN]]).is_err());
         assert!(diag_sqrt(&array![[1.0, 0.0]]).is_err());
+    }
+
+    #[test]
+    fn bootstrap_stream_preserves_rng_sequence() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let expected: Vec<Vec<usize>> = (0..7)
+            .map(|_| (0..13).map(|_| rng.gen_range(0..13)).collect())
+            .collect();
+        assert_eq!(
+            bootstrap_indices(13, 7, Some(42)).collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(
+            bootstrap_indices(0, 2, Some(42)).collect::<Vec<_>>(),
+            vec![Vec::<usize>::new(); 2]
+        );
     }
 }

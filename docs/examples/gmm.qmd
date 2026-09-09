@@ -18,6 +18,22 @@ This page shows the first-class `crabbymetrics.GMM` estimator. The public contra
 - `jacobian_fn(theta, data)` is optional and, when provided, must return the sample Jacobian of the averaged moments with shape `(n_moments, n_params)`.
 - `fit(..., weighting="auto")` uses identity weighting in just-identified problems and two-step GMM in overidentified ones.
 
+Moment and Jacobian arrays must be finite with stable shapes. The solver scales
+its linear systems and checks undamped first-order and Newton-step residuals;
+a small damped step or absolute objective change alone does not mean convergence.
+`ridge` is dimensionless solver damping in diagonally normalized coordinates,
+not a statistical penalty: two-step weights and reported covariance use undamped
+inverses. Rank-deficient information is rejected.
+
+Fitted moments and their Jacobian are snapshotted at fit time. Subsequent
+`summary()` and `wald_test()` calls do not re-evaluate mutable Python callbacks.
+Failed refits clear the fitted state. Default sandwich inference is unchanged.
+`vcov="vanilla"` requires two-step iid weighting, or the explicit keyword
+`assume_optimal_weighting=True` asserting the information-identity assumption.
+The latter is an assumption, not a correction for a nonoptimal W. `j_test_valid`
+and `j_test_assumptions` distinguish a raw criterion statistic from its intended
+asymptotic iid optimal-weight interpretation; they cannot verify moment validity.
+
 At the algebra level, the class is solving
 
 $$
@@ -224,7 +240,7 @@ lin = cm.GMM(
 )
 lin.fit({"x": x, "w": w, "y": y}, np.zeros(5))
 
-vanilla = lin.summary(vcov="vanilla")
+vanilla = lin.summary(vcov="vanilla", assume_optimal_weighting=True)
 cluster = lin.summary(vcov="sandwich", omega="cluster", clusters=clusters)
 hac = lin.summary(vcov="sandwich", omega="newey_west", lags=4)
 

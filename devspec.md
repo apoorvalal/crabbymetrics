@@ -18,7 +18,89 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
-## v0.8.1 API-Hardening Release Status (2026-07-12)
+## Current Branch State (2026-09-09)
+
+The branch now also includes upstream `master` commit `042f757` (PR #22), adding
+`MPE_CBPS` and its Chronos vignette. The scaling inventory and hardening audit
+below retain their original 30-estimator scope; the new upstream class is
+additional to that historical coverage. Both development histories are retained.
+The merged release build passes 314 Python tests and 11 Rust tests.
+
+The package version is `0.8.2`. The `speedtest` branch includes the augmented
+balancing release, the inventory and scaling report for all 30 estimators, and
+deterministic external-reference parity tests. The likelihood-method expansion
+plan below remains pending. The approved estimator-hardening patches add small
+inference/provenance controls but no new estimator classes.
+
+The cleanup separates subprocess monitoring from grid orchestration, validates
+grid/budget inputs, honors the memory reserve, checkpoints each result, preserves
+CSV schemas and previous run metadata on append, and records missing dependencies
+and invalid child results. Benchmark adapter revision 2 fixes unpenalized GLM
+comparators, centered elastic net, same-panel horizontal ridge, same-sample 2SLS,
+and the R fit-only timing boundary. August measurements remain historical and
+must not be treated as timings of these corrected adapters.
+
+Shared square-root weighting now lives in `src/utils.rs`, used by linear, IV,
+and ridge estimators. Covariance helpers use views and in-place accumulation;
+NumPy matrix outputs cross the ndarray-version boundary with a flat owned buffer.
+The initial cleanup left estimator signatures, covariance formulas, and fitted-state
+ownership unchanged; the subsequent approved patches below intentionally change
+those contracts. Runner failure-path tests and array-layout tests supplement
+the existing numerical parity suite.
+
+Validation of the initial cleanup passed 238 Python tests, 8 Rust tests, and 24 live
+benchmark smoke cells. The scaling page renders and the docs-excluded sdist is
+525 KiB. Clippy still reports 36 pre-existing structural/style warnings; this
+pass does not rename public estimator acronyms or reshape public signatures to
+silence those diagnostics.
+
+The cleanup is pushed as `921fd2c` on `origin/speedtest`. A subsequent review-only
+estimator audit is recorded in `reviews/estimator-hardening/index.qmd`, with a
+resource-guarded synthetic probe harness and JSON evidence. It covers 30
+estimators and five adjacent transformers, identifies 15 correctness/contract
+findings and seven performance proposals. The user subsequently approved the
+patches described below. The report and before/after evidence are published at
+<https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
+
+### Approved Hardening Implementation
+
+The estimator patches are now implemented and pass 309 Python tests and 10 Rust
+tests on a release-mode extension build. Confirmed fixes cover prediction/CV
+validation, nonfinite input shortcuts, ElasticNet centering and pure-L2 fitting,
+scale-aware GMM convergence, stable Cox likelihoods, zero-weight inference,
+rank-aware GLM covariance, checked variance diagonals, fit-state invalidation,
+fit-time callback inference snapshots, GMM inference assumptions, panel traces,
+bounded categorical/kernel allocation, and QR-based OLS covariance. Sketched
+linear/IV summaries now disclose approximation provenance; coverage validation
+remains future work.
+
+Implemented performance work includes cumulative right-censored Cox risk sets,
+likelihood-only line search, GIL release for CoxPH/AndersenGill, ridge-grid SVD
+reuse, SNMM horizon QR reuse, streamed bootstrap indices, and leaner panel SVT
+and optional matrix-free summaries. General Andersen--Gill entry/exit sweeps,
+broader likelihood scratch-buffer work, wider GIL rollout, and simplex-solver
+replacement remain separate measured follow-ups, not completed changes.
+
+Weight semantics are analytic, excluding zero-weight rows from inference. Failed
+fit validation/solver calls clear state; Python argument-conversion errors before
+entering Rust are outside that guarantee. GMM stores fitted moments/Jacobians;
+MEstimator stores covariance at fit time, while its bootstrap data must remain
+immutable. Vanilla GMM covariance now requires optimal iid weighting or an
+explicit information-identity assertion.
+
+Implementation commit `f728fb9` is recorded in the after-evidence JSON with clean
+source provenance. Solver damping is excluded from GMM statistical weights and
+covariance. The updated review includes the original and post-patch probes,
+scoped completion status, and explicit caveats on local performance measurements.
+The 21 affected API/example pages have been rendered and staged over the existing
+published docs at <https://lalten.org/drafts/crabbymetrics-estimator-hardening/>.
+
+Subject-clustered Andersen--Gill inference and NB2 remain queued under the
+likelihood-method plan after the relevant hardening work. Full
+scaling reruns should record adapter revision, environment, and convergence
+outcomes before making speed comparisons.
+
+## v0.8.1 API-Hardening Release History (2026-07-12)
 
 PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, after the `v0.8.0` refactor and estimator-audit release. Release `v0.8.1` now packages the remaining P0--P1 hardening items identified by the stocktake:
 
@@ -57,9 +139,9 @@ The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07
 
 ## Current Extension Status
 
-### In review: canonical Chronos marginal-policy-effect CBPS
+### Recently landed: canonical Chronos marginal-policy-effect CBPS
 
-The `docs/chronos-ltv-vignette` branch adds `MPE_CBPS`, a focused native implementation of the two-arm tailored-loss CBPS estimator released with Qiu, Kuang, Liskovich, Rauh, and Wager (2026). It keeps the paper's inverse-logit weight family rather than relabeling generic entropy calibration as exact parity. The class standardizes the supplied basis, adds an intercept, solves both convex arm losses with analytic damped Newton steps in Rust, and aggregates cumulative future rewards with a supplied policy derivative and denominator.
+PR #22 from `docs/chronos-ltv-vignette`, now merged into `master` and `speedtest`, adds `MPE_CBPS`, a focused native implementation of the two-arm tailored-loss CBPS estimator released with Qiu, Kuang, Liskovich, Rauh, and Wager (2026). It keeps the paper's inverse-logit weight family rather than relabeling generic entropy calibration as exact parity. The class standardizes the supplied basis, adds an intercept, solves both convex arm losses with analytic damped Newton steps in Rust, and aggregates cumulative future rewards with a supplied policy derivative and denominator.
 
 Canonical parity is tied to commit `06c29f4` of `chenyuqiu/ltv_of_reliability`. Tests transcribe the released SciPy/BFGS A/B and switchback helper functions and compare both coefficient vectors, every observation-level weight, and the final normalized policy-gradient estimate. A dedicated class reference and the expanded Chronos vignette document the dynamic identification argument, exact implementation, entropy-calibration sensitivity check, horizon path, and unit-clustered bootstrap. Analytic inference remains out of scope; the vignette re-fits the complete estimator inside unit bootstrap draws.
 
@@ -445,3 +527,26 @@ Operational note:
   - direct tests
   - one focused vignette or API example
 - if an idea starts demanding a large dependency just for ergonomics, it probably does not belong here
+
+## Estimator Scaling And Reference Audit
+
+Status: complete on `speedtest`
+
+Scope:
+
+- maintain an explicit registry for every exported estimator class
+- prefer scikit-learn timing comparators, then PyFixest, then exact R references
+- retain credible GitHub provenance without pretending nearby methods share an estimand
+- sweep $n=10^3,10^4,10^5,10^6,10^7$ and $k=5,10,20,50,100$ using family-specific dimension conventions
+- isolate every cell and guard it with allocation preflight, descendant-RSS monitoring, a wall timeout, single-threaded numerical kernels, and monotone pruning after hard failure
+- commit long-form results and host metadata under `docs/ablations/data/`
+
+Success condition:
+
+- all exported estimators appear in the registry and native grid
+- all runnable reference adapters pass a smoke test on the same shapes
+- small deterministic unit tests verify fitted solutions against every executable reference stack used by the generic grid
+- unsafe cells are skipped or killed without destabilizing the benchmark host
+- the ablation page distinguishes fit time, process RSS, timeout boundaries, and non-equivalent provenance references
+- every estimator has an explicit DGP/fitting/reference description and its own observed runtime and memory scaling summary
+- a full review render is staged on lalten and the source changes are submitted through PR #21
