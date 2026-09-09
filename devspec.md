@@ -18,7 +18,13 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
-## Current Branch State (2026-09-05)
+## Current Branch State (2026-09-09)
+
+The branch now also includes upstream `master` commit `042f757` (PR #22), adding
+`MPE_CBPS` and its Chronos vignette. The scaling inventory and hardening audit
+below retain their original 30-estimator scope; the new upstream class is
+additional to that historical coverage. Both development histories are retained.
+The merged release build passes 314 Python tests and 11 Rust tests.
 
 The package version is `0.8.2`. The `speedtest` branch includes the augmented
 balancing release, the inventory and scaling report for all 30 estimators, and
@@ -132,6 +138,12 @@ The FTRL question is resolved. Subject-clustered Andersen--Gill inference and Co
 The audit branch was squash-merged as PR #16 and released as `v0.8.0` on 2026-07-11. The release includes Linux and macOS wheels for Python 3.10 through 3.14, a small docs-excluded sdist, and the separately deployed full Quarto site.
 
 ## Current Extension Status
+
+### Recently landed: canonical Chronos marginal-policy-effect CBPS
+
+PR #22 from `docs/chronos-ltv-vignette`, now merged into `master` and `speedtest`, adds `MPE_CBPS`, a focused native implementation of the two-arm tailored-loss CBPS estimator released with Qiu, Kuang, Liskovich, Rauh, and Wager (2026). It keeps the paper's inverse-logit weight family rather than relabeling generic entropy calibration as exact parity. The class standardizes the supplied basis, adds an intercept, solves both convex arm losses with analytic damped Newton steps in Rust, and aggregates cumulative future rewards with a supplied policy derivative and denominator.
+
+Canonical parity is tied to commit `06c29f4` of `chenyuqiu/ltv_of_reliability`. Tests transcribe the released SciPy/BFGS A/B and switchback helper functions and compare both coefficient vectors, every observation-level weight, and the final normalized policy-gradient estimate. A dedicated class reference and the expanded Chronos vignette document the dynamic identification argument, exact implementation, entropy-calibration sensitivity check, horizon path, and unit-clustered bootstrap. Analytic inference remains out of scope; the vignette re-fits the complete estimator inside unit bootstrap draws.
 
 ### Recently landed: faithful augmented panel balancing
 

@@ -5,6 +5,7 @@ mod gmm;
 mod iv;
 mod linear;
 mod mle;
+mod mpe_cbps;
 mod panel;
 mod regularized;
 mod semiparametric;
@@ -19,6 +20,7 @@ pub use gmm::GMM;
 pub use iv::TwoSLS;
 pub use linear::{av, optimal_g, FixedEffectsOLS, OLS};
 pub use mle::{Logit, MEstimator, MultinomialLogit, Poisson};
+pub use mpe_cbps::MpeCbps;
 pub use panel::{
     panel_factor, panel_fe, HorizontalPanelRidge, InteractiveFixedEffects, MatrixCompletion,
 };

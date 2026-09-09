@@ -34,6 +34,8 @@ website:
             text: Survival / Event-Time
           - href: api.qmd#causal-inference-and-panels
             text: Causal Inference And Panels
+          - href: reference/MPE_CBPS.qmd
+            text: MPE_CBPS
           - href: api.qmd#hypothesis-testing-and-utilities
             text: Hypothesis Testing And Utilities
           - href: api.qmd#transforms
@@ -76,6 +78,10 @@ website:
         menu:
           - href: examples/balancing-weights.qmd
             text: Balancing Weights
+          - href: examples/chronos-ltv-balancing.qmd
+            text: Chronos LTV Balancing
+          - href: reference/MPE_CBPS.qmd
+            text: MPE_CBPS API
           - href: examples/cressie-read-balancing.qmd
             text: Cressie-Read And Rényi Balancing
           - href: examples/eplm.qmd

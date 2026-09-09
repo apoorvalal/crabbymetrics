@@ -19,6 +19,15 @@ Release packaging now excludes both rendered `docs/` content and the local untra
 
 This file is meant to record the current architecture and the design choices that matter for future work.
 
+## Upstream Merge (2026-09-09)
+
+- Merged `origin/master` at `042f757` into `speedtest`, retaining both the
+  estimator-hardening history and upstream's Chronos/MPE_CBPS additions.
+- The existing scaling inventory and audit cover the original 30 estimators;
+  upstream's new `MPE_CBPS` is additional to that historical scope.
+- Verification: the merged release build passes 314 Python tests and 11 Rust
+  tests. No unresolved conflicts or Markdown conflict markers remain.
+
 ## Approved Estimator Patches (2026-09-05)
 
 - Implemented the confirmed estimator audit corrections, including ElasticNet
@@ -116,6 +125,15 @@ This file is meant to record the current architecture and the design choices tha
   generated render artifacts were moved out of the source checkout.
 - Kept the likelihood expansion plan in `devspec.md`; NB2, grouped binomial,
   discrete-time hazards, probit, and survival follow-ons remain future work.
+
+## Chronos Marginal-Policy-Effect CBPS (2026-08-28)
+
+- Cloned and audited the authors' MIT-licensed `chenyuqiu/ltv_of_reliability` repository at commit `06c29f4`. Its A/B and switchback pipelines contain the same arm-specific tailored-loss CBPS objective, analytic score, inverse-logit weights, standardization, and policy-gradient aggregation.
+- Added public `MPE_CBPS`, implemented in `src/estimators/mpe_cbps.rs`. Both convex arm problems use analytic gradients and Hessians, damped Newton steps, Armijo backtracking, and a vanishing scale-relative ridge for the dense linear solve; the optimization and aggregation path is native Rust.
+- Added `tests/test_mpe_cbps.py`, which runs the canonical SciPy/BFGS formulas on deterministic samples and checks coefficient, weight, and final normalized-estimate parity, plus balance and validation contracts.
+- Added `docs/reference/MPE_CBPS.qmd` and expanded `docs/examples/chronos-ltv-balancing.qmd` to use the public class, link the exact released source, compare the exact inverse-logit family with generic entropy calibration, and re-fit the exact estimator inside the unit bootstrap.
+- Updated API navigation, the live API overview, and `docs/llms.txt` for the new public class.
+- Validation passes 179 Python tests and 6 Rust tests. Both new/changed Quarto pages execute successfully, and all 99 site pages render with execution disabled to regenerate shared navigation. A full live-execution pass reaches the Ding replication section before stopping because this isolated worktree intentionally lacks the external `ding_w_source` data link.
 
 ## Dynamic Treatment Effects (2026-08-10)
 

@@ -1,0 +1,160 @@
+---
+title: "MPE_CBPS"
+subtitle: "Canonical covariate balancing for marginal long-term policy effects"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    page-layout: full
+    code-fold: false
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+```{python}
+from _api_doc_utils import *
+```
+
+## Where it fits
+
+**Group:** Causal inference / dynamic policy effects
+
+`MPE_CBPS` implements the covariate-balancing propensity-score estimator released with Qiu, Kuang, Liskovich, Rauh, and Wager's [*What Is the Long-Term Value of Reliability?*](https://arxiv.org/abs/2606.11526). It estimates two inverse-logit calibration weight systems in native Rust and combines them with a cumulative future outcome to estimate a marginal policy effect.
+
+Use this class when the paper's dynamic identification conditions justify reducing a long-run policy derivative to a weighted order-level contrast. Use the generic [`BalancingWeights`](BalancingWeights.qmd) class when the target is calibration itself rather than this particular inverse-logit family and policy-gradient aggregation.
+
+## Estimator
+
+Let $D_i\in\{0,1\}$ be the delay or treatment indicator, $X_i$ be pre-treatment covariates, and $z_i=(1,X_i')'$ after optional column standardization. Let $W_i^{(a)}=1\{D_i=a\}$ and let $\dot\pi_i>0$ be the derivative of the treatment probability under the local policy perturbation. For each arm $a\in\{0,1\}$, `MPE_CBPS` minimizes
+
+$$
+L_a(\theta_a)
+=\frac{1}{n}\sum_i\dot\pi_i
+\left[W_i^{(a)}e^{-z_i'\theta_a}
++(1-W_i^{(a)})z_i'\theta_a\right].
+$$
+
+The analytic gradient and Hessian are
+
+$$
+\nabla L_a(\theta_a)
+=\frac{1}{n}\sum_i\dot\pi_i z_i
+\left[(1-W_i^{(a)})-W_i^{(a)}e^{-z_i'\theta_a}\right],
+$$
+
+$$
+\nabla^2L_a(\theta_a)
+=\frac{1}{n}\sum_i\dot\pi_iW_i^{(a)}e^{-z_i'\theta_a}z_iz_i'.
+$$
+
+For a constant policy derivative, the first-order condition implies exact full-sample balance under the raw inverse-logit weight
+
+$$
+w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
+\qquad
+\sum_iW_i^{(a)}w_i^{(a)}z_i=\sum_i z_i.
+$$
+
+Given cumulative future reward $\Gamma_i^K$ and a positive denominator $B$, `estimate()` returns
+
+$$
+\widehat\tau_K
+=\frac{1}{B}\sum_i\dot\pi_i
+\left[D_iw_i^{(1)}-(1-D_i)w_i^{(0)}\right]\Gamma_i^K.
+$$
+
+The default $B=n$ gives an average per observation. The released application sets $\dot\pi_i=0.01$ and uses total baseline spend as $B$ to report the value effect of a one-percentage-point delay-rate change relative to baseline value.
+
+## Canonical parity
+
+The class is checked against both copies of the estimator in the authors' MIT-licensed repository at commit `06c29f4`:
+
+- [A/B validation implementation](https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/ab_validation/run_simulation.py#L91-L120)
+- [switchback validation implementation](https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/switchback_validation/run_simulation.py#L188-L241)
+
+`tests/test_mpe_cbps.py` transcribes the released SciPy/BFGS reference calculation and compares its two coefficient vectors, observation-level weights, and normalized policy-gradient estimate with the Rust implementation on deterministic samples. The test is numerical parity, not merely a comparison of balance moments.
+
+## Python API
+
+Constructor: `cm.MPE_CBPS`
+
+```{python}
+print(inspect.signature(cm.MPE_CBPS))
+```
+
+```{python}
+display(HTML(html_table(["Public method"], public_methods(cm.MPE_CBPS))))
+```
+
+### Constructor parameters
+
+- `standardize=True`: center each supplied covariate and divide by its population standard deviation before adding an intercept. Constant columns receive scale one.
+- `max_iterations=500`: maximum Newton iterations for each arm.
+- `tolerance=1e-8`: convergence threshold for the maximum absolute analytic-gradient component.
+- `max_log_weight=50.0`: symmetric clipping bound for the exponential index, matching the released implementation's numerical guard.
+
+### Methods
+
+- `fit(covariates, treatment, policy_derivative=None)`: fit the two arm-specific convex programs. `covariates` is a finite `float64` matrix and `treatment` is a NumPy `int32` vector containing both 0 and 1. `policy_derivative` is an optional positive finite Python list of length $n$; it defaults to one.
+- `estimate(outcome, denominator=None)`: aggregate a finite `float64` cumulative-outcome vector using the fitted policy derivative and weights. `denominator` defaults to $n$.
+- `get_weights(arm)`: return the released implementation's raw positive weight vector for arm 0 or 1. Apply the corresponding treatment-arm mask when forming weighted moments.
+- `summary()`: return coefficients, raw weights, policy-derivative-weighted balance and effective sample size, standardization, and solver diagnostics.
+
+## Minimal example
+
+```{python}
+#| code-fold: false
+rng = np.random.default_rng(2606)
+x = rng.normal(size=(1200, 4))
+propensity = 1.0 / (1.0 + np.exp(-(-0.2 + x @ np.array([0.5, -0.3, 0.2, 0.1]))))
+d = rng.binomial(1, propensity).astype(np.int32)
+future_reward = 1.0 + 0.5 * x[:, 0] - 0.25 * x[:, 1] - 0.4 * d
+future_reward += rng.normal(scale=0.4, size=len(d))
+
+model = cm.MPE_CBPS(tolerance=1e-9)
+model.fit(x, d)
+fit = model.summary()
+
+print(model.estimate(future_reward))
+print({
+    "success": fit["success"],
+    "max_abs_balance_zero": fit["max_abs_balance_zero"],
+    "max_abs_balance_one": fit["max_abs_balance_one"],
+    "effective_sample_size_zero": fit["effective_sample_size_zero"],
+    "effective_sample_size_one": fit["effective_sample_size_one"],
+})
+```
+
+## `summary()` contract
+
+```{python}
+display(HTML(html_table(["summary() key", "shape"], summary_shape_rows(fit))))
+```
+
+The primary fields are:
+
+- `success`, `converged_zero`, `converged_one`;
+- `iterations_zero`, `iterations_one`;
+- `objective_zero`, `objective_one`;
+- `gradient_norm_zero`, `gradient_norm_one`;
+- `beta_zero`, `beta_one`;
+- `weights_zero`, `weights_one`;
+- `policy_derivative`;
+- `covariate_mean`, `covariate_scale`, `target_mean`;
+- `weighted_mean_zero`, `weighted_mean_one`;
+- `max_abs_balance_zero`, `max_abs_balance_one`;
+- `weight_sum_zero`, `weight_sum_one`;
+- `target_policy_mass`, `policy_weighted_mass_zero`, `policy_weighted_mass_one`;
+- `effective_sample_size_zero`, `effective_sample_size_one`;
+- `standardize`, `max_log_weight`.
+
+## Numerical behavior and limitations
+
+Each arm uses damped Newton steps with an analytic Hessian, a scale-relative $10^{-12}$ diagonal stabilization for the linear solve, and Armijo backtracking. One objective/gradient/Hessian evaluation costs $O(np^2)$ time and $O(p^2)$ working storage; solving the dense Newton system costs $O(p^3)$. The two arms are fitted separately.
+
+The class does not establish the dynamic identification assumptions, construct forward outcomes, choose a horizon, or compute standard errors. The [Chronos LTV vignette](../examples/chronos-ltv-balancing.qmd) derives the policy-gradient reduction, constructs cumulative rewards, compares the exact and entropy-calibrated weights, and demonstrates unit-clustered bootstrap inference.
