@@ -3,7 +3,6 @@ title: "Logit Example"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
@@ -12,7 +11,6 @@ execute:
 jupyter: python3
 ---
 
-This page mirrors `examples/logit_example.py`.
 
 ## Fit A Binary Logit Model
 
@@ -24,8 +22,6 @@ from crabbymetrics import Logit
 
 np.set_printoptions(precision=4, suppress=True)
 ```
-
-
 
 
 ```{python}

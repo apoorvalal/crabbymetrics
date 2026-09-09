@@ -11,13 +11,63 @@
 
 Current release state: `v0.9.0` is published on PyPI and GitHub; release and clean-install verification are recorded below. Documentation is deployed separately through `gh-pages`.
 
-Current development state: PR #21 was squash-merged into `master` as `bb4c6f2`, bringing the scaling inventory, external-reference parity tests, benchmark cleanup, and approved estimator hardening together with PR #22's `MPE_CBPS`. The historical scaling data has not been regenerated.
+Current development state: PR #21 was squash-merged into `master` as `bb4c6f2`, bringing the scaling inventory, external-reference parity tests, benchmark cleanup, and approved estimator hardening together with PR #22's `MPE_CBPS`. The documentation refresh replaces the historical scaling data with a fresh, explicitly bounded v0.9.0 run; the larger historical grid has not been rerun.
 
 The current public surface includes the three experimental dynamic-treatment estimators originally developed on `feature/snmm-blips`: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
+
+## Documentation Refresh (2026-09-09)
+
+- Rewrote the homepage, chapter index, and three implementation walkthroughs.
+  Added a v0.9 migration guide and reproducible build instructions; removed
+  obsolete Rust excerpts, the completed sparse-rotation proposal, the obsolete
+  reference scaffolder, and tracked Quarto freeze artifacts. API tables now
+  include live constructor signatures and all exported classes.
+- Corrected old API examples: identity-weighted GMM uses sandwich inference,
+  with the invalid covariance shortcut retained only as an explicit negative
+  control; custom Poisson callbacks use a consistent objective/gradient and
+  resampling indices. The Card GMM example scales its ill-conditioned design.
+  ElasticNet demonstrates feature-shift invariance and the pure-L2 endpoint.
+- Fixed the event-study diagnostic's rank-deficient time-invariant regressor,
+  binned event-time tails with complete cohort support, and added a rank check
+  and unit-clustered covariance. The synthetic-control comparator in the SDID
+  vignette now gets a sufficient iteration budget, without changing its data
+  or convergence tolerance.
+- Bundled eight small public chapter datasets with provenance, licenses, and
+  verified checksums. Replaced the private-CSV staggered-panel vignette with
+  a seeded synthetic panel and known effects. No external-drive link is needed.
+- Reran the original 30-estimator benchmark inventory with adapter revision 2:
+  `n=1,000/10,000/100,000` and `k=5/20`, 10-second cell timeouts, a 2 GiB
+  requested cap, and a 4 GiB memory reserve. Of 276 cells, 264 succeed,
+  seven time out, and five are pruned. The effective initial RSS cap was
+  1,421,770,752 bytes. These are one-run local timings, not universal speed
+  claims; the newer `MPE_CBPS` is outside that inventory.
+- Isolated rendered output under `docs/_site/`. The release builder executes
+  all 102 pages with cache refresh and freezing disabled, records compiled
+  extension/environment/input/HTML hashes, and resumes only verified outputs.
+  A rendered-site checker validates targets, anchors, images, and search.
+  Source tests guard constructor keywords, helper syntax, class coverage,
+  private paths, obsolete scaffolds, and dataset checksums.
+- Replaced per-page embedded scripts/fonts with shared site assets; responsive
+  code, tables, figures, and display math fit desktop and narrow mobile layouts.
+- All 102 pages execute freshly against v0.9.0, covering 505 Python cells.
+  The rendered-site checker reports no errors across 102 pages and 292 images;
+  browser checks pass at 1440, 390, and 320 pixels. Total HTML falls from
+  roughly 355 MB to 6.3 MB through shared assets and obsolete-output removal.
+  No estimator implementation changed.
+- The validated artifact has a review preview at
+  <https://lalten.org/drafts/crabbymetrics-v0.9-docs/> and targets the public
+  site at <https://apoorvalal.github.io/crabbymetrics/>. Sources remain on
+  `master`; rendered pages and `build-info.json` are published separately
+  on `gh-pages`. The manifest identifies the exact source and execution inputs.
+- Verification caveat: the pre-existing macOS process-group cleanup test again
+  intermittently raised `PermissionError` after the child exited; its targeted
+  retry and a subsequent full 320-test run passed. This runner issue is separate
+  from the documentation changes. Rust's 11 tests also pass; the 593,000-byte
+  preflight sdist contains no documentation, rendered HTML, or caches.
 
 ## v0.9.0 Release (2026-09-09)
 

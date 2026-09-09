@@ -3,7 +3,6 @@ title: "Joint Hypothesis Tests For Causal Models"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
@@ -105,13 +104,20 @@ $$
 H_0: \delta_{cs} = 0 \quad \text{for all included cohorts and event times.}
 $$
 
-Failing to reject does not prove TWFE is unbiased, but it is evidence that the saturated cohort paths do not visibly disagree with the pooled path. Rejecting says the pooled event study is averaging across meaningful cohort-level heterogeneity, so a heterogeneity-robust event-study or cohort-specific reporting is safer.
+Failing to reject does not establish homogeneous effects or unbiased TWFE:
+the test can have low power. Rejection indicates that the fitted cohort paths
+are incompatible with a common path under the maintained specification.
+
+The event-time tails are binned at -2 and 3, and every treated cohort is
+observed through event time 3. Unit-constant covariates are absorbed by unit
+effects and must not also enter the slope matrix. Version 0.9 rejects
+inference for that rank-deficient design instead of reporting misleading SEs.
 
 ```{python}
 def make_panel(heterogeneous=False, seed=2025):
     rng = np.random.default_rng(seed)
     n_per_group = 90
-    years = np.arange(8)
+    years = np.arange(9)
     cohorts = np.array([3, 4, 5, 999])
     rows = []
     unit = 0
@@ -167,12 +173,13 @@ plt.show()
 
 def event_study_design(df, rel_min=-2, rel_max=3, baseline=-1):
     work = df.copy()
+    work["rel"] = work["rel"].clip(rel_min, rel_max)
     rel_values = [r for r in range(rel_min, rel_max + 1) if r != baseline]
     treated_cohorts = sorted(c for c in work["cohort"].unique() if c < 999)
     baseline_cohort = treated_cohorts[0]
 
-    parts = [work[["x"]].to_numpy(float)]
-    names = ["x"]
+    parts = []
+    names = []
 
     common_cols = []
     kept_rel_values = []
@@ -199,6 +206,10 @@ def event_study_design(df, rel_min=-2, rel_max=3, baseline=-1):
     names.extend(deviation_names)
 
     xmat = np.column_stack(parts)
+    # This balanced panel is ordered by unit then year.
+    panel = xmat.reshape(work.unit.nunique(), work.year.nunique(), -1)
+    within = panel - panel.mean(axis=0) - panel.mean(axis=1, keepdims=True) + panel.mean(axis=(0, 1))
+    assert np.linalg.matrix_rank(within.reshape(xmat.shape)) == xmat.shape[1]
     fe = work[["unit", "year"]].to_numpy(np.uint32)
     return xmat, fe, names, deviation_names
 
@@ -215,7 +226,7 @@ def fit_event_case(heterogeneous, seed):
     r = np.zeros((len(deviation_names), len(names)))
     for row, name in enumerate(deviation_names):
         r[row, name_to_pos[name]] = 1.0
-    return model.wald_test(r, vcov="hc1")
+    return model.wald_test(r, vcov="cluster", clusters=fe[:, 0].astype(np.int64))
 
 event_hom = fit_event_case(heterogeneous=False, seed=30)
 event_het = fit_event_case(heterogeneous=True, seed=31)
@@ -226,10 +237,13 @@ print("\nHeterogeneous cohort paths:")
 print(event_het)
 ```
 
-The homogeneous DGP shares the same dynamic treatment-effect path across cohorts, so the deviation block is mostly noise. The heterogeneous DGP changes the dynamic path by cohort, so the deviation block is doing real work and the joint test rejects.
+The homogeneous DGP shares the same dynamic treatment-effect path across
+cohorts; the heterogeneous DGP changes it. The reported Wald tests use
+unit-clustered covariance. These are two seeded illustrations, not a
+Monte Carlo estimate of test size or power.
 
 The practical interpretation is deliberately modest:
 
 - If the test rejects, the pooled TWFE/event-study summary is likely hiding cohort-level treatment-effect heterogeneity.
-- If the test does not reject, the pooled specification may be a reasonable low-variance summary, though it is not a proof of no bias.
-- The test is a diagnostic for the bias-variance tradeoff: when the saturated model does not earn its extra cohort-by-time parameters, a simpler specification may be good enough for the empirical purpose.
+- Non-rejection is inconclusive about homogeneity, identification, and bias.
+- Treat this as a specification diagnostic, not a rule that validates selecting a pooled estimator after a pretest.

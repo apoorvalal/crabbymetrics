@@ -6,7 +6,6 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"

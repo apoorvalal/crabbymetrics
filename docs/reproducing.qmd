@@ -1,0 +1,83 @@
+---
+title: "Rebuilding the Documentation"
+format:
+  html:
+    toc: true
+---
+
+## Environment
+
+The published site documents `crabbymetrics==0.9.0`. Quarto executes the Python
+cells; their dependencies are documentation extras, not package runtime
+requirements. Use a separate checkout so rendered files and caches cannot
+accidentally enter a source commit.
+
+```bash
+git clone https://github.com/apoorvalal/crabbymetrics.git crabbymetrics-docs
+cd crabbymetrics-docs
+uv sync --group docs --group test --group benchmark
+uv run maturin develop --release
+export QUARTO_PYTHON="$PWD/.venv/bin/python"
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
+quarto render docs --execute --cache-refresh -M freeze:false --execute-daemon 0
+```
+
+Rendered output is isolated under `docs/_site/`. For a resumable release build
+with per-page logs, compiled-extension hashes, and execution provenance, use
+`uv run python docs/_build.py --stage /tmp/crabbymetrics-docs-build` with a new
+empty staging directory. That builder also copies the public Quarto sources
+beside their rendered pages.
+
+A full fresh render can take substantially longer than an incremental edit.
+Do not lower simulation replication counts just to make a published rerun
+appear complete. Seeds, sample sizes, and replication counts are shown in each
+simulation page. Small bootstrap examples demonstrate interfaces; they do not
+claim accurate tail quantiles.
+
+## Data
+
+The [data provenance file](data/README.md) identifies the bundled Ding inputs
+and their checksums. Existing Basque, California, and factor-rotation examples
+use files under `docs/data/`. The staggered-adoption example now generates
+its own panel and known treatment effects; it does not require a private
+research-directory CSV.
+
+## Caches and release changes
+
+A cache key based only on notebook text does not establish that results came
+from the current compiled extension. When the estimator implementation or API
+changes, explicitly refresh execution caches and override freezing as above.
+Re-rendering HTML with `--no-execute` is useful for layout, but is **not** a
+simulation rerun.
+
+The [scaling report](ablations/estimator-scaling.qmd) reads a separately generated
+CSV. Rendering that page does not rerun its benchmarks. Recreate the bounded
+v0.9 grid before rendering it:
+
+```bash
+uv run python benchmarks/scaling/run_grid.py \
+  --estimators all --implementations all \
+  --n 1000,10000,100000 --k 5,20 \
+  --timeout 10 --memory-gib 2 --reserve-gib 4 \
+  --output docs/ablations/data/estimator-scaling.csv
+```
+
+External R adapters require the corresponding R packages. Missing dependencies,
+timeouts, and memory boundaries must remain visible, not be recoded as successes.
+Timings are local profiling evidence, not universal speed claims.
+
+## Publication
+
+Source pages belong under `docs/` on `master`. GitHub Pages serves the rendered
+tree from the root of `gh-pages`. Package releases do not deploy that branch.
+
+Before publishing, execute all changed pages, regenerate site navigation and
+search, and check internal links, image assets, and the API overview on desktop
+and mobile. Run `uv run python docs/_check_site.py docs/_site` (or the staging
+site path). Copy only the rendered site and its public sources/resources into a
+fresh `gh-pages` clone; omit Python bytecode, execution caches, obsolete
+scaffolds, and private paths. Verify the Pages deployment and live URLs after
+pushing.
+
+The published `build-info.json` records the package version, source revision,
+Quarto version, and page execution results for the current build.

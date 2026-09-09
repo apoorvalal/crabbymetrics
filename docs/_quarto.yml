@@ -1,9 +1,15 @@
 project:
   type: website
-  output-dir: .
+  output-dir: _site
+  resources:
+    - llms.txt
+    - data/**
+    - ablations/data/**
   render:
     - index.qmd
     - api.qmd
+    - release-0.9.qmd
+    - reproducing.qmd
     - reference/*.qmd
     - first-course-ding.qmd
     - ding/*.qmd
@@ -16,9 +22,21 @@ project:
 format:
   html:
     theme: solar
+    css: styles.css
+    code-overflow: wrap
+
+jupyter: python3
 
 website:
   title: "crabbymetrics"
+  site-url: https://apoorvalal.github.io/crabbymetrics/
+  page-footer:
+    left: "crabbymetrics 0.9.0"
+    right:
+      - text: "v0.9 migration"
+        href: release-0.9.qmd
+      - text: "Reproduction"
+        href: reproducing.qmd
   navbar:
     logo: logo.png
     left:
@@ -43,8 +61,8 @@ website:
           - href: api.qmd#estimation-interfaces-and-optimizers
             text: Estimation Interfaces
       - href: mechanics-ols.qmd
-        text: Binding Crash Course
-      - text: Regression And GLMs
+        text: Internals
+      - text: Regression
         menu:
           - href: examples/ols.qmd
             text: OLS
@@ -74,14 +92,12 @@ website:
             text: GMM
           - href: examples/mestimator-poisson.qmd
             text: MEstimator Poisson
-      - text: Causal Inference
+      - text: Causal / Panels
         menu:
           - href: examples/balancing-weights.qmd
             text: Balancing Weights
           - href: examples/chronos-ltv-balancing.qmd
             text: Chronos LTV Balancing
-          - href: reference/MPE_CBPS.qmd
-            text: MPE_CBPS API
           - href: examples/cressie-read-balancing.qmd
             text: Cressie-Read And Rényi Balancing
           - href: examples/eplm.qmd
@@ -142,32 +158,20 @@ website:
             text: Optimizers
           - href: examples/gmm-with-optimizers.qmd
             text: GMM With Optimizers
-      - text: "Ding: First Course"
+      - text: "Ding"
         menu:
           - href: first-course-ding.qmd
-            text: Overview And TOC
-          - href: ding/ch01-correlation-simpson.qmd
-            text: Ch 1 Correlation And Simpson
-          - href: ding/ch02-potential-outcomes.qmd
-            text: Ch 2 Potential Outcomes
-          - href: ding/ch03-cre-frt.qmd
-            text: Ch 3 CRE And Fisher RT
-          - href: ding/ch04-cre-neyman.qmd
-            text: Ch 4 CRE And Neyman
+            text: Chapter Index
+          - href: ding/ding-foundations.qmd
+            text: Foundations (1-4)
+          - href: ding/ding-design-adjustment.qmd
+            text: Design And Adjustment (5-8)
           - href: ablations/bridging-finite-and-superpopulation.qmd
-            text: Ch 9 Bridging Finite And Superpopulation
-          - href: ding/ch11-propensity-score.qmd
-            text: Ch 11 Propensity Score
-          - href: ding/ch12-double-robust-ate.qmd
-            text: Ch 12 Double Robust ATE
-          - href: ding/ch13-double-robust-att.qmd
-            text: Ch 13 Double Robust ATT
-          - href: ding/ch21-iv-experiments.qmd
-            text: Ch 21 Experimental IV
-          - href: ding/ch23-iv-econometrics.qmd
-            text: Ch 23 Econometric IV
-          - href: ding/ch27-mediation.qmd
-            text: Ch 27 Mediation
+            text: Finite And Superpopulation (9)
+          - href: ding/ding-observational-adjustment.qmd
+            text: Observational Studies (11-13, 27)
+          - href: ding/ding-iv.qmd
+            text: Instrumental Variables (21, 23)
     right:
       - icon: github
         href: https://github.com/apoorvalal/crabbymetrics

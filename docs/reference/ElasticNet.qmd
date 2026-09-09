@@ -6,9 +6,8 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -17,6 +16,7 @@ jupyter: python3
 ---
 
 ```{python}
+#| include: false
 from _api_doc_utils import *
 ```
 
@@ -35,7 +35,7 @@ $$
 \end{aligned}
 $$
 
-The reconstructed intercept is $\hat b_0=\bar y-\bar x'\hat\beta$, and predictions are $\hat b_0+X\hat\beta$. This corrects the old outcome-only centering behavior: shifted-design predictions can change relative to earlier releases. With `fit_intercept=False`, neither array is centered and the intercept is zero.
+The reconstructed intercept is $\hat b_0=\bar y-\bar x'\hat\beta$, and predictions are $\hat b_0+X\hat\beta$. This corrects the old outcome-only centering behavior: shifted-design predictions can change relative to earlier releases. The public constructor always fits an intercept; there is no `fit_intercept` keyword.
 
 ## Criterion and solver
 

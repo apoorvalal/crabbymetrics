@@ -3,7 +3,6 @@ title: "GMM Example"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
@@ -84,7 +83,7 @@ y = rng.poisson(np.exp(x @ theta_true)).astype(float)
 def poisson_score_moments(theta, data):
     design = data["x"]
     outcome = data["y"]
-    mean = np.exp(np.clip(design @ theta, -20.0, 20.0))
+    mean = np.exp(design @ theta)
     return design * (outcome - mean)[:, None]
 
 

@@ -5,7 +5,6 @@ format:
   html:
     toc: true
     toc-depth: 3
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"

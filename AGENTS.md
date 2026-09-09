@@ -22,7 +22,7 @@
 
 - When a docs-heavy PR adds or materially changes a Quarto page, render the docs locally and copy the whole rendered docs site to the Hetzner draft host so navigation/assets can be reviewed before merge.
 - Use `QUARTO_PYTHON=.venv/bin/python quarto render <page.qmd>` for targeted Python-backed Quarto renders, or render the relevant docs set when navigation/search changed.
-- Copy the rendered site with `rsync -az --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r docs/ hetz:/root/lalten/drafts/<descriptive-name>/`, then ensure files are world-readable if needed.
+- Copy the rendered site with `rsync -az --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r docs/_site/ hetz:/root/lalten/drafts/<descriptive-name>/`, then ensure files are world-readable if needed.
 - Share the preview URL as `https://lalten.org/drafts/<descriptive-name>/` and, when helpful, the specific page URL under that directory.
 
 ## Public Docs Deployment
@@ -33,8 +33,11 @@
 - Before deploying or previewing, render the affected page(s) locally; if navigation/search changed, render enough of the site to update the generated site tree:
   - `QUARTO_PYTHON=.venv/bin/python quarto render docs/examples/<page>.qmd`
   - or `QUARTO_PYTHON=.venv/bin/python quarto render docs` for broad nav/search changes.
+- Quarto output belongs in `docs/_site/`, never mixed into the source tree.
+- For a release refresh, use `.venv/bin/python docs/_build.py --stage /tmp/<new-build-directory>`. It executes every page with cache refresh in an isolated staging tree, records the compiled extension hash and per-page provenance, and resumes only verified unchanged executions.
+- Run `.venv/bin/python docs/_check_site.py <rendered-site>` before publishing. A no-execute render is not a simulation rerun.
 - Use rendered outputs only for local checking, Hetzner review previews, or the `gh-pages` branch.
-- To deploy, copy the rendered `docs/` tree to a fresh `gh-pages` clone and push that branch. Use a clone, not a worktree: `rsync --delete` can delete a worktree's `.git` file.
+- To deploy, copy the rendered `docs/_site/` tree to a fresh `gh-pages` clone and push that branch. Use a clone, not a worktree: `rsync --delete` can delete a worktree's `.git` file.
 
 ```bash
 TMPDIR=$(mktemp -d)
@@ -44,7 +47,7 @@ rsync -az --delete \
   --exclude '.quarto/' \
   --exclude '**/.jupyter_cache/' \
   --exclude '**/*.quarto_ipynb' \
-  docs/ "$TMPDIR"/
+  docs/_site/ "$TMPDIR"/
 touch "$TMPDIR/.nojekyll"
 (cd "$TMPDIR" && git add -A && git commit -m "Publish rendered docs site" && git push origin gh-pages)
 rm -rf "$TMPDIR"

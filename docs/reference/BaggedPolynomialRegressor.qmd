@@ -1,14 +1,13 @@
 ---
-title: "BaggedPolynomialRegressor"
+title: "Bagged Polynomial Regressor"
 subtitle: "API reference for bagged random-subspace polynomial ridge regression"
 format:
   html:
     toc: true
     toc-depth: 3
     number-sections: true
-    embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
     code-summary: "Show code"
 execute:
   echo: true
@@ -18,6 +17,7 @@ jupyter: python3
 ---
 
 ```{python}
+#| include: false
 from _api_doc_utils import *
 ```
 

@@ -6,7 +6,6 @@ format:
     toc: true
     toc-depth: 2
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"
@@ -32,14 +31,7 @@ import crabbymetrics as cm
 np.set_printoptions(precision=4, suppress=True)
 
 
-def repo_root():
-    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
-        if (candidate / "ding_w_source").exists():
-            return candidate
-    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
-
-
-data_dir = repo_root() / "ding_w_source" / "repl"
+data_dir = Path("../data/ding")
 ```
 
 ## Penn Job-Training Data

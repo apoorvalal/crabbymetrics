@@ -1,4 +1,5 @@
 {
+  "adapter_revision": 2,
   "arguments": {
     "append": false,
     "dry_run": false,
@@ -6,31 +7,26 @@
     "implementations": "all",
     "k": [
       5,
-      10,
-      20,
-      50,
-      100
+      20
     ],
-    "memory_gib": null,
+    "memory_gib": 2.0,
     "n": [
       1000,
       10000,
-      100000,
-      1000000,
-      10000000
+      100000
     ],
-    "output": "docs/ablations/data/estimator-scaling.csv",
+    "output": "/tmp/crabbymetrics-docs-v090.ZKYK6n/estimator-scaling.csv",
     "reserve_gib": 4.0,
     "seed": 1729,
-    "timeout": 15.0
+    "timeout": 10.0
   },
   "cpu_count_logical": 10,
   "cpu_count_physical": 10,
-  "generated_at_utc": "2026-08-26T01:10:50.084713+00:00",
+  "generated_at_utc": "2026-09-09T15:25:05.241640+00:00",
   "hostname": "apoorvas-mac-mini.local",
-  "memory_cap_bytes": 1960706048,
+  "memory_cap_bytes": 1421770752,
   "memory_total_bytes": 17179869184,
-  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
   "python": "3.12.9",
   "reference_urls": {
     "doubleml-irm": "https://github.com/DoubleML/doubleml-for-py",

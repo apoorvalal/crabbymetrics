@@ -24,7 +24,10 @@ Any new work here should usually satisfy most of the following:
 `MPE_CBPS` and its Chronos vignette. The scaling inventory and hardening audit
 below retain their original 30-estimator scope; the new upstream class is
 additional to that historical coverage. Both development histories are retained.
-The merged release build passes 314 Python tests and 11 Rust tests.
+The merged release build passed 314 Python tests and 11 Rust tests; the
+documentation refresh adds six source/checker guards, bringing Python coverage
+to 320 passing tests. The pre-existing macOS process-group cleanup test remains
+intermittently flaky, as recorded in `devlog.md`.
 
 The package version is `0.9.0`, published on PyPI and GitHub from release commit
 `dcbe829`. The release workflow passed both test jobs and all 10 Linux/macOS
@@ -40,8 +43,25 @@ grid/budget inputs, honors the memory reserve, checkpoints each result, preserve
 CSV schemas and previous run metadata on append, and records missing dependencies
 and invalid child results. Benchmark adapter revision 2 fixes unpenalized GLM
 comparators, centered elastic net, same-panel horizontal ridge, same-sample 2SLS,
-and the R fit-only timing boundary. August measurements remain historical and
-must not be treated as timings of these corrected adapters.
+and the R fit-only timing boundary. The documentation refresh replaces the
+August CSV with a fresh v0.9.0 bounded grid: 276 cells at `n=1,000/10,000/100,000`
+and `k=5/20`, with 264 successes, seven timeouts, and five pruned cells.
+Adapter revision, environment, and resource caps are recorded. This does not
+rerun the old largest-scale grid or add `MPE_CBPS` to the benchmark inventory.
+
+The docs refresh adds migration/reproduction pages, rewrites the homepage and
+implementation walkthroughs, removes obsolete scaffolds/proposals/frozen
+outputs, and corrects callback, GMM covariance, event-study rank, and
+synthetic-control convergence examples. Chapter data are bundled with public
+provenance/checksums; the staggered-panel example is explicitly synthetic.
+All 102 pages have executed freshly against v0.9.0 (505 code cells). Internal
+links/search and all 292 images pass checks; browser tests at 1440, 390, and
+320 pixels find no page overflow or broken images. Shared assets reduce total
+HTML from about 355 MB to 6.3 MB. The review preview is
+<https://lalten.org/drafts/crabbymetrics-v0.9-docs/>.
+Rendered output lives in `docs/_site/` and is deployed to `gh-pages`, never
+committed on `master`. The build manifest records per-page execution and
+compiled-extension hashes; source and rendered-link checks guard regressions.
 
 Shared square-root weighting now lives in `src/utils.rs`, used by linear, IV,
 and ridge estimators. Covariance helpers use views and in-place accumulation;
@@ -95,8 +115,10 @@ Implementation commit `f728fb9` is recorded in the after-evidence JSON with clea
 source provenance. Solver damping is excluded from GMM statistical weights and
 covariance. The updated review includes the original and post-patch probes,
 scoped completion status, and explicit caveats on local performance measurements.
-The 21 affected API/example pages have been rendered and staged over the existing
-published docs at <https://lalten.org/drafts/crabbymetrics-estimator-hardening/>.
+The original 21-page partial preview remains at
+<https://lalten.org/drafts/crabbymetrics-estimator-hardening/>. It is superseded
+by the full v0.9 documentation refresh described above, not evidence that every
+unchanged page had already been re-executed.
 
 Subject-clustered Andersen--Gill inference and NB2 remain queued under the
 likelihood-method plan after the relevant hardening work. Full
@@ -120,7 +142,7 @@ PR #17 squash-merged the `api-hardening` branch into `master` as `854a63b`, afte
 
 New estimator work must preserve these contracts. In particular, a summary must not expose standard errors that do not correspond to the fitted objective, and iterative estimators must not equate budget exhaustion with convergence. Common iterative summary keys are `converged`, `iterations`, `termination_reason`, and `objective`.
 
-The branch's public reference pages now also document estimator internals at source-code granularity. All 29 estimator, transform, and optimizer pages explain parameter layout, initialization, numerical steps, stopping and failure behavior, prediction reconstruction, and dominant allocations. They explicitly separate package-owned algorithms from narrow delegation boundaries in `FixedEffectsOLS`, `ElasticNet`, exact `PCA`, and exact `KernelBasis`. The class-page generator is scaffold-only and skips these audited pages unless explicitly forced.
+The branch's public reference pages now also document estimator internals at source-code granularity. All 29 estimator, transform, and optimizer pages in that release explained parameter layout, initialization, numerical steps, stopping and failure behavior, prediction reconstruction, and dominant allocations. They explicitly separate package-owned algorithms from narrow delegation boundaries in `FixedEffectsOLS`, `ElasticNet`, exact `PCA`, and exact `KernelBasis`. The old class-page scaffolder was removed in the v0.9 documentation refresh; audited references are maintained directly.
 
 The release site was rebuilt as 92 Quarto pages after re-executing the four solver-sensitive ablations. It is deployed from clean `gh-pages` commit `c7a3ce4` at `https://apoorvalal.github.io/crabbymetrics/`; rendered outputs remain excluded from `master` and the PyPI sdist.
 
@@ -160,7 +182,7 @@ The 2026-05 through 2026-06 extension sequence landed several items that used to
 
 - Randomized linear algebra / PR #8 is no longer an active PR. It added native randomized range finding, SVD, QR, QR solve, CountSketch OLS, `OLS.fit_sketch(...)`, `TwoSLS.fit_sketch(...)`, `GMM.fit_sketch(...)`, randomized SVD paths in `MatrixCompletion` / `InteractiveFixedEffects`, and the reusable `NystromBasis`, `RandomFourierFeatures`, and `RandomizedPCA` transformers.
 - Cressie-Read balancing is integrated into `BalancingWeights` through `objective="cressie_read"` / `"power_divergence"`, a finite `divergence_power`, optional dual ridge stabilization, and an explicit L-BFGS solver. It preserves the API-hardening distinction between scaled solver convergence, original-unit balance, and final weight feasibility. Rényi divergence is documented only as the $\lambda=\alpha-1$ diagnostic mapping, not as a separate optimizer.
-- Sparse factor rotations are implemented as low-level functions rather than estimator wrappers. The public surface includes Varimax, a seeded multi-start L1 sparse rotation, small-loading/local-factor diagnostics, and inverse/cumulative participation summaries. The implementation preserves explicit non-convexity caveats, seed control, and function-level diagnostics; the worked and design pages live at `docs/examples/sparse-rotations.qmd` and `docs/specs/sparse-rotations.qmd`.
+- Sparse factor rotations are implemented as low-level functions rather than estimator wrappers. The public surface includes Varimax, a seeded multi-start L1 sparse rotation, small-loading/local-factor diagnostics, and inverse/cumulative participation summaries. The implementation preserves explicit non-convexity caveats, seed control, and function-level diagnostics; the maintained worked page is `docs/examples/sparse-rotations.qmd`. The obsolete pre-implementation proposal was removed.
 - Hypothesis-test helpers are landed. Estimator-level `wald_test(...)` methods exist for the main covariance-bearing estimators, module-level `wald_test(...)`, `likelihood_ratio_test(...)`, and `lr_test(...)` exist, and `TwoSLS.anderson_rubin_test(...)` covers scalar weak-IV-robust tests.
 - `ABCOLS` is landed as an OLS-only abundance-based constraints / weighted-effect-coding estimator for categorical main effects, continuous-by-categorical interactions, and categorical-by-categorical interactions, with a detailed worked example at `docs/examples/abc-ols.qmd` and a class reference page at `docs/reference/ABCOLS.qmd`.
 - Anytime-valid OLS is landed and released in `v0.7.1`. `OLS.summary(...)` now accepts `anytime_valid=True`, `g=...`, and `level=...`, while module-level `optimal_g(...)` and `av(...)` cover the convenience path. Tests compare against `avlm` reference values.
@@ -254,12 +276,12 @@ Implementation guardrails for sketching work:
   - `ExponentialPH` and `WeibullPH` expose absolute hazard, cumulative-hazard, and survival predictions
   - `CoxPH` and `AndersenGill` expose semiparametric relative-risk predictions
 - docs and ablations
-  - the main docs nav now uses `Regression And GLMs`, `Causal Inference`, and `Transforms` rather than the older supervised / semiparametric / unsupervised grouping
+  - the main docs nav groups `Regression`, `Causal / Panels`, `Transforms`, and `Ablations`, with separate API, internals, optimization, and chapter entry points
   - the API overview now includes grouped anchors for regression/GLMs, survival/event-time models, causal inference/panels, hypothesis testing, transforms, and estimation interfaces
   - causal examples include separate public-facing pages for `SyntheticControl`, `SyntheticDID`, `HorizontalPanelRidge`, `MatrixCompletion`, and `InteractiveFixedEffects`, with the matrix panel pages using small self-contained synthetic panels
   - likelihood examples now include the MLE prediction interface and survival/event-time pages
   - anytime-valid OLS has a worked source page and nav/API links; public `gh-pages` deployment is separate from PyPI release and should be run explicitly when the live docs need to update
-  - the Hainmueller--Hangartner staggered-adoption vignette demonstrates the shared `fit(Y, W)` matrix panel API on a real panel and compares the matrix estimators to pyfixest vanilla TWFE and saturated/Sun-Abraham-style event studies
+  - the staggered-adoption vignette demonstrates the shared `fit(Y, W)` matrix panel API with a seeded synthetic panel and known cohort effects, comparing the matrix estimators to PyFixest pooled TWFE and saturated event studies; the old private-data vignette is replaced
   - cached ablation notebooks cover variance estimators, semiparametric comparisons, panel-DGP comparisons, and the Same Root Basque/California panel case studies with simulation, first-class `HorizontalPanelRidge`, plus HAC/placebo inference
   - the `First Course Ding` docs track now covers Chapters 1 through 8, Chapter 9 via the bridging ablation, Chapters 11 through 13, Chapters 21 and 23, and a narrow Chapter 27 Baron-Kenny mediation page with explicit simulation DGPs
   - the latest R-script cleanup filled in post-stratification, matched-pair regression/FRT, IPW truncation and balance diagnostics, ATT doubly robust formulas, the JOBS IV example, and an Anderson-Rubin IV grid

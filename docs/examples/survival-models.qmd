@@ -11,7 +11,7 @@ format:
 jupyter: python3
 ---
 
-Survival models describe event timing through a hazard rate: the instantaneous event risk among units still at risk. `crabbymetrics` includes four first-pass survival estimators:
+Survival models describe event timing through a hazard rate: the instantaneous event risk among units still at risk. `crabbymetrics` includes four survival estimators:
 
 - `ExponentialPH`: a parametric proportional-hazards model with constant baseline hazard,
 - `WeibullPH`: a parametric proportional-hazards model with monotone baseline hazard,
@@ -182,7 +182,7 @@ The exponential fit is intentionally misspecified because the simulated baseline
 
 ## Prediction surfaces for survival models
 
-The widened survival API now exposes the same layered contract as the MLE estimators:
+The survival API exposes the same layered contract as the MLE estimators:
 
 - `predict_lin(...)`: the linear predictor on the model's natural latent scale,
 - `predict(...)`: the default mean-scale prediction,

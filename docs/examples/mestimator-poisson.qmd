@@ -1,167 +1,95 @@
 ---
-title: "MEstimator Poisson Example"
+title: "Poisson Through MEstimator"
+subtitle: "Matching coefficients and robust covariance with explicit callbacks"
+jupyter: python3
 format:
   html:
-    number-sections: true
-    embed-resources: true
-    page-layout: full
+    toc: true
+    code-fold: true
 execute:
-  echo: true
   warning: false
   message: false
-jupyter: python3
 ---
 
-This page mirrors `examples/mestimator_poisson_example.py` and shows how to match the built-in Poisson estimator with custom objective and score callbacks.
+This example fits the same unpenalized Poisson mean model with a native
+`Poisson` estimator and a callback-driven `MEstimator`. It compares **sandwich
+covariance in both implementations**. Comparing a score sandwich to Poisson's
+default Fisher covariance would compare different inference assumptions.
 
-`fit()` now computes and stores the score-based covariance before returning,
-using the fitted score Jacobian. Later mutation of the callback data cannot
-change `summary()`. Invalid scores or failed covariance construction reject the
-fit and clear its state. The original callback data is still retained for
-bootstrap resampling and must remain unchanged when using `bootstrap()`.
+## Objective and scores
 
-## Define The Objective And Scores
+The objective and gradient must be derivatives of the same function. Clipping
+the linear predictor while retaining the unclipped gradient breaks that
+contract. This moderate-scale example uses the exact exponential throughout.
 
 ```{python}
 import numpy as np
-from crabbymetrics import MEstimator, Poisson
+import crabbymetrics as cm
 
-np.set_printoptions(precision=4, suppress=True)
-```
-
-
-
-
-```{python}
-call_counter = {"n": 0}
-
-
-def poisson_objective(theta, data):
-    call_counter["n"] += 1
-
-    X = data["X"]
-    y = data["y"]
-    indices = data.get("indices", np.arange(len(y)))
-
-    X_sample = X[indices]
-    y_sample = y[indices]
-
-    eta = X_sample @ theta
-    eta = np.clip(eta, -20, 20)
-    mu = np.exp(eta)
-
-    obj = np.sum(mu - y_sample * eta)
-    grad = X_sample.T @ (mu - y_sample)
-
-    if call_counter["n"] <= 5 or call_counter["n"] % 20 == 0:
-        print(
-            f"    Call {call_counter['n']}: theta={theta}, "
-            f"obj={obj:.2f}, |grad|={np.linalg.norm(grad):.2f}"
-        )
-
-    return obj, grad
-
-
-def poisson_scores(theta, data):
-    X = data["X"]
-    y = data["y"]
-
-    eta = X @ theta
-    eta = np.clip(eta, -20, 20)
-    mu = np.exp(eta)
-
-    return X * (mu - y)[:, np.newaxis]
-```
-
-## Compare MEstimator To Built-In Poisson
-
-```{python}
 rng = np.random.default_rng(42)
 n = 700
-k = 3
-intercept_true = 0.15
-beta_true = np.array([0.2, 0.4, -0.6])
+x = rng.normal(size=(n, 3))
+design = np.column_stack([np.ones(n), x])
+theta_true = np.array([0.15, 0.2, 0.4, -0.6])
+y = rng.poisson(np.exp(design @ theta_true)).astype(float)
+data = {"X": design, "y": y, "n": n}
 
-X_raw = rng.normal(size=(n, k))
-X = np.column_stack([np.ones(n), X_raw])
-theta_true = np.concatenate([[intercept_true], beta_true])
-eta = X @ theta_true
-mu = np.exp(eta)
-y = rng.poisson(mu).astype(float)
+def sample(data):
+    indices = data.get("indices", np.arange(data["n"]))
+    return data["X"][indices], data["y"][indices]
 
-print("=" * 60)
-print("Poisson Regression Comparison")
-print("=" * 60)
-print(f"True intercept:    {intercept_true}")
-print(f"True coefficients: {beta_true}")
-print()
+def objective(theta, data):
+    X, y = sample(data)
+    eta = X @ theta
+    mean = np.exp(eta)
+    return float(np.mean(mean - y * eta)), X.T @ (mean - y) / len(y)
 
-print("1. Using MEstimator (general M-estimation framework)")
-print("-" * 60)
-
-data = {"X": X, "y": y, "n": n}
-theta0 = np.concatenate([[np.log(np.maximum(y.mean(), 1e-12))], np.full(k, 0.1)])
-
-obj_init, grad_init = poisson_objective(theta0, data)
-print(f"  Initial objective: {obj_init:.4f}")
-print(f"  Initial gradient norm: {np.linalg.norm(grad_init):.4f}")
-
-mestim = MEstimator(
-    objective_fn=poisson_objective,
-    score_fn=poisson_scores,
-    max_iterations=200,
-    tolerance=1e-6,
-)
-
-mestim.fit(data, theta0)
-summary_m = mestim.summary()
-
-print(f"Estimated coefficients: {summary_m['coef']}")
-print(f"Standard errors:        {summary_m['se']}")
-print()
-
-print("2. Using built-in Poisson estimator")
-print("-" * 60)
-
-poisson_model = Poisson(alpha=0.0, max_iterations=200)
-poisson_model.fit(X_raw, y)
-summary_p = poisson_model.summary()
-
-coef_p = np.concatenate([[summary_p["intercept"]], summary_p["coef"]])
-se_p = np.concatenate([[summary_p["intercept_se"]], summary_p["coef_se"]])
-
-print(f"Estimated intercept:    {summary_p['intercept']}")
-print(f"Estimated coefficients: {summary_p['coef']}")
-print(f"Standard errors:        {se_p}")
-print()
-
-print("3. Comparison")
-print("-" * 60)
-coef_diff = np.abs(summary_m["coef"] - coef_p)
-se_diff = np.abs(summary_m["se"] - se_p)
-
-print(f"Max coefficient difference: {np.max(coef_diff):.2e}")
-print(f"Max SE difference:          {np.max(se_diff):.2e}")
-print(
-    f"Max relative coef error:    "
-    f"{np.max(coef_diff / np.maximum(np.abs(coef_p), 1e-12)):.2%}"
-)
-print(f"Max relative SE error:      {np.max(se_diff / se_p):.2%}")
-
-if np.max(coef_diff) < 1e-3 and np.max(se_diff / se_p) < 0.05:
-    print("\\nSUCCESS: MEstimator matches built-in Poisson!")
-else:
-    print("\\nWARNING: Results differ more than expected")
+def scores(theta, data):
+    X, y = sample(data)
+    return X * (np.exp(X @ theta) - y)[:, None]
 ```
 
-## Bootstrap The Custom Estimator
+`MEstimator` does not add an intercept: it is the first column of `design`
+and the first element of `theta`. Both callbacks honor bootstrap indices.
+A score returns one row per observation, not a pre-aggregated gradient.
+
+## Fit and compare
 
 ```{python}
-print()
-print("4. Testing bootstrap (5 iterations)")
-print("-" * 60)
-boot_draws = mestim.bootstrap(5, seed=123)
-print(f"Bootstrap draws shape: {boot_draws.shape}")
-print(f"Bootstrap mean: {boot_draws.mean(axis=0)}")
-print(f"Bootstrap std:  {boot_draws.std(axis=0)}")
+theta0 = np.r_[np.log(y.mean()), np.zeros(x.shape[1])]
+custom = cm.MEstimator(objective, scores, max_iterations=300, tolerance=1e-10)
+custom.fit(data, theta0)
+custom_result = custom.summary()
+
+native = cm.Poisson(alpha=0.0, max_iterations=300, tolerance=1e-9)
+native.fit(x, y)
+native_result = native.summary(vcov="sandwich")
+assert native_result["inference_available"]
+native_theta = np.r_[native_result["intercept"], native_result["coef"]]
+native_se = np.r_[native_result["intercept_se"], native_result["coef_se"]]
+
+print("Custom coefficients:", custom_result["coef"])
+print("Native coefficients:", native_theta)
+print("Custom sandwich SE:", custom_result["se"])
+print("Native sandwich SE:", native_se)
+np.testing.assert_allclose(custom_result["coef"], native_theta, atol=1e-5)
+np.testing.assert_allclose(custom_result["se"], native_se, rtol=1e-4, atol=1e-6)
 ```
+
+In v0.9, `fit()` computes and stores the covariance before returning. It
+numerically differentiates the mean scores to obtain the bread; the meat is
+their uncentered outer product. Invalid scores or a singular bread reject the
+fit and clear its state. Repeated summaries use that stored covariance.
+
+## Bootstrap interface
+
+```{python}
+draws = custom.bootstrap(20, seed=123)
+print("Draw shape:", draws.shape)
+print("Bootstrap coefficient mean:", draws.mean(axis=0))
+```
+
+Twenty draws illustrate the interface, not a precise confidence interval.
+Keep callback data immutable for subsequent bootstrap or explicit covariance
+recomputation. Prefer the native estimator for this built-in model; callbacks
+are useful when the objective itself needs to change.

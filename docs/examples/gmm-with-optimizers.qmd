@@ -3,7 +3,6 @@ title: "GMM With Optimizers"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
@@ -12,7 +11,7 @@ execute:
 jupyter: python3
 ---
 
-This page shows the low-level optimizer path underneath the first-class `GMM` estimator. The point is no longer that this needs to stay a hand-written notebook. The point is that the existing `Optimizers` API was already expressive enough to fit a serious moment-condition problem and was a good staging ground for the eventual class.
+This page constructs GMM objectives explicitly with `Optimizers` to show the scalar-objective and residual interfaces. For ordinary moment estimation, use the [first-class GMM estimator](gmm.qmd), which handles weighting, convergence, and covariance together.
 
 The setting is deliberately chosen to go beyond the closed-form `TwoSLS` wrapper: five excluded instruments, two-step weighting, and a J-statistic.
 
@@ -105,8 +104,7 @@ def omega_hat(theta, x, y, z):
     return gi.T @ gi / x.shape[0]
 
 def make_weight_root(weight):
-    ridge = 1e-10 * np.eye(weight.shape[0])
-    return np.linalg.cholesky(weight + ridge).T
+    return np.linalg.cholesky(weight).T
 ```
 
 The two optimizer interfaces line up naturally with GMM:

@@ -4,7 +4,6 @@ subtitle: "Low-rank counterfactual completion for treated panel cells"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true

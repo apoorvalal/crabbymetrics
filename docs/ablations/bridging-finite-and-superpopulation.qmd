@@ -3,7 +3,6 @@ title: "Bridging Finite And Superpopulation Inference"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"

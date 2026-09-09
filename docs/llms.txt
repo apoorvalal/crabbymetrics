@@ -4,6 +4,8 @@
 
 This file is for coding agents and LLMs that need to use `crabbymetrics` correctly in applications. Prefer this file when you need a dense API map, data-shape conventions, estimator selection guidance, and links into the human documentation site.
 
+Documentation baseline: v0.9.0. See release-0.9.html for migration notes and reproducing.html for fresh execution and data provenance.
+
 Canonical project locations:
 
 - Documentation site: https://apoorvalal.github.io/crabbymetrics/
@@ -32,7 +34,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 
 ## Global conventions
 
-- Inputs are NumPy arrays or array-like objects that can be converted to NumPy arrays.
+- Inputs must be NumPy arrays with the documented dtype and shape. Convert lists and DataFrames explicitly; the native methods do not automatically coerce arbitrary array-like objects.
 - Most feature matrices are 2D, shape `(n_observations, n_features)`.
 - Most regression/classification targets are 1D, shape `(n_observations,)`.
 - Estimators mutate in place: instantiate, call `fit(...)`, then call `predict(...)`, `summary(...)`, `bootstrap(...)`, or estimator-specific methods when available.
@@ -64,7 +66,7 @@ Important ownership boundaries:
 - Exact `PCA` and exact training-Gram construction for `KernelBasis` delegate narrow primitives to Linfa. RandomizedPCA, NystromBasis, RandomFourierFeatures, out-of-sample cross-kernel construction, and all wrapper diagnostics are package-owned.
 - There is no monolithic `KernelRidge` class. Exact or approximate kernel ridge is the explicit composition `KernelBasis` / `NystromBasis` / `RandomFourierFeatures` followed by `Ridge`; the two class pages document both halves of that pipeline.
 
-Do not run `docs/_generate_class_reference.py --force` as a routine maintenance step. It creates first-pass scaffolds and would replace the audited hand-written sections. Without `--force`, it skips existing pages.
+The hand-written class references are authoritative; signatures and summary shapes are regenerated from the installed module during rendering.
 
 ## Quick estimator selection
 
@@ -97,7 +99,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Regularized estimators expose point estimates for prediction but do not claim analytic standard errors unless the fitted objective and covariance match.
 - Direct numerical optimization with Python callbacks: `cm.Optimizers.minimize_*`.
 
-## Panel causal API: most important recent contract
+## Panel causal API
 
 The paved panel causal API is matrix-first:
 
@@ -625,26 +627,31 @@ If you need to inspect or modify source, start here:
 - `src/optimizers.rs`: Optimizers namespace.
 - `src/utils.rs`: shared array conversion, linear algebra, covariance, bootstrap, and helper routines.
 - `tests/`: Python tests for public behavior; use these as executable API examples when docs are thin.
-- `docs/examples/*.qmd`: rendered example notebooks.
+- `docs/examples/*.qmd`: executable example sources; rendered HTML belongs in `docs/_site/` or `gh-pages`.
 - `docs/ablations/*.qmd`: cached numerical experiments and panel case-study workflows.
-- `docs/api.qmd`: generated/verified public-surface reference.
+- `docs/api.qmd`: public-surface reference with live signature tables.
+- `docs/_build.py`: isolated fresh release renders, logs, and compiled-extension provenance.
+- `docs/_check_site.py`: local HTML link/anchor/image and search-index validation.
 
 Development commands:
 
 ```bash
-uv sync
-uv run maturin develop
+uv sync --group docs --group test --group benchmark
+uv run maturin develop --release
 uv run pytest tests -q
-uv sync --extra docs
-uv run quarto render docs
+uv run python docs/_build.py --stage /tmp/crabbymetrics-docs-build
+uv run python docs/_check_site.py /tmp/crabbymetrics-docs-build/source/docs/_site
 ```
 
 ## Documentation links
 
+- [v0.9 migration](https://apoorvalal.github.io/crabbymetrics/release-0.9.html): changed weighting, centering, callback, convergence, and inference contracts.
+- [Reproduction](https://apoorvalal.github.io/crabbymetrics/reproducing.html): dependencies, bundled data, fresh execution, and publication.
+
 - [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
 - [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
 - Estimator pages under the API reference document the implemented objective or estimating equations, covariance method, inferential limitations, and computational scaling.
-- [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
+- [Binding Internals: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
 - [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
 - [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.
 
@@ -678,6 +685,10 @@ uv run quarto render docs
 
 ## Ablation and case-study links
 
+- [Estimator scaling](https://apoorvalal.github.io/crabbymetrics/ablations/estimator-scaling.html): fresh v0.9.0 adapter-revision-2 timings on a bounded 30-estimator grid; excludes MPE_CBPS.
+- [Staggered panel event study](https://apoorvalal.github.io/crabbymetrics/examples/staggered-panel-event-study.html): seeded synthetic panel, known dynamic effects, and PyFixest comparisons; no private data path.
+- [Chronos LTV](https://apoorvalal.github.io/crabbymetrics/examples/chronos-ltv-balancing.html): MPE_CBPS, entropy calibration, and dynamic identification assumptions.
+
 - [Variance Estimators](https://apoorvalal.github.io/crabbymetrics/ablations/variance-estimators.html): Monte Carlo coverage for OLS, Poisson, and GMM variance estimators.
 - [Semiparametric Estimator Comparisons](https://apoorvalal.github.io/crabbymetrics/ablations/semiparametric-estimators.html): EPLM versus DML and regression/balancing/AIPW comparisons.
 - [Bridging Finite And Superpopulation](https://apoorvalal.github.io/crabbymetrics/ablations/bridging-finite-and-superpopulation.html): SATE/PATE coverage comparisons.
@@ -686,7 +697,7 @@ uv run quarto render docs
 
 ## Optional background links
 
-- [First Course Ding overview](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): translation map for Ding causal inference chapters.
+- [First Course Ding overview](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): index of the implemented Ding causal inference chapters.
 - [Ding chapter pages](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): use the site navigation for chapter-specific causal inference notes and translated examples.
 
 ## Common mistakes to avoid

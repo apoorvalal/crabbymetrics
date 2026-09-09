@@ -1,248 +1,91 @@
 ---
-title: "Binding Crash Course: OLS"
+title: "Binding Internals: OLS"
+subtitle: "From NumPy inputs to a native least-squares fit"
+jupyter: python3
 format:
   html:
-    toc: false
-    number-sections: true
-    embed-resources: true
-    page-layout: full
+    toc: true
+    code-fold: true
 execute:
-  echo: false
   warning: false
   message: false
 ---
 
-This page is the shortest binding walkthrough in the library. `OLS` uses the crate's native QR least-squares helpers behind a thin PyO3 boundary, so it is the cleanest starting point for understanding how the Rust extension exposes estimators to Python.
+`OLS` illustrates the package's basic binding pattern: PyO3 exposes a Rust
+class, NumPy arrays cross the boundary, Rust performs the numerical work, and
+results return as arrays in a Python dictionary. See the
+[class reference](reference/OLS.qmd) for covariance options and signatures.
 
-## Module Export
+## Ownership and fitting
 
-`OLS` is exported from the extension module in `src/lib.rs`:
+[`src/lib.rs`](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/src/lib.rs)
+registers `OLS`; its implementation is in
+[`src/estimators/linear.rs`](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/src/estimators/linear.rs).
+Shared linear algebra and array conversion live in
+[`src/utils.rs`](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/src/utils.rs).
 
-```rust
-use crate::estimators::{
-    ElasticNet, FixedEffectsOLS, Logit, MEstimator, MultinomialLogit, Poisson,
-    SyntheticControl, TwoSLS, KernelBasis, OLS, PcaTransformer,
-};
+1. `fit(x, y)` clears the previous fitted state and validates finite arrays,
+   compatible row counts, and a usable design.
+2. NumPy inputs are copied into owned Rust arrays. The public `OLS()`
+   constructor includes an intercept; it has no `fit_intercept` argument.
+3. A QR least-squares solve obtains the parameters. The wrapper separates the
+   intercept and slopes and retains data needed for inference and resampling.
+4. `predict(x_new)` checks the fitted feature count and finite values before
+   forming the linear prediction.
 
-#[pymodule]
-fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<OLS>()?;
-    Ok(())
-}
-```
+Do not interpret a failed refit as leaving an earlier fit available. Python
+argument-conversion errors occur before Rust entry and are a separate boundary.
 
-That one `m.add_class::<OLS>()?` line is what makes `from crabbymetrics import OLS` valid in Python.
+## Covariance and weights
 
-## The Stored Rust State
+The point estimate minimizes squared residuals. `summary()` selects classical,
+HC0--HC3, Newey-West, or cluster covariance without refitting coefficients.
+The inverse Gram factor used in covariance is obtained from QR rather than
+explicitly forming and inverting the normal equations.
 
-The Rust-side class is tiny:
+`fit_weighted()` uses square-root transformed rows and **analytic weights**.
+Zero-weight rows are excluded from inference counts; zero-only clusters do not
+increase the cluster count. HAC lags refer to the active-row sequence. These
+weights are not frequency counts or a survey-design specification.
 
-```rust
-#[pyclass]
-pub struct OLS {
-    fit_intercept: bool,
-    intercept: f64,
-    coef: Option<Array1<f64>>,
-    x: Option<Array2<f64>>,
-    y: Option<Array1<f64>>,
-    sample_weight: Option<Array1<f64>>,
-}
-```
-
-This is the whole design in miniature:
-
-- `fit_intercept` controls whether a constant column is added
-- `intercept` and `coef` store the fitted parameters directly
-- `x` and `y` cache the training data for `summary()` and `bootstrap()`
-- `sample_weight` records weights for weighted covariance calculations
-
-The constructor is minimal too:
-
-```rust
-#[pymethods]
-impl OLS {
-    #[new]
-    fn new() -> Self {
-        Self {
-            fit_intercept: true,
-            intercept: 0.0,
-            coef: None,
-            x: None,
-            y: None,
-            sample_weight: None,
-        }
-    }
-}
-```
-
-So from Python, the public constructor is just:
-
-```python
-OLS()
-```
-
-## The Key Imports
-
-The interesting imports for `OLS` are the ones that define the wrapper pattern:
-
-```rust
-use crate::utils::{add_intercept, solve_least_squares_vec, to_array1, to_array2};
-use ndarray::{Array1, Array2};
-use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2};
-use pyo3::prelude::*;
-```
-
-Their roles are:
-
-- `PyReadonlyArray*`: accept NumPy arrays from Python safely
-- `to_array1` / `to_array2`: copy NumPy inputs into owned `ndarray` arrays
-- `add_intercept`: construct the regression design matrix
-- `solve_least_squares_vec`: solve the dense least-squares problem with QR
-
-There is no iterative optimizer or callback bridge. `OLS` converts inputs, builds the design, solves least squares, and stores the parameters directly.
-
-## What `fit()` Actually Does
-
-The entire fitting path is the simplest possible Rust-to-`linfa` wrapper:
-
-```rust
-fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
-    let x = to_array2(&x);
-    let y = to_array1(&y);
-    if x.nrows() != y.len() {
-        return Err(PyValueError::new_err("x rows must match y length"));
-    }
-    let params =
-        fit_linear_params(&x, &y, self.fit_intercept, None).map_err(PyValueError::new_err)?;
-    let (intercept, coef) = split_params(&params, self.fit_intercept);
-    self.intercept = intercept;
-    self.coef = Some(coef);
-    self.x = Some(x);
-    self.y = Some(y);
-    self.sample_weight = None;
-    Ok(())
-}
-```
-
-The sequence is:
-
-1. convert Python/NumPy arrays into owned `ndarray` arrays with `to_array1` and `to_array2`
-2. validate that `x` and `y` have matching row counts
-3. add an intercept column when requested
-4. solve the dense least-squares problem through the shared QR helper
-5. split and store the intercept, slopes, and training data on `self`
-
-This is the most direct example of the wrapper pattern in the repo. The numerical work is native Rust and shared with weighted linear-estimator paths.
-
-## Prediction Is Just Another Thin Wrapper
-
-`predict()` follows the same pattern:
-
-```rust
-fn predict<'py>(
-    &self,
-    py: Python<'py>,
-    x: PyReadonlyArray2<f64>,
-) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    let coef = self
-        .coef
-        .as_ref()
-        .ok_or_else(|| PyValueError::new_err("OLS model is not fitted"))?;
-    let x = to_array2(&x);
-    let pred = x.dot(coef) + self.intercept;
-    Ok(pyarray1_from_f64(py, &pred))
-}
-```
-
-So the boundary mechanics are:
-
-- pull the fitted coefficient vector out of `self.coef`
-- convert the new NumPy feature matrix into `ndarray`
-- evaluate $x\hat\beta+\hat\alpha$
-- convert the result back into a Python `numpy.ndarray`
-
-## Summary And Variance Estimators
-
-`summary()` combines the stored native point estimates with covariance calculations. Python can choose `vanilla`, `hc0`--`hc3`, `newey_west`, or `cluster` covariance:
-
-```rust
-let design = if self.fit_intercept {
-    add_intercept(x)
-} else {
-    x.clone()
-};
-let fitted = design.dot(&params);
-let residuals = y - &fitted;
-let cov = linear_covariance(
-    &design,
-    &residuals,
-    vcov,
-    lags,
-    cluster_ids.as_ref(),
-    None,
-)?;
-let se_all = diag_sqrt(&cov)?;
-```
-
-Then it combines:
-
-- the native point estimates stored in `intercept` and `coef`
-- the locally computed covariance from the chosen OLS variance formula
-
-and returns a plain Python dict:
-
-```rust
-let dict = pyo3::types::PyDict::new(py);
-dict.set_item("intercept", intercept)?;
-dict.set_item("coef", pyarray1_from_f64(py, &coef))?;
-dict.set_item("intercept_se", intercept_se)?;
-dict.set_item("coef_se", pyarray1_from_f64(py, &coef_se))?;
-```
-
-This is a common pattern in the library:
-
-- point estimates and inference are computed in native Rust
-- inference helpers often live in `utils.rs`
-- Python sees a simple dict/array interface either way
-
-## Bootstrap Reuses The Same Native Solver
-
-The bootstrap path resamples the stored training rows and calls the same QR least-squares helper for every draw. That is possible because `fit()` cached `x` and `y` on the Rust side during the original fit.
-
-## Python-Side Mental Model
-
-From Python, all of that machinery collapses down to the usual API:
-
-```python
+```{python}
 import numpy as np
-from crabbymetrics import OLS
+import crabbymetrics as cm
 
-x = np.random.randn(200, 3)
-y = 0.3 + x @ np.array([1.0, -2.0, 0.5]) + np.random.randn(200) * 0.1
-
-model = OLS()
+rng = np.random.default_rng(17)
+x = rng.normal(size=(400, 3))
+y = 0.5 + x @ np.array([1.0, -0.7, 0.25]) + rng.normal(size=400)
+model = cm.OLS()
 model.fit(x, y)
+result = model.summary(vcov="hc1")
+print("Coefficients:", result["coef"])
+print("HC1 SE:", result["coef_se"])
+print("Predictions:", model.predict(x[:3]))
+print("Bootstrap shape:", model.bootstrap(20, seed=17).shape)
 
-summary = model.summary()
-summary_vanilla = model.summary(vcov="vanilla")
-summary_hac = model.summary(vcov="newey_west", lags=4)
-clusters = np.repeat(np.arange(20, dtype=np.int64), len(y) // 20)
-summary_cluster = model.summary(vcov="cluster", clusters=clusters)
-pred = model.predict(x[:5])
-boot = model.bootstrap(50, seed=1)
+weights = np.ones(len(y))
+weights[:20] = 0
+weighted = cm.OLS()
+weighted.fit_weighted(x, y, weights)
+active = cm.OLS()
+active.fit(x[20:], y[20:])
+np.testing.assert_allclose(
+    weighted.summary(vcov="hc1")["coef_se"],
+    active.summary(vcov="hc1")["coef_se"],
+)
 ```
 
-The implementation detail to keep in mind is that `OLS` owns its fitted parameters and delegates only reusable linear algebra and covariance calculations to crate-local helpers. `Ridge`, `FixedEffectsOLS`, and `TwoSLS` use the same covariance vocabulary even though their point estimators differ.
+## Resampling and approximation
 
-## Why Start Here
+Bootstrap draws resample stored rows and solve the same least-squares problem.
+Indices are generated one draw at a time, so they do not require a full
+`n_bootstrap` by `n` index matrix.
 
-`OLS` is the first mechanics page because it shows the base pattern with almost no distractions:
+`fit_sketch()` is a separate approximate fitting path. Its summary reports the
+fit method, sketch size, and seed. A reported covariance is not a proof that
+sketching preserves interval coverage; see the
+[sketching ablation](ablations/randomized-sketching-ols.qmd).
 
-- export a Rust struct with `#[pyclass]`
-- accept NumPy arrays via `PyReadonlyArray*`
-- convert them to `ndarray`
-- call a native numerical helper
-- store the fitted parameters
-- convert predictions and summaries back to Python values
-
-From there, `Poisson` adds a native optimization problem in Rust, and `MEstimator` adds the full callback bridge where Rust owns the solver loop but Python supplies the objective and score functions.
+For the next level of numerical complexity, read the
+[native Poisson solver](mechanics-poisson.qmd). For custom Python objectives,
+read the [MEstimator callback bridge](mechanics-mestimator.qmd).

@@ -6,7 +6,6 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
 execute:
@@ -17,6 +16,7 @@ jupyter: python3
 ---
 
 ```{python}
+#| include: false
 from _api_doc_utils import *
 ```
 

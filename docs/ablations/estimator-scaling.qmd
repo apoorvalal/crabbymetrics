@@ -1,6 +1,6 @@
 ---
 title: "Estimator scaling and reference implementations"
-description: "Guarded sample-size and dimension scaling for every exported estimator"
+description: "Fresh v0.9.0 timings for the 30-estimator benchmark inventory"
 jupyter: python3
 format:
   html:
@@ -14,27 +14,20 @@ execute:
 freeze: auto
 ---
 
-This ablation inventories all 30 estimator classes exported by Crabbymetrics and
-measures how their fit time and memory use change over $n \in
-\{10^3,10^4,10^5,10^6,10^7\}$ and $k \in \{5,10,20,50,100\}$. External
-comparators follow a fixed preference order: scikit-learn, PyFixest, then a
-canonical R implementation. A comparator is included in timing results only when
-the common data-generating process preserves the estimator's semantics.
+This ablation reruns the 30-estimator benchmark inventory against **v0.9.0**,
+using adapter revision 2. The bounded grid is $n \in
+\{10^3,10^4,10^5\}$ and $k \in \{5,20\}$. It does not include the newly added
+[MPE_CBPS](../reference/MPE_CBPS.qmd), which has its own executed API example and
+[Chronos simulation](../examples/chronos-ltv-balancing.qmd).
 
-The full source inventory, exact GitHub references, dimension conventions, and
-commands are in the [benchmark README](https://github.com/apoorvalal/crabbymetrics/blob/speedtest/benchmarks/scaling/README.md).
+The September 9 measurements replace the obsolete August charts. They include
+the corrected unpenalized GLM, centered ElasticNet, same-panel horizontal ridge,
+same-sample 2SLS, and R fit-only timing adapters. This is a smaller reproducible
+profiling grid, not a rerun of the old $10^7$-row sweep.
 
-::: {.callout-warning}
-## Historical Adapter Results
-
-The committed August 2026 measurements predate adapter revision 2. The September
-cleanup corrected sklearn logit/Poisson penalties, centered elastic-net inputs,
-the horizontal-panel ridge reference design, shared 2SLS sample draws, and the R
-fit-timing boundary. The figures below retain the original measurements; the
-affected comparisons require a fresh run before drawing performance conclusions.
-New rows include `adapter_revision` and should be analyzed separately from these
-historical results. The benchmark README records the exact corrections.
-:::
+The [benchmark README](https://github.com/apoorvalal/crabbymetrics/blob/master/benchmarks/scaling/README.md)
+documents reference implementations and dimension conventions. Download the
+[measurements](data/estimator-scaling.csv) and [host metadata](data/estimator-scaling.host.json).
 
 ## Guard rails
 
@@ -49,6 +42,7 @@ an observed feasibility boundary, not an accidental omission.
 #| output: false
 from pathlib import Path
 import sys
+import json
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -56,7 +50,10 @@ import pandas as pd
 from IPython.display import Markdown, display
 
 path = Path("data/estimator-scaling.csv")
-results = pd.read_csv(path) if path.exists() else pd.DataFrame()
+results = pd.read_csv(path)
+host = json.loads(path.with_suffix(".host.json").read_text())
+assert set(results.adapter_revision.dropna()) == {2}
+assert set(results.loc[results.implementation.eq("crabbymetrics") & results.status.eq("ok"), "library_version"]) == {"0.9.0"}
 
 benchmark_root = Path.cwd().parents[1] / "benchmarks" / "scaling"
 sys.path.insert(0, str(benchmark_root))
@@ -81,6 +78,8 @@ def render_estimator(estimator):
     references = []
     for reference in spec["references"]:
         url = REFERENCE_URLS[reference]
+        if url.startswith("../../"):
+            url = "https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/" + url[6:]
         references.append(f"[{reference}]({url})" if url else reference)
     display(
         Markdown(
@@ -172,14 +171,18 @@ def render_estimator(estimator):
 
 ## Completion status
 
-The committed run contains 1,150 cells across all 30 native estimators and 15
-external implementation adapters. Of these, 731 completed, 198 were rejected by
-the allocation preflight, 27 hit the 15-second timeout, five crossed the 1.83 GiB
-hard RSS cap, and 189 larger cells were pruned after one of those hard failures.
-No launched cell ended in an unclassified execution error.
+The status table includes every requested cell. Timeouts and pruned larger
+cells are retained as feasibility outcomes; successful timings alone do not
+describe the whole grid.
 
 ```{python}
 #| label: scaling-status
+print("Cells:", len(results))
+print("Native estimator inventory:", results.loc[results.implementation.eq("crabbymetrics"), "estimator"].nunique())
+print("Generated at:", host["generated_at_utc"])
+print("Platform:", host["platform"])
+print("Effective RSS cap (GiB):", round(host["memory_cap_bytes"] / 2**30, 2))
+print("Per-cell timeout (s):", host["arguments"]["timeout"])
 if results.empty:
     print("Run benchmarks/scaling/run_grid.py to populate the guarded grid.")
 else:
@@ -196,7 +199,7 @@ else:
 
 ### Common grid and timing boundary
 
-The default grid is the Cartesian product of five sample sizes and five
+This run is the Cartesian product of three sample sizes and two
 dimensions. A fresh seeded generator builds the complete input outside the fit
 timer. The reported `fit_seconds` starts immediately before the estimator call
 and stops on return; imports and data generation are excluded. In contrast,
@@ -207,9 +210,9 @@ and descendants such as R subprocesses.
 The preflight starts from the raw $8nk$ bytes for a `float64` design (or the
 family-specific panel/dynamic analogue), multiplies it by a conservative
 estimator-family workspace factor, and adds 192 MiB. The run-time monitor then
-enforces the smaller of 40 percent of physical RAM and available RAM after a
-4 GiB system reserve. This run selected 1.83 GiB. Every child and descendant was
-also subject to a 15-second wall clock. A preflight rejection, RSS kill, timeout,
+enforces the requested 2 GiB cap or available RAM after a 4 GiB system reserve,
+whichever is smaller. The effective cap is printed above. Every child and
+descendant is subject to a 10-second wall clock. A preflight rejection, RSS kill, timeout,
 or execution error stops larger `n` values only for that estimator,
 implementation, and `k` path.
 
@@ -225,7 +228,8 @@ implementation, and `k` path.
 
 ### Randomness and comparability
 
-All cells use seed 1729 and single-threaded BLAS/OpenMP/Rcpp settings. Native and
+All cells use seed 1729 and single-threaded BLAS/OpenMP/Rcpp settings. Each
+cell is measured once; sub-millisecond ratios are especially sensitive to noise. Native and
 external adapters reconstruct the same DGP and shape. The experiment measures
 systems scaling, not statistical accuracy. Only references with a defensible
 generic-grid adapter enter timing comparisons; related-but-different estimators

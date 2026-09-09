@@ -6,7 +6,6 @@ format:
     toc: true
     toc-depth: 2
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"
@@ -33,12 +32,6 @@ import crabbymetrics as cm
 np.set_printoptions(precision=4, suppress=True)
 
 
-def repo_root():
-    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
-        if (candidate / "ding_w_source").exists():
-            return candidate
-    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
-
 def iv_moments(theta, data):
     resid = data["y"] - data["x"] @ theta
     return data["z"] * resid[:, None]
@@ -52,7 +45,7 @@ def iv_jacobian(theta, data):
 ## Card's Returns-To-Schooling Data
 
 ```{python}
-card = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "card1995.csv")
+card = pd.read_csv(Path("../data/ding") / "card1995.csv")
 y = card["lwage"].to_numpy(dtype=float)
 d = card["educ"].to_numpy(dtype=float)[:, None]
 
@@ -93,10 +86,16 @@ tsls = cm.TwoSLS()
 tsls.fit(d, x, z_excl, y)
 tsls_hc1 = tsls.summary(vcov="hc1")
 
-X = np.column_stack([np.ones(len(y)), d[:, 0], x])
-Z = np.column_stack([np.ones(len(y)), x, z_excl])
+features = np.column_stack([d[:, 0], x])
+feature_scale = features.std(axis=0)
+instruments = np.column_stack([x, z_excl])
+X = np.column_stack([np.ones(len(y)), (features - features.mean(axis=0)) / feature_scale])
+Z = np.column_stack([
+    np.ones(len(y)),
+    (instruments - instruments.mean(axis=0)) / instruments.std(axis=0),
+])
 
-gmm = cm.GMM(iv_moments, jacobian_fn=iv_jacobian, max_iterations=200, tolerance=1e-9)
+gmm = cm.GMM(iv_moments, jacobian_fn=iv_jacobian, max_iterations=200, tolerance=1e-8)
 gmm.fit({"x": X, "y": y, "z": Z}, np.zeros(X.shape[1]))
 gmm_summary = gmm.summary(vcov="sandwich", omega="iid")
 
@@ -104,10 +103,18 @@ print("OLS return to education:", round(float(ols_hc1["coef"][0]), 4))
 print("OLS HC1 SE:", round(float(ols_hc1["coef_se"][0]), 4))
 print("TwoSLS return to education:", round(float(tsls_hc1["coef"][0]), 4))
 print("TwoSLS HC1 SE:", round(float(tsls_hc1["coef_se"][0]), 4))
-print("Two-step GMM return to education:", round(float(gmm_summary["coef"][1]), 4))
-print("Two-step GMM SE:", round(float(gmm_summary["se"][1]), 4))
+print("Two-step GMM return to education:", round(float(gmm_summary["coef"][1] / feature_scale[0]), 4))
+print("Two-step GMM SE:", round(float(gmm_summary["se"][1] / feature_scale[0]), 4))
 print("GMM J-statistic:", round(float(gmm_summary["j_stat"]), 4), "with df =", gmm_summary["j_df"])
 ```
+
+The GMM calculation centers and scales nonconstant regressors and instruments:
+squared experience and binary indicators otherwise have very different scales.
+The education coefficient and SE are transformed back to log-wage per year of
+schooling. Scaling changes the finite-sample identity-weighted first step, so
+this two-step estimate is not required to equal TwoSLS exactly. A tighter
+tolerance on the raw, poorly scaled system can fail the v0.9 convergence guard
+even with a small score; a small score alone is not enough.
 
 ## Control-Function View
 

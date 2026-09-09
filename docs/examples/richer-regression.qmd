@@ -3,7 +3,6 @@ title: "Richer Regression With Transformer Pipelines"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
