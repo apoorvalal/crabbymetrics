@@ -4,7 +4,6 @@ subtitle: "Horizontal regression with the matrix panel API"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true

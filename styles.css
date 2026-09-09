@@ -1,0 +1,40 @@
+/* Keep long signatures and result tables usable on narrow screens. */
+.quarto-table-container,
+.cell-output-display {
+  max-width: 100%;
+  overflow-x: auto;
+}
+table code, td, th {
+  overflow-wrap: anywhere;
+}
+main :not(pre) > code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+main img {
+  max-width: 100%;
+  height: auto;
+}
+main .math.display {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+main > table,
+main section > table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+pre {
+  max-width: 100%;
+}
+.navbar-brand img {
+  max-height: 32px;
+}
+@media (max-width: 575px) {
+  .anchored > .anchorjs-link {
+    display: none;
+  }
+}

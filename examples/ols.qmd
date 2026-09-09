@@ -3,7 +3,6 @@ title: "OLS Example"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
@@ -12,7 +11,14 @@ execute:
 jupyter: python3
 ---
 
-This page mirrors `examples/ols_example.py`.
+
+Weighted fits use analytic weights. Zero-weight rows are excluded from residual
+degrees of freedom, cluster counts, and the observation sequence used by HAC
+inference. Positive weights are not interpreted as replicated observations.
+Covariance uses the design's QR factorization without explicitly forming its
+normal equations. A failed refit clears fitted state. Sketched fits report
+`sketch_method`, `sketch_size`, `sketch_seed`, `original_nobs`, and
+`inference_approximate=True`; their covariance does not include sketch randomness.
 
 ## Fit A Basic Linear Model
 
@@ -24,8 +30,6 @@ from crabbymetrics import OLS
 
 np.set_printoptions(precision=4, suppress=True)
 ```
-
-
 
 
 ```{python}

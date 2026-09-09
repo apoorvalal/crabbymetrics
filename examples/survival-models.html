@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-445ff30f473745a4b54dfab4fb13ee75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -137,6 +137,7 @@ window.Quarto = {
 };
 </script>
 
+<link rel="stylesheet" href="../styles.css">
 </head>
 
 <body class="nav-fixed fullcontent quarto-light">
@@ -186,6 +187,10 @@ window.Quarto = {
  <span class="dropdown-text">Causal Inference And Panels</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
  <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
   </li>  
@@ -201,13 +206,13 @@ window.Quarto = {
   </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
-<span class="menu-text">Binding Crash Course</span></a>
+<span class="menu-text">Internals</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Regression And GLMs</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
@@ -267,13 +272,17 @@ window.Quarto = {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Causal Inference</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
@@ -385,6 +394,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
  <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -403,57 +416,33 @@ window.Quarto = {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Ding: First Course</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
- <span class="dropdown-text">Overview And TOC</span></a>
+ <span class="dropdown-text">Chapter Index</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
- <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
- <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
- <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
- <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
- <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
- <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
- <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
- <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
- <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
- <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch27-mediation.html">
- <span class="dropdown-text">Ch 27 Mediation</span></a>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
   </li>  
     </ul>
   </li>
@@ -499,7 +488,7 @@ window.Quarto = {
 </header>
 
 
-<p>Survival models describe event timing through a hazard rate: the instantaneous event risk among units still at risk. <code>crabbymetrics</code> includes four first-pass survival estimators:</p>
+<p>Survival models describe event timing through a hazard rate: the instantaneous event risk among units still at risk. <code>crabbymetrics</code> includes four survival estimators:</p>
 <ul>
 <li><code>ExponentialPH</code>: a parametric proportional-hazards model with constant baseline hazard,</li>
 <li><code>WeibullPH</code>: a parametric proportional-hazards model with monotone baseline hazard,</li>
@@ -507,7 +496,7 @@ window.Quarto = {
 <li><code>AndersenGill</code>: the counting-process Cox model for recurrent events or time-split risk intervals.</li>
 </ul>
 <p>The common coefficient interpretation is multiplicative on the hazard. If a coefficient is <span class="math inline">\(\beta_j\)</span>, then <span class="math inline">\(\exp(\beta_j)\)</span> is a hazard ratio.</p>
-<div id="60c2a8ab" class="cell" data-execution_count="1">
+<div id="79e574b0" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -571,7 +560,7 @@ H_i(t) = \lambda t^\rho \exp(x_i'\beta),
 S_i(t) = \exp\{-H_i(t)\}.
 \]</span></p>
 <p>Here <span class="math inline">\(\rho &gt; 1\)</span> gives an increasing baseline hazard. Independent censoring creates the observed time and event indicator.</p>
-<div id="f46716aa" class="cell" data-execution_count="2">
+<div id="d2936fab" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260524</span>)</span>
@@ -594,7 +583,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 </div>
 </div>
 <p>A quick Kaplan–Meier curve from the simulated data shows the raw survival pattern before imposing a regression model. The step function drops only at observed event times; censored units affect later denominators by leaving the risk set.</p>
-<div id="648d454d" class="cell" data-execution_count="3">
+<div id="9db90895" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kaplan_meier(times, events):</span>
@@ -667,7 +656,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 </div>
 </div>
 </div>
-<div id="0f8a9c65" class="cell" data-execution_count="4">
+<div id="52d5a596" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.2</span>))</span>
@@ -681,7 +670,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="survival-models_files/figure-html/cell-5-output-1.png" width="589" height="390" class="figure-img"></p>
+<p><img src="survival-models_files/figure-html/cell-5-output-1.png" width="590" height="392" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -701,7 +690,7 @@ h_i(t) = \lambda \rho t^{\rho - 1}\exp(x_i'\beta),
 \qquad
 H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 \]</span></p>
-<div id="fa627f2c" class="cell" data-execution_count="5">
+<div id="34fdd42f" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>exp_ph <span class="op">=</span> cm.ExponentialPH()</span>
@@ -762,14 +751,14 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </section>
 <section id="prediction-surfaces-for-survival-models" class="level2">
 <h2 class="anchored" data-anchor-id="prediction-surfaces-for-survival-models">Prediction surfaces for survival models</h2>
-<p>The widened survival API now exposes the same layered contract as the MLE estimators:</p>
+<p>The survival API exposes the same layered contract as the MLE estimators:</p>
 <ul>
 <li><code>predict_lin(...)</code>: the linear predictor on the model’s natural latent scale,</li>
 <li><code>predict(...)</code>: the default mean-scale prediction,</li>
 <li>extra survival-specific surfaces such as <code>predict_hazard(...)</code>, <code>predict_cumulative_hazard(...)</code>, and <code>predict_survival(...)</code> when absolute survival objects are identified.</li>
 </ul>
 <p>For the parametric PH models, <code>predict(...)</code> defaults to survival probabilities at supplied horizons.</p>
-<div id="35127ade" class="cell" data-execution_count="6">
+<div id="395d2ba7" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>check_x <span class="op">=</span> x[:<span class="dv">5</span>]</span>
@@ -848,7 +837,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 </div>
-<div id="80178de7" class="cell" data-execution_count="7">
+<div id="56c54a4b" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>weibull_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -925,7 +914,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 <p>The internal identities line up exactly:</p>
-<div id="8498176d" class="cell" data-execution_count="8">
+<div id="2a7bcf05" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"hazard"</span>], np.exp(exp_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -934,7 +923,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="a0849659" class="cell" data-execution_count="9">
+<div id="cbbc7fa9" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>exp_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -943,7 +932,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="863e6d60" class="cell" data-execution_count="10">
+<div id="0eed44d0" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"hazard"</span>], np.exp(weibull_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -952,7 +941,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="bb27685d" class="cell" data-execution_count="11">
+<div id="fc30cf2b" class="cell" data-execution_count="11">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>weibull_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -969,7 +958,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 \ell(\beta) = \sum_{i: d_i = 1}
 \left[x_i'\beta - \log\left\{\sum_{j: t_j \ge t_i}\exp(x_j'\beta)\right\}\right].
 \]</span></p>
-<div id="dcf02c93" class="cell" data-execution_count="12">
+<div id="38fb2c1b" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>cox <span class="op">=</span> cm.CoxPH()</span>
@@ -1022,7 +1011,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 <p>For Cox, the default prediction is relative risk because the baseline hazard is left unspecified. The latent score is the log hazard ratio.</p>
-<div id="588efee2" class="cell" data-execution_count="13">
+<div id="ecdd69d9" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>cox_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -1085,7 +1074,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 s_i &lt; t \le t_i.
 \]</span></p>
 <p>That makes the model useful for recurrent events and time-varying covariates. As a smoke test, split each original subject into two rows with unchanged covariates; only the second row can carry the original terminal event. The Andersen–Gill estimate then agrees with the ordinary Cox estimate.</p>
-<div id="4949e023" class="cell" data-execution_count="14">
+<div id="f141b30d" class="cell" data-execution_count="14">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>start_long <span class="op">=</span> np.concatenate([np.zeros_like(time), time <span class="op">/</span> <span class="dv">2</span>])</span>
@@ -1133,7 +1122,7 @@ s_i &lt; t \le t_i.
 </div>
 </div>
 </div>
-<div id="6b177db8" class="cell" data-execution_count="15">
+<div id="c8ea3bfa" class="cell" data-execution_count="15">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ag_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -1192,7 +1181,7 @@ s_i &lt; t \le t_i.
 <section id="survival-curves-from-the-parametric-models" class="level2">
 <h2 class="anchored" data-anchor-id="survival-curves-from-the-parametric-models">Survival curves from the parametric models</h2>
 <p>Parametric models estimate an absolute survival curve because they estimate the baseline hazard. Cox-type partial-likelihood models estimate relative hazards unless a baseline-hazard estimator is added.</p>
-<div id="063285b6" class="cell" data-execution_count="16">
+<div id="b7719a60" class="cell" data-execution_count="16">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(<span class="fl">0.1</span>, np.quantile(time, <span class="fl">0.9</span>), <span class="dv">100</span>)</span>
@@ -1217,7 +1206,7 @@ s_i &lt; t \le t_i.
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="survival-models_files/figure-html/cell-17-output-1.png" width="591" height="413" class="figure-img"></p>
+<p><img src="survival-models_files/figure-html/cell-17-output-1.png" width="592" height="414" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1264,7 +1253,7 @@ Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
 <li>beta-binomial hazard model = grouped discrete-time hazard with extra heterogeneity/frailty.</li>
 </ul>
 <p>Here is the person-period construction with a few interval dummies. The coefficient should have the same sign as the Cox and Weibull estimates, though the scale is log-odds of interval failure rather than log instantaneous hazard.</p>
-<div id="52deeabc" class="cell" data-execution_count="17">
+<div id="9eb7f059" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>breaks <span class="op">=</span> np.quantile(time, np.linspace(<span class="dv">0</span>, <span class="fl">0.85</span>, <span class="dv">9</span>))</span>
@@ -1408,7 +1397,7 @@ Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1736,6 +1725,30 @@ Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
   });
   </script>
 </div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.0</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
 
 
 

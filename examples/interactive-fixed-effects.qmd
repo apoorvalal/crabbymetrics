@@ -4,7 +4,6 @@ subtitle: "A compact factor-model helper for balanced panels"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true

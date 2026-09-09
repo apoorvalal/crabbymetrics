@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Chronos LTV With Balancing Weights – crabbymetrics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../logo.png" alt="" class="navbar-logo light-content">
+    <img src="../logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">crabbymetrics</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">API</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
+        <li>
+    <a class="dropdown-item" href="../api.html">
+ <span class="dropdown-text">API Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#regression-and-glms">
+ <span class="dropdown-text">Regression And GLMs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#survival-time-to-event-and-recurrent-event-models">
+ <span class="dropdown-text">Survival / Event-Time</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#causal-inference-and-panels">
+ <span class="dropdown-text">Causal Inference And Panels</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
+ <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#transforms">
+ <span class="dropdown-text">Transforms</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#estimation-interfaces-and-optimizers">
+ <span class="dropdown-text">Estimation Interfaces</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../mechanics-ols.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
+        <li>
+    <a class="dropdown-item" href="../examples/ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/abc-ols.html">
+ <span class="dropdown-text">ABC OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bagged-polynomial-regression.html">
+ <span class="dropdown-text">Bagged Polynomial Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/elastic-net.html">
+ <span class="dropdown-text">ElasticNet</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/logit.html">
+ <span class="dropdown-text">Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multinomial-logit.html">
+ <span class="dropdown-text">Multinomial Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mle-prediction-interface.html">
+ <span class="dropdown-text">MLE Prediction Interface</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival-time-to-event-and-recurrent-events.html">
+ <span class="dropdown-text">Survival / Recurrent Events</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm.html">
+ <span class="dropdown-text">GMM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mestimator-poisson.html">
+ <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
+ <span class="dropdown-text">Cressie-Read And Rényi Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/sparse-rotations.html">
+ <span class="dropdown-text">Sparse Factor Rotations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ablations</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+        <li>
+    <a class="dropdown-item" href="../ablations/variance-estimators.html">
+ <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
+ <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
+ <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Optimization</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+        <li>
+    <a class="dropdown-item" href="../examples/optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
+ <span class="dropdown-text">GMM With Optimizers</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
+        <li>
+    <a class="dropdown-item" href="../first-course-ding.html">
+ <span class="dropdown-text">Chapter Index</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setup-and-target" id="toc-setup-and-target" class="nav-link active" data-scroll-target="#setup-and-target"><span class="header-section-number">1</span> Setup and target</a></li>
+  <li><a href="#identification-is-the-hard-part" id="toc-identification-is-the-hard-part" class="nav-link" data-scroll-target="#identification-is-the-hard-part"><span class="header-section-number">2</span> Identification is the hard part</a></li>
+  <li><a href="#why-it-becomes-a-balancing-problem" id="toc-why-it-becomes-a-balancing-problem" class="nav-link" data-scroll-target="#why-it-becomes-a-balancing-problem"><span class="header-section-number">3</span> Why it becomes a balancing problem</a>
+  <ul class="collapse">
+  <li><a href="#matching-the-authors-repository" id="toc-matching-the-authors-repository" class="nav-link" data-scroll-target="#matching-the-authors-repository"><span class="header-section-number">3.1</span> Matching the authors’ repository</a></li>
+  <li><a href="#exact-cbps-versus-balancingweights" id="toc-exact-cbps-versus-balancingweights" class="nav-link" data-scroll-target="#exact-cbps-versus-balancingweights"><span class="header-section-number">3.2</span> Exact CBPS versus <code>BalancingWeights</code></a></li>
+  </ul></li>
+  <li><a href="#a-dynamic-stress-test-with-known-truth" id="toc-a-dynamic-stress-test-with-known-truth" class="nav-link" data-scroll-target="#a-dynamic-stress-test-with-known-truth"><span class="header-section-number">4</span> A dynamic stress test with known truth</a></li>
+  <li><a href="#fit-the-exact-and-generic-crabbymetrics-estimators" id="toc-fit-the-exact-and-generic-crabbymetrics-estimators" class="nav-link" data-scroll-target="#fit-the-exact-and-generic-crabbymetrics-estimators"><span class="header-section-number">5</span> Fit the exact and generic CrabbyMetrics estimators</a></li>
+  <li><a href="#horizon-path" id="toc-horizon-path" class="nav-link" data-scroll-target="#horizon-path"><span class="header-section-number">6</span> Horizon path</a></li>
+  <li><a href="#unit-clustered-bootstrap" id="toc-unit-clustered-bootstrap" class="nav-link" data-scroll-target="#unit-clustered-bootstrap"><span class="header-section-number">7</span> Unit-clustered bootstrap</a></li>
+  <li><a href="#what-the-paper-finds" id="toc-what-the-paper-finds" class="nav-link" data-scroll-target="#what-the-paper-finds"><span class="header-section-number">8</span> What the paper finds</a></li>
+  <li><a href="#practical-recipe" id="toc-practical-recipe" class="nav-link" data-scroll-target="#practical-recipe"><span class="header-section-number">9</span> Practical recipe</a></li>
+  <li><a href="#limits-of-the-simple-translation" id="toc-limits-of-the-simple-translation" class="nav-link" data-scroll-target="#limits-of-the-simple-translation"><span class="header-section-number">10</span> Limits of the simple translation</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">11</span> References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content column-page-left" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Chronos LTV With Balancing Weights</h1>
+<p class="subtitle lead">Estimating the long-run marginal value of reliability from short-run observational variation</p>
+</div>
+
+
+
+<div class="quarto-title-meta column-page-left">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The estimation strategy in Qiu, Kuang, Liskovich, Rauh, and Wager’s <a href="https://arxiv.org/abs/2606.11526"><em>What Is the Long-Term Value of Reliability?</em></a> has a useful separation:</p>
+<ol type="1">
+<li>a dynamic identification argument converts a long-run policy derivative into a weighted contrast of cumulative future rewards;</li>
+<li>the feasible estimator is a small, static covariate-balancing problem over order occasions.</li>
+</ol>
+<p>The first step is where the substantive assumptions live. Once it is accepted, the computational core is indeed simple. This vignette uses <code>crabbymetrics.MPE_CBPS</code>, a native Rust implementation checked against the authors’ released A/B and switchback code, then compares it with two direct entropy-calibration fits from <code>crabbymetrics.BalancingWeights</code>.</p>
+<section id="setup-and-target" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="setup-and-target"><span class="header-section-number">1</span> Setup and target</h2>
+<p>For customer <span class="math inline">\(i\)</span> at time <span class="math inline">\(t\)</span>, let</p>
+<ul>
+<li><span class="math inline">\(U_{it}\)</span> be a latent state such as satisfaction, beliefs, or intent;</li>
+<li><span class="math inline">\(X_{it}\)</span> be observed order characteristics, with <span class="math inline">\(X_{it}=\varnothing\)</span> when no order is placed;</li>
+<li><span class="math inline">\(D_{it}\in\{0,1\}\)</span> indicate a delay;</li>
+<li><span class="math inline">\(Y_{it}\)</span> be a reward such as spend, order frequency, or retention value.</li>
+</ul>
+<p>The status-quo average reward is</p>
+<p><span class="math display">\[
+V_0=\mathbb E\left[\frac{1}{T}\sum_{t=1}^T Y_{it}\right].
+\]</span></p>
+<p>On order occasions, perturb the conditional delay probability additively:</p>
+<p><span class="math display">\[
+\pi_\varepsilon(x)
+=\Pr_\varepsilon(D_{it}=1\mid X_{it}=x)
+=\pi_0(x)+\varepsilon.
+\]</span></p>
+<p>The marginal policy effect is</p>
+<p><span class="math display">\[
+\tau
+=\left.\frac{dV_\varepsilon}{d\varepsilon}\right|_{\varepsilon=0}.
+\]</span></p>
+<p>Thus <span class="math inline">\(0.01\tau\)</span> is the effect of increasing the delay probability by one percentage point. A reliability improvement has <span class="math inline">\(\Delta\text{Delay}&lt;0\)</span>, so its predicted value effect is <span class="math inline">\(\Delta\text{Delay}\times\tau\)</span>.</p>
+<p>Delays play the mathematical role of MDP actions, but are not actions in the operational sense: the platform does not deliberately choose to delay an order. The intervention modifies their conditional distribution.</p>
+</section>
+<section id="identification-is-the-hard-part" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="identification-is-the-hard-part"><span class="header-section-number">2</span> Identification is the hard part</h2>
+<p>The paper assumes:</p>
+<ol type="1">
+<li><span class="math inline">\((U_{it},X_{it},D_{it})\)</span> is Markov and rewards depend on this current state;</li>
+<li>delays are sequentially unconfounded after observed order characteristics are fixed, <span class="math display">\[D_{it}\perp (S_{i,t-1},U_{it})\mid X_{it};\]</span></li>
+<li>the effect of a delay on rewards <span class="math inline">\(k\)</span> periods later decays no more slowly than <span class="math inline">\(Ce^{-k/\nu}\)</span>;</li>
+<li>delay probabilities are bounded away from zero and one.</li>
+</ol>
+<p>Define the forward reward through horizon <span class="math inline">\(K\)</span>,</p>
+<p><span class="math display">\[
+\Gamma_{it}^K
+=\sum_{s=t}^{\min(t+K,T)}Y_{is},
+\]</span></p>
+<p>and let <span class="math inline">\(O_{it}=1\{X_{it}\ne\varnothing\}\)</span>. The paper’s policy-gradient argument gives the oracle estimator</p>
+<p><span class="math display">\[
+\widehat\tau_K^*
+=\frac{1}{nT}\sum_{i,t}O_{it}
+\left\{
+\frac{D_{it}}{\pi(X_{it})}
+-\frac{1-D_{it}}{1-\pi(X_{it})}
+\right\}\Gamma_{it}^K,
+\]</span></p>
+<p>with truncation bias bounded by</p>
+<p><span class="math display">\[
+\left|\mathbb E[\widehat\tau_K^*]-\tau\right|
+\le
+\frac{C}{1-e^{-1/\nu}}e^{-K/\nu}.
+\]</span></p>
+<p>This result is what permits hidden consumer states: <span class="math inline">\(U_{it}\)</span> need not be measured, provided it does not still confound the contemporaneous delay after conditioning on <span class="math inline">\(X_{it}\)</span>. Increasing <span class="math inline">\(K\)</span> reduces truncation bias but increases noise because each observation carries a longer cumulative reward.</p>
+</section>
+<section id="why-it-becomes-a-balancing-problem" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="why-it-becomes-a-balancing-problem"><span class="header-section-number">3</span> Why it becomes a balancing problem</h2>
+<p>Inverse-probability weights balance every chosen basis <span class="math inline">\(b(X)\)</span> in expectation:</p>
+<p><span class="math display">\[
+\mathbb E\left[O\frac{D}{\pi(X)}b(X)\right]
+=\mathbb E[Ob(X)]
+=\mathbb E\left[O\frac{1-D}{1-\pi(X)}b(X)\right].
+\]</span></p>
+<p>The paper estimates <strong>two</strong> coefficient vectors. In the authors’ released code, let <span class="math inline">\(W_i^{(a)}=1\{D_i=a\}\)</span>, <span class="math inline">\(z_i=(1,b(X_i)')'\)</span>, and <span class="math inline">\(\dot\pi_i\)</span> be the derivative of the treatment probability with respect to the policy perturbation. For each arm <span class="math inline">\(a\in\{0,1\}\)</span>, it minimizes the convex loss</p>
+<p><span class="math display">\[
+L_a(\theta_a)
+=\frac{1}{n}\sum_i \dot\pi_i
+\left[W_i^{(a)}e^{-z_i^\top\theta_a}
++(1-W_i^{(a)})z_i^\top\theta_a\right].
+\]</span></p>
+<p>Its score is</p>
+<p><span class="math display">\[
+\nabla L_a(\theta_a)
+=\frac{1}{n}\sum_i \dot\pi_i z_i
+\left[(1-W_i^{(a)})-W_i^{(a)}e^{-z_i^\top\theta_a}\right].
+\]</span></p>
+<p>When <span class="math inline">\(\dot\pi_i\)</span> is constant, the first-order condition implies</p>
+<p><span class="math display">\[
+\sum_i W_i^{(a)}\{1+e^{-z_i^\top\widehat\theta_a}\}z_i
+=\sum_i z_i.
+\]</span></p>
+<p>Thus <span class="math inline">\(w_i^{(a)}=1+e^{-z_i^\top\widehat\theta_a}\)</span> balances each arm separately to the complete sample, including its total mass through the intercept. <code>MPE_CBPS</code> solves both convex programs with analytic gradients and Hessians in Rust and reports the resulting weights, moments, effective sample sizes, and optimization diagnostics.</p>
+<section id="matching-the-authors-repository" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="matching-the-authors-repository"><span class="header-section-number">3.1</span> Matching the authors’ repository</h3>
+<p>The released repository contains the same implementation twice:</p>
+<ul>
+<li><a href="https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/ab_validation/run_simulation.py#L91-L120">A/B validation CBPS objective, weights, standardization, and policy-gradient aggregation</a>;</li>
+<li><a href="https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/switchback_validation/run_simulation.py#L188-L241">switchback validation CBPS objective and aggregation</a>.</li>
+</ul>
+<p>CrabbyMetrics reproduces those equations rather than treating a nearby calibration estimator as canonical. The parity tests transcribe the released MIT-licensed SciPy/BFGS reference at commit <code>06c29f4</code>, solve the same deterministic samples with <code>MPE_CBPS</code>, and compare both coefficient vectors, all observation-level weights, and the final normalized policy-gradient estimate. Coefficients agree within <span class="math inline">\(2\times10^{-7}\)</span> and the exponentially transformed weights within <span class="math inline">\(5\times10^{-6}\)</span>; the normalized policy-gradient comparison is tighter than <span class="math inline">\(2\times10^{-9}\)</span> in absolute value.</p>
+</section>
+<section id="exact-cbps-versus-balancingweights" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="exact-cbps-versus-balancingweights"><span class="header-section-number">3.2</span> Exact CBPS versus <code>BalancingWeights</code></h3>
+<p>The paper’s weights use the inverse-logit links <span class="math inline">\(1+e^{-b^\top\beta_1}\)</span> and <span class="math inline">\(1+e^{b^\top\beta_0}\)</span>. Entropy calibration in <code>BalancingWeights</code> instead uses an exponential tilt. These are not algebraically identical weight families.</p>
+<p>They do, however, impose the same sample targets:</p>
+<p><span class="math display">\[
+\sum_{D=1}w_i^{(1)}b_i=\bar b_{\mathrm{orders}},
+\qquad
+\sum_{D=0}w_i^{(0)}b_i=\bar b_{\mathrm{orders}},
+\qquad
+\sum w_i^{(d)}=1.
+\]</span></p>
+<p>Consequently, CrabbyMetrics also handles the balance targets with its generic calibration API:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>delayed <span class="op">=</span> cm.BalancingWeights(objective<span class="op">=</span><span class="st">"entropy"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>delayed.fit(basis[delay <span class="op">==</span> <span class="dv">1</span>], basis)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>not_delayed <span class="op">=</span> cm.BalancingWeights(objective<span class="op">=</span><span class="st">"entropy"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>not_delayed.fit(basis[delay <span class="op">==</span> <span class="dv">0</span>], basis)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>w1 <span class="op">=</span> np.asarray(delayed.get_weights())</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>w0 <span class="op">=</span> np.asarray(not_delayed.get_weights())</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>tau_k <span class="op">=</span> w1 <span class="op">@</span> gamma_k[delay <span class="op">==</span> <span class="dv">1</span>] <span class="op">-</span> w0 <span class="op">@</span> gamma_k[delay <span class="op">==</span> <span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The exact paper estimator is now a direct API call:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.MPE_CBPS()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>model.fit(basis, delay.astype(np.int32))</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>tau_k <span class="op">=</span> model.estimate(gamma_k)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For the paper’s percentage-of-baseline-spend normalization, pass the additive policy derivative during <code>fit</code> and baseline spend during <code>estimate</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>model.fit(basis, delay, policy_derivative<span class="op">=</span>np.full(n, <span class="fl">0.01</span>).tolist())</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>beta_k <span class="op">=</span> model.estimate(gamma_k, denominator<span class="op">=</span>baseline_spend.<span class="bu">sum</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If the panel includes periods with no order, the normalized weighted-mean contrast must additionally reflect the empirical order rate <span class="math inline">\(N_{\mathrm{orders}}/(nT)\)</span>. The executable example below treats every recorded row as an order occasion, so this factor is one.</p>
+</section>
+</section>
+<section id="a-dynamic-stress-test-with-known-truth" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="a-dynamic-stress-test-with-known-truth"><span class="header-section-number">4</span> A dynamic stress test with known truth</h2>
+<p>The simulation deliberately has an unobserved persistent state:</p>
+<p><span class="math display">\[
+U_{i,t+1}=\rho U_{it}+aD_{it}+0.10X_{it,1}+\eta_{it},
+\]</span></p>
+<p><span class="math display">\[
+Y_{it}=m(X_{it})+U_{it}+cD_{it}+\varepsilon_{it}.
+\]</span></p>
+<p>Current delays have a direct effect <span class="math inline">\(c\)</span> and change all future rewards through <span class="math inline">\(U\)</span>. Delay assignment depends only on an observed nonlinear basis <span class="math inline">\(b(X_{it})\)</span>, so sequential unconfoundedness holds even though <span class="math inline">\(U\)</span> is hidden. Under an additive perturbation to the delay probability, the true horizon-<span class="math inline">\(K\)</span> effect is</p>
+<p><span class="math display">\[
+\tau_K=c+a\sum_{h=0}^{K-1}\rho^h
+=c+a\frac{1-\rho^K}{1-\rho},
+\]</span></p>
+<p>and the long-run effect is <span class="math inline">\(\tau_\infty=c+a/(1-\rho)\)</span>.</p>
+<div id="setup" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>SEED <span class="op">=</span> <span class="dv">260611526</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>N_CUSTOMERS <span class="op">=</span> <span class="dv">400</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>N_PERIODS <span class="op">=</span> <span class="dv">84</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>BURN_IN <span class="op">=</span> <span class="dv">50</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>MAX_HORIZON <span class="op">=</span> <span class="dv">28</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>RHO <span class="op">=</span> <span class="fl">0.86</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>CARRY_EFFECT <span class="op">=</span> <span class="op">-</span><span class="fl">0.11</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>DIRECT_EFFECT <span class="op">=</span> <span class="op">-</span><span class="fl">0.22</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_panel(seed<span class="op">=</span>SEED):</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    persistent_type <span class="op">=</span> rng.normal(size<span class="op">=</span>N_CUSTOMERS)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    hidden_state <span class="op">=</span> rng.normal(scale<span class="op">=</span><span class="fl">0.30</span>, size<span class="op">=</span>N_CUSTOMERS)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    basis, delay, reward, propensity <span class="op">=</span> [], [], [], []</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> time <span class="kw">in</span> <span class="bu">range</span>(BURN_IN <span class="op">+</span> N_PERIODS):</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        weekday <span class="op">=</span> time <span class="op">%</span> <span class="dv">7</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>        week_sin <span class="op">=</span> np.sin(<span class="fl">2.0</span> <span class="op">*</span> np.pi <span class="op">*</span> weekday <span class="op">/</span> <span class="fl">7.0</span>)</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        week_cos <span class="op">=</span> np.cos(<span class="fl">2.0</span> <span class="op">*</span> np.pi <span class="op">*</span> weekday <span class="op">/</span> <span class="fl">7.0</span>)</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        x1 <span class="op">=</span> <span class="fl">0.65</span> <span class="op">*</span> persistent_type <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.75</span>, size<span class="op">=</span>N_CUSTOMERS)</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        x2 <span class="op">=</span> rng.binomial(<span class="dv">1</span>, <span class="fl">0.35</span>, size<span class="op">=</span>N_CUSTOMERS).astype(<span class="bu">float</span>)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>        b <span class="op">=</span> np.column_stack(</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>            [</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>                x1,</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>                x2,</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>                x1 <span class="op">*</span> x2,</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>                x1<span class="op">**</span><span class="dv">2</span>,</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>                np.full(N_CUSTOMERS, week_sin),</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>                np.full(N_CUSTOMERS, week_cos),</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>            ]</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>        logit <span class="op">=</span> (</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span><span class="fl">0.30</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.48</span> <span class="op">*</span> x1</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.34</span> <span class="op">*</span> x2</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.20</span> <span class="op">*</span> x1 <span class="op">*</span> x2</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.06</span> <span class="op">*</span> x1<span class="op">**</span><span class="dv">2</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.20</span> <span class="op">*</span> week_sin</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.12</span> <span class="op">*</span> week_cos</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>        pi <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>logit))</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> rng.binomial(<span class="dv">1</span>, pi).astype(<span class="bu">float</span>)</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>        y <span class="op">=</span> (</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>            <span class="fl">1.0</span></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.45</span> <span class="op">*</span> x1</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>            <span class="op">-</span> <span class="fl">0.20</span> <span class="op">*</span> x2</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.15</span> <span class="op">*</span> x1 <span class="op">*</span> x2</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> hidden_state</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> DIRECT_EFFECT <span class="op">*</span> d</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.50</span>, size<span class="op">=</span>N_CUSTOMERS)</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>        hidden_state <span class="op">=</span> (</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>            RHO <span class="op">*</span> hidden_state</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> CARRY_EFFECT <span class="op">*</span> d</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> <span class="fl">0.10</span> <span class="op">*</span> x1</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>            <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.22</span>, size<span class="op">=</span>N_CUSTOMERS)</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> time <span class="op">&gt;=</span> BURN_IN:</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>            basis.append(b)</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>            delay.append(d)</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>            reward.append(y)</span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>            propensity.append(pi)</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>        <span class="st">"basis"</span>: np.stack(basis, axis<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>        <span class="st">"delay"</span>: np.stack(delay, axis<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>        <span class="st">"reward"</span>: np.stack(reward, axis<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">"propensity"</span>: np.stack(propensity, axis<span class="op">=</span><span class="dv">1</span>),</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>panel <span class="op">=</span> simulate_panel()</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>USABLE_PERIODS <span class="op">=</span> N_PERIODS <span class="op">-</span> MAX_HORIZON</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>basis <span class="op">=</span> panel[<span class="st">"basis"</span>][:, :USABLE_PERIODS].reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">6</span>)</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>delay <span class="op">=</span> panel[<span class="st">"delay"</span>][:, :USABLE_PERIODS].reshape(<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>propensity <span class="op">=</span> panel[<span class="st">"propensity"</span>][:, :USABLE_PERIODS].reshape(<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> forward_reward(reward_panel, horizon, usable_periods<span class="op">=</span>USABLE_PERIODS):</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>    cumulative <span class="op">=</span> np.pad(np.cumsum(reward_panel, axis<span class="op">=</span><span class="dv">1</span>), ((<span class="dv">0</span>, <span class="dv">0</span>), (<span class="dv">1</span>, <span class="dv">0</span>)))</span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>    start <span class="op">=</span> np.arange(usable_periods)</span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (cumulative[:, start <span class="op">+</span> horizon <span class="op">+</span> <span class="dv">1</span>] <span class="op">-</span> cumulative[:, start]).reshape(<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"order occasions used: </span><span class="sc">{</span><span class="bu">len</span>(delay)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"delay rate: </span><span class="sc">{</span>delay<span class="sc">.</span>mean()<span class="sc">:.3f}</span><span class="ss">"</span>)</span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"propensity range: [</span><span class="sc">{</span>propensity<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.3f}</span><span class="ss">, </span><span class="sc">{</span>propensity<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3f}</span><span class="ss">]"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>order occasions used: 22,400
+delay rate: 0.415
+propensity range: [0.081, 0.923]</code></pre>
+</div>
+</div>
+</section>
+<section id="fit-the-exact-and-generic-crabbymetrics-estimators" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="fit-the-exact-and-generic-crabbymetrics-estimators"><span class="header-section-number">5</span> Fit the exact and generic CrabbyMetrics estimators</h2>
+<p><code>MPE_CBPS</code> internally adds an intercept and standardizes the supplied basis with the same population-standard-deviation convention as the released code. It returns the canonical raw weights: each arm’s active weights sum to the full sample size. <code>estimate()</code> applies the arm masks, policy derivative, and requested denominator without re-normalizing.</p>
+<div id="cell-estimators" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fit_mpe_cbps(b, d):</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    model <span class="op">=</span> cm.MPE_CBPS(max_iterations<span class="op">=</span><span class="dv">500</span>, tolerance<span class="op">=</span><span class="fl">1e-9</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    model.fit(b, d.astype(np.int32))</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> model.summary()</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    weight_one <span class="op">=</span> d <span class="op">*</span> np.asarray(summary[<span class="st">"weights_one"</span>]) <span class="op">/</span> <span class="bu">len</span>(d)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    weight_zero <span class="op">=</span> (<span class="fl">1.0</span> <span class="op">-</span> d) <span class="op">*</span> np.asarray(summary[<span class="st">"weights_zero"</span>]) <span class="op">/</span> <span class="bu">len</span>(d)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> weight_one, weight_zero, model</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fit_crabby_balance(b, d):</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    delayed <span class="op">=</span> cm.BalancingWeights(</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        objective<span class="op">=</span><span class="st">"entropy"</span>, solver<span class="op">=</span><span class="st">"auto"</span>, max_iterations<span class="op">=</span><span class="dv">500</span>, tolerance<span class="op">=</span><span class="fl">1e-8</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    not_delayed <span class="op">=</span> cm.BalancingWeights(</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        objective<span class="op">=</span><span class="st">"entropy"</span>, solver<span class="op">=</span><span class="st">"auto"</span>, max_iterations<span class="op">=</span><span class="dv">500</span>, tolerance<span class="op">=</span><span class="fl">1e-8</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    delayed.fit(b[d <span class="op">==</span> <span class="dv">1</span>], b)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    not_delayed.fit(b[d <span class="op">==</span> <span class="dv">0</span>], b)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    weight_one <span class="op">=</span> np.zeros(<span class="bu">len</span>(d))</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    weight_zero <span class="op">=</span> np.zeros(<span class="bu">len</span>(d))</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    weight_one[d <span class="op">==</span> <span class="dv">1</span>] <span class="op">=</span> np.asarray(delayed.get_weights())</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    weight_zero[d <span class="op">==</span> <span class="dv">0</span>] <span class="op">=</span> np.asarray(not_delayed.get_weights())</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> weight_one, weight_zero, delayed, not_delayed</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>cbps_w1, cbps_w0, cbps_model <span class="op">=</span> fit_mpe_cbps(basis, delay)</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>crabby_w1, crabby_w0, crabby_fit1, crabby_fit0 <span class="op">=</span> fit_crabby_balance(basis, delay)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>target_mean <span class="op">=</span> basis.mean(axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>target_sd <span class="op">=</span> basis.std(axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>raw_delayed_smd <span class="op">=</span> (basis[delay <span class="op">==</span> <span class="dv">1</span>].mean(axis<span class="op">=</span><span class="dv">0</span>) <span class="op">-</span> target_mean) <span class="op">/</span> target_sd</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>raw_control_smd <span class="op">=</span> (basis[delay <span class="op">==</span> <span class="dv">0</span>].mean(axis<span class="op">=</span><span class="dv">0</span>) <span class="op">-</span> target_mean) <span class="op">/</span> target_sd</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>cbps_delayed_smd <span class="op">=</span> (cbps_w1 <span class="op">@</span> basis <span class="op">-</span> target_mean) <span class="op">/</span> target_sd</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>cbps_control_smd <span class="op">=</span> (cbps_w0 <span class="op">@</span> basis <span class="op">-</span> target_mean) <span class="op">/</span> target_sd</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>crabby_delayed_smd <span class="op">=</span> (crabby_w1 <span class="op">@</span> basis <span class="op">-</span> target_mean) <span class="op">/</span> target_sd</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>crabby_control_smd <span class="op">=</span> (crabby_w0 <span class="op">@</span> basis <span class="op">-</span> target_mean) <span class="op">/</span> target_sd</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>balance_table <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>        <span class="st">"weights"</span>: [<span class="st">"unweighted"</span>, <span class="st">"MPE_CBPS (canonical)"</span>, <span class="st">"BalancingWeights (entropy)"</span>],</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>        <span class="st">"max |SMD|, delayed"</span>: [</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>            np.<span class="bu">max</span>(np.<span class="bu">abs</span>(raw_delayed_smd)),</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>            np.<span class="bu">max</span>(np.<span class="bu">abs</span>(cbps_delayed_smd)),</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>            np.<span class="bu">max</span>(np.<span class="bu">abs</span>(crabby_delayed_smd)),</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>        <span class="st">"max |SMD|, not delayed"</span>: [</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>            np.<span class="bu">max</span>(np.<span class="bu">abs</span>(raw_control_smd)),</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>            np.<span class="bu">max</span>(np.<span class="bu">abs</span>(cbps_control_smd)),</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>            np.<span class="bu">max</span>(np.<span class="bu">abs</span>(crabby_control_smd)),</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>        ],</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>balance_table.<span class="bu">round</span>(<span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="estimators" class="cell-output cell-output-display" data-execution_count="2">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">weights</th>
+<th data-quarto-table-cell-role="th">max |SMD|, delayed</th>
+<th data-quarto-table-cell-role="th">max |SMD|, not delayed</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>unweighted</td>
+<td>0.295581</td>
+<td>0.209493</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>MPE_CBPS (canonical)</td>
+<td>0.000000</td>
+<td>0.000000</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>BalancingWeights (entropy)</td>
+<td>0.000000</td>
+<td>0.000000</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Both balancing methods remove the chosen moment discrepancies to numerical precision. <code>MPE_CBPS</code> exposes the exact released objective’s two sets of diagnostics; the generic calibration fits expose their own effective sample sizes and maximum residual imbalance through <code>summary()</code>.</p>
+<div id="3b529fff" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>diagnostics <span class="op">=</span> pd.DataFrame(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>            <span class="st">"fit"</span>: <span class="st">"MPE_CBPS delayed"</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>            <span class="st">"converged"</span>: cbps_model.summary()[<span class="st">"converged_one"</span>],</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>            <span class="st">"iterations"</span>: cbps_model.summary()[<span class="st">"iterations_one"</span>],</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"ESS"</span>: cbps_model.summary()[<span class="st">"effective_sample_size_one"</span>],</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">"fit"</span>: <span class="st">"MPE_CBPS not delayed"</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"converged"</span>: cbps_model.summary()[<span class="st">"converged_zero"</span>],</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"iterations"</span>: cbps_model.summary()[<span class="st">"iterations_zero"</span>],</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"ESS"</span>: cbps_model.summary()[<span class="st">"effective_sample_size_zero"</span>],</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"fit"</span>: <span class="st">"entropy delayed"</span>,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>            <span class="st">"converged"</span>: crabby_fit1.success,</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>            <span class="st">"iterations"</span>: crabby_fit1.nit,</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>            <span class="st">"ESS"</span>: crabby_fit1.summary()[<span class="st">"effective_sample_size"</span>],</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>            <span class="st">"fit"</span>: <span class="st">"entropy not delayed"</span>,</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>            <span class="st">"converged"</span>: crabby_fit0.success,</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>            <span class="st">"iterations"</span>: crabby_fit0.nit,</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>            <span class="st">"ESS"</span>: crabby_fit0.summary()[<span class="st">"effective_sample_size"</span>],</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>diagnostics.<span class="bu">round</span>(<span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">fit</th>
+<th data-quarto-table-cell-role="th">converged</th>
+<th data-quarto-table-cell-role="th">iterations</th>
+<th data-quarto-table-cell-role="th">ESS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>MPE_CBPS delayed</td>
+<td>True</td>
+<td>5</td>
+<td>8183.37</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>MPE_CBPS not delayed</td>
+<td>True</td>
+<td>5</td>
+<td>12215.50</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>entropy delayed</td>
+<td>True</td>
+<td>14</td>
+<td>8208.70</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>entropy not delayed</td>
+<td>True</td>
+<td>14</td>
+<td>12256.53</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="horizon-path" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="horizon-path"><span class="header-section-number">6</span> Horizon path</h2>
+<div id="cell-horizon-results" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> horizon <span class="kw">in</span> [<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">7</span>, <span class="dv">14</span>, <span class="dv">28</span>]:</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    gamma <span class="op">=</span> forward_reward(panel[<span class="st">"reward"</span>], horizon)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    true_effect <span class="op">=</span> DIRECT_EFFECT <span class="op">+</span> CARRY_EFFECT <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">-</span> RHO<span class="op">**</span>horizon) <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">-</span> RHO)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    rows.append(</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"K"</span>: horizon,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">"truth"</span>: true_effect,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">"naive"</span>: gamma[delay <span class="op">==</span> <span class="dv">1</span>].mean() <span class="op">-</span> gamma[delay <span class="op">==</span> <span class="dv">0</span>].mean(),</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">"oracle IPW"</span>: np.mean(</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                (delay <span class="op">/</span> propensity <span class="op">-</span> (<span class="fl">1.0</span> <span class="op">-</span> delay) <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">-</span> propensity)) <span class="op">*</span> gamma</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>            ),</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"MPE_CBPS"</span>: cbps_model.estimate(gamma),</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>            <span class="st">"BalancingWeights entropy"</span>: crabby_w1 <span class="op">@</span> gamma <span class="op">-</span> crabby_w0 <span class="op">@</span> gamma,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> pd.DataFrame(rows)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>results.<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="horizon-results" class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">K</th>
+<th data-quarto-table-cell-role="th">truth</th>
+<th data-quarto-table-cell-role="th">naive</th>
+<th data-quarto-table-cell-role="th">oracle IPW</th>
+<th data-quarto-table-cell-role="th">MPE_CBPS</th>
+<th data-quarto-table-cell-role="th">BalancingWeights entropy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>0</td>
+<td>-0.2200</td>
+<td>0.1764</td>
+<td>-0.2343</td>
+<td>-0.2259</td>
+<td>-0.2261</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>1</td>
+<td>-0.3300</td>
+<td>0.3180</td>
+<td>-0.3672</td>
+<td>-0.3497</td>
+<td>-0.3499</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>3</td>
+<td>-0.5060</td>
+<td>0.6673</td>
+<td>-0.5566</td>
+<td>-0.5215</td>
+<td>-0.5214</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>7</td>
+<td>-0.7323</td>
+<td>1.4684</td>
+<td>-0.8085</td>
+<td>-0.7374</td>
+<td>-0.7368</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>14</td>
+<td>-0.9106</td>
+<td>3.0495</td>
+<td>-0.9656</td>
+<td>-0.8311</td>
+<td>-0.8305</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>28</td>
+<td>-0.9942</td>
+<td>6.2515</td>
+<td>-1.1947</td>
+<td>-0.9320</td>
+<td>-0.9291</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="cell-horizon-plot" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="fl">9.5</span>, <span class="fl">5.4</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>ax.plot(results[<span class="st">"K"</span>], results[<span class="st">"truth"</span>], marker<span class="op">=</span><span class="st">"o"</span>, linewidth<span class="op">=</span><span class="fl">2.5</span>, label<span class="op">=</span><span class="st">"finite-K truth"</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>ax.plot(results[<span class="st">"K"</span>], results[<span class="st">"MPE_CBPS"</span>], marker<span class="op">=</span><span class="st">"s"</span>, label<span class="op">=</span><span class="st">"MPE_CBPS (canonical)"</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>ax.plot(</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    results[<span class="st">"K"</span>],</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    results[<span class="st">"BalancingWeights entropy"</span>],</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    marker<span class="op">=</span><span class="st">"^"</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"BalancingWeights (entropy)"</span>,</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>ax.plot(results[<span class="st">"K"</span>], results[<span class="st">"oracle IPW"</span>], marker<span class="op">=</span><span class="st">"d"</span>, alpha<span class="op">=</span><span class="fl">0.75</span>, label<span class="op">=</span><span class="st">"oracle IPW"</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>ax.plot(results[<span class="st">"K"</span>], results[<span class="st">"naive"</span>], marker<span class="op">=</span><span class="st">"x"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, label<span class="op">=</span><span class="st">"naive contrast"</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>ax.axhline(</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    DIRECT_EFFECT <span class="op">+</span> CARRY_EFFECT <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">-</span> RHO),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    color<span class="op">=</span><span class="st">"black"</span>,</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    linestyle<span class="op">=</span><span class="st">":"</span>,</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"long-run truth"</span>,</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"forward horizon K"</span>, ylabel<span class="op">=</span><span class="st">"marginal reward effect"</span>, title<span class="op">=</span><span class="st">"Longer horizons recover persistent damage from a delay"</span>)</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>ax.legend(ncol<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="chronos-ltv-balancing_files/figure-html/horizon-plot-output-1.png" id="horizon-plot" width="923" height="530" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The naive contrast has the wrong sign because orders with characteristics associated with higher baseline value are also more likely to be delayed. Both balanced estimators reverse that confounding. Their estimates become more negative with <span class="math inline">\(K\)</span>, approaching the long-run effect as the hidden-state response propagates.</p>
+<p>The oracle IPW estimate is not automatically the least noisy line. Long-horizon outcomes and inverse probabilities can be volatile; exact finite-sample balance is a stabilization device, not merely a route to asymptotic consistency. This is the central empirical motivation for the paper’s preference for CBPS over a prediction-tuned propensity model.</p>
+</section>
+<section id="unit-clustered-bootstrap" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="unit-clustered-bootstrap"><span class="header-section-number">7</span> Unit-clustered bootstrap</h2>
+<p>The paper resamples customers, not customer-period rows, and re-estimates the weights inside each bootstrap draw. The same rule is used here for the exact <span class="math inline">\(K=28\)</span> <code>MPE_CBPS</code> estimator.</p>
+<div id="cell-cluster-bootstrap" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cluster_bootstrap(panel, horizon<span class="op">=</span><span class="dv">28</span>, repetitions<span class="op">=</span><span class="dv">80</span>, seed<span class="op">=</span><span class="dv">9102</span>):</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    estimates <span class="op">=</span> []</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(repetitions):</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>        sampled_units <span class="op">=</span> rng.integers(<span class="dv">0</span>, N_CUSTOMERS, size<span class="op">=</span>N_CUSTOMERS)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>        b <span class="op">=</span> panel[<span class="st">"basis"</span>][sampled_units, :USABLE_PERIODS].reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">6</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> panel[<span class="st">"delay"</span>][sampled_units, :USABLE_PERIODS].reshape(<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>        gamma <span class="op">=</span> forward_reward(panel[<span class="st">"reward"</span>][sampled_units], horizon)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>        model <span class="op">=</span> cm.MPE_CBPS(max_iterations<span class="op">=</span><span class="dv">500</span>, tolerance<span class="op">=</span><span class="fl">1e-8</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>        model.fit(b, d.astype(np.int32))</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        estimates.append(model.estimate(gamma))</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.asarray(estimates)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>bootstrap_draws <span class="op">=</span> cluster_bootstrap(panel)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>point <span class="op">=</span> <span class="bu">float</span>(results.loc[results[<span class="st">"K"</span>] <span class="op">==</span> <span class="dv">28</span>, <span class="st">"MPE_CBPS"</span>].iloc[<span class="dv">0</span>])</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>ci_low, ci_high <span class="op">=</span> np.quantile(bootstrap_draws, [<span class="fl">0.025</span>, <span class="fl">0.975</span>])</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>true_k28 <span class="op">=</span> DIRECT_EFFECT <span class="op">+</span> CARRY_EFFECT <span class="op">*</span> (<span class="fl">1.0</span> <span class="op">-</span> RHO<span class="op">**</span><span class="dv">28</span>) <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">-</span> RHO)</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        <span class="st">"K"</span>: [<span class="dv">28</span>],</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">"estimate"</span>: [point],</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>        <span class="st">"bootstrap SE"</span>: [bootstrap_draws.std(ddof<span class="op">=</span><span class="dv">1</span>)],</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>        <span class="st">"95% percentile low"</span>: [ci_low],</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>        <span class="st">"95% percentile high"</span>: [ci_high],</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>        <span class="st">"finite-K truth"</span>: [true_k28],</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>).<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="cluster-bootstrap" class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">K</th>
+<th data-quarto-table-cell-role="th">estimate</th>
+<th data-quarto-table-cell-role="th">bootstrap SE</th>
+<th data-quarto-table-cell-role="th">95% percentile low</th>
+<th data-quarto-table-cell-role="th">95% percentile high</th>
+<th data-quarto-table-cell-role="th">finite-K truth</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>28</td>
+<td>-0.932</td>
+<td>0.2368</td>
+<td>-1.3986</td>
+<td>-0.5531</td>
+<td>-0.9942</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="3d1f4c5b" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="fl">8.5</span>, <span class="fl">4.7</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>ax.hist(bootstrap_draws, bins<span class="op">=</span><span class="dv">18</span>, color<span class="op">=</span><span class="st">"#4c78a8"</span>, alpha<span class="op">=</span><span class="fl">0.78</span>, edgecolor<span class="op">=</span><span class="st">"white"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>ax.axvline(point, color<span class="op">=</span><span class="st">"#f58518"</span>, linewidth<span class="op">=</span><span class="fl">2.2</span>, label<span class="op">=</span><span class="st">"point estimate"</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>ax.axvline(true_k28, color<span class="op">=</span><span class="st">"black"</span>, linestyle<span class="op">=</span><span class="st">"--"</span>, linewidth<span class="op">=</span><span class="fl">2.0</span>, label<span class="op">=</span><span class="st">"finite-K truth"</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"bootstrapped marginal effect"</span>, ylabel<span class="op">=</span><span class="st">"count"</span>, title<span class="op">=</span><span class="st">"Customer-clustered bootstrap, K=28"</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="chronos-ltv-balancing_files/figure-html/cell-8-output-1.png" width="827" height="462" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="what-the-paper-finds" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="what-the-paper-finds"><span class="header-section-number">8</span> What the paper finds</h2>
+<p>In the paper’s marketplace simulation, a naive future-outcome contrast overstates the long-run reliability effect by roughly an order of magnitude. IPW with a prediction-tuned MLP propensity model removes much of the bias but remains about three times too large and produces a wide interval. CBPS-IPW predicts 92–97% of the long-run randomized-experiment effect at 56- and 70-day horizons.</p>
+<p>They then combine two pieces:</p>
+<p><span class="math display">\[
+\widehat{\Delta V}^{\text{long run}}
+=\widehat{\Delta\text{Delay}}^{\text{switchback}}
+\times\widehat\tau^{\text{Chronos}}.
+\]</span></p>
+<p>The switchback experiment identifies how added supply changes the market-level delay rate; Chronos estimates how a marginal delay-rate change maps into long-run customer value. This product predicts persistent-rollout value much better than reading customer value directly from the short switchback.</p>
+</section>
+<section id="practical-recipe" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="practical-recipe"><span class="header-section-number">9</span> Practical recipe</h2>
+<p>For an applied panel:</p>
+<ol type="1">
+<li>Define an order-level delay or service-defect indicator and a reward measured on a stable time grid.</li>
+<li>Construct <span class="math inline">\(\Gamma_{it}^K\)</span> for several substantively meaningful horizons rather than choosing one horizon after seeing results.</li>
+<li>Build a balance basis from variables determined before the delay: the paper uses rolling delay exposure, order frequency, spend, recency, lifetime orders, same-day orders, distance, preparation time, tip, day of week, and hour of day.</li>
+<li>Fit <code>MPE_CBPS</code> once to the pre-delay basis and delay indicator. Use <code>BalancingWeights</code> only when a generic calibration family is substantively preferred.</li>
+<li>Inspect maximum imbalance, effective sample size, and weight tails. Relax balance or restrict the target population when overlap is weak.</li>
+<li>Form the weighted cumulative-reward contrast, multiplying by the order rate if the denominator is customer-periods rather than order occasions.</li>
+<li>Resample customers or other independent units and repeat the full weighting procedure for inference.</li>
+<li>Report a horizon curve. Stability across large <span class="math inline">\(K\)</span> is evidence about mixing; it is not proof of sequential unconfoundedness.</li>
+</ol>
+</section>
+<section id="limits-of-the-simple-translation" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="limits-of-the-simple-translation"><span class="header-section-number">10</span> Limits of the simple translation</h2>
+<ul>
+<li><strong>The dynamic theorem is indispensable.</strong> A successful balance solver does not justify treating cumulative future outcomes as causal.</li>
+<li><strong>Entropy calibration is an analogue, not the paper’s exact inverse-logit family.</strong> <code>MPE_CBPS</code> is the exact family; <code>BalancingWeights(objective="entropy")</code> remains useful as a sensitivity check.</li>
+<li><strong>This is a local policy derivative.</strong> It supports adjacent changes to delay rates, not arbitrary large policy changes without further approximation error.</li>
+<li><strong>Observed state must be rich enough.</strong> Hidden states may mediate long-run effects, but cannot continue to predict delay after <span class="math inline">\(X\)</span> is fixed.</li>
+<li><strong>Order timing matters.</strong> Features contaminated by the current delay or post-delay behavior invalidate the balance design.</li>
+<li><strong>Spillovers are separate.</strong> The estimator targets long-run direct customer effects. Market-wide feedback through congestion or shared supply requires another design, such as the paper’s switchback component.</li>
+<li><strong>A doubly robust extension is possible.</strong> The paper points to a debiased machine-learning alternative. The present vignette isolates the transparent weighting estimator.</li>
+</ul>
+</section>
+<section id="references" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="references"><span class="header-section-number">11</span> References</h2>
+<ul>
+<li>Chenyu Qiu, Xu Kuang, Inessa Liskovich, Ali Rauh, and Stefan Wager. <a href="https://arxiv.org/abs/2606.11526"><em>What Is the Long-Term Value of Reliability?</em></a>, 2026.</li>
+<li>Kosuke Imai and Marc Ratkovic. <a href="https://doi.org/10.1111/rssb.12027">“Covariate Balancing Propensity Score.”</a> <em>JRSS B</em>, 2014.</li>
+<li>Qingyuan Zhao. <a href="https://doi.org/10.1214/18-AOS1698">“Covariate Balancing Propensity Score by Tailored Loss Functions.”</a> <em>Annals of Statistics</em>, 2019.</li>
+<li>Davide Viviano and Jelena Bradic. <a href="https://arxiv.org/abs/2103.01280">“Dynamic Covariate Balancing: Estimating Treatment Effects over Time.”</a>, revised 2026.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.0</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

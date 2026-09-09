@@ -1,0 +1,851 @@
+{
+  "pages": {
+    "ablations/bridging-finite-and-superpopulation.qmd": {
+      "status": "ok",
+      "input_sha256": "d3b1897c87e846234d8eb2ab96ec04bc1ed5069515fbba7108589bec03fc98fc",
+      "executed_at_utc": "2026-09-09T15:54:37.950765+00:00",
+      "seconds": 64.17,
+      "executed_cells": 5,
+      "html_sha256": "27c6cf301fb78fd65f3a9502e0082b1c8d16351e5fc91a678da24b4358ab17ca"
+    },
+    "ablations/estimator-scaling.qmd": {
+      "status": "ok",
+      "input_sha256": "7b2e2345b3ac5bf4686dfd13d5eafa49525d694fcf677d6e35e5a0179a10d6db",
+      "executed_at_utc": "2026-09-09T15:54:48.170814+00:00",
+      "seconds": 10.22,
+      "executed_cells": 33,
+      "html_sha256": "dac887487369de9916e09d5e84899c4e34070f79d09bd064c81241e3d0ed73eb"
+    },
+    "ablations/panel-dgp-comparisons.qmd": {
+      "status": "ok",
+      "input_sha256": "e035a8b3db8d531011f023bb180a9f21f10a5b036523f626799a7b2212a37a76",
+      "executed_at_utc": "2026-09-09T15:54:55.853447+00:00",
+      "seconds": 7.68,
+      "executed_cells": 6,
+      "html_sha256": "1251145874736fcbfa1eac1ec1b109e10e78bd5220b09b5db1de92d8797398d4"
+    },
+    "ablations/randomized-sketching-ols.qmd": {
+      "status": "ok",
+      "input_sha256": "057b4ba4a0379699ac83029f6aaaca424c536e078095f0184dfaa9f78fc19790",
+      "executed_at_utc": "2026-09-09T15:55:03.275882+00:00",
+      "seconds": 7.42,
+      "executed_cells": 6,
+      "html_sha256": "83bd72a731c040c4d61158b5321b20dc7e727bf681c302d40ab0b8d2d51a2409"
+    },
+    "ablations/same-root-panel-cases.qmd": {
+      "status": "ok",
+      "input_sha256": "5e00930b16ff0b6168bcf438ffbf03c69cb44b88dcb0b65473cad4e41723e5b1",
+      "executed_at_utc": "2026-09-09T15:55:07.467609+00:00",
+      "seconds": 4.19,
+      "executed_cells": 7,
+      "html_sha256": "ed7c3eb67fdb04bd7edd16bc0c16b5bb25549aff552b5bc13d324cdab40c2d75"
+    },
+    "ablations/semiparametric-estimators.qmd": {
+      "status": "ok",
+      "input_sha256": "0918c7e468c12f275d94eabceeea7611d66dd8ab251626c9b7163a52f387b1ea",
+      "executed_at_utc": "2026-09-09T15:55:38.274381+00:00",
+      "seconds": 30.81,
+      "executed_cells": 9,
+      "html_sha256": "47a4970fefefa4b2bf4c6c94c57ebc9e53c434f65db7a2a5aa0c54da0d472465"
+    },
+    "ablations/two-period-did-semiparametric.qmd": {
+      "status": "ok",
+      "input_sha256": "597089fd9070b1f6437a174ccc3e2b72812a1988a683c50f19e0284824704a63",
+      "executed_at_utc": "2026-09-09T15:55:43.571703+00:00",
+      "seconds": 5.3,
+      "executed_cells": 5,
+      "html_sha256": "1282af1298a67871aed75bd0397fe4e2090d892fc13a58463c63db6354832077"
+    },
+    "ablations/variance-estimators.qmd": {
+      "status": "ok",
+      "input_sha256": "bf05b171933c50e8c5a6b1a60e7322cd9068ab5cc96db052d1651241a4ed4a8e",
+      "executed_at_utc": "2026-09-09T15:55:48.737722+00:00",
+      "seconds": 5.17,
+      "executed_cells": 8,
+      "html_sha256": "4c1b7d18156f28aa74f0148954ed10a473e83be14cec25b619f56412659d5485"
+    },
+    "api.qmd": {
+      "status": "ok",
+      "input_sha256": "a7387bee25bc4a0c0cd25b8a86bc9139821497d692b7b4b93ad72a96729d48dd",
+      "executed_at_utc": "2026-09-09T15:55:52.167856+00:00",
+      "seconds": 3.43,
+      "executed_cells": 8,
+      "html_sha256": "b6094b9727177144e36f2ebf0f1fbb3662f5bd5abdf549e9110acee00ebd43de"
+    },
+    "ding/ch01-correlation-simpson.qmd": {
+      "status": "ok",
+      "input_sha256": "a34e22b9daa9ebc7240b5e519166810bf4c688c766793a98fd885f207d4a1def",
+      "executed_at_utc": "2026-09-09T15:55:55.764455+00:00",
+      "seconds": 3.6,
+      "executed_cells": 7,
+      "html_sha256": "72b76cb745ce2ec63867756856cfbdf5be1e7286d8f5a16d53251dcb1db9e720"
+    },
+    "ding/ch02-potential-outcomes.qmd": {
+      "status": "ok",
+      "input_sha256": "653e60a1e4f80460b88477d53825bd042ab3481ff2b4f32a7d189648430d2e0e",
+      "executed_at_utc": "2026-09-09T15:55:59.230822+00:00",
+      "seconds": 3.47,
+      "executed_cells": 5,
+      "html_sha256": "f6f02ee024dc480701e263866f9e9a33eb82cdb36e33f49f595a2cfb6ec047f7"
+    },
+    "ding/ch03-cre-frt.qmd": {
+      "status": "ok",
+      "input_sha256": "10e5b892258295e25a926c9189af41d95b370be436421f76e50941faaca983fc",
+      "executed_at_utc": "2026-09-09T15:56:02.621225+00:00",
+      "seconds": 3.39,
+      "executed_cells": 3,
+      "html_sha256": "6457f664534e0c5627fc633f14d2d3e70af2c9b00cef092c3778cbaefbcd6dd5"
+    },
+    "ding/ch04-cre-neyman.qmd": {
+      "status": "ok",
+      "input_sha256": "86955fd07acc0c4e814470f9e6edc0fa167787f7d2be8070b442d7a5324edd19",
+      "executed_at_utc": "2026-09-09T15:56:06.644688+00:00",
+      "seconds": 4.02,
+      "executed_cells": 3,
+      "html_sha256": "0b99a62abac04d44a1706a3ac9cd9afad8add64fc3f9b0b5be84d84befb20e83"
+    },
+    "ding/ch05-stratification.qmd": {
+      "status": "ok",
+      "input_sha256": "cc07a03e9362bf37484b28de42869fbe29569ebca23670bafb5a6e8abc51641d",
+      "executed_at_utc": "2026-09-09T15:56:10.469463+00:00",
+      "seconds": 3.82,
+      "executed_cells": 5,
+      "html_sha256": "3f1261aca1efeacf37daf2b744faf3374b0aa5f4451fda0fdd07a8023e8e832e"
+    },
+    "ding/ch06-regadj-rerand.qmd": {
+      "status": "ok",
+      "input_sha256": "a95aad259bd12aeb9325d0b7cb2f037ee3160818ff19492dc0b1b3f49e46a620",
+      "executed_at_utc": "2026-09-09T15:56:14.041329+00:00",
+      "seconds": 3.57,
+      "executed_cells": 4,
+      "html_sha256": "92f29fc3d95b56068902f72501623d06583b750c4828d72e53fa861110a6443e"
+    },
+    "ding/ch07-matched-pairs.qmd": {
+      "status": "ok",
+      "input_sha256": "a0d0b1e0f2a8aa8d5771987c12ab48c66d432f7de1d67eaf772d1bb0fbde04e8",
+      "executed_at_utc": "2026-09-09T15:56:17.669164+00:00",
+      "seconds": 3.63,
+      "executed_cells": 5,
+      "html_sha256": "aa51c50d4e26731e3abfab860b30e7f4b84adcd3d1a6c065e35f6ac51e5eee69"
+    },
+    "ding/ch08-fisher-neyman.qmd": {
+      "status": "ok",
+      "input_sha256": "d23b3e06e4e4b9ef5db2845bf52922fe2e49bd764b9a9b2453f017a88e01bd22",
+      "executed_at_utc": "2026-09-09T15:56:22.028171+00:00",
+      "seconds": 4.36,
+      "executed_cells": 3,
+      "html_sha256": "6f435a617e77cd63af15a37a2656d542312ab02cb6aeb96ab64f3fc3104c471d"
+    },
+    "ding/ch11-propensity-score.qmd": {
+      "status": "ok",
+      "input_sha256": "36ba58cee4ffa714d732368760bacc99c8c3623edfceb300071474d36eb70414",
+      "executed_at_utc": "2026-09-09T15:56:25.631795+00:00",
+      "seconds": 3.6,
+      "executed_cells": 8,
+      "html_sha256": "e91b2535db4ef9b59cb6c809dd27ce2881e39f339e011cdb27ee8bcb31aede0d"
+    },
+    "ding/ch12-double-robust-ate.qmd": {
+      "status": "ok",
+      "input_sha256": "34e8cafa406c3ee1ac4dce833150c83c5353d14f5f336f63e4e6f3753abbfa2a",
+      "executed_at_utc": "2026-09-09T15:56:29.358243+00:00",
+      "seconds": 3.73,
+      "executed_cells": 3,
+      "html_sha256": "a9ee5e7dbf6737cfd17c308e53a35e1dcdc0ef1f28502f538732bf1417ee3d50"
+    },
+    "ding/ch13-double-robust-att.qmd": {
+      "status": "ok",
+      "input_sha256": "3f6c5924643c048f9b95529b017671a3166c0e7656f9171b6fef0d3412512886",
+      "executed_at_utc": "2026-09-09T15:56:32.764772+00:00",
+      "seconds": 3.41,
+      "executed_cells": 3,
+      "html_sha256": "04e3b8ad1f0973c027eace11fddaf82bf2f3e479378dcee5748db8a88fa719ad"
+    },
+    "ding/ch21-iv-experiments.qmd": {
+      "status": "ok",
+      "input_sha256": "71b96a651374536964e5f6dd5f57dc5d701a3b7567559e0d6c1e8ada252e7822",
+      "executed_at_utc": "2026-09-09T15:56:36.278219+00:00",
+      "seconds": 3.51,
+      "executed_cells": 4,
+      "html_sha256": "3f9e52f76156ec92e20622786aca54113310f91804d9823f423537fd3b0e80f0"
+    },
+    "ding/ch23-iv-econometrics.qmd": {
+      "status": "ok",
+      "input_sha256": "8151436847e8ba17ad5bf3d1d4eb156c44c97970d19360f51318af799941e5bf",
+      "executed_at_utc": "2026-09-09T15:56:40.130485+00:00",
+      "seconds": 3.85,
+      "executed_cells": 6,
+      "html_sha256": "3c62aac5c241baf9133eb6bbdb8ac9f0cfee323f92ec86ae89da90e3a20c4193"
+    },
+    "ding/ch27-mediation.qmd": {
+      "status": "ok",
+      "input_sha256": "8d8868180c50991f147d4a68a1d51ef2906704b195e0784b0700ced7d8d8e253",
+      "executed_at_utc": "2026-09-09T15:56:44.018287+00:00",
+      "seconds": 3.89,
+      "executed_cells": 4,
+      "html_sha256": "b320943ea1bdc7896508f0bb3762ac9f2d12dc857f39dbef4a5595db88cb9398"
+    },
+    "ding/ding-design-adjustment.qmd": {
+      "status": "ok",
+      "input_sha256": "9db6345facfff7735703cec662e9065fef0baf80c0e5ff688113f6606a981542",
+      "executed_at_utc": "2026-09-09T15:56:44.988193+00:00",
+      "seconds": 0.97,
+      "executed_cells": 0,
+      "html_sha256": "6751dd07c0776633d05f3db47f4e3c70c63e1654cfdd9f6328dea8e28c1b2bbc"
+    },
+    "ding/ding-foundations.qmd": {
+      "status": "ok",
+      "input_sha256": "0aab2d7fcc2103c76449d2266c3790b868905ebd72641ccae3d67f199fb07f3e",
+      "executed_at_utc": "2026-09-09T15:56:45.980596+00:00",
+      "seconds": 0.99,
+      "executed_cells": 0,
+      "html_sha256": "14dd9387490504e75577388618e3a7b491576f14bd4cc07abf92db4480863f76"
+    },
+    "ding/ding-iv.qmd": {
+      "status": "ok",
+      "input_sha256": "bee6a318af8043a16ef7c0bf93870acdb0b92d1871fc7494a4d0ba3eec780a14",
+      "executed_at_utc": "2026-09-09T15:56:46.931711+00:00",
+      "seconds": 0.95,
+      "executed_cells": 0,
+      "html_sha256": "fbcfdd1a020e72977562b165d396963980f3eba43b39469dc49a890a1d2fc041"
+    },
+    "ding/ding-observational-adjustment.qmd": {
+      "status": "ok",
+      "input_sha256": "d8906ebcd5aeac4f23d10294bb011c3d845e53d8d621f78ac67bc9af6a047b1b",
+      "executed_at_utc": "2026-09-09T15:56:47.871566+00:00",
+      "seconds": 0.94,
+      "executed_cells": 0,
+      "html_sha256": "9a6e30eb403bbec8d4ca4692e5bd69a8a9b0dda4babc0cb795be34267ebf8ec0"
+    },
+    "examples/abc-ols.qmd": {
+      "status": "ok",
+      "input_sha256": "bfb0d71d7785f2187eddf7d9d8fd044434c3459ee58e50ea92aa599e25a576b6",
+      "executed_at_utc": "2026-09-09T15:56:51.321618+00:00",
+      "seconds": 3.45,
+      "executed_cells": 7,
+      "html_sha256": "768b336fea0cf51d04ae91ae69b68b0405db4511b3115e8cd7d30c40cfe2d2f0"
+    },
+    "examples/anytime-valid-ols.qmd": {
+      "status": "ok",
+      "input_sha256": "ed10afaa9f6870379cce7c020145b28880d0e0f4e4790c0e913b1a2b3fa88e10",
+      "executed_at_utc": "2026-09-09T15:56:54.774719+00:00",
+      "seconds": 3.45,
+      "executed_cells": 7,
+      "html_sha256": "a87b483d64dfee60fd7aef9f30362951c6755932f63593f7f4b89118d0b3b7e8"
+    },
+    "examples/augmented-balancing.qmd": {
+      "status": "ok",
+      "input_sha256": "db7cca90e9f64721b0f4fbacf4fe01f1477f6330ecf421b0e7102c02c9e233d6",
+      "executed_at_utc": "2026-09-09T15:56:58.493848+00:00",
+      "seconds": 3.72,
+      "executed_cells": 7,
+      "html_sha256": "79bfc657b0d678d5571bfe115af0e6231cae9226af9e5d1f72627e737e903212"
+    },
+    "examples/average-derivative.qmd": {
+      "status": "ok",
+      "input_sha256": "b484431add0d8928669bea7753a233c536d88384bb00798baa07fac6d29c4c98",
+      "executed_at_utc": "2026-09-09T15:57:01.821734+00:00",
+      "seconds": 3.33,
+      "executed_cells": 1,
+      "html_sha256": "00e438fbfe43001149895bff98a644045293531061a48f86f7af48371b97e5ec"
+    },
+    "examples/bagged-polynomial-regression.qmd": {
+      "status": "ok",
+      "input_sha256": "f546ed3a9d6b771756d0d087dee728e1bca468c0aa489e52d64aa08a9cb2a9e8",
+      "executed_at_utc": "2026-09-09T15:57:05.688387+00:00",
+      "seconds": 3.87,
+      "executed_cells": 4,
+      "html_sha256": "ae57b5f9cfed62837dfc674227683930bde331b1a7c7616e16686897fe80023c"
+    },
+    "examples/balancing-weights.qmd": {
+      "status": "ok",
+      "input_sha256": "7aff70094167f23f1b8d95def55aabf9d160d47d8c3bcf2642737d6bbf2fa0bf",
+      "executed_at_utc": "2026-09-09T15:57:09.543960+00:00",
+      "seconds": 3.85,
+      "executed_cells": 5,
+      "html_sha256": "d6fd802279455c06181d55258e1d72c0729210b15c90f60ddf7f48abdce4b170"
+    },
+    "examples/chronos-ltv-balancing.qmd": {
+      "status": "ok",
+      "input_sha256": "327dd95278226109c882c45493b1a1b5557ae5ae95f34cc7b561fa1436e53862",
+      "executed_at_utc": "2026-09-09T15:57:14.388312+00:00",
+      "seconds": 4.84,
+      "executed_cells": 7,
+      "html_sha256": "00d3d689d96c956a485b449a216d4b81dadb731606ae00e2757bb196eada103f"
+    },
+    "examples/cressie-read-balancing.qmd": {
+      "status": "ok",
+      "input_sha256": "e4f1046b5412c3aa07a8bed24c3b3fd08201e67b0c49f0242c62d62dde6448aa",
+      "executed_at_utc": "2026-09-09T15:57:18.747533+00:00",
+      "seconds": 4.36,
+      "executed_cells": 6,
+      "html_sha256": "3d1e2df62fca085987b9a65c0329562c5d7d2a7d9de062aca0d36ca9e597faaa"
+    },
+    "examples/double-ml.qmd": {
+      "status": "ok",
+      "input_sha256": "7fe974c492b7de364731991f924e34834aa6a670d9a583f01e552d64e6b28acc",
+      "executed_at_utc": "2026-09-09T15:57:22.230578+00:00",
+      "seconds": 3.48,
+      "executed_cells": 5,
+      "html_sha256": "23e7df4c012af04cc48d827c2c514ec3d609acb29da82991920f2e6c56ba391f"
+    },
+    "examples/elastic-net.qmd": {
+      "status": "ok",
+      "input_sha256": "87eed56136d4964ae31c30f1bebb8a6e5b42d76bd3c17de1fdfb9b5229ebc1ca",
+      "executed_at_utc": "2026-09-09T15:57:25.575077+00:00",
+      "seconds": 3.34,
+      "executed_cells": 3,
+      "html_sha256": "ffacff1f5d2ae94c8abbfcce2c75227b2b0a1d58c07851a80b9e1d2588e19b4b"
+    },
+    "examples/eplm.qmd": {
+      "status": "ok",
+      "input_sha256": "b351f121cb46d5e8824fdfb97f3f0e4cf003b5056dcfda01f77f7f420b492520",
+      "executed_at_utc": "2026-09-09T15:57:28.905205+00:00",
+      "seconds": 3.33,
+      "executed_cells": 1,
+      "html_sha256": "5e7b2be1411e75dc04d2965f6e1936543b17e7512fa7a239bd015fd5f6110d44"
+    },
+    "examples/fixed-effects-ols.qmd": {
+      "status": "ok",
+      "input_sha256": "a6be38ffbf477f3c7ada5d554fcb1bce13921e9a84f56f81d815deabcdd0228a",
+      "executed_at_utc": "2026-09-09T15:57:32.211971+00:00",
+      "seconds": 3.31,
+      "executed_cells": 4,
+      "html_sha256": "0b6392b3d25131c0a91c4d95892c5051f6535d31f011bb85065592f0033cf270"
+    },
+    "examples/gmm-with-optimizers.qmd": {
+      "status": "ok",
+      "input_sha256": "5a462619291a7108a005f68c39810630c827d7751896788383d7b67c0ef95b05",
+      "executed_at_utc": "2026-09-09T15:57:35.844276+00:00",
+      "seconds": 3.63,
+      "executed_cells": 7,
+      "html_sha256": "d8e1b3d764a31694dba1609e15b514bc0f8e15a430b7e446b5c3d3cfbdb5035e"
+    },
+    "examples/gmm.qmd": {
+      "status": "ok",
+      "input_sha256": "3d95c05703bc92a5a95c058b5fe629d7d9520213647dabc3bc554068b2d22c0e",
+      "executed_at_utc": "2026-09-09T15:57:39.198244+00:00",
+      "seconds": 3.35,
+      "executed_cells": 4,
+      "html_sha256": "ddb8eeea01b9a2d36996e0e0315cd6a9436bef26267b212c315459db390c7e02"
+    },
+    "examples/horizontal-panel-ridge.qmd": {
+      "status": "ok",
+      "input_sha256": "da662a6966289a95871d7b813f660472bc8d39f9e86f2956b42f066e8e9aa698",
+      "executed_at_utc": "2026-09-09T15:57:42.645322+00:00",
+      "seconds": 3.45,
+      "executed_cells": 4,
+      "html_sha256": "d7cda9c64fbe206cfb1a9c61dec1439acd23947cd2046d428dd78ec4c7fe40d9"
+    },
+    "examples/interactive-fixed-effects.qmd": {
+      "status": "ok",
+      "input_sha256": "3e50da47db95c7befaf9692cbd954bb5137687addf6be125c791e6354fa3b968",
+      "executed_at_utc": "2026-09-09T15:57:46.128758+00:00",
+      "seconds": 3.48,
+      "executed_cells": 4,
+      "html_sha256": "875c24e4991061991f0c52441d2dfb660dc586242652274452a3820957dedaea"
+    },
+    "examples/joint-hypothesis-tests-causal.qmd": {
+      "status": "ok",
+      "input_sha256": "6879a4f50634ce8ec7ff587225c790ee459561cc234e7e0b632d84ab6e607257",
+      "executed_at_utc": "2026-09-09T15:57:49.647540+00:00",
+      "seconds": 3.52,
+      "executed_cells": 3,
+      "html_sha256": "a5dcbc497721d0e8b82162f48688113599fba6c76b353027024caf673e9785bd"
+    },
+    "examples/logit.qmd": {
+      "status": "ok",
+      "input_sha256": "c4af25dab563e751cb8da47817cb6ec55903dc44b2007b14319afbfee02f7c47",
+      "executed_at_utc": "2026-09-09T15:57:52.942489+00:00",
+      "seconds": 3.29,
+      "executed_cells": 3,
+      "html_sha256": "6317f7ed67656c548b2863049348c9607e1d5826540b02985e5f6f63854a05b0"
+    },
+    "examples/matrix-completion.qmd": {
+      "status": "ok",
+      "input_sha256": "f342de0f324722551dc19594d3e17cc8b1817e5e9b057abac3df75589e9f0202",
+      "executed_at_utc": "2026-09-09T15:57:56.456147+00:00",
+      "seconds": 3.51,
+      "executed_cells": 4,
+      "html_sha256": "c558dd97911ced66efb4be0c0537a205bdf465aadff5e5a900e3325754e82b99"
+    },
+    "examples/mestimator-poisson.qmd": {
+      "status": "ok",
+      "input_sha256": "f5f5887f687eff8c9386ebaea0fbe81c9a898761ed3a88723b224cd8c71c1cf3",
+      "executed_at_utc": "2026-09-09T15:57:59.858170+00:00",
+      "seconds": 3.4,
+      "executed_cells": 3,
+      "html_sha256": "ba85a160ce031b77a6bd199df737c6aa764f932554a8958f4c0298cebfbfc19a"
+    },
+    "examples/mle-prediction-interface.qmd": {
+      "status": "ok",
+      "input_sha256": "5a17bb3acc2a22ec9a438b9c573a13b95bec22bb5a17f709af8e452bdedd3c9b",
+      "executed_at_utc": "2026-09-09T15:58:03.286404+00:00",
+      "seconds": 3.43,
+      "executed_cells": 7,
+      "html_sha256": "749e45486947be5952e6445cd2da8e312ebef21effdd475097d159d66296f2bf"
+    },
+    "examples/multinomial-logit.qmd": {
+      "status": "ok",
+      "input_sha256": "6565226677b135711c4e2f683763464ecac1ec36946a5d5d50b972b6a8092c78",
+      "executed_at_utc": "2026-09-09T15:58:06.642169+00:00",
+      "seconds": 3.36,
+      "executed_cells": 3,
+      "html_sha256": "9c503ecd9914b803d0b67f11e6583d5ef9b0d5033416e895662f8d5e8f8319c1"
+    },
+    "examples/ols.qmd": {
+      "status": "ok",
+      "input_sha256": "6de7f13e1ea3a6605e3fb68d9d16d9b23d74e6bd46085cbffb0b72724cce8afe",
+      "executed_at_utc": "2026-09-09T15:58:09.998831+00:00",
+      "seconds": 3.36,
+      "executed_cells": 3,
+      "html_sha256": "9403dab262c1ef0bcbcea48a2ff2ce4064efaf9cd4a49a3264c97d8dc92de93b"
+    },
+    "examples/optimizers.qmd": {
+      "status": "ok",
+      "input_sha256": "146f5d870e375677806f0b6de20dea566d4e5451d289733bcdab9142dd61bc43",
+      "executed_at_utc": "2026-09-09T15:58:13.845701+00:00",
+      "seconds": 3.85,
+      "executed_cells": 7,
+      "html_sha256": "186bcc23f711561013e9c669c1ead0e8cf86029a9e57e943d73e63c7c87bad0f"
+    },
+    "examples/pca-and-kernel-basis.qmd": {
+      "status": "ok",
+      "input_sha256": "762d52bb72a48ab5d3792f8f7b04db050c5c3a74df85dbccb91f4c0c129a2130",
+      "executed_at_utc": "2026-09-09T15:58:17.490384+00:00",
+      "seconds": 3.64,
+      "executed_cells": 5,
+      "html_sha256": "084ca39b427aa8ca9557694c850634fed4a224f756642d755052c0d3cf1d4efe"
+    },
+    "examples/poisson.qmd": {
+      "status": "ok",
+      "input_sha256": "c3a19f7f7f663bc0e79fd726003f6a0ed084eb842655a9dc6ab9107c6ca9278f",
+      "executed_at_utc": "2026-09-09T15:58:20.835614+00:00",
+      "seconds": 3.34,
+      "executed_cells": 3,
+      "html_sha256": "b98558211a48ab42c4bfd8dc0d1fe11c4a4943fcdbc2b279144ea6d4ab3821ad"
+    },
+    "examples/richer-regression.qmd": {
+      "status": "ok",
+      "input_sha256": "ce42e4558687ef7c31cb1c1fb40bcbc59f24e6d8c91010c0a58e648a639d682e",
+      "executed_at_utc": "2026-09-09T15:58:24.370557+00:00",
+      "seconds": 3.53,
+      "executed_cells": 4,
+      "html_sha256": "f3d6e7ee38eb2592ee8fe8dfb744ed3a96fddcb2649e03d489af26322e379b50"
+    },
+    "examples/ridge.qmd": {
+      "status": "ok",
+      "input_sha256": "50910d852f543e2f8cee2996e2bca2d79168e9dcb33842a0e93c67058c6ffc67",
+      "executed_at_utc": "2026-09-09T15:58:31.939031+00:00",
+      "seconds": 7.57,
+      "executed_cells": 5,
+      "html_sha256": "502f53f1c219084000313011ca9c0bfad217dc9415ac3e612b0a787c1a22e8e5"
+    },
+    "examples/snmm-blips.qmd": {
+      "status": "ok",
+      "input_sha256": "92c50d4ade82943b62912ab48365ba46a128e15fdca47249cbfb88f1a13b546f",
+      "executed_at_utc": "2026-09-09T15:58:36.883501+00:00",
+      "seconds": 4.94,
+      "executed_cells": 7,
+      "html_sha256": "de8bbddb20c380938946cfb53f2a08249221347a2eb2a04b0868f6ae91361c42"
+    },
+    "examples/sparse-rotations.qmd": {
+      "status": "ok",
+      "input_sha256": "7cdbebd93e9252e65937169e1fac61bf7b57bbd51cb902cba863941e8440aae1",
+      "executed_at_utc": "2026-09-09T15:58:41.215570+00:00",
+      "seconds": 4.33,
+      "executed_cells": 10,
+      "html_sha256": "039a355429b2683f2018bb3297fc991d43903f6979f15bb9d381d242d1e986e1"
+    },
+    "examples/staggered-panel-event-study.qmd": {
+      "status": "ok",
+      "input_sha256": "0187554250e2c534b56fb62e643d88158fca4d2ff497a5bcbf6dcfe5136f1bfb",
+      "executed_at_utc": "2026-09-09T15:58:45.822385+00:00",
+      "seconds": 4.61,
+      "executed_cells": 5,
+      "html_sha256": "c59d48d5d73841409c5464f12d549c966f062522e0a586763c6dfb5435f1fac1"
+    },
+    "examples/survival-models.qmd": {
+      "status": "ok",
+      "input_sha256": "522f10c0e743530467bdbd6fa2d68c1bbf269f520b696179f19b34202375a8ff",
+      "executed_at_utc": "2026-09-09T15:58:49.654367+00:00",
+      "seconds": 3.83,
+      "executed_cells": 17,
+      "html_sha256": "e0b2c069fc66c8e0a74a5b58f4a04f2dd587fb05225a90475eec698831528734"
+    },
+    "examples/survival-time-to-event-and-recurrent-events.qmd": {
+      "status": "ok",
+      "input_sha256": "4e91b5a438dc14afc9ab145c2bbdf819156bedae9ec9e14ee4e2b661f257232d",
+      "executed_at_utc": "2026-09-09T15:58:53.249135+00:00",
+      "seconds": 3.59,
+      "executed_cells": 11,
+      "html_sha256": "08e3c32770c823a42be31d3a2727c825e1fbdc5da9a921a8bfa3ad33a7d55afe"
+    },
+    "examples/synthetic-control.qmd": {
+      "status": "ok",
+      "input_sha256": "9bbeeffc5c3d6eb2994805947e5003f1fdfdcaece58d7dcf45ffe6c3fd881946",
+      "executed_at_utc": "2026-09-09T15:58:56.722498+00:00",
+      "seconds": 3.47,
+      "executed_cells": 4,
+      "html_sha256": "3fe6ea80333b53ac3ab4f331b1a1bfd45e95337bacaf2a10892a8c1121b8c631"
+    },
+    "examples/synthetic-did.qmd": {
+      "status": "ok",
+      "input_sha256": "253c728935e733a2ec0a51e3e73505794bdb409ce01a81b2c751e96e7ac55028",
+      "executed_at_utc": "2026-09-09T15:59:00.425901+00:00",
+      "seconds": 3.7,
+      "executed_cells": 5,
+      "html_sha256": "9a4137bc034fa32e316b7f489a77425866a97a5e6c93b88b5be4dc76e9d50e94"
+    },
+    "examples/twosls.qmd": {
+      "status": "ok",
+      "input_sha256": "63d7bcfd02732f976e9498db34d6e505b5a42283b9f3812559694ff45f22f904",
+      "executed_at_utc": "2026-09-09T15:59:03.837500+00:00",
+      "seconds": 3.41,
+      "executed_cells": 5,
+      "html_sha256": "723db74b13260286d615d9af00137da24c2eb348cdbb49be7f6263c1d6092856"
+    },
+    "first-course-ding.qmd": {
+      "status": "ok",
+      "input_sha256": "2a4b0fc7d20b7e54a1e4f01d1372ef1c74bbec85f440752d5d0d97996330e574",
+      "executed_at_utc": "2026-09-09T15:59:04.833787+00:00",
+      "seconds": 1.0,
+      "executed_cells": 0,
+      "html_sha256": "09b16c3dc0b75167ef96c62549832c9d5da8eca049fde5f1c9987383ab0138b6"
+    },
+    "index.qmd": {
+      "status": "ok",
+      "input_sha256": "08ef611a1f1477d20cec9fd24608b0c02ed9bfae8845ddbec13fccb0d0afe0aa",
+      "executed_at_utc": "2026-09-09T16:01:30.892598+00:00",
+      "seconds": 3.4,
+      "executed_cells": 1,
+      "html_sha256": "f410c2bc72c8b350dd7bcc8dc829b5be5a0772028e50a3711c5e304cf95ae8f7"
+    },
+    "mechanics-mestimator.qmd": {
+      "status": "ok",
+      "input_sha256": "5af645973a38c9d4d7aba610ff62d43bd9afb895d17b86db5953ceca157a2bee",
+      "executed_at_utc": "2026-09-09T15:59:11.609649+00:00",
+      "seconds": 3.42,
+      "executed_cells": 1,
+      "html_sha256": "c6b754240fb89f213ae5511a07421e0f0cabce496130b13660d12f6cb65b4b37"
+    },
+    "mechanics-ols.qmd": {
+      "status": "ok",
+      "input_sha256": "83c3666d0963e62a359271627e27a2dc4fa6e3301083c6dbbbb7714551e8b848",
+      "executed_at_utc": "2026-09-09T15:59:14.983240+00:00",
+      "seconds": 3.37,
+      "executed_cells": 1,
+      "html_sha256": "86d19d07a12b4d1912a50800bd680a0ba3ce8a0244975808d05a1ae6253d1507"
+    },
+    "mechanics-poisson.qmd": {
+      "status": "ok",
+      "input_sha256": "5ee3ed5252c95dcb5ac8852546d20ae11716676b712ebfede6085f9960078085",
+      "executed_at_utc": "2026-09-09T15:59:18.302181+00:00",
+      "seconds": 3.32,
+      "executed_cells": 1,
+      "html_sha256": "309f29a8f68ecd00334195f005db8bc50f114ab10be60b538e0e65f95393cc26"
+    },
+    "reference/ABCOLS.qmd": {
+      "status": "ok",
+      "input_sha256": "a9b6862f70e3c748aa926095be581580030249be9e52c801e87a03f712279041",
+      "executed_at_utc": "2026-09-09T15:59:21.722708+00:00",
+      "seconds": 3.42,
+      "executed_cells": 5,
+      "html_sha256": "609cd887859d47a99c534efa77845929a84645fd7a2c363ad67495b78d03b50d"
+    },
+    "reference/AIPW.qmd": {
+      "status": "ok",
+      "input_sha256": "bb1b7a9291746b11fc667bdf4d78c4696773ea9cc91cefdf886fe71190c31187",
+      "executed_at_utc": "2026-09-09T15:59:25.189311+00:00",
+      "seconds": 3.47,
+      "executed_cells": 5,
+      "html_sha256": "c6da3da4a58497286db02ab8627ed4c531c656b7b125013365159e7c0df97159"
+    },
+    "reference/AndersenGill.qmd": {
+      "status": "ok",
+      "input_sha256": "a2df286cf0f90422240a36dfb9dd054e6717032612454df1db48a5da38e9a6cb",
+      "executed_at_utc": "2026-09-09T15:59:29.284655+00:00",
+      "seconds": 4.09,
+      "executed_cells": 5,
+      "html_sha256": "b3288ec2c2a81a720b28f50dd2d977c8b7b801be903504f6d63daae5df5dece5"
+    },
+    "reference/AugmentedBalancing.qmd": {
+      "status": "ok",
+      "input_sha256": "d1db0d99052fd1bb5d28279014392b2774031350812e42be19c536281e947872",
+      "executed_at_utc": "2026-09-09T15:59:33.739469+00:00",
+      "seconds": 4.45,
+      "executed_cells": 5,
+      "html_sha256": "a52480ef5d50e20c6337318b5b653850b5be35f6c70a353d4ffcc3682b048ce2"
+    },
+    "reference/AverageDerivative.qmd": {
+      "status": "ok",
+      "input_sha256": "9038d041a56bae8602e3e3e2181853b1bdc1357ba295f3f2a3e123f302b899ba",
+      "executed_at_utc": "2026-09-09T15:59:38.117393+00:00",
+      "seconds": 4.37,
+      "executed_cells": 5,
+      "html_sha256": "32fa1bf2a145ca1f2312730a08ed543deb2dd2b69ec5d2ef58fb6e3779ab0189"
+    },
+    "reference/BaggedPolynomialRegressor.qmd": {
+      "status": "ok",
+      "input_sha256": "6c15197aa2cdc7d59909e8cbe6660176137eb819f3e89946a2a1b1442fe637a2",
+      "executed_at_utc": "2026-09-09T16:02:49.869441+00:00",
+      "seconds": 4.24,
+      "executed_cells": 4,
+      "html_sha256": "829eb01f9dca1c0dacb2890b7e1bef75da4901f088a6e8645d7f9359845f1eb2"
+    },
+    "reference/BalancingWeights.qmd": {
+      "status": "ok",
+      "input_sha256": "a02aa40a313df8cd85e57b96e5b62c8871a578f70e346cfa29f66ac2dba36bd4",
+      "executed_at_utc": "2026-09-09T15:59:45.876259+00:00",
+      "seconds": 3.4,
+      "executed_cells": 5,
+      "html_sha256": "e9ac235caf4f971207e39403dbf97d870a8e1af0d2db3d9e476681a60f594356"
+    },
+    "reference/CoxPH.qmd": {
+      "status": "ok",
+      "input_sha256": "c7c2b74e6103ea69a6c6b8c820466e0960dcde00f60969f5fe5f49faf1e4f815",
+      "executed_at_utc": "2026-09-09T15:59:49.310710+00:00",
+      "seconds": 3.43,
+      "executed_cells": 5,
+      "html_sha256": "c69757c67860650253ba5a1194917e707b32723d5179e9f7763ddd14e40734bc"
+    },
+    "reference/EPLM.qmd": {
+      "status": "ok",
+      "input_sha256": "2533ff4ba728de5c849a22283e59ad43f775421623edc183a2fd1fbec0de1806",
+      "executed_at_utc": "2026-09-09T15:59:52.699587+00:00",
+      "seconds": 3.39,
+      "executed_cells": 5,
+      "html_sha256": "82c19456cfab9d54e6bfd35ee194e5c5ebbf736056eb8ae6c7eaf8f77e24eae7"
+    },
+    "reference/ElasticNet.qmd": {
+      "status": "ok",
+      "input_sha256": "20efa85206f8c889ac25a32666570b6f1b758d261c9dec736b04375372c725a4",
+      "executed_at_utc": "2026-09-09T15:59:56.109633+00:00",
+      "seconds": 3.41,
+      "executed_cells": 5,
+      "html_sha256": "214df71d307d285700fbacd35c979873a0538282b487dd3d2a6fa20e01083c19"
+    },
+    "reference/ExponentialPH.qmd": {
+      "status": "ok",
+      "input_sha256": "9b880fadbf2877cc7f186dcdff71d716bf239cde67005a3c22c5cf13aa4cef20",
+      "executed_at_utc": "2026-09-09T16:02:53.324432+00:00",
+      "seconds": 3.45,
+      "executed_cells": 5,
+      "html_sha256": "74e2ab3b6815e0716ff3c6b73a0b48ccb815b04377a198643a49832d702f3af9"
+    },
+    "reference/FixedEffectsOLS.qmd": {
+      "status": "ok",
+      "input_sha256": "030852c587783a4ff782095fdc4c90d005cbda4133b0ab70c90a1e2884906ae8",
+      "executed_at_utc": "2026-09-09T16:00:03.116336+00:00",
+      "seconds": 3.6,
+      "executed_cells": 5,
+      "html_sha256": "05dd2fd676fdac91b57c6da9bf65d21356b46be25b3573eba0c5e7a5c249e8ca"
+    },
+    "reference/GMM.qmd": {
+      "status": "ok",
+      "input_sha256": "3a2c36b4914433418411d34d9f917f0be7cf003bb22033c8c7662e4db5e8b618",
+      "executed_at_utc": "2026-09-09T16:02:57.036112+00:00",
+      "seconds": 3.71,
+      "executed_cells": 5,
+      "html_sha256": "68b406189c1ad5453e1d284613edcb1535ec88baa61d1b15c8bee79697e44414"
+    },
+    "reference/HorizontalPanelRidge.qmd": {
+      "status": "ok",
+      "input_sha256": "359d3a702d3214b7ecfe1dd4a8418b49e89ab67fbd5f9f6c858600a5fae741d9",
+      "executed_at_utc": "2026-09-09T16:00:10.040297+00:00",
+      "seconds": 3.46,
+      "executed_cells": 5,
+      "html_sha256": "90b4a4e64a64fa1bb1588be9ff7e6e012eea82dc390e0456dd6ea3a6d64ace83"
+    },
+    "reference/HypothesisTests.qmd": {
+      "status": "ok",
+      "input_sha256": "3f002c2c9b9977b4f8e7a14897b6da1afed5455757fb5f524e8df55370806e98",
+      "executed_at_utc": "2026-09-09T16:00:13.499738+00:00",
+      "seconds": 3.46,
+      "executed_cells": 4,
+      "html_sha256": "b4eb009ab09cac609d5d8b664d1b46e7dfb53271036e111d6a54c6ee4143c66b"
+    },
+    "reference/InteractiveFixedEffects.qmd": {
+      "status": "ok",
+      "input_sha256": "c0b72cb0f47bea7ddf9f5c19f636d3721528909a3c5acf5ec7089850df8a3500",
+      "executed_at_utc": "2026-09-09T16:00:16.926708+00:00",
+      "seconds": 3.43,
+      "executed_cells": 5,
+      "html_sha256": "5c9de6a56506dbc7c519a16935a8f82e03ab6a05bc9dbc604d29a204e803fee9"
+    },
+    "reference/KernelBasis.qmd": {
+      "status": "ok",
+      "input_sha256": "24c6fca319b98cf488db6015569df47d043114852f94a554e7a05608e38ed491",
+      "executed_at_utc": "2026-09-09T16:00:20.413230+00:00",
+      "seconds": 3.49,
+      "executed_cells": 7,
+      "html_sha256": "03efaddd97e3106800cf1374f843fdc4da3394c88449bb68cdb8f2bf6c4e0163"
+    },
+    "reference/Logit.qmd": {
+      "status": "ok",
+      "input_sha256": "b84fd2dfcccba87459bd105328542ffc42248b6bdbbf7eca79f0ab9daf1eeafc",
+      "executed_at_utc": "2026-09-09T16:00:23.918548+00:00",
+      "seconds": 3.5,
+      "executed_cells": 5,
+      "html_sha256": "9e5af5def47606651fd85d6d4ab44818bb0ef854f95164ff520163e38ebbc9fe"
+    },
+    "reference/MEstimator.qmd": {
+      "status": "ok",
+      "input_sha256": "c637ea93205d3f9e6e8ffecfff8dda691df876682e7cb435215d50ccdb626c23",
+      "executed_at_utc": "2026-09-09T16:00:27.373291+00:00",
+      "seconds": 3.45,
+      "executed_cells": 5,
+      "html_sha256": "53434d6d16239ead723474bbbed80b54d374cc4331c94fb32805d347f6bc1ad9"
+    },
+    "reference/MPE_CBPS.qmd": {
+      "status": "ok",
+      "input_sha256": "8fd464778594f8d611c5c75a8e198faf2644b4555d1a838977fa98da49015b6e",
+      "executed_at_utc": "2026-09-09T16:00:30.892588+00:00",
+      "seconds": 3.52,
+      "executed_cells": 5,
+      "html_sha256": "8da7df71281ecffa9d24d09c6c588892d59fbca939ed6c64d8e29f681d4d9d5d"
+    },
+    "reference/MatrixCompletion.qmd": {
+      "status": "ok",
+      "input_sha256": "ec6e0b5389f38bb5102d9fed4d7b157f6452b17daca234a9003d3dffb1a9772b",
+      "executed_at_utc": "2026-09-09T16:00:34.364545+00:00",
+      "seconds": 3.47,
+      "executed_cells": 5,
+      "html_sha256": "01b78a52dc404a3d71ac15af1e343fff0d251412ba016d675b1b54ec580bfe42"
+    },
+    "reference/MultinomialLogit.qmd": {
+      "status": "ok",
+      "input_sha256": "7eb9bbae15d68acea110b4d1d25c8f1ac6ca34bc999e981008dc1d28138cab7e",
+      "executed_at_utc": "2026-09-09T16:00:37.783281+00:00",
+      "seconds": 3.42,
+      "executed_cells": 5,
+      "html_sha256": "bd03c0a6879a52ecfdfd48ba9b275bd55cb2278429fc2f360c48913bddf6155c"
+    },
+    "reference/OLS.qmd": {
+      "status": "ok",
+      "input_sha256": "88934227aa98887791b4056be59693bf7dfda277ac1245ce9162ec62d4f2fa21",
+      "executed_at_utc": "2026-09-09T16:00:41.275195+00:00",
+      "seconds": 3.49,
+      "executed_cells": 5,
+      "html_sha256": "e6a3ae000f26638373122d93a9735bfef603c6c4818635568b8ae8ff6a54597d"
+    },
+    "reference/Optimizers.qmd": {
+      "status": "ok",
+      "input_sha256": "748985fc274c5b0347c8bf9a83197f16b28f6bc0655be8a7dd6c064d3492585d",
+      "executed_at_utc": "2026-09-09T16:00:44.686706+00:00",
+      "seconds": 3.41,
+      "executed_cells": 5,
+      "html_sha256": "beb8d90a887c94a2f8985dcec2fe8f10a9a740830c61be2c6f4a36989c16836d"
+    },
+    "reference/PCA.qmd": {
+      "status": "ok",
+      "input_sha256": "1049a2cb5652939d22605fe94bd61d57d3782f7bd68592a0eb1d72b911ea609d",
+      "executed_at_utc": "2026-09-09T16:00:48.123371+00:00",
+      "seconds": 3.44,
+      "executed_cells": 6,
+      "html_sha256": "05b4ee619898dc16fbc16d5318395a15e34329f45ae69d3aabfe4710e72bd42e"
+    },
+    "reference/PartiallyLinearDML.qmd": {
+      "status": "ok",
+      "input_sha256": "dc114da2d95a6ad7a7d35805e0990368861ba7de4bf64450e8fd377a49614966",
+      "executed_at_utc": "2026-09-09T16:00:51.596752+00:00",
+      "seconds": 3.47,
+      "executed_cells": 5,
+      "html_sha256": "590bca6811f862d3dad53baf1b31156c58a7bf67f8ec798bf86198a5b8114851"
+    },
+    "reference/Poisson.qmd": {
+      "status": "ok",
+      "input_sha256": "485ce72ddd53609c19c353011cdd828f79fe022ca83330323de7f4d129c3df30",
+      "executed_at_utc": "2026-09-09T16:00:55.042727+00:00",
+      "seconds": 3.45,
+      "executed_cells": 5,
+      "html_sha256": "5a20f99d165f5d623cd52436e3fe6cabbc429c73abd9e78d89189f2553ee3c36"
+    },
+    "reference/Ridge.qmd": {
+      "status": "ok",
+      "input_sha256": "23fe30fb39b3a65734c6af5dae961a64bfc3a5fa3ec98a96a90ea53583f233e1",
+      "executed_at_utc": "2026-09-09T16:00:58.490203+00:00",
+      "seconds": 3.45,
+      "executed_cells": 5,
+      "html_sha256": "bf09aff2fe95bc51aa161ba352e86768bd8172536aa9adab830ce2395e2dcfa1"
+    },
+    "reference/SyntheticControl.qmd": {
+      "status": "ok",
+      "input_sha256": "849972663695a3fc29d0a8486a3c67eb5e2fd818e0e18fa0d8d460f112274830",
+      "executed_at_utc": "2026-09-09T16:01:01.913628+00:00",
+      "seconds": 3.42,
+      "executed_cells": 5,
+      "html_sha256": "7ea02deb73cd28346652903038007d62ce80d94382140829cfa1c5b722498ebe"
+    },
+    "reference/SyntheticDID.qmd": {
+      "status": "ok",
+      "input_sha256": "6c3f6533e48ee380119a21c9268374a00e7cee97477c80b96627f744f709f1cf",
+      "executed_at_utc": "2026-09-09T16:01:05.347004+00:00",
+      "seconds": 3.43,
+      "executed_cells": 5,
+      "html_sha256": "0cd36e82ca24f9714a293f9254277c749b4eb8438bae43f9325d9b67a8a21abf"
+    },
+    "reference/TwoSLS.qmd": {
+      "status": "ok",
+      "input_sha256": "ee7cd09f482663b7d630372687673adc27de23e06da6fb48a9b08044d955c580",
+      "executed_at_utc": "2026-09-09T16:01:08.836195+00:00",
+      "seconds": 3.49,
+      "executed_cells": 5,
+      "html_sha256": "add1ff83e3338cd22c980c79acdf9510c60c535b5860ef2efa6255994567997b"
+    },
+    "reference/WeibullPH.qmd": {
+      "status": "ok",
+      "input_sha256": "c76da8e4572001bebf7e0a3fcbee45d2251425450564d78228666f07347a0188",
+      "executed_at_utc": "2026-09-09T16:01:12.265012+00:00",
+      "seconds": 3.43,
+      "executed_cells": 5,
+      "html_sha256": "484add36c1144a5b259d2ad93ca83ba0b99a837df32d3397f5d4dec26dde4ea4"
+    },
+    "release-0.9.qmd": {
+      "status": "ok",
+      "input_sha256": "631a1818f346992c3ec9d686162dd50dcfd59f862261b5fadd9c6f7ca1eebdd5",
+      "executed_at_utc": "2026-09-09T16:01:31.941599+00:00",
+      "seconds": 1.05,
+      "executed_cells": 0,
+      "html_sha256": "f6688af5141c0cf02ecf49633f1bb7209a5e0064c746d3bfb991a13d9277f25b"
+    },
+    "reproducing.qmd": {
+      "status": "ok",
+      "input_sha256": "5f384d213318b5600014473260b435de0bc8d78a458eb8086065e48ddb56ae4f",
+      "executed_at_utc": "2026-09-09T16:01:14.400306+00:00",
+      "seconds": 1.06,
+      "executed_cells": 0,
+      "html_sha256": "d6f8342ec12235478e4c9abeddc5a5f26692ff3667fa6bc9d652853ebde55d4c"
+    }
+  },
+  "environment": {
+    "python": "3.12.9",
+    "quarto": "1.8.27",
+    "packages": {
+      "crabbymetrics": "0.9.0",
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "matplotlib": "3.11.1",
+      "pyfixest": "0.60.0",
+      "scipy": "1.18.1",
+      "polars": "1.44.2",
+      "IPython": "9.17.1",
+      "jupyter-cache": "1.0.1",
+      "PyYAML": "6.0.3"
+    },
+    "extension_sha256": "3ecd8014ec2b2392c9a95b1921f016f835e1cdf453bc142588bf2d5a4bc64b1b"
+  },
+  "source_revision": "0b5683589b8b36c1604c25adc16da48bdc72c65f",
+  "source_dirty": false,
+  "execution_mode": "fresh",
+  "render_flags": [
+    "--execute",
+    "--cache-refresh",
+    "-M",
+    "freeze:false"
+  ],
+  "complete": true,
+  "resources": {
+    "styles.css": "640a610b08fb66e8542306fd2aaf29598ed9b92b577831d85840b7cb458b0e33",
+    "llms.txt": "28814bdd30b40cfa20e75de51f3d4576151255d6126e64b585a29ced1234205f"
+  }
+}

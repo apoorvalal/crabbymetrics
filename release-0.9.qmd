@@ -1,0 +1,72 @@
+---
+title: "Migrating to v0.9"
+subtitle: "Changed behavior, inference checks, and numerical guarantees"
+format:
+  html:
+    toc: true
+---
+
+Version 0.9.0 preserves the package's NumPy-facing interface but changes several
+numerical and inference contracts. Re-run saved analyses that depend on the
+affected behavior; an unchanged method name does not imply unchanged results.
+
+## Changes that can alter results
+
+| Area | Current behavior | Action |
+|---|---|---|
+| [ElasticNet](reference/ElasticNet.qmd) | Both predictors and outcome are centered for an intercept; pure L2 uses QR. | Refit models trained on non-centered features. Do not manually center only the outcome. |
+| [Analytic weights](reference/OLS.qmd) | OLS, fixed effects, Ridge, and TwoSLS exclude zero-weight rows and zero-only clusters from inference counts. | Do not treat weights as frequency counts. HAC lags use active rows. |
+| [GMM](reference/GMM.qmd) | Convergence is scale-aware; damping is excluded from statistical weights and covariance. | Expect some previously accepted weak or nonconverged fits to raise. |
+| [CoxPH](reference/CoxPH.qmd) | Stable risk-set sums replace clipped exponentials and repeated full risk-set scans. | Refit extreme-index designs; predictions are still relative risks, not survival probabilities. |
+| [GLM inference](reference/Poisson.qmd) | Singular unpenalized information is not repaired with an artificial ridge. | Check `inference_available` before reading standard errors. |
+| [MatrixCompletion](reference/MatrixCompletion.qmd) | Objective increases are not convergence; objective and rank traces are aligned. | Check `converged`, including after a fit returns normally. |
+
+## Callback models
+
+`GMM` retains snapshots of fitted moments and Jacobians. `MEstimator` computes
+its score-derivative sandwich at fit time. Repeated summaries do not silently
+change after callback data are mutated. Nevertheless, keep callback data
+immutable: MEstimator bootstrap and an explicit `compute_vcov()` use the
+retained Python data.
+
+For GMM, the default sandwich remains available. `summary(vcov="vanilla")`
+requires iid two-step weighting or an explicit `assume_optimal_weighting=True`
+assertion. That assertion states an assumption; it does not make a nonoptimal
+weight optimal. The [variance ablation](ablations/variance-estimators.qmd)
+shows why the distinction matters. J-statistic values likewise need appropriate
+weighting and sampling assumptions before a chi-square interpretation.
+
+## Validation and fitted state
+
+Prediction checks feature counts and finite values. Invalid CV folds and
+infeasible categorical/kernel allocations raise descriptive errors. A fitted
+rank-deficient model may still predict while inference is unavailable; consult
+its class reference before using a covariance or Wald test.
+Refits clear learned state when Rust fit code is entered,
+including when subsequent validation or optimization fails. Python
+argument-conversion errors happen before that entry point.
+
+Do not catch a failed fit and then use an earlier model result from the same
+object. Keep the earlier fitted object separately when that behavior is needed.
+
+## Performance and output controls
+
+- Ridge penalty grids reuse SVD work; bootstrap indices are streamed.
+- Cox right-censored risk sets use cumulative sums. Andersen-Gill still scans
+  start/stop intervals and does not provide subject-clustered covariance.
+- SNMM horizons reuse QR work.
+- `MatrixCompletion.summary(include_matrices=False)` avoids copying dense
+  surfaces when only diagnostics and scalar effects are needed.
+- Sketched OLS and IV summaries disclose approximation provenance. Approximate
+  fits do not carry an automatic confidence-interval coverage guarantee.
+
+## New estimator
+
+[MPE_CBPS](reference/MPE_CBPS.qmd) fits the two-arm calibration weights used by
+the [Chronos long-term-value example](examples/chronos-ltv-balancing.qmd).
+The dynamic identification assumptions are essential; balance alone does not
+identify a long-run policy effect.
+
+The [GitHub release](https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.9.0)
+records the package changes. The [hardening report](https://lalten.org/pages/crabbymetrics-estimator-hardening/)
+retains before/after evidence and the explicitly deferred work.

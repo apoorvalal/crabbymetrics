@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-445ff30f473745a4b54dfab4fb13ee75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -108,6 +108,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
 
+<link rel="stylesheet" href="../styles.css">
 </head>
 
 <body class="nav-fixed fullcontent quarto-light">
@@ -157,6 +158,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Causal Inference And Panels</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
  <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
   </li>  
@@ -172,13 +177,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
-<span class="menu-text">Binding Crash Course</span></a>
+<span class="menu-text">Internals</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Regression And GLMs</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
@@ -238,13 +243,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Causal Inference</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
@@ -356,6 +365,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
  <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -374,57 +387,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Ding: First Course</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
- <span class="dropdown-text">Overview And TOC</span></a>
+ <span class="dropdown-text">Chapter Index</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
- <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
- <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
- <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
- <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
- <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
- <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
- <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
- <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
- <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
- <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch27-mediation.html">
- <span class="dropdown-text">Ch 27 Mediation</span></a>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
   </li>  
     </ul>
   </li>
@@ -453,7 +442,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">MLE Prediction Interface</h1>
-<p class="subtitle lead">Latent indices, mean-scale predictions, and labels after the MLE overhaul</p>
+<p class="subtitle lead">Latent indices, probabilities, means, and labels</p>
 </div>
 
 
@@ -470,17 +459,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This vignette documents the prediction contract used by the nonlinear MLE-style estimators after the <code>0.7</code> overhaul.</p>
+<p>This vignette documents the prediction contract used by the nonlinear MLE-style estimators in v0.9.0.</p>
 <section id="the-contract" class="level2">
 <h2 class="anchored" data-anchor-id="the-contract">The contract</h2>
-<p>For the estimators where prediction makes sense, the public surface is now intentionally layered:</p>
+<p>For the estimators where prediction makes sense, the public surface is layered:</p>
 <ul>
 <li><code>predict_lin(...)</code>: the latent linear index;</li>
 <li><code>predict(...)</code>: the mean-scale or model-implied prediction object;</li>
 <li><code>predict_label(...)</code>: only for classifiers, where hard labels are genuinely distinct from probabilities.</li>
 </ul>
 <p>That contract avoids overloading <code>predict()</code> to sometimes mean probabilities and sometimes mean labels.</p>
-<div id="d9cc964c" class="cell" data-execution_count="1">
+<div id="144df907" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
@@ -490,7 +479,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="binary-logit" class="level2">
 <h2 class="anchored" data-anchor-id="binary-logit">Binary logit</h2>
-<div id="1fb45871" class="cell" data-execution_count="2">
+<div id="58dd5112" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260525</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">3</span>))</span>
@@ -593,7 +582,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The identity is exact by construction:</p>
-<div id="5ffb93e2" class="cell" data-execution_count="3">
+<div id="2ab04595" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>np.allclose(logit_table[<span class="st">"prob"</span>], <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>logit_table[<span class="st">"eta"</span>])))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
 <pre><code>True</code></pre>
@@ -603,7 +592,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="multinomial-logit" class="level2">
 <h2 class="anchored" data-anchor-id="multinomial-logit">Multinomial logit</h2>
 <p>For multinomial logit, <code>predict_lin()</code> returns one classwise score per row, <code>predict()</code> returns class probabilities, and <code>predict_label()</code> returns the argmax class.</p>
-<div id="522dcfcc" class="cell" data-execution_count="4">
+<div id="56f268c5" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260526</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1500</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> np.array(</span>
@@ -700,7 +689,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<div id="27a6cbc3" class="cell" data-execution_count="5">
+<div id="a4c7814d" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>softmax <span class="op">=</span> np.exp(eta_hat <span class="op">-</span> eta_hat.<span class="bu">max</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>))</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>softmax <span class="op">=</span> softmax <span class="op">/</span> softmax.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>np.allclose(prob_hat, softmax)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -712,7 +701,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="poisson" class="level2">
 <h2 class="anchored" data-anchor-id="poisson">Poisson</h2>
 <p>For Poisson, the latent index is the log conditional mean, and <code>predict()</code> exponentiates it back to the count scale.</p>
-<div id="ebfb1872" class="cell" data-execution_count="6">
+<div id="31c97c46" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260527</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -793,7 +782,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<div id="a2fbcd57" class="cell" data-execution_count="7">
+<div id="89829921" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>np.allclose(poisson_table[<span class="st">"mu"</span>], np.exp(poisson_table[<span class="st">"log_mu"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>True</code></pre>
@@ -887,7 +876,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1215,6 +1204,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   });
   </script>
 </div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.0</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
 
 
 

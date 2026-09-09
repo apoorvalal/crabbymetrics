@@ -6,7 +6,6 @@ format:
     toc: true
     toc-depth: 2
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"
@@ -30,13 +29,6 @@ import pandas as pd
 import crabbymetrics as cm
 
 np.set_printoptions(precision=4, suppress=True)
-
-
-def repo_root():
-    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
-        if (candidate / "ding_w_source").exists():
-            return candidate
-    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
 def simulate_experiment(rng, shares, n=300):
@@ -139,7 +131,7 @@ print("TwoSLS HC1 SE:", round(float(iv_hc1["coef_se"][0]), 4))
 The R script closes with the JOBS data from the `mediation` package. Assignment to the job-search intervention is the instrument, actual compliance is the treatment uptake, and job-search self-efficacy is the outcome. Because the design has one-sided noncompliance, the Wald estimand is the complier effect of uptake among those induced to comply by assignment.
 
 ```{python}
-jobs = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "jobsdata.csv")
+jobs = pd.read_csv(Path("../data/ding") / "jobsdata.csv")
 z_jobs = jobs["treat"].to_numpy(dtype=float)
 d_jobs = jobs["comply"].to_numpy(dtype=float)
 y_jobs = jobs["job_seek"].to_numpy(dtype=float)

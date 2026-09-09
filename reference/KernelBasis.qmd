@@ -6,9 +6,8 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
 execute:
   echo: true
   warning: false
@@ -17,6 +16,7 @@ jupyter: python3
 ---
 
 ```{python}
+#| include: false
 from _api_doc_utils import *
 ```
 
@@ -93,6 +93,11 @@ Its feature inner products approximate the Gaussian kernel in expectation. An om
 These three classes share kernel conventions but have deliberately different implementation boundaries.
 
 ### Exact `KernelBasis`
+
+Kernel parameters and arrays must be finite. Dense cross-kernel outputs and the
+training Gram matrix are checked against a 512 MiB per-matrix capacity limit
+before allocation. Oversized requests raise with dimensions rather than silently
+switching to an approximation. Failed exact-basis refits clear fitted state.
 
 1. `fit()` asks Linfa's kernel builder to materialize the square training Gram matrix and stores both that dense matrix and an owned copy of the training rows. This is the only delegated numerical primitive on this page.
 2. `transform()` is package-owned. It checks the incoming feature count and uses nested row loops to evaluate the selected Linfa kernel method between every new row and every stored training row. Thus training and out-of-sample transformations use the same kernel definition but not the same matrix-building path.

@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-445ff30f473745a4b54dfab4fb13ee75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -108,6 +108,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
 
+<link rel="stylesheet" href="../styles.css">
 </head>
 
 <body class="nav-fixed fullcontent quarto-light">
@@ -157,6 +158,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Causal Inference And Panels</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
  <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
   </li>  
@@ -172,13 +177,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
-<span class="menu-text">Binding Crash Course</span></a>
+<span class="menu-text">Internals</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Regression And GLMs</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
@@ -238,13 +243,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Causal Inference</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
@@ -356,6 +365,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
  <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -374,57 +387,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Ding: First Course</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
- <span class="dropdown-text">Overview And TOC</span></a>
+ <span class="dropdown-text">Chapter Index</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
- <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
- <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
- <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
- <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
- <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
- <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
- <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
- <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
- <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
- <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch27-mediation.html">
- <span class="dropdown-text">Ch 27 Mediation</span></a>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
   </li>  
     </ul>
   </li>
@@ -471,7 +460,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>This vignette is the richer worked companion to the class reference pages for the survival submodule.</p>
-<div id="e2b5bc8d" class="cell" data-execution_count="1">
+<div id="43893d14" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -496,7 +485,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="simulate-a-weibull-ph-design" class="level2">
 <h2 class="anchored" data-anchor-id="simulate-a-weibull-ph-design">Simulate a Weibull PH design</h2>
-<div id="f3c974b5" class="cell" data-execution_count="2">
+<div id="f4a11500" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260524</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">0.55</span>, <span class="op">-</span><span class="fl">0.35</span>])</span>
@@ -518,7 +507,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="fit-the-parametric-ph-models" class="level2">
 <h2 class="anchored" data-anchor-id="fit-the-parametric-ph-models">Fit the parametric PH models</h2>
-<div id="559e2b9f" class="cell" data-execution_count="3">
+<div id="c6950bca" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>exp_ph <span class="op">=</span> cm.ExponentialPH()</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>exp_ph.fit(x, time, event)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -585,7 +574,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </section>
 <section id="parametric-prediction-surfaces" class="level2">
 <h2 class="anchored" data-anchor-id="parametric-prediction-surfaces">Parametric prediction surfaces</h2>
-<div id="31c3c66c" class="cell" data-execution_count="4">
+<div id="faeaae10" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>check_x <span class="op">=</span> x[:<span class="dv">5</span>]</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>check_t <span class="op">=</span> np.linspace(<span class="fl">2.0</span>, <span class="fl">12.0</span>, <span class="dv">5</span>)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -661,7 +650,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 </div>
-<div id="1b074032" class="cell" data-execution_count="5">
+<div id="666c0210" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>weibull_preds <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"time"</span>: check_t,</span>
@@ -735,7 +724,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 <p>The internal identities line up exactly:</p>
-<div id="68d34689" class="cell" data-execution_count="6">
+<div id="c08b6a3e" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"exp hazard = exp(lin)"</span>: np.allclose(exp_preds[<span class="st">"hazard"</span>], np.exp(exp_preds[<span class="st">"lin"</span>])),</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"exp survival = exp(-cumhaz)"</span>: np.allclose(exp_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>exp_preds[<span class="st">"cumhaz"</span>])),</span>
@@ -752,7 +741,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </section>
 <section id="cox-proportional-hazards" class="level2">
 <h2 class="anchored" data-anchor-id="cox-proportional-hazards">Cox proportional hazards</h2>
-<div id="1c4f5758" class="cell" data-execution_count="7">
+<div id="b7797a48" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>cox <span class="op">=</span> cm.CoxPH()</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>cox.fit(x, time, event)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -769,7 +758,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 <span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>cox_table</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>{'converged': True, 'iterations': 3, 'termination_reason': 'Relative objective tolerance reached', 'objective': 3798.3044744978797}</code></pre>
+<pre><code>{'converged': True, 'iterations': 3, 'termination_reason': 'Relative objective tolerance reached', 'objective': 3798.304474497879}</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <div>
@@ -807,7 +796,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 <p>Since the baseline hazard is left unspecified, the default prediction is relative risk rather than absolute survival:</p>
-<div id="b5c0544d" class="cell" data-execution_count="8">
+<div id="958742e7" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>cox_preds <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"log_hazard_ratio"</span>: cox.predict_lin(check_x),</span>
@@ -863,7 +852,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 <section id="andersengill-for-recurrent-events-or-split-intervals" class="level2">
 <h2 class="anchored" data-anchor-id="andersengill-for-recurrent-events-or-split-intervals">Andersen–Gill for recurrent events or split intervals</h2>
 <p>A convenient smoke test is to split each subject into two rows with the event, if any, carried only by the final interval.</p>
-<div id="7f7eb500" class="cell" data-execution_count="9">
+<div id="629ee403" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>start_long <span class="op">=</span> np.concatenate([np.zeros_like(time), time <span class="op">/</span> <span class="dv">2</span>])</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>stop_long <span class="op">=</span> np.concatenate([time <span class="op">/</span> <span class="dv">2</span>, time])</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>x_long <span class="op">=</span> np.vstack([x, x])</span>
@@ -882,7 +871,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 <span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="st">"x1"</span>, <span class="st">"x2"</span>],</span>
 <span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>{'converged': True, 'iterations': 3, 'termination_reason': 'Relative objective tolerance reached', 'objective': 3798.3044744978793}</code></pre>
+<pre><code>{'converged': True, 'iterations': 3, 'termination_reason': 'Relative objective tolerance reached', 'objective': 3798.304474497878}</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="9">
 <div>
@@ -913,7 +902,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </div>
 </div>
 </div>
-<div id="362a7d47" class="cell" data-execution_count="10">
+<div id="b362073c" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>ag_preds <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"log_hazard_ratio"</span>: ag.predict_lin(check_x),</span>
@@ -968,7 +957,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 </section>
 <section id="visualizing-survival-curves-from-the-parametric-fit" class="level2">
 <h2 class="anchored" data-anchor-id="visualizing-survival-curves-from-the-parametric-fit">Visualizing survival curves from the parametric fit</h2>
-<div id="84985fdf" class="cell" data-execution_count="11">
+<div id="91baab01" class="cell" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(<span class="fl">0.1</span>, np.quantile(time, <span class="fl">0.9</span>), <span class="dv">100</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>profiles <span class="op">=</span> np.array([</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">0.0</span>, <span class="fl">0.0</span>],</span>
@@ -990,7 +979,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="survival-time-to-event-and-recurrent-events_files/figure-html/cell-12-output-1.png" width="591" height="413" class="figure-img"></p>
+<p><img src="survival-time-to-event-and-recurrent-events_files/figure-html/cell-12-output-1.png" width="592" height="414" class="figure-img"></p>
 </figure>
 </div>
 </div>
@@ -1083,7 +1072,7 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1411,6 +1400,30 @@ WeibullPH diagnostics: {'converged': True, 'iterations': 5, 'termination_reason'
   });
   </script>
 </div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.0</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
 
 
 

@@ -3,7 +3,6 @@ title: "Variance Estimator Ablations"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"
@@ -247,19 +246,21 @@ def simulate_gmm(sample_sizes, reps, seed):
             model = cm.GMM(gmm_moments, jacobian_fn=gmm_jacobian, max_iterations=200, tolerance=1e-10)
             model.fit({"x": x, "y": y, "z": z}, theta0, weighting="identity")
 
-            vanilla = model.summary(vcov="vanilla")
             sandwich = model.summary(vcov="sandwich", omega="iid")
-            slope_estimates.append(float(vanilla["coef"][0]))
-            vanilla_ses.append(float(vanilla["se"][0]))
+            # Deliberately invalid covariance, retained only as a negative control.
+            jacobian = gmm_jacobian(sandwich["coef"], {"x": x, "z": z})
+            naive_variance = 1.0 / (n * float((jacobian.T @ jacobian)[0, 0]))
+            slope_estimates.append(float(sandwich["coef"][0]))
+            vanilla_ses.append(float(np.sqrt(naive_variance)))
             sandwich_ses.append(float(sandwich["se"][0]))
 
-        out.append({"n": n, "method": "Vanilla", **summarize_method(slope_estimates, vanilla_ses, beta_true)})
+        out.append({"n": n, "method": "Naive identity (invalid)", **summarize_method(slope_estimates, vanilla_ses, beta_true)})
         out.append({"n": n, "method": "Sandwich", **summarize_method(slope_estimates, sandwich_ses, beta_true)})
 
     return out
 ```
 
-## Cached Monte Carlo Runs
+## Monte Carlo Runs
 
 ```{python}
 ols_results = simulate_ols(sample_sizes, ols_reps, seed=20260322)
@@ -307,7 +308,7 @@ display(
 
 ## Poisson: Vanilla Fisher Versus QMLE Sandwich
 
-The conditional mean is correctly specified as \(\mu_i = \exp(x_i^\top \beta)\), but the counts are generated from a Poisson-gamma mixture, so
+The conditional mean is correctly specified as $\mu_i = \exp(x_i^\top \beta)$, but the counts are generated from a Poisson-gamma mixture, so
 
 $$
 \mathbb{E}[Y_i \mid X_i] = \mu_i
@@ -332,7 +333,7 @@ display(
 )
 ```
 
-## GMM: Vanilla Versus Sandwich In One-Step GMM
+## GMM: Invalid Identity Shortcut Versus Sandwich
 
 For GMM the difference only shows up if the weighting and covariance assumptions are not already aligned. This experiment therefore uses one-step identity-weighted GMM, not efficient two-step GMM. The moments are
 
@@ -340,7 +341,7 @@ $$
 g_i(\beta) = z_i (y_i - x_i \beta),
 $$
 
-with heteroskedastic structural shocks. The vanilla covariance uses
+with heteroskedastic structural shocks. The deliberately invalid identity-weight shortcut uses
 
 $$
 \widehat{\mathrm{Var}}_{\text{vanilla}}(\hat\beta) = (G^\top W G)^{-1} / n,
@@ -356,7 +357,11 @@ $$
 (G^\top W G)^{-1} / n.
 $$
 
-The built-in `cm.GMM.summary()` exposes both columns directly.
+The native estimator supplies the sandwich column. Version 0.9 rejects the
+vanilla shortcut for this identity-weighted fit unless the caller asserts
+optimal weighting, which is false here. The invalid column is therefore an
+explicit NumPy reference calculation, not a recommended API call. Its purpose
+is to show the coverage failure prevented by that new guard.
 
 ```{python}
 display(

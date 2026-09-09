@@ -5,11 +5,10 @@ format:
     toc: true
     toc-depth: 2
     number-sections: true
-    embed-resources: true
     page-layout: full
 ---
 
-This section groups the IV chapters implemented in the current batch:
+This section groups the two IV chapters:
 
 - [Chapter 21: An Experimental Perspective on the Instrumental Variable](ch21-iv-experiments.html)
 - [Chapter 23: An Econometric Perspective on the Instrumental Variable](ch23-iv-econometrics.html)

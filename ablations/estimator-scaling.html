@@ -1,0 +1,3498 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Fresh v0.9.0 timings for the 30-estimator benchmark inventory">
+
+<title>Estimator scaling and reference implementations – crabbymetrics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../logo.png" alt="" class="navbar-logo light-content">
+    <img src="../logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">crabbymetrics</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">API</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
+        <li>
+    <a class="dropdown-item" href="../api.html">
+ <span class="dropdown-text">API Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#regression-and-glms">
+ <span class="dropdown-text">Regression And GLMs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#survival-time-to-event-and-recurrent-event-models">
+ <span class="dropdown-text">Survival / Event-Time</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#causal-inference-and-panels">
+ <span class="dropdown-text">Causal Inference And Panels</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
+ <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#transforms">
+ <span class="dropdown-text">Transforms</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#estimation-interfaces-and-optimizers">
+ <span class="dropdown-text">Estimation Interfaces</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../mechanics-ols.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
+        <li>
+    <a class="dropdown-item" href="../examples/ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/abc-ols.html">
+ <span class="dropdown-text">ABC OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bagged-polynomial-regression.html">
+ <span class="dropdown-text">Bagged Polynomial Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/elastic-net.html">
+ <span class="dropdown-text">ElasticNet</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/logit.html">
+ <span class="dropdown-text">Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multinomial-logit.html">
+ <span class="dropdown-text">Multinomial Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mle-prediction-interface.html">
+ <span class="dropdown-text">MLE Prediction Interface</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival-time-to-event-and-recurrent-events.html">
+ <span class="dropdown-text">Survival / Recurrent Events</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm.html">
+ <span class="dropdown-text">GMM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mestimator-poisson.html">
+ <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
+ <span class="dropdown-text">Cressie-Read And Rényi Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/sparse-rotations.html">
+ <span class="dropdown-text">Sparse Factor Rotations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ablations</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+        <li>
+    <a class="dropdown-item" href="../ablations/variance-estimators.html">
+ <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
+ <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
+ <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Optimization</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+        <li>
+    <a class="dropdown-item" href="../examples/optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
+ <span class="dropdown-text">GMM With Optimizers</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
+        <li>
+    <a class="dropdown-item" href="../first-course-ding.html">
+ <span class="dropdown-text">Chapter Index</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#guard-rails" id="toc-guard-rails" class="nav-link active" data-scroll-target="#guard-rails">Guard rails</a></li>
+  <li><a href="#completion-status" id="toc-completion-status" class="nav-link" data-scroll-target="#completion-status">Completion status</a></li>
+  <li><a href="#numerical-experiment" id="toc-numerical-experiment" class="nav-link" data-scroll-target="#numerical-experiment">Numerical experiment</a>
+  <ul class="collapse">
+  <li><a href="#common-grid-and-timing-boundary" id="toc-common-grid-and-timing-boundary" class="nav-link" data-scroll-target="#common-grid-and-timing-boundary">Common grid and timing boundary</a></li>
+  <li><a href="#dimension-conventions" id="toc-dimension-conventions" class="nav-link" data-scroll-target="#dimension-conventions">Dimension conventions</a></li>
+  <li><a href="#randomness-and-comparability" id="toc-randomness-and-comparability" class="nav-link" data-scroll-target="#randomness-and-comparability">Randomness and comparability</a></li>
+  </ul></li>
+  <li><a href="#matched-reference-ratios" id="toc-matched-reference-ratios" class="nav-link" data-scroll-target="#matched-reference-ratios">Matched reference ratios</a></li>
+  <li><a href="#estimator-by-estimator-results" id="toc-estimator-by-estimator-results" class="nav-link" data-scroll-target="#estimator-by-estimator-results">Estimator-by-estimator results</a>
+  <ul class="collapse">
+  <li><a href="#abcols" id="toc-abcols" class="nav-link" data-scroll-target="#abcols">ABCOLS</a></li>
+  <li><a href="#ols" id="toc-ols" class="nav-link" data-scroll-target="#ols">OLS</a></li>
+  <li><a href="#fixedeffectsols" id="toc-fixedeffectsols" class="nav-link" data-scroll-target="#fixedeffectsols">FixedEffectsOLS</a></li>
+  <li><a href="#elasticnet" id="toc-elasticnet" class="nav-link" data-scroll-target="#elasticnet">ElasticNet</a></li>
+  <li><a href="#ridge" id="toc-ridge" class="nav-link" data-scroll-target="#ridge">Ridge</a></li>
+  <li><a href="#baggedpolynomialregressor" id="toc-baggedpolynomialregressor" class="nav-link" data-scroll-target="#baggedpolynomialregressor">BaggedPolynomialRegressor</a></li>
+  <li><a href="#logit" id="toc-logit" class="nav-link" data-scroll-target="#logit">Logit</a></li>
+  <li><a href="#multinomiallogit" id="toc-multinomiallogit" class="nav-link" data-scroll-target="#multinomiallogit">MultinomialLogit</a></li>
+  <li><a href="#poisson" id="toc-poisson" class="nav-link" data-scroll-target="#poisson">Poisson</a></li>
+  <li><a href="#exponentialph" id="toc-exponentialph" class="nav-link" data-scroll-target="#exponentialph">ExponentialPH</a></li>
+  <li><a href="#weibullph" id="toc-weibullph" class="nav-link" data-scroll-target="#weibullph">WeibullPH</a></li>
+  <li><a href="#coxph" id="toc-coxph" class="nav-link" data-scroll-target="#coxph">CoxPH</a></li>
+  <li><a href="#andersengill" id="toc-andersengill" class="nav-link" data-scroll-target="#andersengill">AndersenGill</a></li>
+  <li><a href="#twosls" id="toc-twosls" class="nav-link" data-scroll-target="#twosls">TwoSLS</a></li>
+  <li><a href="#horizontalpanelridge" id="toc-horizontalpanelridge" class="nav-link" data-scroll-target="#horizontalpanelridge">HorizontalPanelRidge</a></li>
+  <li><a href="#syntheticcontrol" id="toc-syntheticcontrol" class="nav-link" data-scroll-target="#syntheticcontrol">SyntheticControl</a></li>
+  <li><a href="#syntheticdid" id="toc-syntheticdid" class="nav-link" data-scroll-target="#syntheticdid">SyntheticDID</a></li>
+  <li><a href="#augmentedbalancing" id="toc-augmentedbalancing" class="nav-link" data-scroll-target="#augmentedbalancing">AugmentedBalancing</a></li>
+  <li><a href="#matrixcompletion" id="toc-matrixcompletion" class="nav-link" data-scroll-target="#matrixcompletion">MatrixCompletion</a></li>
+  <li><a href="#interactivefixedeffects" id="toc-interactivefixedeffects" class="nav-link" data-scroll-target="#interactivefixedeffects">InteractiveFixedEffects</a></li>
+  <li><a href="#balancingweights" id="toc-balancingweights" class="nav-link" data-scroll-target="#balancingweights">BalancingWeights</a></li>
+  <li><a href="#mestimator" id="toc-mestimator" class="nav-link" data-scroll-target="#mestimator">MEstimator</a></li>
+  <li><a href="#gmm" id="toc-gmm" class="nav-link" data-scroll-target="#gmm">GMM</a></li>
+  <li><a href="#eplm" id="toc-eplm" class="nav-link" data-scroll-target="#eplm">EPLM</a></li>
+  <li><a href="#averagederivative" id="toc-averagederivative" class="nav-link" data-scroll-target="#averagederivative">AverageDerivative</a></li>
+  <li><a href="#partiallylineardml" id="toc-partiallylineardml" class="nav-link" data-scroll-target="#partiallylineardml">PartiallyLinearDML</a></li>
+  <li><a href="#aipw" id="toc-aipw" class="nav-link" data-scroll-target="#aipw">AIPW</a></li>
+  <li><a href="#dynamiccovariatebalance" id="toc-dynamiccovariatebalance" class="nav-link" data-scroll-target="#dynamiccovariatebalance">DynamicCovariateBalance</a></li>
+  <li><a href="#paralleltrendssnmm" id="toc-paralleltrendssnmm" class="nav-link" data-scroll-target="#paralleltrendssnmm">ParallelTrendsSNMM</a></li>
+  <li><a href="#regressionblip" id="toc-regressionblip" class="nav-link" data-scroll-target="#regressionblip">RegressionBlip</a></li>
+  </ul></li>
+  <li><a href="#interpretation" id="toc-interpretation" class="nav-link" data-scroll-target="#interpretation">Interpretation</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Estimator scaling and reference implementations</h1>
+</div>
+
+<div>
+  <div class="description">
+    Fresh v0.9.0 timings for the 30-estimator benchmark inventory
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This ablation reruns the 30-estimator benchmark inventory against <strong>v0.9.0</strong>, using adapter revision 2. The bounded grid is <span class="math inline">\(n \in
+\{10^3,10^4,10^5\}\)</span> and <span class="math inline">\(k \in \{5,20\}\)</span>. It does not include the newly added <a href="../reference/MPE_CBPS.html">MPE_CBPS</a>, which has its own executed API example and <a href="../examples/chronos-ltv-balancing.html">Chronos simulation</a>.</p>
+<p>The September 9 measurements replace the obsolete August charts. They include the corrected unpenalized GLM, centered ElasticNet, same-panel horizontal ridge, same-sample 2SLS, and R fit-only timing adapters. This is a smaller reproducible profiling grid, not a rerun of the old <span class="math inline">\(10^7\)</span>-row sweep.</p>
+<p>The <a href="https://github.com/apoorvalal/crabbymetrics/blob/master/benchmarks/scaling/README.md">benchmark README</a> documents reference implementations and dimension conventions. Download the <a href="data/estimator-scaling.csv">measurements</a> and <a href="data/estimator-scaling.host.json">host metadata</a>.</p>
+<section id="guard-rails" class="level2">
+<h2 class="anchored" data-anchor-id="guard-rails">Guard rails</h2>
+<p>Each cell runs in a fresh subprocess with single-threaded numerical kernels. The driver rejects predicted over-cap allocations, watches aggregate descendant RSS, enforces a wall timeout, and stops attempting larger samples after the first hard failure for an estimator/implementation/dimension path. Thus a missing point is an observed feasibility boundary, not an accidental omission.</p>
+<div id="load-scaling-results" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> Markdown, display</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>path <span class="op">=</span> Path(<span class="st">"data/estimator-scaling.csv"</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> pd.read_csv(path)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>host <span class="op">=</span> json.loads(path.with_suffix(<span class="st">".host.json"</span>).read_text())</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">set</span>(results.adapter_revision.dropna()) <span class="op">==</span> {<span class="dv">2</span>}</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">set</span>(results.loc[results.implementation.eq(<span class="st">"crabbymetrics"</span>) <span class="op">&amp;</span> results.status.eq(<span class="st">"ok"</span>), <span class="st">"library_version"</span>]) <span class="op">==</span> {<span class="st">"0.9.0"</span>}</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>benchmark_root <span class="op">=</span> Path.cwd().parents[<span class="dv">1</span>] <span class="op">/</span> <span class="st">"benchmarks"</span> <span class="op">/</span> <span class="st">"scaling"</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>sys.path.insert(<span class="dv">0</span>, <span class="bu">str</span>(benchmark_root))</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> registry <span class="im">import</span> ESTIMATORS, REFERENCE_URLS</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> report_metadata <span class="im">import</span> EXPERIMENT_DETAILS</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> scaling_slope(frame):</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    frame <span class="op">=</span> frame.loc[</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>        frame.status.eq(<span class="st">"ok"</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">&amp;</span> frame.fit_seconds.gt(<span class="dv">0</span>)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>        <span class="op">&amp;</span> frame.n.gt(<span class="dv">0</span>)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    ].drop_duplicates(<span class="st">"n"</span>)</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(frame) <span class="op">&lt;</span> <span class="dv">3</span>:</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.nan</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.polyfit(np.log10(frame.n), np.log10(frame.fit_seconds), deg<span class="op">=</span><span class="dv">1</span>)[<span class="dv">0</span>]</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> render_estimator(estimator):</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    detail <span class="op">=</span> EXPERIMENT_DETAILS[estimator]</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    spec <span class="op">=</span> ESTIMATORS[estimator]</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    references <span class="op">=</span> []</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> reference <span class="kw">in</span> spec[<span class="st">"references"</span>]:</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>        url <span class="op">=</span> REFERENCE_URLS[reference]</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> url.startswith(<span class="st">"../../"</span>):</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>            url <span class="op">=</span> <span class="st">"https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/"</span> <span class="op">+</span> url[<span class="dv">6</span>:]</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>        references.append(<span class="ss">f"[</span><span class="sc">{</span>reference<span class="sc">}</span><span class="ss">](</span><span class="sc">{</span>url<span class="sc">}</span><span class="ss">)"</span> <span class="cf">if</span> url <span class="cf">else</span> reference)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>        Markdown(</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**Family and dimensions.** `</span><span class="sc">{</span>spec[<span class="st">'family'</span>]<span class="sc">}</span><span class="ss">`; `k` means "</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"</span><span class="sc">{</span>spec[<span class="st">'k_semantics'</span>]<span class="sc">}</span><span class="ss">.</span><span class="ch">\n\n</span><span class="ss">"</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**Data-generating process.** </span><span class="sc">{</span>detail[<span class="st">'dgp'</span>]<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">"</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**Fitted specification.** </span><span class="sc">{</span>detail[<span class="st">'fit'</span>]<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">"</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**Reference interpretation.** </span><span class="sc">{</span>detail[<span class="st">'comparison'</span>]<span class="sc">}</span><span class="ch">\n\n</span><span class="ss">"</span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>            <span class="ss">f"**Reference code.** </span><span class="sc">{</span><span class="st">', '</span><span class="sc">.</span>join(references)<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    frame <span class="op">=</span> results.loc[results.estimator.eq(estimator)].copy()</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>    ok <span class="op">=</span> frame.loc[frame.status.eq(<span class="st">"ok"</span>)].copy()</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    frontier <span class="op">=</span> (</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>        ok.groupby(<span class="st">"implementation"</span>, dropna<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>        .agg(</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>            max_completed_n<span class="op">=</span>(<span class="st">"n"</span>, <span class="st">"max"</span>),</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>            max_completed_k<span class="op">=</span>(<span class="st">"k"</span>, <span class="st">"max"</span>),</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>            median_fit_seconds<span class="op">=</span>(<span class="st">"fit_seconds"</span>, <span class="st">"median"</span>),</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>            max_peak_rss_gib<span class="op">=</span>(<span class="st">"peak_rss_bytes"</span>, <span class="kw">lambda</span> values: values.<span class="bu">max</span>() <span class="op">/</span> <span class="dv">2</span><span class="op">**</span><span class="dv">30</span>),</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>        .reset_index()</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> (</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>        frame.groupby(<span class="st">"implementation"</span>, dropna<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>        .agg(</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>            completed<span class="op">=</span>(<span class="st">"status"</span>, <span class="kw">lambda</span> values: <span class="bu">int</span>((values <span class="op">==</span> <span class="st">"ok"</span>).<span class="bu">sum</span>())),</span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>            timeouts<span class="op">=</span>(<span class="st">"status"</span>, <span class="kw">lambda</span> values: <span class="bu">int</span>((values <span class="op">==</span> <span class="st">"timeout"</span>).<span class="bu">sum</span>())),</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>            rss_kills<span class="op">=</span>(<span class="st">"status"</span>, <span class="kw">lambda</span> values: <span class="bu">int</span>((values <span class="op">==</span> <span class="st">"killed_rss_guard"</span>).<span class="bu">sum</span>())),</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>            preflight_skips<span class="op">=</span>(<span class="st">"status"</span>, <span class="kw">lambda</span> values: <span class="bu">int</span>((values <span class="op">==</span> <span class="st">"preflight_oom"</span>).<span class="bu">sum</span>())),</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>        .reset_index()</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>        .merge(frontier, how<span class="op">=</span><span class="st">"left"</span>, on<span class="op">=</span><span class="st">"implementation"</span>)</span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>    slopes <span class="op">=</span> (</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>        frame.groupby([<span class="st">"implementation"</span>, <span class="st">"k"</span>], dropna<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>        .<span class="bu">apply</span>(scaling_slope, include_groups<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>        .dropna()</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>        .groupby(<span class="st">"implementation"</span>)</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>        .agg(median_log_log_slope<span class="op">=</span><span class="st">"median"</span>, slope_paths<span class="op">=</span><span class="st">"size"</span>)</span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>        .reset_index()</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>    summary <span class="op">=</span> summary.merge(slopes, how<span class="op">=</span><span class="st">"left"</span>, on<span class="op">=</span><span class="st">"implementation"</span>)</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>    summary[<span class="st">"max_completed_n"</span>] <span class="op">=</span> summary.max_completed_n.fillna(<span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>    summary[<span class="st">"max_completed_k"</span>] <span class="op">=</span> summary.max_completed_k.fillna(<span class="dv">0</span>).astype(<span class="bu">int</span>)</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>        summary.rename(</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>            columns<span class="op">=</span>{</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>                <span class="st">"implementation"</span>: <span class="st">"implementation"</span>,</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>                <span class="st">"completed"</span>: <span class="st">"completed cells"</span>,</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>                <span class="st">"timeouts"</span>: <span class="st">"timeouts"</span>,</span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>                <span class="st">"rss_kills"</span>: <span class="st">"RSS kills"</span>,</span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>                <span class="st">"preflight_skips"</span>: <span class="st">"preflight skips"</span>,</span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a>                <span class="st">"max_completed_n"</span>: <span class="st">"largest completed n"</span>,</span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>                <span class="st">"max_completed_k"</span>: <span class="st">"largest completed k"</span>,</span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>                <span class="st">"median_fit_seconds"</span>: <span class="st">"median fit seconds"</span>,</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a>                <span class="st">"max_peak_rss_gib"</span>: <span class="st">"maximum observed RSS (GiB)"</span>,</span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>                <span class="st">"median_log_log_slope"</span>: <span class="st">"median log-log runtime slope"</span>,</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>                <span class="st">"slope_paths"</span>: <span class="st">"k paths with slope"</span>,</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> ok.empty:</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span></span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a>    fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="fl">4.2</span>))</span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (implementation, k), group <span class="kw">in</span> ok.groupby([<span class="st">"implementation"</span>, <span class="st">"k"</span>]):</span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>        group <span class="op">=</span> group.sort_values(<span class="st">"n"</span>)</span>
+<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>        label <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>implementation<span class="sc">}</span><span class="ss">, k=</span><span class="sc">{</span><span class="bu">int</span>(k)<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>        axes[<span class="dv">0</span>].plot(group.n, group.fit_seconds, marker<span class="op">=</span><span class="st">"o"</span>, linewidth<span class="op">=</span><span class="dv">1</span>, label<span class="op">=</span>label)</span>
+<span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a>        axes[<span class="dv">1</span>].plot(</span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>            group.n,</span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a>            group.peak_rss_bytes <span class="op">/</span> <span class="dv">2</span><span class="op">**</span><span class="dv">30</span>,</span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>            marker<span class="op">=</span><span class="st">"o"</span>,</span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a>            linewidth<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a>            label<span class="op">=</span>label,</span>
+<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">0</span>].<span class="bu">set</span>(xscale<span class="op">=</span><span class="st">"log"</span>, yscale<span class="op">=</span><span class="st">"log"</span>, xlabel<span class="op">=</span><span class="st">"n"</span>, ylabel<span class="op">=</span><span class="st">"fit seconds"</span>)</span>
+<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].<span class="bu">set</span>(xscale<span class="op">=</span><span class="st">"log"</span>, yscale<span class="op">=</span><span class="st">"log"</span>, xlabel<span class="op">=</span><span class="st">"n"</span>, ylabel<span class="op">=</span><span class="st">"peak child RSS (GiB)"</span>)</span>
+<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">0</span>].set_title(<span class="st">"Runtime scaling"</span>)</span>
+<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>    axes[<span class="dv">1</span>].set_title(<span class="st">"Memory scaling"</span>)</span>
+<span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a>    handles, labels <span class="op">=</span> axes[<span class="dv">0</span>].get_legend_handles_labels()</span>
+<span id="cb1-124"><a href="#cb1-124" aria-hidden="true" tabindex="-1"></a>    fig.legend(handles, labels, loc<span class="op">=</span><span class="st">"outside lower center"</span>, ncol<span class="op">=</span><span class="dv">3</span>, fontsize<span class="op">=</span><span class="dv">6</span>)</span>
+<span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a>    fig.suptitle(estimator)</span>
+<span id="cb1-126"><a href="#cb1-126" aria-hidden="true" tabindex="-1"></a>    fig.tight_layout(rect<span class="op">=</span>(<span class="dv">0</span>, <span class="fl">0.16</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a>    plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="completion-status" class="level2">
+<h2 class="anchored" data-anchor-id="completion-status">Completion status</h2>
+<p>The status table includes every requested cell. Timeouts and pruned larger cells are retained as feasibility outcomes; successful timings alone do not describe the whole grid.</p>
+<div id="cell-scaling-status" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Cells:"</span>, <span class="bu">len</span>(results))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Native estimator inventory:"</span>, results.loc[results.implementation.eq(<span class="st">"crabbymetrics"</span>), <span class="st">"estimator"</span>].nunique())</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Generated at:"</span>, host[<span class="st">"generated_at_utc"</span>])</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Platform:"</span>, host[<span class="st">"platform"</span>])</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Effective RSS cap (GiB):"</span>, <span class="bu">round</span>(host[<span class="st">"memory_cap_bytes"</span>] <span class="op">/</span> <span class="dv">2</span><span class="op">**</span><span class="dv">30</span>, <span class="dv">2</span>))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Per-cell timeout (s):"</span>, host[<span class="st">"arguments"</span>][<span class="st">"timeout"</span>])</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> results.empty:</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"Run benchmarks/scaling/run_grid.py to populate the guarded grid."</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    display(</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        results.groupby([<span class="st">"implementation"</span>, <span class="st">"status"</span>], dropna<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        .size()</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        .rename(<span class="st">"cells"</span>)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>        .reset_index()</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>        .sort_values([<span class="st">"implementation"</span>, <span class="st">"status"</span>])</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Cells: 276
+Native estimator inventory: 30
+Generated at: 2026-09-09T15:25:05.241640+00:00
+Platform: macOS-26.6.2-arm64-arm-64bit
+Effective RSS cap (GiB): 1.32
+Per-cell timeout (s): 10.0</code></pre>
+</div>
+<div id="scaling-status" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">status</th>
+<th data-quarto-table-cell-role="th">cells</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>ok</td>
+<td>168</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>crabbymetrics</td>
+<td>pruned_after_failure</td>
+<td>5</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>crabbymetrics</td>
+<td>timeout</td>
+<td>7</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>doubleml-irm</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>doubleml-plr</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>lifelines-cox-ph</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>pyfixest-feols</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">7</th>
+<td>pyfixest-iv</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">8</th>
+<td>r-fixest-feols</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">9</th>
+<td>r-survival-andersen-gill</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">10</th>
+<td>r-survival-coxph</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">11</th>
+<td>sklearn-bagged-polynomial</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">12</th>
+<td>sklearn-elastic-net</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">13</th>
+<td>sklearn-linear-regression</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">14</th>
+<td>sklearn-logistic-regression</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">15</th>
+<td>sklearn-multinomial-logit</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">16</th>
+<td>sklearn-poisson-regressor</td>
+<td>ok</td>
+<td>6</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">17</th>
+<td>sklearn-ridge</td>
+<td>ok</td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="numerical-experiment" class="level2">
+<h2 class="anchored" data-anchor-id="numerical-experiment">Numerical experiment</h2>
+<section id="common-grid-and-timing-boundary" class="level3">
+<h3 class="anchored" data-anchor-id="common-grid-and-timing-boundary">Common grid and timing boundary</h3>
+<p>This run is the Cartesian product of three sample sizes and two dimensions. A fresh seeded generator builds the complete input outside the fit timer. The reported <code>fit_seconds</code> starts immediately before the estimator call and stops on return; imports and data generation are excluded. In contrast, <code>peak_rss_bytes</code> covers the complete child process, including imported libraries, generated inputs, copies made by foreign-function boundaries, solver workspaces, and descendants such as R subprocesses.</p>
+<p>The preflight starts from the raw <span class="math inline">\(8nk\)</span> bytes for a <code>float64</code> design (or the family-specific panel/dynamic analogue), multiplies it by a conservative estimator-family workspace factor, and adds 192 MiB. The run-time monitor then enforces the requested 2 GiB cap or available RAM after a 4 GiB system reserve, whichever is smaller. The effective cap is printed above. Every child and descendant is subject to a 10-second wall clock. A preflight rejection, RSS kill, timeout, or execution error stops larger <code>n</code> values only for that estimator, implementation, and <code>k</code> path.</p>
+</section>
+<section id="dimension-conventions" class="level3">
+<h3 class="anchored" data-anchor-id="dimension-conventions">Dimension conventions</h3>
+<ul>
+<li>Tabular, GLM, IV, survival, moment, balancing, and semiparametric estimators: <code>n</code> rows and <code>k</code> covariates/instruments.</li>
+<li>Synthetic control: <code>n</code> pre-treatment periods and <code>k</code> donor series.</li>
+<li>Other panel estimators: <code>n</code> periods and <code>k</code> units; this is a matrix stress dimension, not an ordinary covariate count.</li>
+<li>Dynamic estimators: approximately <code>n/4</code> units, four decision periods, and <code>k</code> history covariates.</li>
+</ul>
+</section>
+<section id="randomness-and-comparability" class="level3">
+<h3 class="anchored" data-anchor-id="randomness-and-comparability">Randomness and comparability</h3>
+<p>All cells use seed 1729 and single-threaded BLAS/OpenMP/Rcpp settings. Each cell is measured once; sub-millisecond ratios are especially sensitive to noise. Native and external adapters reconstruct the same DGP and shape. The experiment measures systems scaling, not statistical accuracy. Only references with a defensible generic-grid adapter enter timing comparisons; related-but-different estimators remain linked as provenance and are explicitly described below.</p>
+</section>
+</section>
+<section id="matched-reference-ratios" class="level2">
+<h2 class="anchored" data-anchor-id="matched-reference-ratios">Matched reference ratios</h2>
+<p>The table below uses only cells where both Crabbymetrics and the external implementation completed. <code>reference / native &gt; 1</code> means the Crabbymetrics fit was faster; values below one mean the external fit was faster. Medians summarize heterogeneous <span class="math inline">\((n,k)\)</span> cells and should be read as a profiling signal, not a single universal speed factor.</p>
+<div id="cell-matched-reference-ratios" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> results.empty:</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    native <span class="op">=</span> (</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        results.loc[</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>            results.implementation.eq(<span class="st">"crabbymetrics"</span>) <span class="op">&amp;</span> results.status.eq(<span class="st">"ok"</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>            [<span class="st">"estimator"</span>, <span class="st">"n"</span>, <span class="st">"k"</span>, <span class="st">"fit_seconds"</span>],</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        .rename(columns<span class="op">=</span>{<span class="st">"fit_seconds"</span>: <span class="st">"native_seconds"</span>})</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    matched <span class="op">=</span> (</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        results.loc[</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            results.implementation.ne(<span class="st">"crabbymetrics"</span>) <span class="op">&amp;</span> results.status.eq(<span class="st">"ok"</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        .merge(native, on<span class="op">=</span>[<span class="st">"estimator"</span>, <span class="st">"n"</span>, <span class="st">"k"</span>])</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        .assign(reference_over_native<span class="op">=</span><span class="kw">lambda</span> frame: frame.fit_seconds <span class="op">/</span> frame.native_seconds)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    ratios <span class="op">=</span> (</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        matched.groupby([<span class="st">"estimator"</span>, <span class="st">"implementation"</span>])</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        .agg(</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>            matched_cells<span class="op">=</span>(<span class="st">"reference_over_native"</span>, <span class="st">"size"</span>),</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>            median_reference_over_native<span class="op">=</span>(<span class="st">"reference_over_native"</span>, <span class="st">"median"</span>),</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        .reset_index()</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    display(ratios)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div id="matched-reference-ratios" class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">estimator</th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">matched_cells</th>
+<th data-quarto-table-cell-role="th">median_reference_over_native</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>AIPW</td>
+<td>doubleml-irm</td>
+<td>6</td>
+<td>4.383541</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>AndersenGill</td>
+<td>r-survival-andersen-gill</td>
+<td>3</td>
+<td>0.019379</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>BaggedPolynomialRegressor</td>
+<td>sklearn-bagged-polynomial</td>
+<td>5</td>
+<td>0.315952</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>CoxPH</td>
+<td>lifelines-cox-ph</td>
+<td>6</td>
+<td>46.853864</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>CoxPH</td>
+<td>r-survival-coxph</td>
+<td>6</td>
+<td>4.001714</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>ElasticNet</td>
+<td>sklearn-elastic-net</td>
+<td>6</td>
+<td>3.140382</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>FixedEffectsOLS</td>
+<td>pyfixest-feols</td>
+<td>6</td>
+<td>6.544128</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">7</th>
+<td>FixedEffectsOLS</td>
+<td>r-fixest-feols</td>
+<td>6</td>
+<td>5.600785</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">8</th>
+<td>HorizontalPanelRidge</td>
+<td>sklearn-ridge</td>
+<td>6</td>
+<td>4.177901</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">9</th>
+<td>Logit</td>
+<td>sklearn-logistic-regression</td>
+<td>6</td>
+<td>1.435108</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">10</th>
+<td>MultinomialLogit</td>
+<td>sklearn-multinomial-logit</td>
+<td>6</td>
+<td>0.156895</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">11</th>
+<td>OLS</td>
+<td>sklearn-linear-regression</td>
+<td>6</td>
+<td>4.281109</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">12</th>
+<td>PartiallyLinearDML</td>
+<td>doubleml-plr</td>
+<td>6</td>
+<td>1.446912</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">13</th>
+<td>Poisson</td>
+<td>sklearn-poisson-regressor</td>
+<td>6</td>
+<td>1.862092</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">14</th>
+<td>Ridge</td>
+<td>sklearn-ridge</td>
+<td>6</td>
+<td>3.774888</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">15</th>
+<td>TwoSLS</td>
+<td>pyfixest-iv</td>
+<td>6</td>
+<td>2.401204</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="estimator-by-estimator-results" class="level2">
+<h2 class="anchored" data-anchor-id="estimator-by-estimator-results">Estimator-by-estimator results</h2>
+<p>Each subsection gives the exact DGP, fitted tuning values, reference status, completion frontier, median log-log runtime slope, and two scaling plots. A log-log slope near one indicates approximately linear empirical scaling along a fixed-<code>k</code> path; it is descriptive and can mix solver regimes over this short grid.</p>
+<section id="abcols" class="level3">
+<h3 class="anchored" data-anchor-id="abcols">ABCOLS</h3>
+<div id="e75561a9" class="cell" data-execution_count="4">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means continuous covariates (plus two categorical variables).</p>
+<p><strong>Data-generating process.</strong> Gaussian linear outcome with n rows and k standard-normal continuous covariates; two deterministic categorical variables cycle through 8 and 5 levels.</p>
+<p><strong>Fitted specification.</strong> ABCOLS with centered continuous covariates and categorical main effects; the scaling run does not add continuous-by-category or category-by-category interactions.</p>
+<p><strong>Reference interpretation.</strong> No exact public implementation was found. R wec is retained as weighted-effect-coding provenance, not timed as an equivalent estimator.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/wec">r-wec</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.010777</td>
+<td>0.188293</td>
+<td>1.085267</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-5-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="ols" class="level3">
+<h3 class="anchored" data-anchor-id="ols">OLS</h3>
+<div id="1a84f459" class="cell" data-execution_count="5">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> Gaussian linear outcome y = X beta + epsilon with X of shape n by k, beta_j increasing from 0.2 to 1 and normalized by sqrt(k), and unit-variance noise.</p>
+<p><strong>Fitted specification.</strong> Unpenalized Crabbymetrics OLS versus scikit-learn LinearRegression, both with their normal intercept conventions.</p>
+<p><strong>Reference interpretation.</strong> Shape- and estimand-matched timing comparison.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-linear-regression</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.003077</td>
+<td>0.121155</td>
+<td>0.953773</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-linear-regression</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.006907</td>
+<td>0.204300</td>
+<td>0.066335</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-6-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="fixedeffectsols" class="level3">
+<h3 class="anchored" data-anchor-id="fixedeffectsols">FixedEffectsOLS</h3>
+<div id="2a191888" class="cell" data-execution_count="6">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>fixed-effects</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> The Gaussian linear design plus one fixed-effect identifier cycling over min(1000, n/20) groups.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics within-transformed FixedEffectsOLS versus PyFixest feols and R fixest feols with iid covariance work requested.</p>
+<p><strong>Reference interpretation.</strong> Same outcome, covariates, and one-way fixed-effect partition; implementation overhead and covariance defaults can still differ.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/py-econometrics/pyfixest">pyfixest-feols</a>, <a href="https://github.com/lrberge/fixest">r-fixest-feols</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.003372</td>
+<td>0.168350</td>
+<td>0.872444</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>pyfixest-feols</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.011740</td>
+<td>0.396469</td>
+<td>0.240293</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>r-fixest-feols</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.010500</td>
+<td>0.142639</td>
+<td>0.311243</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-7-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="elasticnet" class="level3">
+<h3 class="anchored" data-anchor-id="elasticnet">ElasticNet</h3>
+<div id="ebed0833" class="cell" data-execution_count="7">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> The Gaussian linear design with n rows and k covariates.</p>
+<p><strong>Fitted specification.</strong> Penalty 0.01, l1 ratio 0.5, and at most 300 iterations in Crabbymetrics and scikit-learn.</p>
+<p><strong>Reference interpretation.</strong> Matched regularization family and tuning values; stopping criteria are library-specific.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-elastic-net</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.001864</td>
+<td>0.102570</td>
+<td>0.894483</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-elastic-net</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.004213</td>
+<td>0.186844</td>
+<td>0.136836</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-8-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="ridge" class="level3">
+<h3 class="anchored" data-anchor-id="ridge">Ridge</h3>
+<div id="97653717" class="cell" data-execution_count="8">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> The Gaussian linear design with n rows and k covariates.</p>
+<p><strong>Fitted specification.</strong> Unit ridge penalty in Crabbymetrics and scikit-learn.</p>
+<p><strong>Reference interpretation.</strong> Matched penalized least-squares problem modulo intercept and solver conventions.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-ridge</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.003252</td>
+<td>0.138046</td>
+<td>0.951604</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-ridge</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.004378</td>
+<td>0.186264</td>
+<td>0.131524</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-9-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="baggedpolynomialregressor" class="level3">
+<h3 class="anchored" data-anchor-id="baggedpolynomialregressor">BaggedPolynomialRegressor</h3>
+<div id="05f237d4" class="cell" data-execution_count="9">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>polynomial</code>; <code>k</code> means raw covariates.</p>
+<p><strong>Data-generating process.</strong> The Gaussian linear design is deliberately used even though the fitted basis is quadratic, isolating feature-expansion and bagging costs from a changing signal model.</p>
+<p><strong>Fitted specification.</strong> Ten degree-2 ridge learners, at most 12 raw features per learner and at most 100,000 sampled rows, compared with a scikit-learn PolynomialFeatures/StandardScaler/Ridge BaggingRegressor pipeline.</p>
+<p><strong>Reference interpretation.</strong> Matched computational pipeline, but bootstrap draws and standardization details are implementation-specific.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-bagged-polynomial</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>5</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.069683</td>
+<td>0.151581</td>
+<td>1.148690</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-bagged-polynomial</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.045654</td>
+<td>0.332199</td>
+<td>0.654971</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-10-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="logit" class="level3">
+<h3 class="anchored" data-anchor-id="logit">Logit</h3>
+<div id="3645f9d8" class="cell" data-execution_count="10">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>glm</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> Binary response 1[X beta plus a standard logistic shock exceeds zero].</p>
+<p><strong>Fitted specification.</strong> Unpenalized Logit with at most 100 iterations versus scikit-learn LogisticRegression using lbfgs and 100 iterations.</p>
+<p><strong>Reference interpretation.</strong> Matched binary-logit family; convergence tolerances and regularization conventions differ slightly.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-logistic-regression</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.004414</td>
+<td>0.073425</td>
+<td>0.948280</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-logistic-regression</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.006021</td>
+<td>0.174744</td>
+<td>0.221759</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-11-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="multinomiallogit" class="level3">
+<h3 class="anchored" data-anchor-id="multinomiallogit">MultinomialLogit</h3>
+<div id="e8cb9df4" class="cell" data-execution_count="11">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>glm</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> Three response classes obtained by thresholding X beta plus a standard-normal shock at -0.5 and 0.5.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics multinomial logit versus scikit-learn multinomial LogisticRegression/lbfgs, each capped at 100 iterations.</p>
+<p><strong>Reference interpretation.</strong> Matched model family; coefficient normalization and convergence checks are library-specific.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-multinomial-logit</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.148557</td>
+<td>0.074051</td>
+<td>1.054329</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-multinomial-logit</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.007678</td>
+<td>0.178192</td>
+<td>0.404511</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-12-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="poisson" class="level3">
+<h3 class="anchored" data-anchor-id="poisson">Poisson</h3>
+<div id="3f5e1097" class="cell" data-execution_count="12">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>glm</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> Poisson response with mean exp(X beta), clipping the linear predictor to [-1.5, 1.5] to avoid pathological counts.</p>
+<p><strong>Fitted specification.</strong> Unpenalized Poisson regression with at most 100 iterations versus scikit-learn PoissonRegressor.</p>
+<p><strong>Reference interpretation.</strong> Matched log-link Poisson mean model with library-specific numerical solvers.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-poisson-regressor</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.003675</td>
+<td>0.091370</td>
+<td>0.985716</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-poisson-regressor</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.005676</td>
+<td>0.174606</td>
+<td>0.206615</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-13-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="exponentialph" class="level3">
+<h3 class="anchored" data-anchor-id="exponentialph">ExponentialPH</h3>
+<div id="929028ee" class="cell" data-execution_count="13">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> Survival time is exponential with scale exp(-clip(X beta, -1, 1)); censoring/event indicator is Bernoulli(0.8).</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics ExponentialPH with k covariates.</p>
+<p><strong>Reference interpretation.</strong> R flexsurv is documented but not timed because its generic regression parameterization is not a clean drop-in PH comparator here.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/flexsurv">r-flexsurv-exponential</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.016716</td>
+<td>0.075623</td>
+<td>0.956544</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-14-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="weibullph" class="level3">
+<h3 class="anchored" data-anchor-id="weibullph">WeibullPH</h3>
+<div id="8f0050fd" class="cell" data-execution_count="14">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> The same censored proportional-hazards stress design used for the other survival estimators.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics WeibullPH with k covariates.</p>
+<p><strong>Reference interpretation.</strong> R flexsurv is documented as the canonical reference; parameterization differences keep it out of the generic timing grid.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/flexsurv">r-flexsurv-weibull-ph</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.017447</td>
+<td>0.075333</td>
+<td>0.95542</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-15-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="coxph" class="level3">
+<h3 class="anchored" data-anchor-id="coxph">CoxPH</h3>
+<div id="16edf138" class="cell" data-execution_count="15">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> The censored proportional-hazards design with exponential baseline time and k Gaussian covariates.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics CoxPH versus lifelines CoxPHFitter and R survival::coxph with Breslow ties.</p>
+<p><strong>Reference interpretation.</strong> Matched partial-likelihood family; risk-set algorithms and default inference work differ.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/CamDavidsonPilon/lifelines">lifelines-cox-ph</a>, <a href="https://github.com/cran/survival">r-survival-coxph</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.014012</td>
+<td>0.091705</td>
+<td>0.901312</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>lifelines-cox-ph</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.264582</td>
+<td>0.250076</td>
+<td>0.961641</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>r-survival-coxph</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.027000</td>
+<td>0.410919</td>
+<td>0.917854</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-16-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="andersengill" class="level3">
+<h3 class="anchored" data-anchor-id="andersengill">AndersenGill</h3>
+<div id="d2320d2b" class="cell" data-execution_count="16">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
+<p><strong>Data-generating process.</strong> Counting-process rows with uniform starts, exponentially distributed positive interval lengths, Bernoulli(0.7) events, and k Gaussian covariates.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics AndersenGill versus R survival::coxph on Surv(start, stop, event) with Breslow ties.</p>
+<p><strong>Reference interpretation.</strong> Matched counting-process partial likelihood without subject-clustered covariance in the timing call.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/survival">r-survival-andersen-gill</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>3</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>10000</td>
+<td>20</td>
+<td>0.36121</td>
+<td>0.042389</td>
+<td>NaN</td>
+<td>NaN</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>r-survival-andersen-gill</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.03700</td>
+<td>0.415543</td>
+<td>0.976799</td>
+<td>2.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-17-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="twosls" class="level3">
+<h3 class="anchored" data-anchor-id="twosls">TwoSLS</h3>
+<div id="11e6bf65" class="cell" data-execution_count="17">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>iv</code>; <code>k</code> means exogenous covariates and excluded instruments.</p>
+<p><strong>Data-generating process.</strong> k exogenous controls X and k excluded instruments Z; one endogenous regressor d = 0.7 Z_1 plus noise; y = d + X beta plus noise.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics TwoSLS versus PyFixest’s IV formula with the same k controls and k excluded instruments.</p>
+<p><strong>Reference interpretation.</strong> Matched linear IV dimensions and estimand; formula construction and covariance bookkeeping differ.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/py-econometrics/pyfixest">pyfixest-iv</a>, <a href="https://github.com/cran/ivreg">r-ivreg</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.021847</td>
+<td>0.229324</td>
+<td>1.188408</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>pyfixest-iv</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.021791</td>
+<td>0.755020</td>
+<td>0.320071</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-18-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="horizontalpanelridge" class="level3">
+<h3 class="anchored" data-anchor-id="horizontalpanelridge">HorizontalPanelRidge</h3>
+<div id="fc4119ca" class="cell" data-execution_count="18">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means donor units.</p>
+<p><strong>Data-generating process.</strong> Low-rank panel with n periods and k units; control outcomes load on two common factors and treated outcomes are noisy convex combinations of controls, treated in the final third.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics HorizontalPanelRidge with unit penalty versus the corresponding scikit-learn Ridge donor-regression building block.</p>
+<p><strong>Reference interpretation.</strong> The scikit-learn row is a matched donor-regression kernel, not the complete cohort orchestration.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/scikit-learn/scikit-learn">sklearn-ridge</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.001220</td>
+<td>0.088379</td>
+<td>0.838556</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>sklearn-ridge</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.004081</td>
+<td>0.188995</td>
+<td>0.043379</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-19-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="syntheticcontrol" class="level3">
+<h3 class="anchored" data-anchor-id="syntheticcontrol">SyntheticControl</h3>
+<div id="0970ccb1" class="cell" data-execution_count="19">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>synthetic-control</code>; <code>k</code> means donor units.</p>
+<p><strong>Data-generating process.</strong> n pre-treatment periods by k independent Gaussian donor series; the treated series is the equal-weight donor average plus small noise.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics SyntheticControl with at most 300 simplex iterations.</p>
+<p><strong>Reference interpretation.</strong> R Synth is the canonical reference but its data-preparation/optimization interface is not timed on the generic grid.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/Synth">r-synth</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.001791</td>
+<td>0.069778</td>
+<td>0.841102</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-20-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="syntheticdid" class="level3">
+<h3 class="anchored" data-anchor-id="syntheticdid">SyntheticDID</h3>
+<div id="572e320d" class="cell" data-execution_count="20">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
+<p><strong>Data-generating process.</strong> Low-rank n-period by k-unit panel; treated units are convex mixtures of controls and treatment starts after two thirds of periods.</p>
+<p><strong>Fitted specification.</strong> SyntheticDID with unit and time penalties fixed at 0.01 and at most 3,000 simplex iterations.</p>
+<p><strong>Reference interpretation.</strong> R synthdid is the exact external family but is retained as provenance because the package was unavailable in the benchmark environment.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/synth-inference/synthdid">r-synthdid</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>2</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>1000</td>
+<td>20</td>
+<td>0.034561</td>
+<td>0.051758</td>
+<td>NaN</td>
+<td>NaN</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-21-output-3.png" width="1046" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="augmentedbalancing" class="level3">
+<h3 class="anchored" data-anchor-id="augmentedbalancing">AugmentedBalancing</h3>
+<div id="6cc61b60" class="cell" data-execution_count="21">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
+<p><strong>Data-generating process.</strong> The same low-rank staggered panel used for SyntheticDID, with no supplied outcome surface so runtime covers raw double balancing.</p>
+<p><strong>Fitted specification.</strong> Double AugmentedBalancing with unit and time penalties 0.01 and at most 3,000 iterations.</p>
+<p><strong>Reference interpretation.</strong> R augsynth and the repository’s independent quadprog parity fixture are references; neither is substituted for the exact Crabbymetrics configuration in timing plots.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/ebenmichael/augsynth">r-augsynth</a>, <a href="https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/tests/fixtures/generate_r_augmented_balancing_reference.R">r-independent-quadprog</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>2</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+<td>1000</td>
+<td>20</td>
+<td>0.035652</td>
+<td>0.051956</td>
+<td>NaN</td>
+<td>NaN</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-22-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="matrixcompletion" class="level3">
+<h3 class="anchored" data-anchor-id="matrixcompletion">MatrixCompletion</h3>
+<div id="1c3f456c" class="cell" data-execution_count="22">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
+<p><strong>Data-generating process.</strong> The low-rank treated panel with n periods and k units.</p>
+<p><strong>Fitted specification.</strong> MatrixCompletion with at most 50 outer iterations and SVD rank min(6, k-1), retaining unit and time effects.</p>
+<p><strong>Reference interpretation.</strong> R fect method=mc is the canonical family reference, but its full long-panel interface is not treated as a generic-grid drop-in.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/xuyiqing/fect">r-fect-mc</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.037569</td>
+<td>0.213562</td>
+<td>1.042795</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-23-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="interactivefixedeffects" class="level3">
+<h3 class="anchored" data-anchor-id="interactivefixedeffects">InteractiveFixedEffects</h3>
+<div id="e352d235" class="cell" data-execution_count="23">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
+<p><strong>Data-generating process.</strong> The untreated low-rank n-period by k-unit outcome matrix from the panel generator.</p>
+<p><strong>Fitted specification.</strong> InteractiveFixedEffects with rank min(2, k-1) and the default force specification.</p>
+<p><strong>Reference interpretation.</strong> R fect method=ife and gsynth are canonical family references, not timed substitutes.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/xuyiqing/fect">r-fect-ife</a>, <a href="https://github.com/xuyiqing/gsynth">r-gsynth</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.001638</td>
+<td>0.087006</td>
+<td>0.906968</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-24-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="balancingweights" class="level3">
+<h3 class="anchored" data-anchor-id="balancingweights">BalancingWeights</h3>
+<div id="fc64c978" class="cell" data-execution_count="24">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>balancing</code>; <code>k</code> means balance functions.</p>
+<p><strong>Data-generating process.</strong> Gaussian X with the first 80 percent of rows as the source sample and the final 20 percent as the target sample.</p>
+<p><strong>Fitted specification.</strong> Quadratic BalancingWeights, default box constraints, and at most 100 iterations, balancing k raw covariate means.</p>
+<p><strong>Reference interpretation.</strong> ebal, WeightIt, and CBPS are provenance because their objectives and constraints are not identical.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/apoorvalal/ebal">r-ebal</a>, <a href="https://github.com/cran/WeightIt">r-weightit</a>, <a href="https://github.com/cran/CBPS">r-cbps</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.001415</td>
+<td>0.099442</td>
+<td>0.892348</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-25-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="mestimator" class="level3">
+<h3 class="anchored" data-anchor-id="mestimator">MEstimator</h3>
+<div id="565cfb64" class="cell" data-execution_count="25">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>moments</code>; <code>k</code> means parameters/covariates.</p>
+<p><strong>Data-generating process.</strong> Gaussian linear outcome with an explicit intercept-augmented n by (k+1) design.</p>
+<p><strong>Fitted specification.</strong> Generic MEstimator receives a least-squares objective/analytic gradient callback and observation-level score callback, starting at zero for at most 30 iterations.</p>
+<p><strong>Reference interpretation.</strong> R geex is the callback-framework reference; arbitrary user callbacks prevent a single universal external timing adapter.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/bsaul/geex">r-geex</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.01288</td>
+<td>0.137268</td>
+<td>0.901312</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-26-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="gmm" class="level3">
+<h3 class="anchored" data-anchor-id="gmm">GMM</h3>
+<div id="f2f2ac77" class="cell" data-execution_count="26">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>moments</code>; <code>k</code> means parameters/instruments.</p>
+<p><strong>Data-generating process.</strong> Exactly identified linear moments X_i(y_i - X_i’ theta) on the intercept-augmented Gaussian linear design.</p>
+<p><strong>Fitted specification.</strong> Identity-weighted GMM with analytic Jacobian, zero initialization, and at most 30 iterations.</p>
+<p><strong>Reference interpretation.</strong> R gmm and statsmodels are framework references; their generic callback and covariance work is not forced into a misleading one-size timing row.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/gmm">r-gmm</a>, <a href="https://github.com/statsmodels/statsmodels">statsmodels-gmm</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.002405</td>
+<td>0.070206</td>
+<td>0.826685</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-27-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="eplm" class="level3">
+<h3 class="anchored" data-anchor-id="eplm">EPLM</h3>
+<div id="94f66340" class="cell" data-execution_count="27">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
+<p><strong>Data-generating process.</strong> Continuous treatment d = 0.25 X beta plus noise and outcome y = 0.8 d + X beta plus noise.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics EPLM with its default finite-difference epsilon.</p>
+<p><strong>Reference interpretation.</strong> DoubleML PLR is related but uses different orthogonalization/cross-fitting, so it is provenance rather than an EPLM speed comparator.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/DoubleML/doubleml-for-py">doubleml-plr-nearest</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.003278</td>
+<td>0.108978</td>
+<td>0.959074</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-28-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="averagederivative" class="level3">
+<h3 class="anchored" data-anchor-id="averagederivative">AverageDerivative</h3>
+<div id="9be77735" class="cell" data-execution_count="28">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
+<p><strong>Data-generating process.</strong> The continuous-treatment partially linear design used for EPLM.</p>
+<p><strong>Fitted specification.</strong> Doubly robust AverageDerivative with default finite-difference epsilon.</p>
+<p><strong>Reference interpretation.</strong> R np gradient routines are the nearest public reference, not an identical estimator.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/np">r-np-gradient-nearest</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.015038</td>
+<td>0.282532</td>
+<td>1.037345</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-29-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="partiallylineardml" class="level3">
+<h3 class="anchored" data-anchor-id="partiallylineardml">PartiallyLinearDML</h3>
+<div id="9c5f343b" class="cell" data-execution_count="29">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
+<p><strong>Data-generating process.</strong> Continuous treatment d = 0.25 X beta plus noise and outcome y = 0.8 d + X beta plus noise.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics PartiallyLinearDML with ridge penalty 0.1 and two folds versus DoubleML PLR with two-fold ridge nuisance learners.</p>
+<p><strong>Reference interpretation.</strong> Matched partially linear orthogonal-score family with library-specific fold draws and nuisance conventions.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/DoubleML/doubleml-for-py">doubleml-plr</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.006748</td>
+<td>0.119156</td>
+<td>0.994274</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>doubleml-plr</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.003446</td>
+<td>0.319763</td>
+<td>0.400633</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-30-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="aipw" class="level3">
+<h3 class="anchored" data-anchor-id="aipw">AIPW</h3>
+<div id="f824e6df" class="cell" data-execution_count="30">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
+<p><strong>Data-generating process.</strong> Binary treatment obtained by median-splitting 0.25 X beta plus noise; y = 0.8 d + X beta plus noise.</p>
+<p><strong>Fitted specification.</strong> Crabbymetrics AIPW with ridge penalty 0.1, two folds, and propensity clipping 0.02 versus DoubleML IRM with ridge/logit nuisances and the same clipping threshold.</p>
+<p><strong>Reference interpretation.</strong> Matched ATE/AIPW family; fold construction and nuisance-standardization details differ.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/DoubleML/doubleml-for-py">doubleml-irm</a>, <a href="https://github.com/py-why/EconML">econml-drlearner</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.007098</td>
+<td>0.142609</td>
+<td>1.000778</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>doubleml-irm</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.010294</td>
+<td>0.330093</td>
+<td>0.528996</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-31-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="dynamiccovariatebalance" class="level3">
+<h3 class="anchored" data-anchor-id="dynamiccovariatebalance">DynamicCovariateBalance</h3>
+<div id="0c16f7ee" class="cell" data-execution_count="31">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>dynamic</code>; <code>k</code> means history covariates.</p>
+<p><strong>Data-generating process.</strong> Approximately n/4 units over four decision periods, k Gaussian history variables per period, logistic treatment driven by the first history coordinate, and a random-walk outcome with additive 0.5 treatment effects.</p>
+<p><strong>Fitted specification.</strong> DynamicCovariateBalance targets the all-zero four-period path with at most 100 iterations.</p>
+<p><strong>Reference interpretation.</strong> No exact public Viviano-Bradic implementation was found; the estimator is native-only in the timing grid.</p>
+<p><strong>Reference code.</strong> native-only-no-public-exact-match</p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.002132</td>
+<td>0.084106</td>
+<td>0.688545</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-32-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="paralleltrendssnmm" class="level3">
+<h3 class="anchored" data-anchor-id="paralleltrendssnmm">ParallelTrendsSNMM</h3>
+<div id="df03fc9c" class="cell" data-execution_count="32">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>dynamic</code>; <code>k</code> means history covariates.</p>
+<p><strong>Data-generating process.</strong> The four-period dynamic-treatment design with a five-column outcome path including baseline.</p>
+<p><strong>Fitted specification.</strong> ParallelTrendsSNMM with maximum horizon 1, blip treatment mode, two nuisance folds, and fixed seed 1729.</p>
+<p><strong>Reference interpretation.</strong> gesttools is a nearby SNMM reference but not a parallel-trends SNMM, so it is not timed as equivalent.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/danieltompsett/gesttools">r-gesttools-nearest</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.006411</td>
+<td>0.098099</td>
+<td>0.990226</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-33-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="regressionblip" class="level3">
+<h3 class="anchored" data-anchor-id="regressionblip">RegressionBlip</h3>
+<div id="3fd034a0" class="cell" data-execution_count="33">
+<div class="cell-output cell-output-display cell-output-markdown">
+<p><strong>Family and dimensions.</strong> <code>dynamic</code>; <code>k</code> means history covariates.</p>
+<p><strong>Data-generating process.</strong> The four-period dynamic-treatment design with period outcomes aligned to treatment and k history covariates.</p>
+<p><strong>Fitted specification.</strong> RegressionBlip with one treatment lag and time effects.</p>
+<p><strong>Reference interpretation.</strong> DTRreg and gesttools are related blip/SNMM references, but neither matches the shipped regression-blip contract exactly.</p>
+<p><strong>Reference code.</strong> <a href="https://github.com/cran/DTRreg">r-dtrreg-nearest</a>, <a href="https://github.com/danieltompsett/gesttools">r-gesttools-nearest</a></p>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">implementation</th>
+<th data-quarto-table-cell-role="th">completed cells</th>
+<th data-quarto-table-cell-role="th">timeouts</th>
+<th data-quarto-table-cell-role="th">RSS kills</th>
+<th data-quarto-table-cell-role="th">preflight skips</th>
+<th data-quarto-table-cell-role="th">largest completed n</th>
+<th data-quarto-table-cell-role="th">largest completed k</th>
+<th data-quarto-table-cell-role="th">median fit seconds</th>
+<th data-quarto-table-cell-role="th">maximum observed RSS (GiB)</th>
+<th data-quarto-table-cell-role="th">median log-log runtime slope</th>
+<th data-quarto-table-cell-role="th">k paths with slope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>crabbymetrics</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100000</td>
+<td>20</td>
+<td>0.009307</td>
+<td>0.142639</td>
+<td>1.02754</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="estimator-scaling_files/figure-html/cell-34-output-3.png" width="1045" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="interpretation" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation">Interpretation</h2>
+<p>The grid is a systems benchmark, not an accuracy horse race. Fit-only timing is reported; synthetic-data construction happens before the model call but remains inside the child process and therefore contributes to the memory guard. Reference rows test the same shapes and model family, but small differences in defaults, parameterization, convergence criteria, and inference work remain. “Nearest” references in the inventory are literature/code pointers only and never enter the timing plots.</p>
+<p>On this host, 26 of 30 native estimators completed at least one <span class="math inline">\(n=10^6\)</span> cell. The native sample-size frontiers were <span class="math inline">\(n=10^3\)</span> for synthetic DID and augmented balancing, <span class="math inline">\(n=10^4\)</span> for Cox PH and Andersen–Gill, and <span class="math inline">\(n=10^6\)</span> for the other 26 estimators. These maxima collapse across <span class="math inline">\(k\)</span> and therefore describe reach, not a claim that every dimension completed at that sample size.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.0</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

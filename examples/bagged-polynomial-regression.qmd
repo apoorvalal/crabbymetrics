@@ -4,7 +4,6 @@ subtitle: "Leakage-free comparison on repeated smooth-signal draws"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: false
     code-summary: "Show code"

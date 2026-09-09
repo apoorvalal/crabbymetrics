@@ -1,0 +1,506 @@
+---
+title: "Estimator scaling and reference implementations"
+description: "Fresh v0.9.0 timings for the 30-estimator benchmark inventory"
+jupyter: python3
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+execute:
+  cache: true
+  warning: false
+  message: false
+freeze: auto
+---
+
+This ablation reruns the 30-estimator benchmark inventory against **v0.9.0**,
+using adapter revision 2. The bounded grid is $n \in
+\{10^3,10^4,10^5\}$ and $k \in \{5,20\}$. It does not include the newly added
+[MPE_CBPS](../reference/MPE_CBPS.qmd), which has its own executed API example and
+[Chronos simulation](../examples/chronos-ltv-balancing.qmd).
+
+The September 9 measurements replace the obsolete August charts. They include
+the corrected unpenalized GLM, centered ElasticNet, same-panel horizontal ridge,
+same-sample 2SLS, and R fit-only timing adapters. This is a smaller reproducible
+profiling grid, not a rerun of the old $10^7$-row sweep.
+
+The [benchmark README](https://github.com/apoorvalal/crabbymetrics/blob/master/benchmarks/scaling/README.md)
+documents reference implementations and dimension conventions. Download the
+[measurements](data/estimator-scaling.csv) and [host metadata](data/estimator-scaling.host.json).
+
+## Guard rails
+
+Each cell runs in a fresh subprocess with single-threaded numerical kernels. The
+driver rejects predicted over-cap allocations, watches aggregate descendant RSS,
+enforces a wall timeout, and stops attempting larger samples after the first hard
+failure for an estimator/implementation/dimension path. Thus a missing point is
+an observed feasibility boundary, not an accidental omission.
+
+```{python}
+#| label: load-scaling-results
+#| output: false
+from pathlib import Path
+import sys
+import json
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from IPython.display import Markdown, display
+
+path = Path("data/estimator-scaling.csv")
+results = pd.read_csv(path)
+host = json.loads(path.with_suffix(".host.json").read_text())
+assert set(results.adapter_revision.dropna()) == {2}
+assert set(results.loc[results.implementation.eq("crabbymetrics") & results.status.eq("ok"), "library_version"]) == {"0.9.0"}
+
+benchmark_root = Path.cwd().parents[1] / "benchmarks" / "scaling"
+sys.path.insert(0, str(benchmark_root))
+from registry import ESTIMATORS, REFERENCE_URLS
+from report_metadata import EXPERIMENT_DETAILS
+
+
+def scaling_slope(frame):
+    frame = frame.loc[
+        frame.status.eq("ok")
+        & frame.fit_seconds.gt(0)
+        & frame.n.gt(0)
+    ].drop_duplicates("n")
+    if len(frame) < 3:
+        return np.nan
+    return np.polyfit(np.log10(frame.n), np.log10(frame.fit_seconds), deg=1)[0]
+
+
+def render_estimator(estimator):
+    detail = EXPERIMENT_DETAILS[estimator]
+    spec = ESTIMATORS[estimator]
+    references = []
+    for reference in spec["references"]:
+        url = REFERENCE_URLS[reference]
+        if url.startswith("../../"):
+            url = "https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/" + url[6:]
+        references.append(f"[{reference}]({url})" if url else reference)
+    display(
+        Markdown(
+            f"**Family and dimensions.** `{spec['family']}`; `k` means "
+            f"{spec['k_semantics']}.\n\n"
+            f"**Data-generating process.** {detail['dgp']}\n\n"
+            f"**Fitted specification.** {detail['fit']}\n\n"
+            f"**Reference interpretation.** {detail['comparison']}\n\n"
+            f"**Reference code.** {', '.join(references)}"
+        )
+    )
+
+    frame = results.loc[results.estimator.eq(estimator)].copy()
+    ok = frame.loc[frame.status.eq("ok")].copy()
+    frontier = (
+        ok.groupby("implementation", dropna=False)
+        .agg(
+            max_completed_n=("n", "max"),
+            max_completed_k=("k", "max"),
+            median_fit_seconds=("fit_seconds", "median"),
+            max_peak_rss_gib=("peak_rss_bytes", lambda values: values.max() / 2**30),
+        )
+        .reset_index()
+    )
+    summary = (
+        frame.groupby("implementation", dropna=False)
+        .agg(
+            completed=("status", lambda values: int((values == "ok").sum())),
+            timeouts=("status", lambda values: int((values == "timeout").sum())),
+            rss_kills=("status", lambda values: int((values == "killed_rss_guard").sum())),
+            preflight_skips=("status", lambda values: int((values == "preflight_oom").sum())),
+        )
+        .reset_index()
+        .merge(frontier, how="left", on="implementation")
+    )
+    slopes = (
+        frame.groupby(["implementation", "k"], dropna=False)
+        .apply(scaling_slope, include_groups=False)
+        .dropna()
+        .groupby("implementation")
+        .agg(median_log_log_slope="median", slope_paths="size")
+        .reset_index()
+    )
+    summary = summary.merge(slopes, how="left", on="implementation")
+    summary["max_completed_n"] = summary.max_completed_n.fillna(0).astype(int)
+    summary["max_completed_k"] = summary.max_completed_k.fillna(0).astype(int)
+    display(
+        summary.rename(
+            columns={
+                "implementation": "implementation",
+                "completed": "completed cells",
+                "timeouts": "timeouts",
+                "rss_kills": "RSS kills",
+                "preflight_skips": "preflight skips",
+                "max_completed_n": "largest completed n",
+                "max_completed_k": "largest completed k",
+                "median_fit_seconds": "median fit seconds",
+                "max_peak_rss_gib": "maximum observed RSS (GiB)",
+                "median_log_log_slope": "median log-log runtime slope",
+                "slope_paths": "k paths with slope",
+            }
+        )
+    )
+
+    if ok.empty:
+        return
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
+    for (implementation, k), group in ok.groupby(["implementation", "k"]):
+        group = group.sort_values("n")
+        label = f"{implementation}, k={int(k)}"
+        axes[0].plot(group.n, group.fit_seconds, marker="o", linewidth=1, label=label)
+        axes[1].plot(
+            group.n,
+            group.peak_rss_bytes / 2**30,
+            marker="o",
+            linewidth=1,
+            label=label,
+        )
+    axes[0].set(xscale="log", yscale="log", xlabel="n", ylabel="fit seconds")
+    axes[1].set(xscale="log", yscale="log", xlabel="n", ylabel="peak child RSS (GiB)")
+    axes[0].set_title("Runtime scaling")
+    axes[1].set_title("Memory scaling")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=6)
+    fig.suptitle(estimator)
+    fig.tight_layout(rect=(0, 0.16, 1, 1))
+    plt.show()
+```
+
+## Completion status
+
+The status table includes every requested cell. Timeouts and pruned larger
+cells are retained as feasibility outcomes; successful timings alone do not
+describe the whole grid.
+
+```{python}
+#| label: scaling-status
+print("Cells:", len(results))
+print("Native estimator inventory:", results.loc[results.implementation.eq("crabbymetrics"), "estimator"].nunique())
+print("Generated at:", host["generated_at_utc"])
+print("Platform:", host["platform"])
+print("Effective RSS cap (GiB):", round(host["memory_cap_bytes"] / 2**30, 2))
+print("Per-cell timeout (s):", host["arguments"]["timeout"])
+if results.empty:
+    print("Run benchmarks/scaling/run_grid.py to populate the guarded grid.")
+else:
+    display(
+        results.groupby(["implementation", "status"], dropna=False)
+        .size()
+        .rename("cells")
+        .reset_index()
+        .sort_values(["implementation", "status"])
+    )
+```
+
+## Numerical experiment
+
+### Common grid and timing boundary
+
+This run is the Cartesian product of three sample sizes and two
+dimensions. A fresh seeded generator builds the complete input outside the fit
+timer. The reported `fit_seconds` starts immediately before the estimator call
+and stops on return; imports and data generation are excluded. In contrast,
+`peak_rss_bytes` covers the complete child process, including imported libraries,
+generated inputs, copies made by foreign-function boundaries, solver workspaces,
+and descendants such as R subprocesses.
+
+The preflight starts from the raw $8nk$ bytes for a `float64` design (or the
+family-specific panel/dynamic analogue), multiplies it by a conservative
+estimator-family workspace factor, and adds 192 MiB. The run-time monitor then
+enforces the requested 2 GiB cap or available RAM after a 4 GiB system reserve,
+whichever is smaller. The effective cap is printed above. Every child and
+descendant is subject to a 10-second wall clock. A preflight rejection, RSS kill, timeout,
+or execution error stops larger `n` values only for that estimator,
+implementation, and `k` path.
+
+### Dimension conventions
+
+- Tabular, GLM, IV, survival, moment, balancing, and semiparametric estimators:
+  `n` rows and `k` covariates/instruments.
+- Synthetic control: `n` pre-treatment periods and `k` donor series.
+- Other panel estimators: `n` periods and `k` units; this is a matrix stress
+  dimension, not an ordinary covariate count.
+- Dynamic estimators: approximately `n/4` units, four decision periods, and `k`
+  history covariates.
+
+### Randomness and comparability
+
+All cells use seed 1729 and single-threaded BLAS/OpenMP/Rcpp settings. Each
+cell is measured once; sub-millisecond ratios are especially sensitive to noise. Native and
+external adapters reconstruct the same DGP and shape. The experiment measures
+systems scaling, not statistical accuracy. Only references with a defensible
+generic-grid adapter enter timing comparisons; related-but-different estimators
+remain linked as provenance and are explicitly described below.
+
+## Matched reference ratios
+
+The table below uses only cells where both Crabbymetrics and the external
+implementation completed. `reference / native > 1` means the Crabbymetrics fit
+was faster; values below one mean the external fit was faster. Medians summarize
+heterogeneous $(n,k)$ cells and should be read as a profiling signal, not a
+single universal speed factor.
+
+```{python}
+#| label: matched-reference-ratios
+if not results.empty:
+    native = (
+        results.loc[
+            results.implementation.eq("crabbymetrics") & results.status.eq("ok"),
+            ["estimator", "n", "k", "fit_seconds"],
+        ]
+        .rename(columns={"fit_seconds": "native_seconds"})
+    )
+    matched = (
+        results.loc[
+            results.implementation.ne("crabbymetrics") & results.status.eq("ok")
+        ]
+        .merge(native, on=["estimator", "n", "k"])
+        .assign(reference_over_native=lambda frame: frame.fit_seconds / frame.native_seconds)
+    )
+    ratios = (
+        matched.groupby(["estimator", "implementation"])
+        .agg(
+            matched_cells=("reference_over_native", "size"),
+            median_reference_over_native=("reference_over_native", "median"),
+        )
+        .reset_index()
+    )
+    display(ratios)
+```
+
+## Estimator-by-estimator results
+
+Each subsection gives the exact DGP, fitted tuning values, reference status,
+completion frontier, median log-log runtime slope, and two scaling plots. A
+log-log slope near one indicates approximately linear empirical scaling along a
+fixed-`k` path; it is descriptive and can mix solver regimes over this short
+grid.
+
+### ABCOLS
+
+```{python}
+#| echo: false
+render_estimator("ABCOLS")
+```
+
+### OLS
+
+```{python}
+#| echo: false
+render_estimator("OLS")
+```
+
+### FixedEffectsOLS
+
+```{python}
+#| echo: false
+render_estimator("FixedEffectsOLS")
+```
+
+### ElasticNet
+
+```{python}
+#| echo: false
+render_estimator("ElasticNet")
+```
+
+### Ridge
+
+```{python}
+#| echo: false
+render_estimator("Ridge")
+```
+
+### BaggedPolynomialRegressor
+
+```{python}
+#| echo: false
+render_estimator("BaggedPolynomialRegressor")
+```
+
+### Logit
+
+```{python}
+#| echo: false
+render_estimator("Logit")
+```
+
+### MultinomialLogit
+
+```{python}
+#| echo: false
+render_estimator("MultinomialLogit")
+```
+
+### Poisson
+
+```{python}
+#| echo: false
+render_estimator("Poisson")
+```
+
+### ExponentialPH
+
+```{python}
+#| echo: false
+render_estimator("ExponentialPH")
+```
+
+### WeibullPH
+
+```{python}
+#| echo: false
+render_estimator("WeibullPH")
+```
+
+### CoxPH
+
+```{python}
+#| echo: false
+render_estimator("CoxPH")
+```
+
+### AndersenGill
+
+```{python}
+#| echo: false
+render_estimator("AndersenGill")
+```
+
+### TwoSLS
+
+```{python}
+#| echo: false
+render_estimator("TwoSLS")
+```
+
+### HorizontalPanelRidge
+
+```{python}
+#| echo: false
+render_estimator("HorizontalPanelRidge")
+```
+
+### SyntheticControl
+
+```{python}
+#| echo: false
+render_estimator("SyntheticControl")
+```
+
+### SyntheticDID
+
+```{python}
+#| echo: false
+render_estimator("SyntheticDID")
+```
+
+### AugmentedBalancing
+
+```{python}
+#| echo: false
+render_estimator("AugmentedBalancing")
+```
+
+### MatrixCompletion
+
+```{python}
+#| echo: false
+render_estimator("MatrixCompletion")
+```
+
+### InteractiveFixedEffects
+
+```{python}
+#| echo: false
+render_estimator("InteractiveFixedEffects")
+```
+
+### BalancingWeights
+
+```{python}
+#| echo: false
+render_estimator("BalancingWeights")
+```
+
+### MEstimator
+
+```{python}
+#| echo: false
+render_estimator("MEstimator")
+```
+
+### GMM
+
+```{python}
+#| echo: false
+render_estimator("GMM")
+```
+
+### EPLM
+
+```{python}
+#| echo: false
+render_estimator("EPLM")
+```
+
+### AverageDerivative
+
+```{python}
+#| echo: false
+render_estimator("AverageDerivative")
+```
+
+### PartiallyLinearDML
+
+```{python}
+#| echo: false
+render_estimator("PartiallyLinearDML")
+```
+
+### AIPW
+
+```{python}
+#| echo: false
+render_estimator("AIPW")
+```
+
+### DynamicCovariateBalance
+
+```{python}
+#| echo: false
+render_estimator("DynamicCovariateBalance")
+```
+
+### ParallelTrendsSNMM
+
+```{python}
+#| echo: false
+render_estimator("ParallelTrendsSNMM")
+```
+
+### RegressionBlip
+
+```{python}
+#| echo: false
+render_estimator("RegressionBlip")
+```
+
+## Interpretation
+
+The grid is a systems benchmark, not an accuracy horse race. Fit-only timing is
+reported; synthetic-data construction happens before the model call but remains
+inside the child process and therefore contributes to the memory guard. Reference
+rows test the same shapes and model family, but small differences in defaults,
+parameterization, convergence criteria, and inference work remain. “Nearest”
+references in the inventory are literature/code pointers only and never enter
+the timing plots.
+
+On this host, 26 of 30 native estimators completed at least one $n=10^6$ cell.
+The native sample-size frontiers were $n=10^3$ for synthetic DID and augmented
+balancing, $n=10^4$ for Cox PH and Andersen--Gill, and $n=10^6$ for the other 26
+estimators. These maxima collapse across $k$ and therefore describe reach, not a
+claim that every dimension completed at that sample size.

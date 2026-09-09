@@ -1,15 +1,14 @@
 ---
 title: "crabbymetrics API Reference"
-subtitle: "Library sitrep and verified Python surface"
+subtitle: "Public classes, signatures, and data contracts"
 format:
   html:
     toc: true
     toc-depth: 3
     toc-location: left
     number-sections: true
-    embed-resources: true
     page-layout: full
-    code-fold: false
+    code-fold: true
     code-summary: "Show code"
 jupyter: python3
 execute:
@@ -22,12 +21,11 @@ execute:
 
 `crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: estimator classes, transformer classes, an `Optimizers` helper namespace, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` pattern.
 
-The class pages remain the canonical API reference, but this overview now does two extra jobs:
-
-- it shows the live constructor and method surface from the installed module;
-- it groups the growing class list into a navigable left-TOC landing page instead of relying on an oversized navbar dropdown.
+The linked class pages describe each estimator's objective, assumptions, inference,
+and limitations. Tables below are generated from the installed v0.9.0 module.
 
 ```{python}
+#| include: false
 import inspect
 from html import escape
 
@@ -75,16 +73,14 @@ def class_rows(classes):
     return rows
 ```
 
-## Sitrep
+## Shared contracts
 
-- `src/lib.rs` registers the Python classes, while estimator implementations are split by family under `src/estimators/`.
-- Shared linear algebra, covariance, bootstrap, and NumPy conversion helpers live in `src/utils.rs`.
-- Packaging is lean. The Python package declares only `numpy` at runtime, while native builds are handled by `maturin`.
-- Release automation already exists in `.github/workflows/wheels.yml` for Linux and macOS wheels across Python 3.10 to 3.14.
-- Coverage is broad for a small codebase: linear estimators, GLMs/classifiers, survival models, panel estimators, semiparametric treatment-effect estimators, callback-driven `GMM` / `MEstimator`, and matrix/design transforms.
-- The main maturity gaps are still documentation depth and some remaining API asymmetries across older estimators.
-- The recent MLE overhaul standardizes the layered prediction contract more explicitly: `predict_lin(...)` for the latent linear index, `predict(...)` for mean-scale predictions, and `predict_label(...)` only where labels are conceptually distinct from probabilities.
-- Survival models now follow the same spirit: parametric PH models expose hazard, cumulative-hazard, and survival surfaces, while Cox-style models default to relative-risk predictions because the baseline hazard is not yet estimated.
+- Pass NumPy arrays with the dtype and shape documented on the class page.
+- Fits mutate the object in place; summaries return dictionaries.
+- A failed validation or numerical refit clears learned state once Rust fit code is entered.
+- Regularized or rank-deficient likelihood fits can have valid predictions without available standard errors.
+- Cox-style models return relative risk; their baseline hazard is not estimated.
+- See the [v0.9 migration guide](release-0.9.qmd) for weighting, callback, and convergence changes.
 
 ## Regression and GLMs
 
@@ -164,6 +160,7 @@ Reference pages:
 
 - [TwoSLS](reference/TwoSLS.qmd)
 - [BalancingWeights](reference/BalancingWeights.qmd)
+- [MPE_CBPS](reference/MPE_CBPS.qmd)
 - [EPLM](reference/EPLM.qmd)
 - [AverageDerivative](reference/AverageDerivative.qmd)
 - [PartiallyLinearDML](reference/PartiallyLinearDML.qmd)
@@ -173,6 +170,7 @@ Worked docs:
 
 - [TwoSLS](examples/twosls.qmd)
 - [Balancing Weights](examples/balancing-weights.qmd)
+- [Chronos LTV Balancing](examples/chronos-ltv-balancing.qmd)
 - [Cressie--Read and Rényi Balancing](examples/cressie-read-balancing.qmd)
 - [EPLM](examples/eplm.qmd)
 - [Average Derivative](examples/average-derivative.qmd)
@@ -184,6 +182,7 @@ display(HTML(html_table(
     class_rows([
         cm.TwoSLS,
         cm.BalancingWeights,
+        cm.MPE_CBPS,
         cm.EPLM,
         cm.AverageDerivative,
         cm.PartiallyLinearDML,
@@ -280,6 +279,9 @@ Function utilities:
 - [MEstimator](reference/MEstimator.qmd)
 - [Optimizers](reference/Optimizers.qmd)
 
-## Compatibility note
-
-Older example and ablation pages remain in the site because they are useful worked examples. The class pages above are the canonical API docs, and the API overview page is now the intended navigation hub. If the navbar stays slim, this page is where the full surface should grow.
+```{python}
+display(HTML(html_table(
+    ["Constructor", "Methods"],
+    class_rows([cm.GMM, cm.MEstimator, cm.Optimizers]),
+)))
+```

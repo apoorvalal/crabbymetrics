@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-445ff30f473745a4b54dfab4fb13ee75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -140,6 +140,7 @@ window.Quarto = {
 };
 </script>
 
+<link rel="stylesheet" href="../styles.css">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -189,6 +190,10 @@ window.Quarto = {
  <span class="dropdown-text">Causal Inference And Panels</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
  <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
   </li>  
@@ -204,13 +209,13 @@ window.Quarto = {
   </li>
   <li class="nav-item">
     <a class="nav-link" href="../mechanics-ols.html"> 
-<span class="menu-text">Binding Crash Course</span></a>
+<span class="menu-text">Internals</span></a>
   </li>  
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression-and-glms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Regression And GLMs</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression-and-glms">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
         <li>
     <a class="dropdown-item" href="../examples/ols.html">
  <span class="dropdown-text">OLS</span></a>
@@ -270,13 +275,17 @@ window.Quarto = {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal-inference" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Causal Inference</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal-inference">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
         <li>
     <a class="dropdown-item" href="../examples/balancing-weights.html">
  <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
@@ -388,6 +397,10 @@ window.Quarto = {
     <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
  <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -406,57 +419,33 @@ window.Quarto = {
     </ul>
   </li>
   <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding-first-course" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Ding: First Course</span>
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
     </a>
-    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding-first-course">    
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
         <li>
     <a class="dropdown-item" href="../first-course-ding.html">
- <span class="dropdown-text">Overview And TOC</span></a>
+ <span class="dropdown-text">Chapter Index</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch01-correlation-simpson.html">
- <span class="dropdown-text">Ch 1 Correlation And Simpson</span></a>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch02-potential-outcomes.html">
- <span class="dropdown-text">Ch 2 Potential Outcomes</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch03-cre-frt.html">
- <span class="dropdown-text">Ch 3 CRE And Fisher RT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch04-cre-neyman.html">
- <span class="dropdown-text">Ch 4 CRE And Neyman</span></a>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
- <span class="dropdown-text">Ch 9 Bridging Finite And Superpopulation</span></a>
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch11-propensity-score.html">
- <span class="dropdown-text">Ch 11 Propensity Score</span></a>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="../ding/ch12-double-robust-ate.html">
- <span class="dropdown-text">Ch 12 Double Robust ATE</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch13-double-robust-att.html">
- <span class="dropdown-text">Ch 13 Double Robust ATT</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch21-iv-experiments.html">
- <span class="dropdown-text">Ch 21 Experimental IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch23-iv-econometrics.html">
- <span class="dropdown-text">Ch 23 Econometric IV</span></a>
-  </li>  
-        <li>
-    <a class="dropdown-item" href="../ding/ch27-mediation.html">
- <span class="dropdown-text">Ch 27 Mediation</span></a>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
   </li>  
     </ul>
   </li>
@@ -710,7 +699,7 @@ Y_t=2A_t+0.5A_{t-1}+1.5Z_t+\varepsilon_t.
 <p><span class="math display">\[
 \gamma_1=0.5+1.5(0.8)=1.7.
 \]</span></p>
-<div id="81ca6265" class="cell" data-execution_count="1">
+<div id="33d344f1" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -795,7 +784,7 @@ Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
 =\operatorname{logit}^{-1}(-1.2+0.55L_{im}+0.65U_i).
 \]</span></p>
 <p>The initiation response is <span class="math inline">\((1.0,1.6,2.1)\)</span> at horizons one through three. This violates level ignorability because <span class="math inline">\(U_i\)</span> confounds initiation and <span class="math inline">\(Y_{i0}(0)\)</span>, but it satisfies the simulated conditional parallel-trends restriction.</p>
-<div id="2692a905" class="cell" data-execution_count="2">
+<div id="5dee5226" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">91</span>)</span>
@@ -884,7 +873,7 @@ Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
 </div>
 </div>
 </div>
-<div id="6fabc741" class="cell" data-execution_count="3">
+<div id="4c4999da" class="cell" data-execution_count="3">
 <div class="cell-output cell-output-display" data-execution_count="3">
 <div>
 
@@ -1020,7 +1009,7 @@ Y_{i,t+1}
 </div>
 </div>
 <p>For each draw, <code>RegressionBlip</code> estimates <span class="math inline">\(\tau\)</span> as <span class="math inline">\(\widehat\gamma_0+\widehat\gamma_1+\widehat\gamma_2\)</span>. <code>ParallelTrendsSNMM</code> estimates it as <span class="math inline">\(\widehat\psi_1+\widehat\psi_2+\widehat\psi_3\)</span>. <code>DynamicCovariateBalance</code> fits <span class="math inline">\(\widehat\mu_4(d^1)\)</span> and <span class="math inline">\(\widehat\mu_4(d^0)\)</span> separately and differences them.</p>
-<div id="534ce892" class="cell" data-execution_count="4">
+<div id="8f2cc459" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -1240,21 +1229,21 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<div id="385af7f7" class="cell" data-execution_count="5">
+<div id="c969462a" class="cell" data-execution_count="5">
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="snmm-blips_files/figure-html/cell-6-output-1.png" width="1046" height="393" class="figure-img"></p>
+<p><img src="snmm-blips_files/figure-html/cell-6-output-1.png" width="1048" height="395" class="figure-img"></p>
 <figcaption>Sampling distributions for the common final-period path contrast.</figcaption>
 </figure>
 </div>
 </div>
 </div>
-<div id="70a3ee44" class="cell" data-execution_count="6">
+<div id="c32ffc6c" class="cell" data-execution_count="6">
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="snmm-blips_files/figure-html/cell-7-output-1.png" width="993" height="374" class="figure-img"></p>
+<p><img src="snmm-blips_files/figure-html/cell-7-output-1.png" width="997" height="376" class="figure-img"></p>
 <figcaption>Monte Carlo bias and standard deviation separate robustness from efficiency.</figcaption>
 </figure>
 </div>
@@ -1262,7 +1251,7 @@ Y_{i,t+1}
 </div>
 <p>Under selection on observables, all three sampling distributions are centered near two. The recursive regression is most efficient in this correctly specified low-dimensional outcome model; the parallel-trends estimator pays for orthogonalization and cross-fitting, while the path-specific dynamic-balancing contrast pays for estimating two increasingly selective path means.</p>
 <p>When <span class="math inline">\(U_i\)</span> enters treatment assignment, the regression-blip and dynamic-balancing estimates inherit the positive level confounding. The parallel-trends estimate remains close to the target because differencing removes <span class="math inline">\(U_i\)</span>. This is not generic robustness to hidden confounding: it relies specifically on <span class="math inline">\(U_i\)</span> being time invariant and absent from untreated outcome trends.</p>
-<div id="f6100380" class="cell" data-execution_count="7">
+<div id="7f35aafd" class="cell" data-execution_count="7">
 <div class="cell-output cell-output-display" data-execution_count="7">
 <div>
 
@@ -1457,7 +1446,7 @@ Y_{i,t+1}
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1785,6 +1774,30 @@ Y_{i,t+1}
   });
   </script>
 </div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.0</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
 
 
 

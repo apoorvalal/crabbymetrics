@@ -21,7 +21,7 @@ def html_table(headers, rows):
 
 
 def public_methods(cls):
-    rows = []
+    rows = [[f"<code>{escape(cls.__name__)}{escape(str(inspect.signature(cls)))}</code>"]]
     for name in sorted(n for n in dir(cls) if not n.startswith("_")):
         fn = getattr(cls, name)
         if callable(fn):

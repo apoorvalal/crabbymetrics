@@ -3,7 +3,6 @@ title: "Synthetic DID Example"
 format:
   html:
     number-sections: true
-    embed-resources: true
     page-layout: full
 execute:
   echo: true
@@ -85,6 +84,11 @@ print("true post-period ATT:", round(float(treatment_effect[t_pre:].mean()), 4))
 
 ## Fit DID, Synthetic Control, And SDID
 
+The synthetic-control comparator receives a 10,000-iteration budget for this
+72-donor problem. Its former 800-iteration budget exhausted the solver; v0.9
+correctly raises instead of exposing that unfinished fit. The data, objective,
+and convergence tolerance are unchanged.
+
 ```{python}
 def did_estimate(panel, treated_idx, t_pre):
     treated = panel[treated_idx]
@@ -98,7 +102,7 @@ did_att = did_estimate(observed_panel, treated_units, t_pre)
 
 donors_pre = observed_panel[control_units, :t_pre].T
 treated_pre = observed_panel[treated_units, :t_pre].mean(axis=0)
-sc = SyntheticControl(max_iterations=800)
+sc = SyntheticControl(max_iterations=10000)
 sc.fit(donors_pre, treated_pre)
 sc_weights = np.asarray(sc.summary()["weights"])
 sc_path = observed_panel[control_units].T @ sc_weights

@@ -4,6 +4,8 @@
 
 This file is for coding agents and LLMs that need to use `crabbymetrics` correctly in applications. Prefer this file when you need a dense API map, data-shape conventions, estimator selection guidance, and links into the human documentation site.
 
+Documentation baseline: v0.9.0. See release-0.9.html for migration notes and reproducing.html for fresh execution and data provenance.
+
 Canonical project locations:
 
 - Documentation site: https://apoorvalal.github.io/crabbymetrics/
@@ -32,7 +34,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 
 ## Global conventions
 
-- Inputs are NumPy arrays or array-like objects that can be converted to NumPy arrays.
+- Inputs must be NumPy arrays with the documented dtype and shape. Convert lists and DataFrames explicitly; the native methods do not automatically coerce arbitrary array-like objects.
 - Most feature matrices are 2D, shape `(n_observations, n_features)`.
 - Most regression/classification targets are 1D, shape `(n_observations,)`.
 - Estimators mutate in place: instantiate, call `fit(...)`, then call `predict(...)`, `summary(...)`, `bootstrap(...)`, or estimator-specific methods when available.
@@ -41,6 +43,12 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 - OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS fit an intercept internally.
 - `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
 - Weighted fits exist for OLS, Ridge, FixedEffectsOLS, and TwoSLS.
+- Starting in 0.9.0, those weights are explicitly analytic, not frequency weights. Zero-weight rows and zero-only clusters are excluded from inference counts; HAC lags use the active-row sequence. Ridge CV retains row-modulo fold assignment.
+- Estimator fit methods clear prior learned state on entry, including failed numerical/validation refits. Python argument conversion errors occur before Rust fit entry and cannot enforce this reset.
+- ElasticNet now centers both predictors and outcome for an intercept, reconstructs the original-scale intercept, and uses a QR solve at the pure-L2 endpoint. This fixes earlier shifted-design behavior.
+- GMM snapshots fitted moments/Jacobians; MEstimator computes covariance at fit time. Keep MEstimator callback data immutable for later bootstrap. GMM vanilla covariance requires two-step iid weighting or `assume_optimal_weighting=True`; default sandwich inference remains available. Solver damping does not regularize statistical weights or covariance.
+- Unpenalized Logit/MultinomialLogit/Poisson may retain valid coefficients while returning `inference_available=False` for rank-deficient information. Check this flag before using standard errors.
+- MatrixCompletion supports `summary(include_matrices=False)` to omit dense surface copies. Default summaries preserve independent array ownership.
 - Robust covariance conventions vary by estimator; the main linear estimators share `summary(vcov="vanilla" | "hc1" | "newey_west" | "cluster", lags=None, clusters=None)`.
 - Iterative likelihood and callback estimators expose `converged`, `iterations`, `termination_reason`, and `objective` in `summary()`. They reject budget-exhausted fits unless the estimator explicitly documents retention of a diagnostic best iterate, as `MatrixCompletion` does.
 - The package does not require pandas, scikit-learn, scipy, statsmodels, or polars at runtime. If you start from a DataFrame, convert to NumPy explicitly before fitting.
@@ -58,7 +66,7 @@ Important ownership boundaries:
 - Exact `PCA` and exact training-Gram construction for `KernelBasis` delegate narrow primitives to Linfa. RandomizedPCA, NystromBasis, RandomFourierFeatures, out-of-sample cross-kernel construction, and all wrapper diagnostics are package-owned.
 - There is no monolithic `KernelRidge` class. Exact or approximate kernel ridge is the explicit composition `KernelBasis` / `NystromBasis` / `RandomFourierFeatures` followed by `Ridge`; the two class pages document both halves of that pipeline.
 
-Do not run `docs/_generate_class_reference.py --force` as a routine maintenance step. It creates first-pass scaffolds and would replace the audited hand-written sections. Without `--force`, it skips existing pages.
+The hand-written class references are authoritative; signatures and summary shapes are regenerated from the installed module during rendering.
 
 ## Quick estimator selection
 
@@ -78,6 +86,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Continuous treatment partially linear model: `cm.PartiallyLinearDML()` or `cm.EPLM()`.
 - Continuous-treatment average derivative: `cm.AverageDerivative(method="dr")`.
 - Covariate balancing/calibration weights: `cm.BalancingWeights()`; use `objective="cressie_read"` for Cressie-Read / power-divergence calibration.
+- Dynamic marginal policy effects from cumulative future rewards under the Chronos LTV identification assumptions: use `cm.MPE_CBPS()`, the native Rust implementation of the authors' released two-arm inverse-logit CBPS estimator. Fit once on pre-delay covariates and the binary delay indicator, then call `estimate(gamma_k)` for each forward horizon. Pass a positive `policy_derivative` list and `denominator` to reproduce the paper's percentage-of-baseline-value normalization. `cm.BalancingWeights(objective="entropy")` is a useful calibration sensitivity check but uses a different weight family. See `docs/reference/MPE_CBPS.qmd` and `docs/examples/chronos-ltv-balancing.qmd`.
 - Longitudinal additive blips under sequential ignorability: `cm.RegressionBlip()`.
 - Longitudinal additive blips under conditional parallel trends: `cm.ParallelTrendsSNMM()`.
 - A final mean potential outcome under a specified binary treatment path using sequential balance: `cm.DynamicCovariateBalance()`; fit one object per path and difference the fitted path means for a contrast.
@@ -90,7 +99,7 @@ Use these defaults unless the application has a reason to do otherwise:
 - Regularized estimators expose point estimates for prediction but do not claim analytic standard errors unless the fitted objective and covariance match.
 - Direct numerical optimization with Python callbacks: `cm.Optimizers.minimize_*`.
 
-## Panel causal API: most important recent contract
+## Panel causal API
 
 The paved panel causal API is matrix-first:
 
@@ -205,7 +214,7 @@ summary()
 bootstrap(n_bootstrap, seed=None)
 ```
 
-`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage. The implementation solves against `y - mean(y)` without centering `X`, then predicts `mean(y) + X @ coef`; this differs from jointly optimizing an unpenalized intercept unless `X` is column-centered. `summary()` exposes the final duality gap and fit diagnostics and marks analytic inference unavailable. A nonconverged fit raises.
+`l1_ratio=0.0` is ridge-style shrinkage; `l1_ratio=1.0` is lasso-style shrinkage. Intercept fits center both `X` and `y`, then reconstruct `mean(y) - mean(X) @ coef`. The pure-L2 endpoint uses QR and corresponds to dedicated Ridge penalty `n * penalty`. `summary()` exposes the final duality gap and fit diagnostics and marks analytic inference unavailable. A nonconverged fit raises.
 
 ```python
 cm.Logit(alpha=0.0, max_iterations=100, gradient_tolerance=1e-4)
@@ -327,6 +336,16 @@ summary()
 ```
 
 Low-level calibration/reweighting API. `objective` can be `"quadratic"`, `"entropy"`, `"cressie_read"`, or alias `"power_divergence"`; `solver` can be `"auto"`, `"gauss_newton"`, `"lbfgs"`, or `"bfgs"`. For Cressie-Read, `divergence_power` is the index lambda: `0.0` is the entropy/KL limit and `1.0` is the Pearson chi-square member. `dual_ridge` adds optional stabilization on non-intercept dual coefficients. `solver_converged` and the generic convergence fields describe the scaled calibration system; `success` additionally checks normalized weight feasibility. `scaled_residual_norm` and `solver_objective` are numerical diagnostics, while `original_balance_l2` and `original_balance_max_abs` remain in user-supplied units. Summary keys also include `weights`, `beta`, `weighted_mean`, `target_mean`, `mean_diff`, `effective_sample_size`, `divergence_power`, and `dual_ridge`.
+
+```python
+cm.MPE_CBPS(standardize=True, max_iterations=500, tolerance=1e-8, max_log_weight=50.0)
+fit(covariates, treatment, policy_derivative=None)
+estimate(outcome, denominator=None)
+get_weights(arm)
+summary()
+```
+
+Qiu--Kuang--Liskovich--Rauh--Wager / Chronos marginal-policy-effect CBPS. The class fits the released estimator's two arm-specific convex inverse-logit calibration losses with analytic Newton steps in Rust. `treatment` is an `int32` 0/1 vector. `policy_derivative` defaults to one and must otherwise be a positive finite Python list. `estimate()` returns the weighted cumulative-outcome policy gradient divided by `denominator`, which defaults to the sample size. To reproduce the paper's reported normalization, fit with the additive delay-probability derivative and estimate with total baseline spend as the denominator. Summary keys include both arm coefficients and raw weights, convergence and iteration counts, objective and gradient norms, original-scale balance, weight sums, and effective sample sizes. The canonical SciPy/BFGS parity tests are in `tests/test_mpe_cbps.py`; the mathematical and executable guide is `docs/examples/chronos-ltv-balancing.qmd`.
 
 ```python
 cm.EPLM(fd_eps=1e-6)
@@ -600,6 +619,7 @@ If you need to inspect or modify source, start here:
 - `src/estimators/semiparametric.rs`: EPLM, AverageDerivative, PartiallyLinearDML, AIPW.
 - `src/estimators/dynamic.rs`: RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance.
 - `src/estimators/balancing.rs`: BalancingWeights and the shared internal quadratic-calibration engine used by DynamicCovariateBalance.
+- `src/estimators/mpe_cbps.rs`: MPE_CBPS, the native two-arm Chronos marginal-policy-effect CBPS estimator and policy-gradient aggregator.
 - `src/estimators/gmm.rs`: GMM.
 - `src/estimators/transforms.rs`: PCA, RandomizedPCA, KernelBasis, NystromBasis, and RandomFourierFeatures.
 - `src/fit.rs`: shared convergence status and fit diagnostics.
@@ -607,26 +627,31 @@ If you need to inspect or modify source, start here:
 - `src/optimizers.rs`: Optimizers namespace.
 - `src/utils.rs`: shared array conversion, linear algebra, covariance, bootstrap, and helper routines.
 - `tests/`: Python tests for public behavior; use these as executable API examples when docs are thin.
-- `docs/examples/*.qmd`: rendered example notebooks.
+- `docs/examples/*.qmd`: executable example sources; rendered HTML belongs in `docs/_site/` or `gh-pages`.
 - `docs/ablations/*.qmd`: cached numerical experiments and panel case-study workflows.
-- `docs/api.qmd`: generated/verified public-surface reference.
+- `docs/api.qmd`: public-surface reference with live signature tables.
+- `docs/_build.py`: isolated fresh release renders, logs, and compiled-extension provenance.
+- `docs/_check_site.py`: local HTML link/anchor/image and search-index validation.
 
 Development commands:
 
 ```bash
-uv sync
-uv run maturin develop
+uv sync --group docs --group test --group benchmark
+uv run maturin develop --release
 uv run pytest tests -q
-uv sync --extra docs
-uv run quarto render docs
+uv run python docs/_build.py --stage /tmp/crabbymetrics-docs-build
+uv run python docs/_check_site.py /tmp/crabbymetrics-docs-build/source/docs/_site
 ```
 
 ## Documentation links
 
+- [v0.9 migration](https://apoorvalal.github.io/crabbymetrics/release-0.9.html): changed weighting, centering, callback, convergence, and inference contracts.
+- [Reproduction](https://apoorvalal.github.io/crabbymetrics/reproducing.html): dependencies, bundled data, fresh execution, and publication.
+
 - [Home](https://apoorvalal.github.io/crabbymetrics/): overview, examples, ablations, and support pages.
 - [API reference](https://apoorvalal.github.io/crabbymetrics/api.html): verified public surface, method signatures, summary schemas, optimizer catalog, and smoke checks.
 - Estimator pages under the API reference document the implemented objective or estimating equations, covariance method, inferential limitations, and computational scaling.
-- [Binding Crash Course: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
+- [Binding Internals: OLS](https://apoorvalal.github.io/crabbymetrics/mechanics-ols.html): shortest end-to-end Rust-to-Python wrapper walkthrough.
 - [Binding Internals: Poisson](https://apoorvalal.github.io/crabbymetrics/mechanics-poisson.html): deeper built-in estimator walkthrough.
 - [Binding Internals: MEstimator](https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html): callback-heavy bridge where Rust owns optimization and Python supplies objective/scores.
 
@@ -660,6 +685,10 @@ uv run quarto render docs
 
 ## Ablation and case-study links
 
+- [Estimator scaling](https://apoorvalal.github.io/crabbymetrics/ablations/estimator-scaling.html): fresh v0.9.0 adapter-revision-2 timings on a bounded 30-estimator grid; excludes MPE_CBPS.
+- [Staggered panel event study](https://apoorvalal.github.io/crabbymetrics/examples/staggered-panel-event-study.html): seeded synthetic panel, known dynamic effects, and PyFixest comparisons; no private data path.
+- [Chronos LTV](https://apoorvalal.github.io/crabbymetrics/examples/chronos-ltv-balancing.html): MPE_CBPS, entropy calibration, and dynamic identification assumptions.
+
 - [Variance Estimators](https://apoorvalal.github.io/crabbymetrics/ablations/variance-estimators.html): Monte Carlo coverage for OLS, Poisson, and GMM variance estimators.
 - [Semiparametric Estimator Comparisons](https://apoorvalal.github.io/crabbymetrics/ablations/semiparametric-estimators.html): EPLM versus DML and regression/balancing/AIPW comparisons.
 - [Bridging Finite And Superpopulation](https://apoorvalal.github.io/crabbymetrics/ablations/bridging-finite-and-superpopulation.html): SATE/PATE coverage comparisons.
@@ -668,7 +697,7 @@ uv run quarto render docs
 
 ## Optional background links
 
-- [First Course Ding overview](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): translation map for Ding causal inference chapters.
+- [First Course Ding overview](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): index of the implemented Ding causal inference chapters.
 - [Ding chapter pages](https://apoorvalal.github.io/crabbymetrics/first-course-ding.html): use the site navigation for chapter-specific causal inference notes and translated examples.
 
 ## Common mistakes to avoid

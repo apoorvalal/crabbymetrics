@@ -6,7 +6,6 @@ format:
     toc: true
     toc-depth: 2
     number-sections: true
-    embed-resources: true
     page-layout: full
     code-fold: true
     code-summary: "Show code"
@@ -29,13 +28,6 @@ import pandas as pd
 import crabbymetrics as cm
 
 np.set_printoptions(precision=4, suppress=True)
-
-
-def repo_root():
-    for candidate in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
-        if (candidate / "ding_w_source").exists():
-            return candidate
-    raise FileNotFoundError("could not locate ding_w_source from the current working directory")
 
 
 def expit(x):
@@ -143,7 +135,7 @@ for i, (label, outcome_ok, pscore_ok) in enumerate(regimes):
 ## A Native `AIPW` Check On One Sample
 
 ```{python}
-data = pd.read_csv(repo_root() / "ding_w_source" / "repl" / "nhanes_bmi.csv")
+data = pd.read_csv(Path("../data/ding") / "nhanes_bmi.csv")
 y = data["BMI"].to_numpy(dtype=float)
 d = data["School_meal"].to_numpy(dtype=float)
 x = data[["age", "ChildSex", "black", "mexam", "pir200_plus", "WIC", "Food_Stamp", "AnyIns", "RefAge"]].to_numpy(dtype=float)
