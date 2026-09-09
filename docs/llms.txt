@@ -41,7 +41,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 - OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS fit an intercept internally.
 - `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
 - Weighted fits exist for OLS, Ridge, FixedEffectsOLS, and TwoSLS.
-- On the hardened `speedtest` branch, those weights are analytic, not frequency weights. Zero-weight rows and zero-only clusters are excluded from inference counts; HAC lags use the active-row sequence. Ridge CV retains row-modulo fold assignment.
+- Starting in 0.9.0, those weights are explicitly analytic, not frequency weights. Zero-weight rows and zero-only clusters are excluded from inference counts; HAC lags use the active-row sequence. Ridge CV retains row-modulo fold assignment.
 - Estimator fit methods clear prior learned state on entry, including failed numerical/validation refits. Python argument conversion errors occur before Rust fit entry and cannot enforce this reset.
 - ElasticNet now centers both predictors and outcome for an intercept, reconstructs the original-scale intercept, and uses a QR solve at the pure-L2 endpoint. This fixes earlier shifted-design behavior.
 - GMM snapshots fitted moments/Jacobians; MEstimator computes covariance at fit time. Keep MEstimator callback data immutable for later bootstrap. GMM vanilla covariance requires two-step iid weighting or `assume_optimal_weighting=True`; default sandwich inference remains available. Solver damping does not regularize statistical weights or covariance.

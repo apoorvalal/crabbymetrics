@@ -9,15 +9,30 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: the package is `v0.8.2`; its release and packaging checks are recorded in the 2026-08-20 entry below. Documentation is deployed separately through `gh-pages`.
+Current release state: `v0.9.0` is prepared for publication; `v0.8.2` remains the latest published version until the release workflow succeeds. Documentation is deployed separately through `gh-pages`.
 
-Current development state: `speedtest` includes the 30-estimator scaling inventory/report and external-reference parity tests on top of `v0.8.2`. The September cleanup hardens benchmark execution and persistence, corrects adapter comparisons, and reduces shared numerical-helper allocations. The user-approved estimator patches below fix numerical defects and implement bounded performance improvements. The historical scaling data has not been regenerated.
+Current development state: PR #21 was squash-merged into `master` as `bb4c6f2`, bringing the scaling inventory, external-reference parity tests, benchmark cleanup, and approved estimator hardening together with PR #22's `MPE_CBPS`. The historical scaling data has not been regenerated.
 
 The current public surface includes the three experimental dynamic-treatment estimators originally developed on `feature/snmm-blips`: `RegressionBlip`, a Blackwell--Glynn recursive regression g-estimator under sequential ignorability; `ParallelTrendsSNMM`, an additive cross-fitted doubly robust estimator under the Shahn et al. time-varying parallel-trends restriction; and `DynamicCovariateBalance`, a Viviano--Bradic recursive path-mean estimator that shares the package's quadratic calibration engine. The worked mathematical/API review page is `docs/examples/snmm-blips.qmd`.
 
 Release packaging now excludes both rendered `docs/` content and the local untracked `ding_ci` symlink tree. This keeps dirty-checkout source distributions aligned with clean GitHub release builds instead of relying on the symlink being absent in CI.
 
 This file is meant to record the current architecture and the design choices that matter for future work.
+
+## v0.9.0 Release (2026-09-09)
+
+- Merged PR #21 after its Python 3.10 and 3.12 CI checks passed, preserving
+  upstream's Chronos/MPE_CBPS addition from PR #22.
+- Prepared package version `0.9.0` for the existing `Build wheels` workflow,
+  which tests and builds Linux/macOS wheels for Python 3.10 through 3.14 and
+  publishes via PyPI trusted publishing. Publication is pending verification.
+- Local 0.9.0 release-build gates pass: 314 Python tests and 11 Rust tests.
+  The preflight sdist is 588,587 bytes and contains no rendered HTML, docs tree,
+  Quarto/Jupyter caches, or local virtual environment.
+- This minor release intentionally corrects ElasticNet intercepts, GMM
+  convergence/weighting, Cox risk sums, zero-weight inference, callback inference
+  ownership, and rank-deficient GLM inference. The detailed compatibility record
+  remains at <https://lalten.org/pages/crabbymetrics-estimator-hardening/>.
 
 ## Upstream Merge (2026-09-09)
 

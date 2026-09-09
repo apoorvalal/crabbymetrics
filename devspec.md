@@ -20,14 +20,15 @@ Any new work here should usually satisfy most of the following:
 
 ## Current Branch State (2026-09-09)
 
-The branch now also includes upstream `master` commit `042f757` (PR #22), adding
+`master` now includes PR #21 as `bb4c6f2` and upstream commit `042f757` (PR #22), adding
 `MPE_CBPS` and its Chronos vignette. The scaling inventory and hardening audit
 below retain their original 30-estimator scope; the new upstream class is
 additional to that historical coverage. Both development histories are retained.
 The merged release build passes 314 Python tests and 11 Rust tests.
 
-The package version is `0.8.2`. The `speedtest` branch includes the augmented
-balancing release, the inventory and scaling report for all 30 estimators, and
+The package version is `0.9.0`, prepared for publication through the existing
+release workflow. `master` includes the augmented balancing release, the
+inventory and scaling report for the original 30 estimators, and
 deterministic external-reference parity tests. The likelihood-method expansion
 plan below remains pending. The approved estimator-hardening patches add small
 inference/provenance controls but no new estimator classes.
