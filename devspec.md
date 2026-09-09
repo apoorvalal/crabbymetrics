@@ -26,8 +26,10 @@ below retain their original 30-estimator scope; the new upstream class is
 additional to that historical coverage. Both development histories are retained.
 The merged release build passes 314 Python tests and 11 Rust tests.
 
-The package version is `0.9.0`, prepared for publication through the existing
-release workflow. `master` includes the augmented balancing release, the
+The package version is `0.9.0`, published on PyPI and GitHub from release commit
+`dcbe829`. The release workflow passed both test jobs and all 10 Linux/macOS
+wheel builds; the 588,649-byte sdist excludes docs/caches, and a fresh PyPI
+installation passed estimator smoke checks. `master` includes the augmented balancing release, the
 inventory and scaling report for the original 30 estimators, and
 deterministic external-reference parity tests. The likelihood-method expansion
 plan below remains pending. The approved estimator-hardening patches add small

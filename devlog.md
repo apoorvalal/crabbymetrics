@@ -9,7 +9,7 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.9.0` is prepared for publication; `v0.8.2` remains the latest published version until the release workflow succeeds. Documentation is deployed separately through `gh-pages`.
+Current release state: `v0.9.0` is published on PyPI and GitHub; release and clean-install verification are recorded below. Documentation is deployed separately through `gh-pages`.
 
 Current development state: PR #21 was squash-merged into `master` as `bb4c6f2`, bringing the scaling inventory, external-reference parity tests, benchmark cleanup, and approved estimator hardening together with PR #22's `MPE_CBPS`. The historical scaling data has not been regenerated.
 
@@ -23,12 +23,23 @@ This file is meant to record the current architecture and the design choices tha
 
 - Merged PR #21 after its Python 3.10 and 3.12 CI checks passed, preserving
   upstream's Chronos/MPE_CBPS addition from PR #22.
-- Prepared package version `0.9.0` for the existing `Build wheels` workflow,
-  which tests and builds Linux/macOS wheels for Python 3.10 through 3.14 and
-  publishes via PyPI trusted publishing. Publication is pending verification.
+- Released commit `dcbe829` as `v0.9.0` through the successful `Build wheels`
+  workflow <https://github.com/apoorvalal/crabbymetrics/actions/runs/34365643528>.
+  Both Python 3.10/3.12 test jobs passed; all 10 Linux x86_64/macOS arm64 wheels
+  for Python 3.10 through 3.14 and the sdist were published through PyPI trusted
+  publishing. The GitHub Release also contains all 11 artifacts and release notes.
 - Local 0.9.0 release-build gates pass: 314 Python tests and 11 Rust tests.
   The preflight sdist is 588,587 bytes and contains no rendered HTML, docs tree,
   Quarto/Jupyter caches, or local virtual environment.
+- The published sdist is 588,649 bytes. Its SHA256 matches the verified CI
+  artifact, its metadata reports 0.9.0, and all 24 Rust source files match the
+  release checkout. PyPI lists 10 non-yanked wheels and one non-yanked sdist.
+- A fresh Python 3.12 environment installed `crabbymetrics==0.9.0` directly
+  from PyPI with NumPy only. Smoke checks passed for OLS/zero weights, prediction
+  validation, ElasticNet centering at L1/mixed/L2 endpoints, GMM small-moment
+  convergence, Cox origin invariance, and `MPE_CBPS` fitting/estimation.
+- Release links: <https://pypi.org/project/crabbymetrics/0.9.0/> and
+  <https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.9.0>.
 - This minor release intentionally corrects ElasticNet intercepts, GMM
   convergence/weighting, Cox risk sums, zero-weight inference, callback inference
   ownership, and rank-deficient GLM inference. The detailed compatibility record
