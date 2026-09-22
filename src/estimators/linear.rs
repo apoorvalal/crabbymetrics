@@ -15,10 +15,53 @@ use pyo3::types::PyDict;
 use std::collections::{BTreeMap, BTreeSet};
 use within::{Solver as WithinSolver, SolverParams as WithinSolverParams};
 
-struct FixedEffectsOlsFitResult {
-    coef: Array1<f64>,
-    x_resid: Array2<f64>,
-    y_resid: Array1<f64>,
+pub(super) struct FixedEffectsOlsFitResult {
+    pub coef: Array1<f64>,
+    pub x_resid: Array2<f64>,
+    pub y_resid: Array1<f64>,
+    pub levels: FeLevels,
+    pub iterations: Vec<usize>,
+    pub residual_norms: Vec<f64>,
+}
+
+/// Level coefficients have an arbitrary gauge; identified sums do not.
+pub(super) struct FeLevels {
+    maps: Vec<BTreeMap<u32, usize>>,
+    values: Vec<Vec<f64>>,
+    components: Vec<usize>,
+}
+
+impl FeLevels {
+    pub fn predict(&self, fe: &Array2<u32>) -> PyResult<Array1<f64>> {
+        if fe.ncols() != self.maps.len() || fe.ncols() > 2 {
+            return Err(PyValueError::new_err(
+                "level prediction supports one or two fitted FE dimensions",
+            ));
+        }
+        let mut out = Array1::zeros(fe.nrows());
+        for i in 0..fe.nrows() {
+            let ids: Vec<usize> = (0..fe.ncols())
+                .map(|j| {
+                    self.maps[j].get(&fe[[i, j]]).copied().ok_or_else(|| {
+                        PyValueError::new_err("prediction contains an unseen fixed-effect level")
+                    })
+                })
+                .collect::<PyResult<_>>()?;
+            if ids.len() == 2
+                && self.components[ids[0]] != self.components[self.maps[0].len() + ids[1]]
+            {
+                return Err(PyValueError::new_err(
+                    "prediction crosses disconnected fixed-effect components",
+                ));
+            }
+            out[i] = ids
+                .iter()
+                .enumerate()
+                .map(|(j, &k)| self.values[j][k])
+                .sum();
+        }
+        Ok(out)
+    }
 }
 
 struct UnionFind {
@@ -267,19 +310,23 @@ fn av_log_g_f(f: f64, d: f64, nu: f64, n: usize, g: f64) -> f64 {
     0.5 * d * r.ln() + 0.5 * (nu + d) * ((1.0 + (d / nu) * f).ln() - (1.0 + r * (d / nu) * f).ln())
 }
 
-fn fit_fixed_effects_ols(
+pub(super) fn fit_fixed_effects_ols(
     x: &Array2<f64>,
     y: &Array1<f64>,
     fe: &Array2<u32>,
     sample_weight: Option<&Array1<f64>>,
+    tolerance: f64,
+    max_iterations: usize,
 ) -> PyResult<FixedEffectsOlsFitResult> {
     validate_finite("x", x).map_err(PyValueError::new_err)?;
     validate_finite("y", y).map_err(PyValueError::new_err)?;
     if x.nrows() != y.len() || fe.nrows() != y.len() {
         return Err(PyValueError::new_err("row count mismatch"));
     }
-    if x.ncols() == 0 {
-        return Err(PyValueError::new_err("x must have at least one column"));
+    if y.is_empty() || !tolerance.is_finite() || tolerance <= 0.0 || max_iterations == 0 {
+        return Err(PyValueError::new_err(
+            "need observations, positive finite tolerance, and positive max_iterations",
+        ));
     }
     if fe.ncols() == 0 {
         return Err(PyValueError::new_err("fe must have at least one column"));
@@ -297,6 +344,8 @@ fn fit_fixed_effects_ols(
                 &take_rows_vec(y, &keep),
                 &take_rows_u32(fe, &keep),
                 Some(&take_rows_vec(weights, &keep)),
+                tolerance,
+                max_iterations,
             )?;
             let mut x_resid = Array2::zeros(x.raw_dim());
             let mut y_resid = Array1::zeros(y.len());
@@ -308,13 +357,23 @@ fn fit_fixed_effects_ols(
                 coef: fit.coef,
                 x_resid,
                 y_resid,
+                levels: fit.levels,
+                iterations: fit.iterations,
+                residual_norms: fit.residual_norms,
             });
         }
     }
 
-    let params = WithinSolverParams::default();
+    // Compact arbitrary caller IDs: within infers counts from maximum IDs.
+    let maps: Vec<_> = (0..fe.ncols()).map(|j| observed_level_map(fe, j)).collect();
+    let coded = Array2::from_shape_fn(fe.raw_dim(), |(i, j)| maps[j][&fe[[i, j]]] as u32);
+    let params = WithinSolverParams {
+        tol: tolerance,
+        maxiter: max_iterations,
+        ..Default::default()
+    };
     let solver = WithinSolver::new(
-        fe.view(),
+        coded.view(),
         sample_weight.and_then(|weights| weights.as_slice()),
         &params,
         None,
@@ -350,13 +409,48 @@ fn fit_fixed_effects_ols(
         x_resid.column_mut(j).assign(&col);
     }
 
-    let coef = fit_linear_params_from_design(&x_resid, &y_resid, sample_weight)
-        .map_err(PyValueError::new_err)?;
-
+    let coef = if x.ncols() == 0 {
+        Array1::zeros(0)
+    } else {
+        fit_linear_params_from_design(&x_resid, &y_resid, sample_weight)
+            .map_err(PyValueError::new_err)?
+    };
+    let mut offset = 0;
+    let mut values = Vec::new();
+    for map in &maps {
+        values.push(
+            (0..map.len())
+                .map(|i| {
+                    partialled.x(0)[offset + i]
+                        - (0..coef.len())
+                            .map(|j| coef[j] * partialled.x(j + 1)[offset + i])
+                            .sum::<f64>()
+                })
+                .collect(),
+        );
+        offset += map.len();
+    }
+    let mut components = UnionFind::new(offset);
+    if maps.len() == 2 {
+        for i in 0..fe.nrows() {
+            components.union(
+                coded[[i, 0]] as usize,
+                maps[0].len() + coded[[i, 1]] as usize,
+            );
+        }
+    }
+    let components = (0..offset).map(|i| components.find(i)).collect();
     Ok(FixedEffectsOlsFitResult {
         coef,
         x_resid,
         y_resid,
+        levels: FeLevels {
+            maps,
+            values,
+            components,
+        },
+        iterations: partialled.iterations().to_vec(),
+        residual_norms: partialled.final_residual().to_vec(),
     })
 }
 
@@ -774,8 +868,159 @@ pub fn optimal_g(n: usize, number_of_coefficients: usize, alpha: f64) -> PyResul
     Ok(0.5 * (a + b))
 }
 
+/// Reject unidentified nuisance directions before counterfactual extrapolation.
+pub(super) fn validate_fe_prediction_design(
+    raw: &Array2<f64>,
+    residualized: &Array2<f64>,
+    weights: Option<&Array1<f64>>,
+) -> PyResult<()> {
+    let k = raw.ncols();
+    if k == 0 {
+        return Ok(());
+    }
+    let weight = |i: usize| weights.map_or(1.0, |w| w[i]);
+    let total_weight = (0..raw.nrows()).map(weight).sum::<f64>();
+    let mut normalized = nalgebra::DMatrix::zeros(raw.nrows(), k);
+    for c in 0..k {
+        let mean = (0..raw.nrows())
+            .map(|r| weight(r) * raw[[r, c]])
+            .sum::<f64>()
+            / total_weight;
+        let scale = (0..raw.nrows())
+            .map(|r| weight(r) * (raw[[r, c]] - mean).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        if !scale.is_finite() || scale <= f64::EPSILON {
+            return Err(PyValueError::new_err(
+                "covariates are not identified in the training sample (constant or absorbed)",
+            ));
+        }
+        for r in 0..raw.nrows() {
+            normalized[(r, c)] = residualized[[r, c]] * weight(r).sqrt() / scale;
+        }
+    }
+    let singular = normalized.svd(false, false).singular_values;
+    if singular.len() < k || singular.iter().any(|v| !v.is_finite() || *v < 1e-10) {
+        return Err(PyValueError::new_err("covariates are not identified in the training sample (absorbed, collinear or ill-conditioned)"));
+    }
+    Ok(())
+}
+
+/// Explicit FE degrees-of-freedom policies; defaults preserve v0.9 behavior.
+fn fe_inference_df(
+    fe: &Array2<u32>,
+    weights: Option<&Array1<f64>>,
+    clusters: Option<&Array1<i64>>,
+    policy: &str,
+) -> PyResult<usize> {
+    match policy {
+        "full" => Ok(weighted_fe_rank(fe, weights)
+            .map_err(PyValueError::new_err)?
+            .0),
+        "none" => Ok(0),
+        "non_nested" => {
+            let clusters = clusters.ok_or_else(|| {
+                PyValueError::new_err("fe_df='non_nested' requires cluster covariance")
+            })?;
+            if clusters.len() != fe.nrows() {
+                return Err(PyValueError::new_err("clusters length mismatch"));
+            }
+            let keep: Vec<_> = (0..fe.nrows())
+                .filter(|&i| weights.is_none_or(|w| w[i] > 0.0))
+                .collect();
+            let mut columns = Vec::new();
+            for j in 0..fe.ncols() {
+                let mut group = BTreeMap::new();
+                let nested = keep
+                    .iter()
+                    .all(|&i| match group.insert(fe[[i, j]], clusters[i]) {
+                        Some(old) => old == clusters[i],
+                        None => true,
+                    });
+                if !nested {
+                    columns.push(j);
+                }
+            }
+            if columns.is_empty() {
+                return Ok(1);
+            } // intercept convention
+            let remaining = fe
+                .select(ndarray::Axis(0), &keep)
+                .select(ndarray::Axis(1), &columns);
+            Ok(absorbed_fe_rank(&remaining)
+                .map_err(PyValueError::new_err)?
+                .0)
+        }
+        _ => Err(PyValueError::new_err(
+            "fe_df must be 'full', 'non_nested', or 'none'",
+        )),
+    }
+}
+
+fn fe_covariance(
+    design: &Array2<f64>,
+    residuals: &Array1<f64>,
+    vcov: &str,
+    lags: Option<usize>,
+    clusters: Option<&Array1<i64>>,
+    residual_df: f64,
+    ssc: &str,
+    cluster_correction: bool,
+) -> PyResult<Array2<f64>> {
+    if !["cluster", "hc1", "none"].contains(&ssc) {
+        return Err(PyValueError::new_err(
+            "ssc must be 'cluster', 'hc1', or 'none'",
+        ));
+    }
+    if vcov != "cluster" && (ssc != "cluster" || !cluster_correction) {
+        return Err(PyValueError::new_err(
+            "ssc and cluster_correction options apply only to cluster covariance",
+        ));
+    }
+    if design.ncols() == 0 {
+        if ![
+            "vanilla",
+            "hc0",
+            "hc1",
+            "hc2",
+            "hc3",
+            "cluster",
+            "newey_west",
+        ]
+        .contains(&vcov)
+        {
+            return Err(PyValueError::new_err("unknown covariance type"));
+        }
+        return Ok(Array2::zeros((0, 0)));
+    }
+    let mut cov = linear_covariance(design, residuals, vcov, lags, clusters, Some(residual_df))
+        .map_err(PyValueError::new_err)?;
+    if vcov == "cluster" {
+        let n = design.nrows() as f64;
+        let g = clusters.unwrap().iter().collect::<BTreeSet<_>>().len() as f64;
+        // Remove the default G/(G-1)*(N-1)/(N-K), then apply selected factors.
+        let size = match ssc {
+            "hc1" => n / residual_df,
+            "none" => 1.0,
+            _ => (n - 1.0) / residual_df,
+        };
+        let group = if cluster_correction {
+            g / (g - 1.0)
+        } else {
+            1.0
+        };
+        cov *= size * group / (g / (g - 1.0) * (n - 1.0) / residual_df);
+    }
+    Ok(cov)
+}
+
 #[pyclass]
 pub struct FixedEffectsOLS {
+    tolerance: f64,
+    max_iterations: usize,
+    levels: Option<FeLevels>,
+    iterations: Vec<usize>,
+    residual_norms: Vec<f64>,
     coef: Option<Array1<f64>>,
     x: Option<Array2<f64>>,
     y: Option<Array1<f64>>,
@@ -788,6 +1033,9 @@ pub struct FixedEffectsOLS {
 impl FixedEffectsOLS {
     fn clear_fit(&mut self) {
         self.coef = None;
+        self.levels = None;
+        self.iterations.clear();
+        self.residual_norms.clear();
         self.x = None;
         self.y = None;
         self.fe = None;
@@ -800,8 +1048,19 @@ impl FixedEffectsOLS {
 #[pymethods]
 impl FixedEffectsOLS {
     #[new]
-    fn new() -> Self {
-        Self {
+    #[pyo3(signature = (tolerance=1e-8, max_iterations=1000))]
+    fn new(tolerance: f64, max_iterations: usize) -> PyResult<Self> {
+        if !tolerance.is_finite() || tolerance <= 0.0 || max_iterations == 0 {
+            return Err(PyValueError::new_err(
+                "tolerance and max_iterations must be positive",
+            ));
+        }
+        Ok(Self {
+            tolerance,
+            max_iterations,
+            levels: None,
+            iterations: Vec::new(),
+            residual_norms: Vec::new(),
             coef: None,
             x: None,
             y: None,
@@ -809,7 +1068,7 @@ impl FixedEffectsOLS {
             sample_weight: None,
             x_resid: None,
             y_resid: None,
-        }
+        })
     }
 
     fn fit(
@@ -822,8 +1081,11 @@ impl FixedEffectsOLS {
         let x = to_array2(&x);
         let fe = to_array2_u32(&fe);
         let y = to_array1(&y);
-        let fit = fit_fixed_effects_ols(&x, &y, &fe, None)?;
+        let fit = fit_fixed_effects_ols(&x, &y, &fe, None, self.tolerance, self.max_iterations)?;
 
+        self.levels = Some(fit.levels);
+        self.iterations = fit.iterations;
+        self.residual_norms = fit.residual_norms;
         self.coef = Some(fit.coef);
         self.x = Some(x);
         self.y = Some(y);
@@ -846,8 +1108,18 @@ impl FixedEffectsOLS {
         let fe = to_array2_u32(&fe);
         let y = to_array1(&y);
         let sample_weight = Array1::from_vec(sample_weight);
-        let fit = fit_fixed_effects_ols(&x, &y, &fe, Some(&sample_weight))?;
+        let fit = fit_fixed_effects_ols(
+            &x,
+            &y,
+            &fe,
+            Some(&sample_weight),
+            self.tolerance,
+            self.max_iterations,
+        )?;
 
+        self.levels = Some(fit.levels);
+        self.iterations = fit.iterations;
+        self.residual_norms = fit.residual_norms;
         self.coef = Some(fit.coef);
         self.x = Some(x);
         self.y = Some(y);
@@ -858,13 +1130,45 @@ impl FixedEffectsOLS {
         Ok(())
     }
 
-    #[pyo3(signature = (vcov="hc1", lags=None, clusters=None))]
+    /// Predict outcome levels, including identified sums of one/two-way FE.
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<f64>,
+        fe: PyReadonlyArray2<u32>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let coef = self
+            .coef
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("FixedEffectsOLS model is not fitted"))?;
+        let x = to_array2(&x);
+        let fe = to_array2_u32(&fe);
+        validate_finite("x", &x).map_err(PyValueError::new_err)?;
+        if x.ncols() != coef.len() || x.nrows() != fe.nrows() {
+            return Err(PyValueError::new_err("prediction shape mismatch"));
+        }
+        let levels = self
+            .levels
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No fixed-effect levels stored"))?;
+        validate_fe_prediction_design(
+            self.x.as_ref().unwrap(),
+            self.x_resid.as_ref().unwrap(),
+            self.sample_weight.as_ref(),
+        )?;
+        Ok(pyarray1_from_f64(py, &(x.dot(coef) + levels.predict(&fe)?)))
+    }
+
+    #[pyo3(signature = (vcov="hc1", lags=None, clusters=None, *, fe_df="full", ssc="cluster", cluster_correction=true))]
     fn summary<'py>(
         &self,
         py: Python<'py>,
         vcov: &str,
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
+        fe_df: &str,
+        ssc: &str,
+        cluster_correction: bool,
     ) -> PyResult<Py<PyAny>> {
         let coef = self
             .coef
@@ -884,9 +1188,21 @@ impl FixedEffectsOLS {
             .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
         let (absorbed_df, absorbed_df_method) =
             weighted_fe_rank(fe, self.sample_weight.as_ref()).map_err(PyValueError::new_err)?;
+        if fe_df == "non_nested" && vcov != "cluster" {
+            return Err(PyValueError::new_err(
+                "fe_df='non_nested' requires cluster covariance",
+            ));
+        }
+        let cluster_values = clusters.as_ref().map(to_array1_i64);
+        let counted_fe_df = fe_inference_df(
+            fe,
+            self.sample_weight.as_ref(),
+            cluster_values.as_ref(),
+            fe_df,
+        )?;
         let residual_df = positive_n(y_resid.len(), self.sample_weight.as_ref()) as f64
             - x_resid.ncols() as f64
-            - absorbed_df as f64;
+            - counted_fe_df as f64;
         if residual_df <= 0.0 {
             return Err(PyValueError::new_err(
                 "absorbed fixed effects leave no residual degrees of freedom",
@@ -902,15 +1218,16 @@ impl FixedEffectsOLS {
             clusters.as_ref().map(to_array1_i64),
         )
         .map_err(PyValueError::new_err)?;
-        let cov = linear_covariance(
+        let cov = fe_covariance(
             &design_work,
             &residuals_work,
             vcov,
             lags,
             cluster_ids.as_ref(),
-            Some(residual_df),
-        )
-        .map_err(PyValueError::new_err)?;
+            residual_df,
+            ssc,
+            cluster_correction,
+        )?;
         let coef_se = diag_sqrt(&cov).map_err(PyValueError::new_err)?;
 
         let dict = pyo3::types::PyDict::new(py);
@@ -919,12 +1236,19 @@ impl FixedEffectsOLS {
         dict.set_item("vcov", pyarray2_from_f64(py, &cov))?;
         dict.set_item("vcov_type", vcov)?;
         dict.set_item("absorbed_df", absorbed_df)?;
+        dict.set_item("counted_fe_df", counted_fe_df)?;
+        dict.set_item("fe_df", fe_df)?;
+        dict.set_item("ssc", ssc)?;
+        dict.set_item("cluster_correction", cluster_correction)?;
         dict.set_item("residual_df", residual_df)?;
         dict.set_item("absorbed_df_method", absorbed_df_method)?;
+        dict.set_item("converged", true)?;
+        dict.set_item("absorption_iterations", self.iterations.clone())?;
+        dict.set_item("absorption_residual_norms", self.residual_norms.clone())?;
         Ok(dict.into())
     }
 
-    #[pyo3(signature = (r, q=None, vcov=None, lags=None, clusters=None))]
+    #[pyo3(signature = (r, q=None, vcov=None, lags=None, clusters=None, *, fe_df="full", ssc="cluster", cluster_correction=true))]
     fn wald_test<'py>(
         &self,
         py: Python<'py>,
@@ -933,6 +1257,9 @@ impl FixedEffectsOLS {
         vcov: Option<&str>,
         lags: Option<usize>,
         clusters: Option<PyReadonlyArray1<i64>>,
+        fe_df: &str,
+        ssc: &str,
+        cluster_correction: bool,
     ) -> PyResult<Bound<'py, PyDict>> {
         let coef = self
             .coef
@@ -950,17 +1277,27 @@ impl FixedEffectsOLS {
             .fe
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No fixed effects stored"))?;
-        let (absorbed_df, _) =
-            weighted_fe_rank(fe, self.sample_weight.as_ref()).map_err(PyValueError::new_err)?;
+        let vcov = vcov.unwrap_or("hc1");
+        if fe_df == "non_nested" && vcov != "cluster" {
+            return Err(PyValueError::new_err(
+                "fe_df='non_nested' requires cluster covariance",
+            ));
+        }
+        let cluster_values = clusters.as_ref().map(to_array1_i64);
+        let counted_fe_df = fe_inference_df(
+            fe,
+            self.sample_weight.as_ref(),
+            cluster_values.as_ref(),
+            fe_df,
+        )?;
         let residual_df = positive_n(y_resid.len(), self.sample_weight.as_ref()) as f64
             - x_resid.ncols() as f64
-            - absorbed_df as f64;
+            - counted_fe_df as f64;
         if residual_df <= 0.0 {
             return Err(PyValueError::new_err(
                 "absorbed fixed effects leave no residual degrees of freedom",
             ));
         }
-        let vcov = vcov.unwrap_or("hc1");
         let residuals = y_resid - &x_resid.dot(coef);
         let (design_work, residuals_work, cluster_ids) = weighted_inference_sample(
             x_resid,
@@ -969,15 +1306,16 @@ impl FixedEffectsOLS {
             clusters.as_ref().map(to_array1_i64),
         )
         .map_err(PyValueError::new_err)?;
-        let cov = linear_covariance(
+        let cov = fe_covariance(
             &design_work,
             &residuals_work,
             vcov,
             lags,
             cluster_ids.as_ref(),
-            Some(residual_df),
-        )
-        .map_err(PyValueError::new_err)?;
+            residual_df,
+            ssc,
+            cluster_correction,
+        )?;
         let rmat = to_array2(&r);
         let qvec = q.as_ref().map(to_array1);
         wald_test_arrays(py, coef, &cov, &rmat, qvec.as_ref())
@@ -1012,7 +1350,14 @@ impl FixedEffectsOLS {
             let yb = take_rows_vec(y, idx);
             let feb = take_rows_u32(fe, idx);
             let wb = sample_weight.map(|weights| take_rows_vec(weights, idx));
-            let fit = fit_fixed_effects_ols(&xb, &yb, &feb, wb.as_ref())?;
+            let fit = fit_fixed_effects_ols(
+                &xb,
+                &yb,
+                &feb,
+                wb.as_ref(),
+                self.tolerance,
+                self.max_iterations,
+            )?;
             out.row_mut(i).assign(&fit.coef);
         }
 

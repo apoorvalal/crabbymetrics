@@ -1,5 +1,12 @@
 # Yiqing Xu panel lectures: empirical replication audit
 
+The initial audit outputs are preserved in `results/`. The subsequent fixes add
+SCM correctness, FE prediction/inference controls and `FEImputation`; new numerical
+comparisons are in `results/fixes/`. Run `python -B verify_fixes.py` after building
+the branch to replay the saved R references without changing the initial audit.
+`tests/test_yqx_panel_fixes.py` uses original offline R fixtures;
+`tests/test_yqx_lecture_replications.py` uses the acquired inputs and otherwise skips.
+
 This directory records **attempted replications**, not a claim that every result
 in the six decks has been reproduced. It exercises unmodified CrabbyMetrics
 0.9.0 and records independent R references, statistical conventions, and missing

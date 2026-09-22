@@ -1,6 +1,20 @@
 # Lecture-motivated CrabbyMetrics specification
 
-Status: **proposed; not implemented**. Baseline 0.9.0 / `0b56835`.
+Status: **partially implemented on the replication branch**. Audit baseline 0.9.0 / `0b56835`.
+
+Implemented in the follow-up: standalone SCM active-set QP and optimality
+diagnostics; FE absorption controls, compact IDs, FE-only fits and identified
+one/two-way level prediction; explicit FE/cluster SSC policies in summaries and
+Wald tests; native `FEImputation` with observed/treatment masks, covariates,
+weights, support checks and unit/time aggregation. Counterfactual nuisance
+identification is checked on the untreated sample. R-generated offline fixtures
+and optional actual lecture tests cover these paths; `results/fixes/` records
+the post-fix empirical replay. Original audit outputs below remain historical.
+
+Not implemented: imputation inference, causal IFE/MC, varying slopes, multiway
+clustering, heterogeneous-DID estimators, joint event-study diagnostics, augmented
+SCM and FDID orchestration. The provisional broad ImputationEstimator contract
+below remains a roadmap; the shipped class is deliberately named FEImputation.
 Evidence lives beside this file. Priorities distinguish a confirmed numerical
 defect from missing interfaces, statistical conventions, and missing inputs.
 Rust should own numerical kernels; public Python APIs should remain NumPy-first.
@@ -168,4 +182,4 @@ visible. Re-drawing a published table is not re-estimating its entries.
 6. Add FDID orchestration/external nuisances and the lower-priority curricular gaps.
 
 Each stage should be a separately reviewable change with independent reference
-fixtures. This branch deliberately changes no production estimator code.
+fixtures. The initial audit commit changed no production estimator code. The implemented subset is listed at the top; remaining stages are proposals.

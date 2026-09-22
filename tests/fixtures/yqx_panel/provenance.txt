@@ -1,0 +1,2 @@
+Original generated data; base R lm and exhaustive simplex-face optimization.
+R version 4.5.0 (2025-04-11)

@@ -598,3 +598,18 @@ Success condition:
 - the ablation page distinguishes fit time, process RSS, timeout boundaries, and non-equivalent provenance references
 - every estimator has an explicit DGP/fitting/reference description and its own observed runtime and memory scaling summary
 - a full review render is staged on lalten and the source changes are submitted through PR #21
+
+### Lecture replication implementation checkpoint (2026-09-21)
+
+Implemented SCM simplex-QP correctness and diagnostics; FE absorption controls,
+compact IDs, FE-only fits and identified one/two-way level prediction; explicit
+FE/cluster SSC policies; native untreated-only `FEImputation` with separate masks,
+weights, covariates, support/identification checks and aggregation. Added original
+R-generated offline fixtures and optional actual-lecture regression tests.
+See `replications/yqx_panel/results/fixes/` for replay evidence and test status.
+
+Remaining: imputation inference; causal IFE/MC; varying slopes; multiway cluster
+inference; heterogeneous-DID estimators and joint event-study diagnostics;
+augmented/predictor-V SCM; factorial-DID nuisance orchestration. Keep these as
+separate reviewable workstreams. The pre-existing intermittent macOS benchmark
+process-group cleanup failure is documented, not hidden by skipping its test.

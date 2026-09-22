@@ -1,0 +1,179 @@
+---
+title: "Panel replication: implemented corrections"
+subtitle: "Constrained synthetic control, FE inference conventions, and untreated-only imputation"
+date: 2026-09-21
+format:
+  html:
+    toc: true
+    code-fold: true
+execute:
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+## Scope
+
+The initial [lecture audit](yqx-panel-lectures.qmd) identified a
+confirmed standalone synthetic-control optimization defect, different
+fixed-effect inference conventions, and missing causal-panel interfaces.
+This implementation addresses the solver defect and adds the core FE prediction,
+imputation, and covariance interfaces. It does **not** implement the entire
+new-estimator roadmap.
+
+[FE imputation documentation](../examples/fe-imputation.qmd) ·
+[Fixed-effects regression documentation](../examples/fixed-effects-ols.qmd) ·
+[Synthetic control documentation](../examples/synthetic-control.qmd) ·
+[Updated development specification](../../replications/yqx_panel/SPEC.md)
+
+## Synthetic control
+
+The standalone estimator now solves the squared-error objective directly on the
+simplex with an active-set quadratic solver. Zero donor weights are permitted.
+The old softmax parameterization could yield nearly flat gradients at a
+suboptimal solution. Returning a finite parameter vector no longer suffices:
+convergence requires a KKT optimality check, and exhausted iteration budgets
+raise an error.
+
+For Proposition 99 outcome-only SCM:
+
+| Quantity | Before | Corrected | Independent reference |
+|---|---:|---:|---:|
+| Pre-treatment RMSE | 2.399913 | 1.656400 | 1.656400 |
+| Mean post-treatment gap | −18.998496 | −19.513630 | −19.513630 |
+
+The corrected solve takes 34 active-set iterations in the recorded run.
+`summary()` exposes the objective, iterations, feasibility error, normalized KKT
+residual and stopping reason. Tests check boundary optima, redundant donors,
+donor permutations, common-level shifts, single-donor inputs, failed-refit state,
+and insufficient iteration budgets. This is outcome-only SCM, not predictor-V SCM.
+
+## Fixed-effect regression
+
+`FixedEffectsOLS` now exposes absorption tolerance and iteration limits, supports
+FE-only fits, compacts caller-supplied FE IDs, retains level effects, and predicts
+identified one/two-way FE sums. Unseen levels and combinations crossing
+disconnected components are rejected. Three-or-more-way level prediction remains
+unsupported, while slope estimation still supports it.
+
+The default full-FE degrees-of-freedom correction is preserved. New explicit
+options control FE counting, observation-count correction and cluster-count
+correction in both summaries and Wald tests. The fatalities example verifies:
+
+| Convention | Explicit settings beyond cluster IDs | SE |
+|---|---|---:|
+| Existing CrabbyMetrics default | defaults | 0.385787 |
+| fixest lecture default | `fe_df="non_nested"` | 0.357078 |
+| plm HC1 lecture calculation | `fe_df="none", ssc="hc1", cluster_correction=False` | 0.350150 |
+
+All three retain the coefficient −0.639980. These are deliberate statistical
+conventions, not three competing numerical answers to one covariance formula.
+
+## Native FE counterfactuals
+
+`FEImputation` uses the same sparse absorption machinery. It fits
+$Y_{it}(0)=\alpha_i+\lambda_t+X_{it}'\beta$ only on observed positive-weight
+untreated cells. It accepts missing observations and treatment reversals,
+returns exact training/evaluation masks, and aggregates weighted observed-treated
+cell gaps by unit and time. It rejects unsupported FE combinations and nuisance
+covariates unidentified in the untreated sample.
+
+The five available empirical surfaces are compared with the already-saved R
+FEct outputs below. No treated outcome enters estimation. This is point
+estimation, **without confidence intervals or causal validation of treatment
+reversals**.
+
+```{python}
+from pathlib import Path
+import os
+import json
+import pandas as pd
+import numpy as np
+import crabbymetrics as cm
+
+root = Path(os.environ['YQX_REPLICATION_ROOT']) if 'YQX_REPLICATION_ROOT' in os.environ else next(
+    p / 'replications/yqx_panel' for p in [Path.cwd(), *Path.cwd().parents]
+    if (p / 'replications/yqx_panel/results/fixes').exists())
+verification = json.loads((root / 'results/fixes/verification.json').read_text())
+panel_results = pd.read_csv(root / 'results/fixes/panels.csv')
+display(panel_results.loc[panel_results.model != 'prop99_scm',
+    ['model', 'att', 'reference_att', 'max_surface_error', 'n_train', 'n_treated']])
+```
+
+Bischof's surface agreement uses a $10^{-6}$ tolerance because its saved R fit
+has looser convergence. The other examples agree much more closely. These
+comparisons do not erase the initial audit's sample/provenance differences.
+
+## Executable leakage and support check
+
+```{python}
+rng = np.random.default_rng(210921)
+x = rng.normal(size=(12, 8, 1))
+y = rng.normal(size=(12, 1)) + np.arange(8)[None, :] / 4 + .5*x[:, :, 0]
+d = np.zeros_like(y)
+d[6:, 4:6] = 1  # treatment can subsequently switch off
+observed = np.ones_like(d, dtype=bool)
+observed[0, 0] = False
+y += 2*d
+m = cm.FEImputation()
+m.fit(y, d, x, observed=observed)
+original = m.predict()
+print('ATT:', m.summary()['att'])
+y[d == 1] += 100
+m.fit(y, d, x, observed=observed)
+np.testing.assert_allclose(m.predict(), original, equal_nan=True, atol=1e-10)
+assert abs(m.summary()['att'] - 102) < 1e-8
+print('No treated-outcome leakage; shifted ATT:', m.summary()['att'])
+```
+
+## Regression protection and reproducibility
+
+```{python}
+assert verification['linear']['specifications'] == 59
+assert verification['linear']['coefficients'] == 102
+assert verification['linear']['max_coef_error'] < 1e-8
+assert verification['archive']['datasets'] == 47
+assert verification['archive']['max_coef_error'] < 1e-8
+print('Lecture regressions:', verification['linear'])
+print('Archive regressions:', verification['archive'])
+```
+
+- Standard tests use original deterministic fixtures generated independently in
+  base R. `lm` supplies coefficient/counterfactual references; full-design cluster
+  score calculations supply covariance references; exhaustive simplex-face
+  optimization supplies an independent small SCM optimum. The generation script
+  is checked in; routine tests do not require R or a network connection.
+- Optional empirical tests replay Proposition 99, the five FEct examples, and
+  the three fatalities covariance conventions using the ignored acquired data.
+  They skip when the cache is unavailable rather than downloading data during CI.
+- `replications/yqx_panel/verify_fixes.py` reruns 59 lecture specifications and
+  47 archive regressions, plus SCM and imputation checks, against frozen R
+  outputs. Post-fix results live in `results/fixes/`; original audit outputs are
+  preserved. Schäfer uses the tightly converged R reference established by the
+  initial audit.
+- Tests compare the appropriate reference specifications. Forty-seven archive
+  regressions do not mean 47 complete replications of every estimator/inference
+  pipeline. Two are explicitly baseline-only, and the two huge datasets remain
+  outside the current memory budget.
+
+## Full-suite status
+
+The full local suite records **343 passing tests and one intermittent failure**
+in the existing benchmark process-group cleanup test (`os.killpg` raises a macOS
+permission error after the parent exits). Both cleanup cases pass when rerun in
+isolation. All 24 new tests pass. No skip or change to that process runner was
+made, and the full suite is not labeled green. Details are in
+[test-status.json](test-status.json).
+
+The release extension built successfully, and all four linked example/report
+pages were executed during rendering.
+
+## Remaining work
+
+The implementation does not add causal IFEct/MCct, Sun–Abraham or group-time DID,
+varying-slope absorption, multiway clustering, joint event-study inference,
+bootstrap imputation inference, augmented/predictor-V SCM, or factorial-DID
+nuisance orchestration. They remain explicitly proposed in the specification.
+The existing absorbing-only estimators have not been silently broadened to
+missing or reversing treatment panels. No package release or public push is part
+of this branch update.

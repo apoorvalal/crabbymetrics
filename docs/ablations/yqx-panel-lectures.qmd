@@ -9,13 +9,19 @@ format:
     toc: true
     toc-depth: 2
     code-fold: true
-    embed-resources: true
 execute:
   cache: true
   warning: false
   message: false
 freeze: auto
 ---
+
+## Implementation follow-up
+
+The original findings below describe the unmodified 0.9.0 audit. The subsequent
+[implementation report](yqx-panel-fixes.qmd) documents the corrected SCM solver,
+FE prediction/covariance controls, native FE imputation, and new R-backed tests.
+Historical audit numbers are intentionally preserved.
 
 ## Findings
 

@@ -94,5 +94,29 @@ print("Newey-West SE:", np.round(hac["coef_se"], 4))
 
 - `fe` must be a 2D `uint32` matrix with one column per factor.
 - Category codes should be zero-based and contiguous within each factor.
-- The estimator absorbs the constant, so there is no intercept in the summary and no `predict()` method.
+- The estimator absorbs the constant. `predict(x, fe)` includes identified one/two-way FE levels and rejects unseen levels or combinations crossing disconnected components. Three-or-more-way level prediction is not supported.
 - Cluster labels passed to `summary(vcov="cluster", clusters=...)` should be a separate 1D `int64` array with one label per observation.
+
+## Solver controls and covariance conventions
+
+`FixedEffectsOLS(tolerance=1e-8, max_iterations=1000)` exposes the absorption
+controls. An `(N, 0)` design fits FE only. Summary reports per-right-hand-side
+iterations and residual norms. Invalid settings and failed absorption raise errors.
+
+For clustered inference, `summary()` and `wald_test()` accept:
+
+- `fe_df="full"` (unchanged default), `"non_nested"` (exclude cluster-nested FE,
+  counting an intercept), or `"none"` (slope count only). Multiway FE rank remains
+  conservative beyond two FE dimensions.
+- `ssc="cluster"`: $(N-1)/(N-K)$; `"hc1"`: $N/(N-K)$; `"none"`: no observation
+  count correction. Here $K$ includes slopes and the selected FE count.
+- `cluster_correction=True`: multiply by $G/(G-1)$. Set false to omit this factor.
+
+`ssc` and `cluster_correction` apply only to cluster covariance. These are
+explicit conventions, not claims that packages share a universal default. On the
+fatalities lecture, full FE gives SE 0.385787; `fe_df="non_nested"` reproduces
+fixest's 0.357078; `fe_df="none", ssc="hc1", cluster_correction=False` reproduces
+plm HC1's 0.350150. The slope is unchanged at -0.639980.
+
+`summary()` retains `absorbed_df` (full model rank) and separately reports
+`counted_fe_df`, `residual_df`, and the selected correction policies.

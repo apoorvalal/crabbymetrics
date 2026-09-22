@@ -110,6 +110,8 @@ website:
             text: Richer Regression
           - href: examples/twosls.qmd
             text: TwoSLS
+          - href: examples/fe-imputation.qmd
+            text: FE Counterfactual Imputation
           - href: examples/synthetic-control.qmd
             text: Synthetic Control
           - href: examples/synthetic-did.qmd
@@ -144,6 +146,8 @@ website:
             text: Two-Period Semiparametric DID
           - href: ablations/bridging-finite-and-superpopulation.qmd
             text: Bridging Finite And Superpopulation
+          - href: ablations/yqx-panel-fixes.qmd
+            text: Lecture-Motivated Panel Fixes
           - href: ablations/panel-dgp-comparisons.qmd
             text: Panel Estimator DGP Comparisons
           - href: ablations/same-root-panel-cases.qmd
