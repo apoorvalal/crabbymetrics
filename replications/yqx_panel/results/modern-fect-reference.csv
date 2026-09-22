@@ -1,0 +1,6 @@
+"model","estimate","treated_cells","n_units","n_periods"
+"modern_Bischof_Wagner_2019_AJPS_full",0.0823338906900664,160,17,42
+"modern_Christensen_Garfias_2021_JOP_full",-0.119774058590255,14977,4113,12
+"modern_Christensen_Garfias_2021_JOP_trimmed",0.044481658813361,6513,3153,8
+"modern_Grumbach_Sahn_2020_APSR_full",0.1277491381527,118,489,17
+"modern_Trounstine_2020_APSR_full",-0.0578462489631282,2783,4567,43

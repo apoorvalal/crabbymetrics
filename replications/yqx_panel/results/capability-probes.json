@@ -1,0 +1,31 @@
+[
+  {
+    "dataset": "gs2020_missing",
+    "api": "MatrixCompletion",
+    "n_units": 495,
+    "status": "ValueError: Y must contain only finite values"
+  },
+  {
+    "dataset": "gs2020_missing",
+    "api": "SyntheticDID",
+    "n_units": 495,
+    "status": "ValueError: Y must contain only finite values"
+  },
+  {
+    "dataset": "gs2020_complete_reversals",
+    "api": "MatrixCompletion",
+    "n_units": 225,
+    "status": "ValueError: W must be absorbing: once treated, a unit must remain treated"
+  },
+  {
+    "dataset": "gs2020_complete_reversals",
+    "api": "SyntheticDID",
+    "n_units": 225,
+    "status": "ValueError: W must be absorbing: once treated, a unit must remain treated"
+  },
+  {
+    "dataset": "gs2020_complete_reversals",
+    "api": "InteractiveFixedEffects.fit(Y,W)",
+    "status": "TypeError: InteractiveFixedEffects.fit() takes 1 positional arguments but 2 were given"
+  }
+]

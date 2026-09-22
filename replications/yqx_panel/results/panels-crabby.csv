@@ -1,0 +1,12 @@
+model,estimate,pre_rmse,status,objective_gap,placebo_se,reported_converged,n_train,n_treated,max_counterfactual_error,elapsed_seconds,se
+prop99_scm,-18.998495519033884,2.399912751431069,outcome-only SCM; not canonical predictor-V SCM,,,,,,,,
+prop99_scm_scipy_audit,-19.513629882720306,1.6564002069552508,Optimization terminated successfully,3.0159195688800566,,,,,,,
+prop99_sdid,-15.605397899244286,1.725412670636734,"native; compare R scalar ATT, not displayed gap average",,10.281482731865276,,,,,,
+prop99_scm_iterations_50,-18.998495519033884,2.399912751431069,solver-budget diagnostic,3.0159195688800566,,True,,,,,
+prop99_scm_iterations_5000,-18.998495519033884,2.399912751431069,solver-budget diagnostic,3.0159195688800566,,True,,,,,
+gs2020_fe_explicit_ols,0.1271344577461454,,explicit FE dummies composed around cm.OLS; no imputation inference,,,,6729.0,118.0,2.3668830784195904e-10,1.7449920000508428,
+turnout_fe_explicit_ols,1.4255663994074206,,explicit FE dummies composed around cm.OLS; no imputation inference,,,,1078.0,50.0,1.0014389317802852e-10,0.0037425409536808,
+hh2019_fe_explicit_ols,1.5064164934707382,,explicit FE dummies composed around cm.OLS; no imputation inference,,,,15135.0,2459.0,5.879847719825191e-10,29.7026330830995,
+famine_aipw_ridge,0.2641347956901852,,"related ATE: ridge/logit cross-fit, NOT fdid causal forest",,,,921.0,,,,2.2135489227336933
+modern_Bischof_Wagner_2019_AJPS_full_explicit_ols,0.08233423720648457,,explicit FE dummies composed around cm.OLS; no imputation inference,,,,374.0,160.0,7.267861015236576e-07,0.001037500100210309,
+modern_Grumbach_Sahn_2020_APSR_full_explicit_ols,0.12774913820313905,,explicit FE dummies composed around cm.OLS; no imputation inference,,,,6729.0,118.0,2.494094583638251e-10,1.7283313749358058,

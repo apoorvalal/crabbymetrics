@@ -1,0 +1,39 @@
+deck,family,status,scope
+1,Swiss panel pooled/unit FE/TWFE/common trend,replicated coefficients; SSC differs,Included 245-municipality panel; source R formulas.
+1,Swiss unit-linear/quadratic trends,composed replication,Explicit slope columns; coefficient parity; varying-slope df policy remains different.
+1,Swiss SVP heterogeneity,replicated coefficients; SSC differs,Linear interaction and vote-share quartile bins on swissnat.
+1,Swiss distributed lags and leads,supplementary replication,Reproduced commented formulas; legacy Stata demonstration frames are conditional/inactive.
+1,Beer taxes: pooled/FE/TWFE,replicated coefficients; SSC differs,plm HC1 values independently regenerated; see fatalities-plm.csv.
+1,Beer taxes: Swamy-Arora random effects,R reference only; API gap,No random-effects estimator in CM.
+1,EDR and Swiss treatment/raw-data displays,data recovered; estimator audit,Turnout/HH2019 public data used; original raw figure scripts omitted.
+2,Card-Krueger employment table and DID,replicated with sample distinction,Available-case DID 2.753606; paired FE/change DID 2.75; cell means saved.
+2,Card-Krueger wage distributions,reconstructed from microdata,"Same wage-bin recipe as source R, no estimation required."
+2,Card-Krueger 2000 longer pretrends,not reproduced: data missing,SOURCES.md explicitly says underlying BLS ES-202 series not public.
+2,Mariel Boatlift sample-means table,not re-estimated,Typed published numbers; underlying CPS extraction not included in downloaded inputs.
+2,Gruber maternity-benefit triple difference,not re-estimated,Typed Table 3; underlying design/microdata absent from retrieved inputs.
+2,Hong composition tables,not re-estimated,Typed Tables 1 and 8; underlying design/microdata absent from retrieved inputs.
+2,Scheve-Stasavage WWI tax rates,not reproduced: inputs not retrieved,Figure Ken.pdf; source notes replication data not retrieved.
+2,Gun control/WTO/democracy-GDP/political connections,not reproduced: figure-only provenance,Shared reanalysis figures; no matching estimation scripts/data found in retrieved archive.
+3,Famine any-genealogy DID/OLS1/OLS2 event/dynamic,replicated point estimates,921 counties; 412/509 groups; baseline 1957; event 1958-61.
+3,Famine OLS2 inference,composed replication,CM HC3 plus population correction matches fdid; ordinary HC1 is not the same variance.
+3,Famine IPW/entropy balancing/GRF AIPW,R references; CM AIPW related only,"Forest vs ridge/logit differ; entropy balance target is G=1, not all counties."
+3,Famine multivalued moderator,R reference reconstruction,412/254/255 groups; two pairwise forest fits; original figure seed not supplied.
+3,Historical Cao-Xu-Zhang fig5/table,not separately re-estimated,Historical high-genealogy definition differs from updated any-genealogy illustration.
+3,Famine geographic maps,not reproduced: boundary inputs absent,No matching geographic boundary files acquired.
+4,Unilateral divorce TWFE/event study,replicated point estimates,"Both endpoint bins included in fit; independent check against source i(rel_b,ref=-1)."
+4,Goodman-Bacon decomposition,R reference only; API gap,Weights sum to one and decomposition recovers -3.048894695.
+4/5,49-study aggregate estimates,partial regression audit plus saved-table reconstruction,47 native regression runs; 2 huge-data preflight exclusions; saved causal estimates are not fresh fits.
+5,Bischof-Wagner six-estimator comparison,partial,TWFE and composed FEct replicated; remaining estimator/event/inference pipelines not native.
+5,Grumbach-Sahn coethnic donations,partial,Archive covariates included in TWFE and composed FEct; 118 vs lecture 74 treated cells unresolved.
+5,Trounstine land-use lawsuits,partial,"TWFE native, FEct R reference; trend-augmented diagnostics and bootstrap p-values not rerun."
+5,Christensen-Garfias cadastral maps,partial,Full-sample TWFE native; full/trimmed FEct R; saved aggregate uses trimmed sample.
+5,Carryover/HonestDiD/equivalence diagnostics,not implemented in CM,Archive has saved outputs and code; joint inference/sensitivity pipeline not freshly rerun.
+5,Hall-Yoder and Sanford large panels,resource preflight exclusion,Published n about 89m/158m; no claim of estimator failure; require larger-memory run.
+6,Prop99 outcome-only SCM,attempted; confirmed numerical failure,CM misses same-objective R/SciPy optimum while reporting convergence.
+6,Prop99 ridge-augmented SCM and covariates,R references only; API gap,Three source-script augsynth fits and pointwise bands regenerated.
+6,Prop99 canonical predictor-SCM/placebos,R reconstruction,ADH recipe reconstructed; original ca1-ca8 script absent; not exact figure provenance.
+6,Prop99 synthetic DID,close point-estimate reproduction,Native -15.605398 versus R -15.603828; independent 100-draw placebo SEs not exact-draw parity.
+6,Xu EDR FEct/IFEct,partial,CM TWFE and composed FE imputation; R fixed-rank IFEct; no native treatment-aware IFE API.
+6,Benin land titling/remote sensing,not reproduced: inputs not retrieved,Illustration/imagery and outcomes not supplied in lecture repository or downloaded reanalysis data.
+6,TROP Table 1 heatmap,not an empirical rerun,Source script transcribes published 21-design RMSEs; underlying experiments not in lectures.
+all,"Toy simulations, diagrams, maps used only for context, paper covers",excluded from empirical-result count,No claim to have replicated unrelated simulations or reproduced third-party artwork.

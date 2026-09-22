@@ -1,0 +1,15 @@
+{
+  "linear_specifications": 59,
+  "linear_coefficients": 102,
+  "linear_max_coef_error": 2.277289468111121e-12,
+  "archive_studies": 49,
+  "archive_completed": 47,
+  "archive_source_specs": 45,
+  "archive_max_coef_error_excluding_schafer": 2.71266099860501e-10,
+  "archive_schafer_coef_error": 2.0589474428102383e-05,
+  "archived_summary_ratio_mean": 1.021957152410258,
+  "archived_summary_ratio_median": 1.0063335722567266,
+  "archived_summary_numeric_matches_1e6": 39,
+  "scope": "Partial replication and API audit, NOT all empirical results reproduced.",
+  "schafer_error_tight_R": 1.7873920052369208e-10
+}

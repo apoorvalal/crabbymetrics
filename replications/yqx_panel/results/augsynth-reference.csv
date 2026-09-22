@@ -1,0 +1,4 @@
+"method","Value","Estimate","Std.Error","p_val","lower_bound","upper_bound"
+"scm","Average Post-Treatment Effect",-19.513629459701,NA,0,NA,NA
+"ridge","Average Post-Treatment Effect",-15.9525667529439,NA,0.092,NA,NA
+"ridge_covariates","Average Post-Treatment Effect",-12.7100494993739,NA,0.314,NA,NA

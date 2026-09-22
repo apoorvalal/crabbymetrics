@@ -18,6 +18,29 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
+## Panel-lectures replication workstream (2026-09-21)
+
+Branch `replication/yqx-panel-lectures-2026-09-21` audits unmodified v0.9.0
+against `xuyiqing/panel-lectures` and the 49-study Chiu–Lan–Liu–Xu archive.
+The [detailed specification](replications/yqx_panel/SPEC.md) is proposed work,
+not a statement that these APIs have been implemented.
+
+The first priority is a confirmed standalone `SyntheticControl` optimization
+failure on Prop99: pre-RMSE 2.399913 versus independent R/SciPy 1.656400, with
+unchanged results at budgets 50/500/5000 and an unconditional convergence flag.
+Next are separate panel observation/treatment masks and efficient treatment-aware
+FE imputation, followed by FE/SSC controls and varying slopes, heterogeneous-DID
+aggregation and joint diagnostics, treatment-aware IFE/MC, augmented SCM, and
+FDID external-nuisance contracts. Acceptance cases and non-goals are specified
+there. Most regression coefficient comparisons pass to numerical precision;
+the three-way-FE reference discrepancy disappears when R is tightly converged.
+
+Coverage is explicitly partial: 59 lecture regression specifications plus
+47 archive regressions do not reproduce all causal estimators, intervals,
+diagnostics or images. Two huge-data cases and two native unit-trend workflows
+remain open. See [coverage](replications/yqx_panel/coverage.csv), the executable
+harness, and `docs/ablations/yqx-panel-lectures.qmd`.
+
 ## Current Branch State (2026-09-09)
 
 `master` now includes PR #21 as `bb4c6f2` and upstream commit `042f757` (PR #22), adding
