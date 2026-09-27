@@ -1,0 +1,30 @@
+R version 4.5.0 (2025-04-11)
+Platform: aarch64-apple-darwin20
+Running under: macOS 26.6.2
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+
+locale:
+[1] C.UTF-8/C.UTF-8/C.UTF-8/C/C.UTF-8/C.UTF-8
+
+time zone: America/Los_Angeles
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] fixest_0.12.1
+
+loaded via a namespace (and not attached):
+ [1] digest_0.6.37       Formula_1.2-5       numDeriv_2016.8-1.1
+ [4] collapse_2.1.8      lattice_0.22-6      stringmagic_1.2.0
+ [7] zoo_1.8-14          parallel_4.5.0      generics_0.1.4
+[10] Rdpack_2.6.4        dreamerr_1.5.0      grid_4.5.0
+[13] sandwich_3.1-1      compiler_4.5.0      plm_2.6-7
+[16] lmtest_0.9-40       rbibutils_2.3       tools_4.5.0
+[19] nlme_3.1-168        bdsmatrix_1.3-7     Rcpp_1.1.2
+[22] jsonlite_2.0.0      MASS_7.3-65         miscTools_0.6-30
+[25] maxLik_1.5-2.2

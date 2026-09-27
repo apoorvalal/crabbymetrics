@@ -1,5 +1,39 @@
 # Devlog (crabbymetrics)
 
+## 2026-09-21 Panel-Lectures Empirical Replication Audit
+
+- Cloned `xuyiqing/panel-lectures` at `891412f` and created
+  `replication/yqx-panel-lectures-2026-09-21` from upstream `0b56835`.
+- Rebuilt unmodified v0.9.0 in the existing project environment. No production
+  estimator code changed; the branch adds replication code, results and a spec.
+- Verified ten initial data-source checksums and the 49-study Dataverse archive
+  (`10.7910/DVN/9RJFZF`, v1.0). Raw data/dependencies remain outside Git.
+- Ran 59 lecture regression specifications (102 coefficients), with maximum
+  R/CM coefficient difference 2.28e-12, and 47 archive regressions. Forty-five
+  archive fits use source point specifications; two explicitly omit the source's
+  unit-specific trends. The two remaining archive data sets (approximately 89m
+  and 158m observations) were excluded by memory preflight, not measured failures.
+- Forty-six archive comparisons agree with default R within 2.72e-10. The
+  remaining Schäfer comparison agrees within 2e-10 after tightening R's FE
+  tolerance. Three permutations of CM's FE ordering give stable results.
+- Confirmed a standalone SCM optimizer failure: Prop99 pre-RMSE 2.399913 versus
+  independent R/SciPy 1.656400, persistent at budgets 50/500/5000 despite reported
+  convergence. Native SDID is close but not exact to the R point reference.
+- Reproduced five FE-imputation point estimates using explicit CM OLS dummy
+  designs, separating that workaround from a missing native imputation API.
+  Actual-data probes confirm the incomplete/reversing-treatment limitations of
+  MC/SDID and the absence of a treatment mask in the lower-level IFE API.
+- Matched famine OLS2 inference by composing CM HC3 with fdid's population
+  variance correction. Regenerated R Bacon/FDID/augsynth/Synth/FEct references;
+  R-only results and saved-output reconstructions are explicitly labeled.
+- Documented source sample differences, endpoint-bin handling, small-sample
+  corrections, archive label inconsistencies, and the Brazil full/trimmed
+  sign change. Added a 38-family coverage inventory rather than claiming a
+  complete replication from matching regression kernels.
+- Added `replications/yqx_panel/SPEC.md`, a reproducible harness and result
+  tables, and `docs/ablations/yqx-panel-lectures.qmd`. The report is staged
+  privately for review; no source or public docs deployment is requested.
+
 ## Snapshot
 
 `crabbymetrics` is a Rust-backed econometrics library exposed to Python through `pyo3` and `maturin`. The project is intentionally narrow:
@@ -915,3 +949,34 @@ That is the current state the next extension branch should assume.
 - Expanded the report into 30 estimator-specific sections. Each records the DGP, exact fitting configuration, reference interpretation, completion/failure frontier, median log-log runtime slope, maximum observed RSS, and runtime/memory scaling plots.
 - Rendered the complete report and staged the review artifact at `https://lalten.org/pages/crabbymetrics-estimator-scaling/ablations/estimator-scaling.html`; the deployed HTML is byte-identical to the verified local render.
 - Added 12 deterministic external solution-parity cases: seven scikit-learn comparisons, PyFixest fixed-effects and IV comparisons under both IID and HC1 covariance, and lifelines Andersen--Gill parity. `pandas` is now an explicit test extra rather than only a transitive dependency.
+
+## 2026-09-21 — Implement lecture-backed corrections and FE imputation
+
+On `replication/yqx-panel-lectures-2026-09-21`, following the empirical audit:
+
+- Replaced standalone SCM's softmax/L-BFGS path with the shared active-set
+  simplex quadratic solver. Center/scale by donor-minus-target outcomes;
+  preserve exact zeros; report iterations, objective, feasibility and scaled
+  KKT residual; reject nonconvergence and clear failed fits.
+- Exposed FE tolerance/iteration controls, compacted IDs, enabled FE-only fits,
+  stored level coefficients, and added identified one/two-way FE prediction.
+- Added explicit full/non-nested/no-FE df counting and separate observation/
+  cluster correction factors to FE summaries and Wald tests. Defaults unchanged.
+- Added Rust-backed `FEImputation`: observed and treatment masks, optional
+  covariates/cell weights, untreated-only fitting, identified-support checks,
+  untreated-covariate rank checks, exact sample masks and unit/time ATT summaries.
+  Missing/reversing treatment is supported mechanically; causal assumptions
+  remain the caller's responsibility. Point estimates only, no inference claims.
+- Added 16 offline tests with independently generated base-R fixtures and eight
+  optional real lecture tests. Preserved historical audit outputs; replayed
+  59 specifications/102 coefficients and 47 archive fits into `results/fixes/`.
+  Regression errors remain <3e-10. SCM Prop99 is now -19.513629764 / RMSE
+  1.656400207, converging in 34 iterations. Five FEct surfaces agree within 1e-6.
+- Full-suite result: 343 passed; one existing process-group cleanup case
+  intermittently raises macOS PermissionError. It passes in isolation (including
+  an eight-test docs/cleanup rerun); no runner change or blanket skip was made.
+  Full result is recorded in `results/fixes/test-status.json`, not called green.
+- Built the extension and executed/rendered four docs pages. Updated API index,
+  docs navigation, llms.txt and the spec's implemented-versus-roadmap status.
+- Deferred new estimator families (IFEct/MCct, heterogeneous DID, augmented SCM)
+  and inference pipelines remain explicit, not presented as implemented fixes.

@@ -1,0 +1,62 @@
+[
+  {
+    "file": "fatalities.csv",
+    "url": "https://raw.githubusercontent.com/vincentarelbundock/Rdatasets/master/csv/AER/Fatalities.csv",
+    "sha256": "ae265c1b14b4a023179b3af5db33b6a659ccf804987f26e8349826d4083ee149",
+    "bytes": 115717
+  },
+  {
+    "file": "divorce.rda",
+    "url": "https://raw.githubusercontent.com/evanjflack/bacondecomp/master/data/divorce.rda",
+    "sha256": "59ab3530a8229905c9f737c6b9bfbf1d78f56afc6c1a8123d74a39ac490f98b1",
+    "bytes": 692064
+  },
+  {
+    "file": "smoking.rda",
+    "url": "https://raw.githubusercontent.com/edunford/tidysynth/master/data/smoking.rda",
+    "sha256": "a946d153e8faee62e6deba7a16db6f4c1251d9e56d5b41de7e79a593eb8110d9",
+    "bytes": 17505
+  },
+  {
+    "file": "fdid.RData",
+    "url": "https://raw.githubusercontent.com/xuyiqing/fdid/main/data/fdid.RData",
+    "sha256": "ae07e2d1ddeedb96e9aca1914800805bfdb18970e91da549a59f8d3f256db0b3",
+    "bytes": 87573
+  },
+  {
+    "file": "gs2020.rda",
+    "url": "https://raw.githubusercontent.com/xuyiqing/fect/master/data/gs2020.rda",
+    "sha256": "fac564dcc755a6d9d9ebd26f4114c8da0cd58f14e0be0160b21f20e29162358f",
+    "bytes": 98748
+  },
+  {
+    "file": "turnout.rda",
+    "url": "https://raw.githubusercontent.com/xuyiqing/fect/master/data/turnout.rda",
+    "sha256": "f4a73077a45d0e1b81994a0b39a1770b9199930dba375ebe64e99a8ecbd48790",
+    "bytes": 5456
+  },
+  {
+    "file": "hh2019.rda",
+    "url": "https://raw.githubusercontent.com/xuyiqing/fect/master/data/hh2019.rda",
+    "sha256": "796e958d24f0584b90d62e160bb54ddf168ee032e34e98f76f2ddd2b2240137b",
+    "bytes": 38180
+  },
+  {
+    "file": "swiss.csv",
+    "source": "01-parametric/figs/Swiss_Panel_long.dta",
+    "lecture_commit": "891412f174fc0283677de84d612622ff602dd1d3",
+    "sha256": "fd0cb706229f871c3b313bc9c761fbd7e7522bb7ba1b84a5f3c98332c1ef9664"
+  },
+  {
+    "file": "swiss_full.csv",
+    "source": "01-parametric/figs/swissnat.dta",
+    "lecture_commit": "891412f174fc0283677de84d612622ff602dd1d3",
+    "sha256": "2e4a6136a0b1c8d09f289ad1d03518310fddf1b2a6df20e5540dbe99d637e4d2"
+  },
+  {
+    "file": "ck.csv",
+    "source": "02-did/figs/CK1994_longformat.dta",
+    "lecture_commit": "891412f174fc0283677de84d612622ff602dd1d3",
+    "sha256": "409d6700b1bed53df746835af67008abd9f12caef4961bd748d74a4630fb1331"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "version": "0.9.0",
+  "source_commit": "0b5683589b8b36c1604c25adc16da48bdc72c65f",
+  "extension_sha256": "37ba364882c71442c8f3244e405043d7271d50d189669cbdb2030ba4076d4e10",
+  "numpy": "2.4.4",
+  "pandas": "3.0.2"
+}

@@ -18,6 +18,29 @@ Any new work here should usually satisfy most of the following:
 4. Public APIs should continue to take NumPy arrays and return plain dictionaries or NumPy arrays.
 5. If docs examples are numerically heavy, they should use Quarto caching and `freeze: auto`.
 
+## Panel-lectures replication workstream (2026-09-21)
+
+Branch `replication/yqx-panel-lectures-2026-09-21` audits unmodified v0.9.0
+against `xuyiqing/panel-lectures` and the 49-study Chiu–Lan–Liu–Xu archive.
+The [detailed specification](replications/yqx_panel/SPEC.md) is proposed work,
+not a statement that these APIs have been implemented.
+
+The first priority is a confirmed standalone `SyntheticControl` optimization
+failure on Prop99: pre-RMSE 2.399913 versus independent R/SciPy 1.656400, with
+unchanged results at budgets 50/500/5000 and an unconditional convergence flag.
+Next are separate panel observation/treatment masks and efficient treatment-aware
+FE imputation, followed by FE/SSC controls and varying slopes, heterogeneous-DID
+aggregation and joint diagnostics, treatment-aware IFE/MC, augmented SCM, and
+FDID external-nuisance contracts. Acceptance cases and non-goals are specified
+there. Most regression coefficient comparisons pass to numerical precision;
+the three-way-FE reference discrepancy disappears when R is tightly converged.
+
+Coverage is explicitly partial: 59 lecture regression specifications plus
+47 archive regressions do not reproduce all causal estimators, intervals,
+diagnostics or images. Two huge-data cases and two native unit-trend workflows
+remain open. See [coverage](replications/yqx_panel/coverage.csv), the executable
+harness, and `docs/ablations/yqx-panel-lectures.qmd`.
+
 ## Current Branch State (2026-09-09)
 
 `master` now includes PR #21 as `bb4c6f2` and upstream commit `042f757` (PR #22), adding
@@ -575,3 +598,18 @@ Success condition:
 - the ablation page distinguishes fit time, process RSS, timeout boundaries, and non-equivalent provenance references
 - every estimator has an explicit DGP/fitting/reference description and its own observed runtime and memory scaling summary
 - a full review render is staged on lalten and the source changes are submitted through PR #21
+
+### Lecture replication implementation checkpoint (2026-09-21)
+
+Implemented SCM simplex-QP correctness and diagnostics; FE absorption controls,
+compact IDs, FE-only fits and identified one/two-way level prediction; explicit
+FE/cluster SSC policies; native untreated-only `FEImputation` with separate masks,
+weights, covariates, support/identification checks and aggregation. Added original
+R-generated offline fixtures and optional actual-lecture regression tests.
+See `replications/yqx_panel/results/fixes/` for replay evidence and test status.
+
+Remaining: imputation inference; causal IFE/MC; varying slopes; multiway cluster
+inference; heterogeneous-DID estimators and joint event-study diagnostics;
+augmented/predictor-V SCM; factorial-DID nuisance orchestration. Keep these as
+separate reviewable workstreams. The pre-existing intermittent macOS benchmark
+process-group cleanup failure is documented, not hidden by skipping its test.

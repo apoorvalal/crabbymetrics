@@ -11,8 +11,8 @@ mod validation;
 use crate::abc::ABCOLS;
 use crate::estimators::{
     AndersenGill, AugmentedBalancing, AverageDerivative, BaggedPolynomialRegressor,
-    BalancingWeights, CoxPH, DynamicCovariateBalance, ElasticNet, ExponentialPH, FixedEffectsOLS,
-    HorizontalPanelRidge, InteractiveFixedEffects, KernelBasis, Logit, MEstimator,
+    BalancingWeights, CoxPH, DynamicCovariateBalance, ElasticNet, ExponentialPH, FEImputation,
+    FixedEffectsOLS, HorizontalPanelRidge, InteractiveFixedEffects, KernelBasis, Logit, MEstimator,
     MatrixCompletion, MpeCbps, MultinomialLogit, NystromBasis, ParallelTrendsSNMM,
     PartiallyLinearDML, PcaTransformer, Poisson, RandomFourierFeatures, RandomizedPcaTransformer,
     RegressionBlip, Ridge, SyntheticControl, SyntheticDID, TwoSLS, WeibullPH, AIPW, EPLM, GMM, OLS,
@@ -25,6 +25,7 @@ fn crabbymetrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ABCOLS>()?;
     m.add_class::<OLS>()?;
     m.add_class::<FixedEffectsOLS>()?;
+    m.add_class::<FEImputation>()?;
     m.add_class::<ElasticNet>()?;
     m.add_class::<Ridge>()?;
     m.add_class::<BaggedPolynomialRegressor>()?;

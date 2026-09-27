@@ -154,6 +154,8 @@ display(HTML(html_table(
 
 ## Causal inference and panels
 
+- [FE counterfactual imputation](examples/fe-imputation.qmd): `FEImputation`, untreated-only unit/time effects with missing cells and reversals; point estimates only.
+
 ### Treatment effects, IV, and balancing
 
 Reference pages:
@@ -180,6 +182,7 @@ Worked docs:
 display(HTML(html_table(
     ["Constructor", "Methods"],
     class_rows([
+        cm.FEImputation,
         cm.TwoSLS,
         cm.BalancingWeights,
         cm.MPE_CBPS,

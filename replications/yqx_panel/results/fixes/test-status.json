@@ -1,0 +1,13 @@
+{
+  "command": ".venv/bin/python -m pytest tests -q",
+  "passed": 343,
+  "failed": 1,
+  "new_tests": 24,
+  "new_offline_R_fixture_tests": 16,
+  "new_optional_lecture_tests": 8,
+  "failure": "tests/test_scaling_runner.py::test_cleanup_terminates_grandchildren[True] \u2014 intermittent macOS os.killpg PermissionError in existing benchmark cleanup; no changes to that runner",
+  "isolated_rerun": "docs checks and both grandchild-cleanup cases: 8 passed; separate six-run bounded cleanup probe also succeeded",
+  "release_build": "maturin develop --release passed",
+  "docs": "four pages executed and rendered successfully",
+  "r_reference_replay": "59 specifications / 102 coefficients, 47 archive regressions, five native FEct surfaces, SCM, and three covariance conventions pass"
+}

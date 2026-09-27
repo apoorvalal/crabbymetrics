@@ -2,31 +2,18 @@ use super::panel::{
     cohort_units, ensure_panel_has_never_treated, infer_panel_treatment, panel_effect_dicts,
     panel_group_pre_rmse, PanelTreatmentInfo,
 };
-use crate::fit::optimization_success;
 use crate::utils::{
     bootstrap_indices, pyarray1_from_f64, pyarray2_from_f64, take_rows, take_rows_vec, to_array1,
     to_array2,
 };
-use argmin::core::{CostFunction, Executor, Gradient, State};
-use argmin::solver::linesearch::MoreThuenteLineSearch;
-use argmin::solver::quasinewton::LBFGS;
 use nalgebra::{DMatrix, DVector};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{s, Array1, Array2, Axis};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
-
-fn softmax_weights(theta: &Array1<f64>) -> Array1<f64> {
-    let max_theta = theta
-        .iter()
-        .fold(f64::NEG_INFINITY, |acc, value| acc.max(*value));
-    let exp_shifted = theta.mapv(|value| (value - max_theta).exp());
-    let sum = exp_shifted.sum();
-    exp_shifted / sum
-}
 
 fn synthetic_control_rmse(
     donors: &Array2<f64>,
@@ -37,95 +24,40 @@ fn synthetic_control_rmse(
     (residual.mapv(|value| value * value).mean().unwrap_or(0.0)).sqrt()
 }
 
-struct SyntheticControlProblem<'a> {
-    donors: ArrayView2<'a, f64>,
-    treated: ArrayView1<'a, f64>,
-}
-
-impl CostFunction for SyntheticControlProblem<'_> {
-    type Param = Array1<f64>;
-    type Output = f64;
-
-    fn cost(&self, theta: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
-        let weights = softmax_weights(theta);
-        let residual = self.donors.dot(&weights) - &self.treated;
-        let mse = 0.5 * residual.dot(&residual) / (self.donors.nrows() as f64);
-        Ok(mse)
-    }
-}
-
-impl Gradient for SyntheticControlProblem<'_> {
-    type Param = Array1<f64>;
-    type Gradient = Array1<f64>;
-
-    fn gradient(
-        &self,
-        theta: &Self::Param,
-    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
-        let weights = softmax_weights(theta);
-        let residual = self.donors.dot(&weights) - &self.treated;
-        let grad_weights = self.donors.t().dot(&residual) / (self.donors.nrows() as f64);
-        let centered = &grad_weights - weights.dot(&grad_weights);
-        Ok(weights * centered)
-    }
+#[derive(Clone)]
+struct SimplexFit {
+    weights: Array1<f64>,
+    iterations: u64,
+    kkt_residual: f64,
 }
 
 fn fit_synthetic_control_weights(
     donors: &Array2<f64>,
     treated: &Array1<f64>,
     max_iterations: u64,
-) -> PyResult<Array1<f64>> {
+) -> PyResult<SimplexFit> {
     crate::validation::validate_finite("donors", donors).map_err(PyValueError::new_err)?;
     crate::validation::validate_finite("treated", treated).map_err(PyValueError::new_err)?;
     if max_iterations == 0 {
         return Err(PyValueError::new_err("max_iterations must be positive"));
     }
-    if donors.nrows() != treated.len() {
+    if donors.nrows() == 0 || donors.ncols() == 0 || donors.nrows() != treated.len() {
         return Err(PyValueError::new_err(
-            "donor rows must match treated length",
+            "need nonempty aligned donors/treated and positive max_iterations",
         ));
     }
-    if donors.nrows() == 0 {
-        return Err(PyValueError::new_err(
-            "need at least one pre-treatment period",
-        ));
+    // Under sum(w)=1, ||D w-y|| = ||(D-y 1')w||. This avoids
+    // cancellation from the large common outcome level in Gram - linear.
+    let mut centered = donors.clone();
+    for mut column in centered.columns_mut() {
+        column -= treated;
     }
-    if donors.ncols() == 0 {
-        return Err(PyValueError::new_err("need at least one donor series"));
+    let scale = centered.iter().fold(0.0_f64, |a, &b| a.max(b.abs()));
+    if scale > 0.0 {
+        centered /= scale;
     }
-    if donors.ncols() == 1 {
-        return Ok(Array1::from_vec(vec![1.0]));
-    }
-
-    let problem = SyntheticControlProblem {
-        donors: donors.view(),
-        treated: treated.view(),
-    };
-    let theta0 = Array1::<f64>::zeros(donors.ncols());
-    let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7)
-        .with_tolerance_grad(1e-8)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?
-        .with_tolerance_cost(1e-12)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-    let mut result = Executor::new(problem, solver)
-        .configure(|state| state.param(theta0).max_iters(max_iterations))
-        .run()
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-    if !optimization_success(result.state.get_termination_status()) {
-        return Err(PyValueError::new_err(format!(
-            "simplex optimization did not converge: {}",
-            result.state.get_termination_status()
-        )));
-    }
-    let theta = result
-        .state
-        .take_best_param()
-        .ok_or_else(|| PyValueError::new_err("synthetic control optimization failed"))?;
-
-    Ok(softmax_weights(&theta))
+    let hessian = centered.t().dot(&centered) / donors.nrows() as f64;
+    solve_simplex_quadratic_diagnostics(&hessian, &Array1::zeros(donors.ncols()), max_iterations)
 }
 
 pub(crate) fn fit_simplex_least_squares_weights(
@@ -280,12 +212,35 @@ fn solve_simplex_quadratic(
     linear: &Array1<f64>,
     max_iterations: u64,
 ) -> PyResult<Array1<f64>> {
+    Ok(solve_simplex_quadratic_diagnostics(hessian, linear, max_iterations)?.weights)
+}
+
+fn simplex_kkt(hessian: &Array2<f64>, linear: &Array1<f64>, weights: &Array1<f64>) -> f64 {
+    let gradient = hessian.dot(weights) - linear;
+    let multiplier = gradient.dot(weights);
+    gradient
+        .iter()
+        .zip(weights)
+        .fold(0.0_f64, |error, (&g, &w)| {
+            error.max(if w > 0.0 {
+                (g - multiplier).abs()
+            } else {
+                (multiplier - g).max(0.0)
+            })
+        })
+}
+
+fn solve_simplex_quadratic_diagnostics(
+    hessian: &Array2<f64>,
+    linear: &Array1<f64>,
+    max_iterations: u64,
+) -> PyResult<SimplexFit> {
     let n_weights = hessian.nrows();
     let mut weights = Array1::<f64>::from_elem(n_weights, 1.0 / n_weights as f64);
     let mut is_free = vec![true; n_weights];
     let tolerance = 1e-10;
 
-    for _ in 0..max_iterations {
+    for iteration in 0..max_iterations {
         let gradient = hessian.dot(&weights) - linear;
         let free: Vec<usize> = is_free
             .iter()
@@ -316,7 +271,20 @@ fn solve_simplex_quadratic(
                         ));
                     }
                     weights /= total;
-                    return Ok(weights);
+                    let kkt_residual = simplex_kkt(hessian, linear, &weights);
+                    if !kkt_residual.is_finite()
+                        || kkt_residual
+                            > 1e-8 * (1.0 + linear.iter().fold(0.0_f64, |a, &b| a.max(b.abs())))
+                    {
+                        return Err(PyValueError::new_err(
+                            "simplex solver failed its KKT optimality check",
+                        ));
+                    }
+                    return Ok(SimplexFit {
+                        weights,
+                        iterations: iteration + 1,
+                        kkt_residual,
+                    });
                 }
             }
         }
@@ -388,6 +356,7 @@ pub(crate) fn sdid_sigma_estimator(
 pub struct SyntheticControl {
     max_iterations: u64,
     weights: Option<Array1<f64>>,
+    diagnostics: Option<SimplexFit>,
     donors: Option<Array2<f64>>,
     treated: Option<Array1<f64>>,
 }
@@ -423,6 +392,7 @@ impl SyntheticControl {
         Self {
             max_iterations,
             weights: None,
+            diagnostics: None,
             donors: None,
             treated: None,
         }
@@ -434,13 +404,15 @@ impl SyntheticControl {
         treated: PyReadonlyArray1<f64>,
     ) -> PyResult<()> {
         self.weights = None;
+        self.diagnostics = None;
         self.donors = None;
         self.treated = None;
         let donors = to_array2(&donors);
         let treated = to_array1(&treated);
         let weights = fit_synthetic_control_weights(&donors, &treated, self.max_iterations)?;
 
-        self.weights = Some(weights);
+        self.weights = Some(weights.weights.clone());
+        self.diagnostics = Some(weights);
         self.donors = Some(donors);
         self.treated = Some(treated);
         Ok(())
@@ -461,6 +433,7 @@ impl SyntheticControl {
                 "donor columns must match number of fitted weights",
             ));
         }
+        crate::validation::validate_finite("donors", &donors).map_err(PyValueError::new_err)?;
         let pred = donors.dot(weights);
         Ok(pyarray1_from_f64(py, &pred))
     }
@@ -482,7 +455,25 @@ impl SyntheticControl {
         let dict = pyo3::types::PyDict::new(py);
         dict.set_item("weights", pyarray1_from_f64(py, weights))?;
         dict.set_item("pre_rmse", synthetic_control_rmse(donors, treated, weights))?;
-        dict.set_item("converged", true)?;
+        let diagnostics = self
+            .diagnostics
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("No solver diagnostics stored"))?;
+        dict.set_item("converged", diagnostics.kkt_residual <= 1e-8)?;
+        dict.set_item("iterations", diagnostics.iterations)?;
+        dict.set_item("stop_reason", "kkt_optimality")?;
+        dict.set_item("solver", "active_set_simplex_qp")?;
+        dict.set_item(
+            "objective",
+            0.5 * synthetic_control_rmse(donors, treated, weights).powi(2),
+        )?;
+        dict.set_item("scaled_kkt_residual", diagnostics.kkt_residual)?;
+        dict.set_item(
+            "feasibility_error",
+            (weights.sum() - 1.0)
+                .abs()
+                .max(weights.iter().fold(0.0_f64, |a, &w| a.max(-w))),
+        )?;
         Ok(dict.into())
     }
 
@@ -510,7 +501,7 @@ impl SyntheticControl {
             let treated_b = take_rows_vec(treated, idx);
             let weights_b =
                 fit_synthetic_control_weights(&donors_b, &treated_b, self.max_iterations)?;
-            out.row_mut(i).assign(&weights_b);
+            out.row_mut(i).assign(&weights_b.weights);
         }
 
         Ok(pyarray2_from_f64(py, &out))

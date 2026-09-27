@@ -145,3 +145,25 @@ plt.show()
 ```
 
 The treated unit was deliberately chosen from the high-positive side of the first principal component, so the naive donor average fails even before treatment. The synthetic control fit sharply reduces pre-treatment mismatch, making the post-treatment gap much easier to interpret as treatment effect rather than latent-factor imbalance.
+
+## Optimization diagnostics
+
+The solver minimizes half the mean squared pre-treatment error directly on the
+nonnegative unit simplex. An active-set quadratic solver permits exact zero donor
+weights; a softmax parameterization can falsely flatten gradients near a boundary.
+The internally normalized donor-minus-target design avoids large-common-level
+cancellation. `summary()` reports `objective` in original outcome-squared units,
+`iterations`, `feasibility_error`, `scaled_kkt_residual`, `stop_reason`, and
+`converged`. The KKT residual uses the normalized design and is not in raw outcome
+units. Insufficient iterations or a failed optimality check raises `ValueError`
+and clears fitted state. Prediction rejects nonfinite donor inputs.
+
+```{python}
+print({key: summary[key] for key in
+       ['solver', 'iterations', 'objective', 'scaled_kkt_residual',
+        'feasibility_error', 'stop_reason', 'converged']})
+```
+
+The Proposition 99 regression fixture reproduces outcome-only SCM pre-RMSE
+1.656400 and ATT -19.513630 from R and an independent constrained solver. It is
+not the canonical predictor-weighted SCM specification.

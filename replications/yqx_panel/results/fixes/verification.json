@@ -1,0 +1,74 @@
+{
+  "scope": "Native post-fix replay of previously saved independent R references; no new R estimation.",
+  "linear": {
+    "specifications": 59,
+    "coefficients": 102,
+    "max_coef_error": 2.277289468111121e-12
+  },
+  "panels": [
+    {
+      "model": "prop99_scm",
+      "att": -19.513629763999244,
+      "pre_rmse": 1.6564002069212638,
+      "iterations": 34,
+      "scaled_kkt_residual": 2.5614276324970042e-18
+    },
+    {
+      "model": "gs2020_fe",
+      "att": 0.12713445774165336,
+      "reference_att": 0.1271344577000197,
+      "max_surface_error": 2.397409042120824e-10,
+      "n_train": 6729,
+      "n_treated": 118,
+      "seconds": 0.003181082895025611
+    },
+    {
+      "model": "turnout_fe",
+      "att": 1.425566401162432,
+      "reference_att": 1.4255663993693548,
+      "max_surface_error": 2.1292329677180533e-08,
+      "n_train": 1078,
+      "n_treated": 50,
+      "seconds": 0.0004189161118119955
+    },
+    {
+      "model": "hh2019_fe",
+      "att": 1.50641649411699,
+      "reference_att": 1.5064164931506272,
+      "max_surface_error": 7.074692665032245e-08,
+      "n_train": 15135,
+      "n_treated": 2459,
+      "seconds": 0.008800083072856069
+    },
+    {
+      "model": "modern_Bischof_Wagner_2019_AJPS_full",
+      "att": 0.0823342372054418,
+      "reference_att": 0.08233389069006644,
+      "max_surface_error": 7.262205099500818e-07,
+      "n_train": 374,
+      "n_treated": 160,
+      "seconds": 0.0001203340943902731
+    },
+    {
+      "model": "modern_Grumbach_Sahn_2020_APSR_full",
+      "att": 0.1277491381985501,
+      "reference_att": 0.12774913815270036,
+      "max_surface_error": 2.527976994404213e-10,
+      "n_train": 6729,
+      "n_treated": 118,
+      "seconds": 0.003595625050365925
+    }
+  ],
+  "archive": {
+    "datasets": 47,
+    "max_coef_error": 2.712563298978843e-10
+  },
+  "source_base_commit": "942c877667ecf3e8b5f2a767cbef4689f526710b",
+  "source_dirty": true,
+  "implementation_sha256": {
+    "src/estimators/synthetic.rs": "df6a54b65c9f65551c42b52079a49102e23e69aef3d5708fd4535bf310e2c260",
+    "src/estimators/linear.rs": "bc5210da958760cb07b2fe98aa00f4e34ac7799f560c324696656eb8608dd7b6",
+    "src/estimators/imputation.rs": "7e97084b468124573ca5796d1dffa17d653b1a77cb1ad84896555a6b62785f07"
+  },
+  "extension_sha256": "b6639ad519a39cd46de1e74d57e302267b28808f7edfb0d251946d01d7e3199f"
+}
