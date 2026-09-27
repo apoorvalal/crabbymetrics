@@ -1,5 +1,31 @@
 # Devlog (crabbymetrics)
 
+## v0.9.1 verified publication (2026-09-26)
+
+- Release commit `40f6526` includes merged PR #23 (`ffaf8f9`). Ran
+  `gh workflow run wheels.yml --ref master -f version=0.9.1`; the existing
+  workflow created the annotated tag and published to PyPI through trusted
+  publishing, plus GitHub Release assets. Run: [36292211477](https://github.com/apoorvalal/crabbymetrics/actions/runs/36292211477).
+- Both Linux test jobs (Python 3.10 and 3.12) passed: 336 tests, with eight
+  optional lecture-data tests skipped. All ten Linux x86_64/macOS arm64 wheel
+  builds passed for CPython 3.10–3.14. Local Rust tests: 11 passed.
+- PyPI lists ten wheels and one non-yanked sdist. All eleven asset digests match
+  GitHub. The 730,267-byte sdist excludes rendered docs and raw caches; all 25
+  Rust sources match the release checkout. A fresh PyPI installation passed
+  boundary-optimum SCM and untreated-only imputation/leakage smoke checks.
+- Built all 106 pages and 514 Python cells with refreshed execution against
+  0.9.1 from the clean release revision. Link/search validation passed for all
+  pages and 306 images. Browser checks covered all 106 pages at 390px: 1,589
+  KaTeX equations, no math/JS errors, overflow or broken images; changed pages
+  also passed 1440px checks. Timing tables retain their declared historical
+  benchmark versions rather than implying a new timing experiment.
+- Published the site separately on `gh-pages` at `3159f0e`; [Pages deployment
+  36292759989](https://github.com/apoorvalal/crabbymetrics/actions/runs/36292759989)
+  succeeded. The public site, release page, class references, imputation example,
+  search index, `llms.txt` and build manifest all returned HTTP 200 with the
+  expected release content. Live 390px/1440px browser checks passed, including
+  KaTeX rendering. Generated HTML is not committed to `master`.
+
 ## v0.9.1 release preparation (2026-09-26)
 
 - PR #23 is merged as `ffaf8f9`: corrected simplex SCM, FE inference controls,
@@ -62,7 +88,7 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.9.0` remains published while v0.9.1 is prepared from merged PR #23. Publication and documentation deployment will be verified separately.
+Current release state: `v0.9.1` is published on PyPI and GitHub from `40f6526`; release tests, all wheel builds and a fresh PyPI installation are verified. The freshly executed documentation site is live from `gh-pages` commit `3159f0e`, with successful Pages deployment and public-URL/browser checks.
 
 Current development state: PR #21 was squash-merged into `master` as `bb4c6f2`, bringing the scaling inventory, external-reference parity tests, benchmark cleanup, and approved estimator hardening together with PR #22's `MPE_CBPS`. The documentation refresh replaces the historical scaling data with a fresh, explicitly bounded v0.9.0 run; the larger historical grid has not been rerun.
 

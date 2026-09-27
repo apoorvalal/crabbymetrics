@@ -14,9 +14,13 @@ PR #23 is merged as `ffaf8f9`. Version 0.9.1 packages its corrected synthetic
 control solver, FE prediction/inference controls, and native `FEImputation`.
 The existing CI publication workflow is retained. Documentation sources now
 match those APIs; historical replication tables remain labeled as historical.
-Release gates include a docs-excluded sdist, reference-backed tests, a fully
-executed isolated docs build and rendered-site link checks. Publication is
-pending. The previous dated sections below describe their original scope.
+Release gates passed: 336 tests on both Python 3.10/3.12 (eight optional data
+skips), ten wheel builds, eleven verified published artifacts and a fresh PyPI
+installation. The 106-page site executed 514 cells; all links, 306 images and
+1,589 KaTeX equations passed validation. The package is published as v0.9.1
+from `40f6526`; the documentation site is live from `gh-pages` commit `3159f0e`.
+Pages deployment and live HTTP/browser checks passed. The previous dated
+sections below describe their original scope.
 
 ## Design Guardrails
 
