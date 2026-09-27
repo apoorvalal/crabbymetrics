@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -518,89 +540,89 @@ window.Quarto = {
 <p>The first step is where the substantive assumptions live. Once it is accepted, the computational core is indeed simple. This vignette uses <code>crabbymetrics.MPE_CBPS</code>, a native Rust implementation checked against the authors’ released A/B and switchback code, then compares it with two direct entropy-calibration fits from <code>crabbymetrics.BalancingWeights</code>.</p>
 <section id="setup-and-target" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup-and-target"><span class="header-section-number">1</span> Setup and target</h2>
-<p>For customer <span class="math inline">\(i\)</span> at time <span class="math inline">\(t\)</span>, let</p>
+<p>For customer <span class="math inline">i</span> at time <span class="math inline">t</span>, let</p>
 <ul>
-<li><span class="math inline">\(U_{it}\)</span> be a latent state such as satisfaction, beliefs, or intent;</li>
-<li><span class="math inline">\(X_{it}\)</span> be observed order characteristics, with <span class="math inline">\(X_{it}=\varnothing\)</span> when no order is placed;</li>
-<li><span class="math inline">\(D_{it}\in\{0,1\}\)</span> indicate a delay;</li>
-<li><span class="math inline">\(Y_{it}\)</span> be a reward such as spend, order frequency, or retention value.</li>
+<li><span class="math inline">U_{it}</span> be a latent state such as satisfaction, beliefs, or intent;</li>
+<li><span class="math inline">X_{it}</span> be observed order characteristics, with <span class="math inline">X_{it}=\varnothing</span> when no order is placed;</li>
+<li><span class="math inline">D_{it}\in\{0,1\}</span> indicate a delay;</li>
+<li><span class="math inline">Y_{it}</span> be a reward such as spend, order frequency, or retention value.</li>
 </ul>
 <p>The status-quo average reward is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 V_0=\mathbb E\left[\frac{1}{T}\sum_{t=1}^T Y_{it}\right].
-\]</span></p>
+</span></p>
 <p>On order occasions, perturb the conditional delay probability additively:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \pi_\varepsilon(x)
 =\Pr_\varepsilon(D_{it}=1\mid X_{it}=x)
 =\pi_0(x)+\varepsilon.
-\]</span></p>
+</span></p>
 <p>The marginal policy effect is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \tau
 =\left.\frac{dV_\varepsilon}{d\varepsilon}\right|_{\varepsilon=0}.
-\]</span></p>
-<p>Thus <span class="math inline">\(0.01\tau\)</span> is the effect of increasing the delay probability by one percentage point. A reliability improvement has <span class="math inline">\(\Delta\text{Delay}&lt;0\)</span>, so its predicted value effect is <span class="math inline">\(\Delta\text{Delay}\times\tau\)</span>.</p>
+</span></p>
+<p>Thus <span class="math inline">0.01\tau</span> is the effect of increasing the delay probability by one percentage point. A reliability improvement has <span class="math inline">\Delta\text{Delay}&lt;0</span>, so its predicted value effect is <span class="math inline">\Delta\text{Delay}\times\tau</span>.</p>
 <p>Delays play the mathematical role of MDP actions, but are not actions in the operational sense: the platform does not deliberately choose to delay an order. The intervention modifies their conditional distribution.</p>
 </section>
 <section id="identification-is-the-hard-part" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="identification-is-the-hard-part"><span class="header-section-number">2</span> Identification is the hard part</h2>
 <p>The paper assumes:</p>
 <ol type="1">
-<li><span class="math inline">\((U_{it},X_{it},D_{it})\)</span> is Markov and rewards depend on this current state;</li>
-<li>delays are sequentially unconfounded after observed order characteristics are fixed, <span class="math display">\[D_{it}\perp (S_{i,t-1},U_{it})\mid X_{it};\]</span></li>
-<li>the effect of a delay on rewards <span class="math inline">\(k\)</span> periods later decays no more slowly than <span class="math inline">\(Ce^{-k/\nu}\)</span>;</li>
+<li><span class="math inline">(U_{it},X_{it},D_{it})</span> is Markov and rewards depend on this current state;</li>
+<li>delays are sequentially unconfounded after observed order characteristics are fixed, <span class="math display">D_{it}\perp (S_{i,t-1},U_{it})\mid X_{it};</span></li>
+<li>the effect of a delay on rewards <span class="math inline">k</span> periods later decays no more slowly than <span class="math inline">Ce^{-k/\nu}</span>;</li>
 <li>delay probabilities are bounded away from zero and one.</li>
 </ol>
-<p>Define the forward reward through horizon <span class="math inline">\(K\)</span>,</p>
-<p><span class="math display">\[
+<p>Define the forward reward through horizon <span class="math inline">K</span>,</p>
+<p><span class="math display">
 \Gamma_{it}^K
 =\sum_{s=t}^{\min(t+K,T)}Y_{is},
-\]</span></p>
-<p>and let <span class="math inline">\(O_{it}=1\{X_{it}\ne\varnothing\}\)</span>. The paper’s policy-gradient argument gives the oracle estimator</p>
-<p><span class="math display">\[
+</span></p>
+<p>and let <span class="math inline">O_{it}=1\{X_{it}\ne\varnothing\}</span>. The paper’s policy-gradient argument gives the oracle estimator</p>
+<p><span class="math display">
 \widehat\tau_K^*
 =\frac{1}{nT}\sum_{i,t}O_{it}
 \left\{
 \frac{D_{it}}{\pi(X_{it})}
 -\frac{1-D_{it}}{1-\pi(X_{it})}
 \right\}\Gamma_{it}^K,
-\]</span></p>
+</span></p>
 <p>with truncation bias bounded by</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \left|\mathbb E[\widehat\tau_K^*]-\tau\right|
 \le
 \frac{C}{1-e^{-1/\nu}}e^{-K/\nu}.
-\]</span></p>
-<p>This result is what permits hidden consumer states: <span class="math inline">\(U_{it}\)</span> need not be measured, provided it does not still confound the contemporaneous delay after conditioning on <span class="math inline">\(X_{it}\)</span>. Increasing <span class="math inline">\(K\)</span> reduces truncation bias but increases noise because each observation carries a longer cumulative reward.</p>
+</span></p>
+<p>This result is what permits hidden consumer states: <span class="math inline">U_{it}</span> need not be measured, provided it does not still confound the contemporaneous delay after conditioning on <span class="math inline">X_{it}</span>. Increasing <span class="math inline">K</span> reduces truncation bias but increases noise because each observation carries a longer cumulative reward.</p>
 </section>
 <section id="why-it-becomes-a-balancing-problem" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="why-it-becomes-a-balancing-problem"><span class="header-section-number">3</span> Why it becomes a balancing problem</h2>
-<p>Inverse-probability weights balance every chosen basis <span class="math inline">\(b(X)\)</span> in expectation:</p>
-<p><span class="math display">\[
+<p>Inverse-probability weights balance every chosen basis <span class="math inline">b(X)</span> in expectation:</p>
+<p><span class="math display">
 \mathbb E\left[O\frac{D}{\pi(X)}b(X)\right]
 =\mathbb E[Ob(X)]
 =\mathbb E\left[O\frac{1-D}{1-\pi(X)}b(X)\right].
-\]</span></p>
-<p>The paper estimates <strong>two</strong> coefficient vectors. In the authors’ released code, let <span class="math inline">\(W_i^{(a)}=1\{D_i=a\}\)</span>, <span class="math inline">\(z_i=(1,b(X_i)')'\)</span>, and <span class="math inline">\(\dot\pi_i\)</span> be the derivative of the treatment probability with respect to the policy perturbation. For each arm <span class="math inline">\(a\in\{0,1\}\)</span>, it minimizes the convex loss</p>
-<p><span class="math display">\[
+</span></p>
+<p>The paper estimates <strong>two</strong> coefficient vectors. In the authors’ released code, let <span class="math inline">W_i^{(a)}=1\{D_i=a\}</span>, <span class="math inline">z_i=(1,b(X_i)')'</span>, and <span class="math inline">\dot\pi_i</span> be the derivative of the treatment probability with respect to the policy perturbation. For each arm <span class="math inline">a\in\{0,1\}</span>, it minimizes the convex loss</p>
+<p><span class="math display">
 L_a(\theta_a)
 =\frac{1}{n}\sum_i \dot\pi_i
 \left[W_i^{(a)}e^{-z_i^\top\theta_a}
 +(1-W_i^{(a)})z_i^\top\theta_a\right].
-\]</span></p>
+</span></p>
 <p>Its score is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \nabla L_a(\theta_a)
 =\frac{1}{n}\sum_i \dot\pi_i z_i
 \left[(1-W_i^{(a)})-W_i^{(a)}e^{-z_i^\top\theta_a}\right].
-\]</span></p>
-<p>When <span class="math inline">\(\dot\pi_i\)</span> is constant, the first-order condition implies</p>
-<p><span class="math display">\[
+</span></p>
+<p>When <span class="math inline">\dot\pi_i</span> is constant, the first-order condition implies</p>
+<p><span class="math display">
 \sum_i W_i^{(a)}\{1+e^{-z_i^\top\widehat\theta_a}\}z_i
 =\sum_i z_i.
-\]</span></p>
-<p>Thus <span class="math inline">\(w_i^{(a)}=1+e^{-z_i^\top\widehat\theta_a}\)</span> balances each arm separately to the complete sample, including its total mass through the intercept. <code>MPE_CBPS</code> solves both convex programs with analytic gradients and Hessians in Rust and reports the resulting weights, moments, effective sample sizes, and optimization diagnostics.</p>
+</span></p>
+<p>Thus <span class="math inline">w_i^{(a)}=1+e^{-z_i^\top\widehat\theta_a}</span> balances each arm separately to the complete sample, including its total mass through the intercept. <code>MPE_CBPS</code> solves both convex programs with analytic gradients and Hessians in Rust and reports the resulting weights, moments, effective sample sizes, and optimization diagnostics.</p>
 <section id="matching-the-authors-repository" class="level3" data-number="3.1">
 <h3 data-number="3.1" class="anchored" data-anchor-id="matching-the-authors-repository"><span class="header-section-number">3.1</span> Matching the authors’ repository</h3>
 <p>The released repository contains the same implementation twice:</p>
@@ -608,19 +630,19 @@ L_a(\theta_a)
 <li><a href="https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/ab_validation/run_simulation.py#L91-L120">A/B validation CBPS objective, weights, standardization, and policy-gradient aggregation</a>;</li>
 <li><a href="https://github.com/chenyuqiu/ltv_of_reliability/blob/06c29f4750221b2b0125f3fe5cd12b40a4e76607/switchback_validation/run_simulation.py#L188-L241">switchback validation CBPS objective and aggregation</a>.</li>
 </ul>
-<p>CrabbyMetrics reproduces those equations rather than treating a nearby calibration estimator as canonical. The parity tests transcribe the released MIT-licensed SciPy/BFGS reference at commit <code>06c29f4</code>, solve the same deterministic samples with <code>MPE_CBPS</code>, and compare both coefficient vectors, all observation-level weights, and the final normalized policy-gradient estimate. Coefficients agree within <span class="math inline">\(2\times10^{-7}\)</span> and the exponentially transformed weights within <span class="math inline">\(5\times10^{-6}\)</span>; the normalized policy-gradient comparison is tighter than <span class="math inline">\(2\times10^{-9}\)</span> in absolute value.</p>
+<p>CrabbyMetrics reproduces those equations rather than treating a nearby calibration estimator as canonical. The parity tests transcribe the released MIT-licensed SciPy/BFGS reference at commit <code>06c29f4</code>, solve the same deterministic samples with <code>MPE_CBPS</code>, and compare both coefficient vectors, all observation-level weights, and the final normalized policy-gradient estimate. Coefficients agree within <span class="math inline">2\times10^{-7}</span> and the exponentially transformed weights within <span class="math inline">5\times10^{-6}</span>; the normalized policy-gradient comparison is tighter than <span class="math inline">2\times10^{-9}</span> in absolute value.</p>
 </section>
 <section id="exact-cbps-versus-balancingweights" class="level3" data-number="3.2">
 <h3 data-number="3.2" class="anchored" data-anchor-id="exact-cbps-versus-balancingweights"><span class="header-section-number">3.2</span> Exact CBPS versus <code>BalancingWeights</code></h3>
-<p>The paper’s weights use the inverse-logit links <span class="math inline">\(1+e^{-b^\top\beta_1}\)</span> and <span class="math inline">\(1+e^{b^\top\beta_0}\)</span>. Entropy calibration in <code>BalancingWeights</code> instead uses an exponential tilt. These are not algebraically identical weight families.</p>
+<p>The paper’s weights use the inverse-logit links <span class="math inline">1+e^{-b^\top\beta_1}</span> and <span class="math inline">1+e^{b^\top\beta_0}</span>. Entropy calibration in <code>BalancingWeights</code> instead uses an exponential tilt. These are not algebraically identical weight families.</p>
 <p>They do, however, impose the same sample targets:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_{D=1}w_i^{(1)}b_i=\bar b_{\mathrm{orders}},
 \qquad
 \sum_{D=0}w_i^{(0)}b_i=\bar b_{\mathrm{orders}},
 \qquad
 \sum w_i^{(d)}=1.
-\]</span></p>
+</span></p>
 <p>Consequently, CrabbyMetrics also handles the balance targets with its generic calibration API:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>delayed <span class="op">=</span> cm.BalancingWeights(objective<span class="op">=</span><span class="st">"entropy"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>delayed.fit(basis[delay <span class="op">==</span> <span class="dv">1</span>], basis)</span>
@@ -639,24 +661,24 @@ L_a(\theta_a)
 <p>For the paper’s percentage-of-baseline-spend normalization, pass the additive policy derivative during <code>fit</code> and baseline spend during <code>estimate</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>model.fit(basis, delay, policy_derivative<span class="op">=</span>np.full(n, <span class="fl">0.01</span>).tolist())</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>beta_k <span class="op">=</span> model.estimate(gamma_k, denominator<span class="op">=</span>baseline_spend.<span class="bu">sum</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>If the panel includes periods with no order, the normalized weighted-mean contrast must additionally reflect the empirical order rate <span class="math inline">\(N_{\mathrm{orders}}/(nT)\)</span>. The executable example below treats every recorded row as an order occasion, so this factor is one.</p>
+<p>If the panel includes periods with no order, the normalized weighted-mean contrast must additionally reflect the empirical order rate <span class="math inline">N_{\mathrm{orders}}/(nT)</span>. The executable example below treats every recorded row as an order occasion, so this factor is one.</p>
 </section>
 </section>
 <section id="a-dynamic-stress-test-with-known-truth" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="a-dynamic-stress-test-with-known-truth"><span class="header-section-number">4</span> A dynamic stress test with known truth</h2>
 <p>The simulation deliberately has an unobserved persistent state:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 U_{i,t+1}=\rho U_{it}+aD_{it}+0.10X_{it,1}+\eta_{it},
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 Y_{it}=m(X_{it})+U_{it}+cD_{it}+\varepsilon_{it}.
-\]</span></p>
-<p>Current delays have a direct effect <span class="math inline">\(c\)</span> and change all future rewards through <span class="math inline">\(U\)</span>. Delay assignment depends only on an observed nonlinear basis <span class="math inline">\(b(X_{it})\)</span>, so sequential unconfoundedness holds even though <span class="math inline">\(U\)</span> is hidden. Under an additive perturbation to the delay probability, the true horizon-<span class="math inline">\(K\)</span> effect is</p>
-<p><span class="math display">\[
+</span></p>
+<p>Current delays have a direct effect <span class="math inline">c</span> and change all future rewards through <span class="math inline">U</span>. Delay assignment depends only on an observed nonlinear basis <span class="math inline">b(X_{it})</span>, so sequential unconfoundedness holds even though <span class="math inline">U</span> is hidden. Under an additive perturbation to the delay probability, the true horizon-<span class="math inline">K</span> effect is</p>
+<p><span class="math display">
 \tau_K=c+a\sum_{h=0}^{K-1}\rho^h
 =c+a\frac{1-\rho^K}{1-\rho},
-\]</span></p>
-<p>and the long-run effect is <span class="math inline">\(\tau_\infty=c+a/(1-\rho)\)</span>.</p>
+</span></p>
+<p>and the long-run effect is <span class="math inline">\tau_\infty=c+a/(1-\rho)</span>.</p>
 <div id="setup" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
@@ -867,7 +889,7 @@ propensity range: [0.081, 0.923]</code></pre>
 </div>
 </div>
 <p>Both balancing methods remove the chosen moment discrepancies to numerical precision. <code>MPE_CBPS</code> exposes the exact released objective’s two sets of diagnostics; the generic calibration fits expose their own effective sample sizes and maximum residual imbalance through <code>summary()</code>.</p>
-<div id="3b529fff" class="cell" data-execution_count="3">
+<div id="4a1c883b" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>diagnostics <span class="op">=</span> pd.DataFrame(</span>
@@ -1084,12 +1106,12 @@ propensity range: [0.081, 0.923]</code></pre>
 </div>
 </div>
 </div>
-<p>The naive contrast has the wrong sign because orders with characteristics associated with higher baseline value are also more likely to be delayed. Both balanced estimators reverse that confounding. Their estimates become more negative with <span class="math inline">\(K\)</span>, approaching the long-run effect as the hidden-state response propagates.</p>
+<p>The naive contrast has the wrong sign because orders with characteristics associated with higher baseline value are also more likely to be delayed. Both balanced estimators reverse that confounding. Their estimates become more negative with <span class="math inline">K</span>, approaching the long-run effect as the hidden-state response propagates.</p>
 <p>The oracle IPW estimate is not automatically the least noisy line. Long-horizon outcomes and inverse probabilities can be volatile; exact finite-sample balance is a stabilization device, not merely a route to asymptotic consistency. This is the central empirical motivation for the paper’s preference for CBPS over a prediction-tuned propensity model.</p>
 </section>
 <section id="unit-clustered-bootstrap" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="unit-clustered-bootstrap"><span class="header-section-number">7</span> Unit-clustered bootstrap</h2>
-<p>The paper resamples customers, not customer-period rows, and re-estimates the weights inside each bootstrap draw. The same rule is used here for the exact <span class="math inline">\(K=28\)</span> <code>MPE_CBPS</code> estimator.</p>
+<p>The paper resamples customers, not customer-period rows, and re-estimates the weights inside each bootstrap draw. The same rule is used here for the exact <span class="math inline">K=28</span> <code>MPE_CBPS</code> estimator.</p>
 <div id="cell-cluster-bootstrap" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
@@ -1155,7 +1177,7 @@ propensity range: [0.081, 0.923]</code></pre>
 </div>
 </div>
 </div>
-<div id="3d1f4c5b" class="cell" data-execution_count="7">
+<div id="d7fb5057" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="fl">8.5</span>, <span class="fl">4.7</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
@@ -1179,11 +1201,11 @@ propensity range: [0.081, 0.923]</code></pre>
 <h2 data-number="8" class="anchored" data-anchor-id="what-the-paper-finds"><span class="header-section-number">8</span> What the paper finds</h2>
 <p>In the paper’s marketplace simulation, a naive future-outcome contrast overstates the long-run reliability effect by roughly an order of magnitude. IPW with a prediction-tuned MLP propensity model removes much of the bias but remains about three times too large and produces a wide interval. CBPS-IPW predicts 92–97% of the long-run randomized-experiment effect at 56- and 70-day horizons.</p>
 <p>They then combine two pieces:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat{\Delta V}^{\text{long run}}
 =\widehat{\Delta\text{Delay}}^{\text{switchback}}
 \times\widehat\tau^{\text{Chronos}}.
-\]</span></p>
+</span></p>
 <p>The switchback experiment identifies how added supply changes the market-level delay rate; Chronos estimates how a marginal delay-rate change maps into long-run customer value. This product predicts persistent-rollout value much better than reading customer value directly from the short switchback.</p>
 </section>
 <section id="practical-recipe" class="level2" data-number="9">
@@ -1191,13 +1213,13 @@ propensity range: [0.081, 0.923]</code></pre>
 <p>For an applied panel:</p>
 <ol type="1">
 <li>Define an order-level delay or service-defect indicator and a reward measured on a stable time grid.</li>
-<li>Construct <span class="math inline">\(\Gamma_{it}^K\)</span> for several substantively meaningful horizons rather than choosing one horizon after seeing results.</li>
+<li>Construct <span class="math inline">\Gamma_{it}^K</span> for several substantively meaningful horizons rather than choosing one horizon after seeing results.</li>
 <li>Build a balance basis from variables determined before the delay: the paper uses rolling delay exposure, order frequency, spend, recency, lifetime orders, same-day orders, distance, preparation time, tip, day of week, and hour of day.</li>
 <li>Fit <code>MPE_CBPS</code> once to the pre-delay basis and delay indicator. Use <code>BalancingWeights</code> only when a generic calibration family is substantively preferred.</li>
 <li>Inspect maximum imbalance, effective sample size, and weight tails. Relax balance or restrict the target population when overlap is weak.</li>
 <li>Form the weighted cumulative-reward contrast, multiplying by the order rate if the denominator is customer-periods rather than order occasions.</li>
 <li>Resample customers or other independent units and repeat the full weighting procedure for inference.</li>
-<li>Report a horizon curve. Stability across large <span class="math inline">\(K\)</span> is evidence about mixing; it is not proof of sequential unconfoundedness.</li>
+<li>Report a horizon curve. Stability across large <span class="math inline">K</span> is evidence about mixing; it is not proof of sequential unconfoundedness.</li>
 </ol>
 </section>
 <section id="limits-of-the-simple-translation" class="level2" data-number="10">
@@ -1206,7 +1228,7 @@ propensity range: [0.081, 0.923]</code></pre>
 <li><strong>The dynamic theorem is indispensable.</strong> A successful balance solver does not justify treating cumulative future outcomes as causal.</li>
 <li><strong>Entropy calibration is an analogue, not the paper’s exact inverse-logit family.</strong> <code>MPE_CBPS</code> is the exact family; <code>BalancingWeights(objective="entropy")</code> remains useful as a sensitivity check.</li>
 <li><strong>This is a local policy derivative.</strong> It supports adjacent changes to delay rates, not arbitrary large policy changes without further approximation error.</li>
-<li><strong>Observed state must be rich enough.</strong> Hidden states may mediate long-run effects, but cannot continue to predict delay after <span class="math inline">\(X\)</span> is fixed.</li>
+<li><strong>Observed state must be rich enough.</strong> Hidden states may mediate long-run effects, but cannot continue to predict delay after <span class="math inline">X</span> is fixed.</li>
 <li><strong>Order timing matters.</strong> Features contaminated by the current delay or post-delay behavior invalidate the balance design.</li>
 <li><strong>Spillovers are separate.</strong> The estimator targets long-run direct customer effects. Market-wide feedback through congestion or shared supply requires another design, such as the paper’s switchback component.</li>
 <li><strong>A doubly robust extension is possible.</strong> The paper points to a debiased machine-learning alternative. The present vignette isolates the transparent weighting estimator.</li>
@@ -1629,13 +1651,18 @@ propensity range: [0.081, 0.923]</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

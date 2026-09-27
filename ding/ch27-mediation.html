@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -505,7 +527,7 @@ window.Quarto = {
 <li>Sobel-style delta-method uncertainty for the indirect effect</li>
 </ul>
 <p>This is not a full mediation module in <code>crabbymetrics</code>; it is a transparent translation of the chapter’s regression calculation using <code>OLS</code> and HC1 covariance summaries.</p>
-<div id="da8516b2" class="cell" data-execution_count="1">
+<div id="4b0265f7" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -565,17 +587,17 @@ window.Quarto = {
 <section id="simulation" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulation"><span class="header-section-number">1</span> Simulation</h2>
 <p>The R script uses three data-generating processes to show that the direct-effect estimate is close to normal in simple linear systems, while the product-form indirect-effect estimate can be visibly non-normal.</p>
-<p>Each Monte Carlo draw uses <span class="math inline">\(n=200\)</span> independent units with</p>
-<p><span class="math display">\[
+<p>Each Monte Carlo draw uses <span class="math inline">n=200</span> independent units with</p>
+<p><span class="math display">
 Z_i \sim \operatorname{Bernoulli}(0.5), \qquad X_i \sim N(0, 1),
-\]</span></p>
-<p>and independent <span class="math inline">\(N(0,1)\)</span> disturbances in the mediator and outcome equations. The fitted mediation model is</p>
-<p><span class="math display">\[
+</span></p>
+<p>and independent <span class="math inline">N(0,1)</span> disturbances in the mediator and outcome equations. The fitted mediation model is</p>
+<p><span class="math display">
 M_i = \alpha_M + a Z_i + \gamma_M X_i + e_{Mi},
 \qquad
 Y_i = \alpha_Y + c' Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
-\]</span></p>
-<p>The reported direct-effect estimate is <span class="math inline">\(\hat c'\)</span>. The reported indirect-effect estimate is the product <span class="math inline">\(\hat a \hat b\)</span>. The three regimes in the R script differ only in whether the treatment-to-mediator path <span class="math inline">\(a\)</span> and mediator-to-outcome path <span class="math inline">\(b\)</span> are present:</p>
+</span></p>
+<p>The reported direct-effect estimate is <span class="math inline">\hat c'</span>. The reported indirect-effect estimate is the product <span class="math inline">\hat a \hat b</span>. The three regimes in the R script differ only in whether the treatment-to-mediator path <span class="math inline">a</span> and mediator-to-outcome path <span class="math inline">b</span> are present:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 17%">
@@ -596,29 +618,29 @@ Y_i = \alpha_Y + c' Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 <tbody>
 <tr class="odd">
 <td>Indirect path present</td>
-<td><span class="math inline">\(M = Z + X + e_M\)</span></td>
-<td><span class="math inline">\(Y = Z + M + X + e_Y\)</span></td>
+<td><span class="math inline">M = Z + X + e_M</span></td>
+<td><span class="math inline">Y = Z + M + X + e_Y</span></td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">1</td>
 </tr>
 <tr class="even">
 <td>No mediator-to-outcome path</td>
-<td><span class="math inline">\(M = Z + X + e_M\)</span></td>
-<td><span class="math inline">\(Y = Z + X + e_Y\)</span></td>
+<td><span class="math inline">M = Z + X + e_M</span></td>
+<td><span class="math inline">Y = Z + X + e_Y</span></td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
 </tr>
 <tr class="odd">
 <td>No indirect path</td>
-<td><span class="math inline">\(M = X + e_M\)</span></td>
-<td><span class="math inline">\(Y = Z + X + e_Y\)</span></td>
+<td><span class="math inline">M = X + e_M</span></td>
+<td><span class="math inline">Y = Z + X + e_Y</span></td>
 <td style="text-align: right;">1</td>
 <td style="text-align: right;">0</td>
 </tr>
 </tbody>
 </table>
-<p>The last two regimes both have zero indirect effect, but for different reasons. In the second, treatment still shifts the mediator and the fitted product is zero because <span class="math inline">\(b=0\)</span>. In the third, neither leg of the mediated path is active in the outcome system used by the R script.</p>
-<div id="3d00632f" class="cell" data-execution_count="2">
+<p>The last two regimes both have zero indirect effect, but for different reasons. In the second, treatment still shifts the mediator and the fitted product is zero because <span class="math inline">b=0</span>. In the third, neither leg of the mediated path is active in the outcome system used by the R script.</p>
+<div id="ee2706e6" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_once(rng, mediator_effect, outcome_mediator_effect, n<span class="op">=</span><span class="dv">200</span>):</span>
@@ -706,7 +728,7 @@ Y_i = \alpha_Y + c' Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 </div>
 </div>
 </div>
-<div id="f10c23ae" class="cell" data-execution_count="3">
+<div id="4a7532e6" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">3</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">9</span>))</span>
@@ -736,7 +758,7 @@ Y_i = \alpha_Y + c' Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 <section id="jobs-data" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="jobs-data"><span class="header-section-number">2</span> JOBS Data</h2>
 <p>The source R script closes with the JOBS data from the <code>mediation</code> package. Here the treatment is job-search training, the mediator is job-search self-efficacy, and the outcome is follow-up depression.</p>
-<div id="2bc2f09e" class="cell" data-execution_count="4">
+<div id="a1539ef6" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>jobs <span class="op">=</span> pd.read_csv(data_dir <span class="op">/</span> <span class="st">"jobsdata.csv"</span>)</span>
@@ -1206,13 +1228,18 @@ Y_i = \alpha_Y + c' Z_i + b M_i + \gamma_Y X_i + e_{Yi}.
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

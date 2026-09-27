@@ -280,6 +280,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -352,6 +356,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -471,7 +479,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>Chapter 5 moves from completely randomized experiments to blocked and post-stratified designs. The Penn unemployment experiment is the real-data blocked example, and the later post-stratification section in the R script is simple enough to keep as explicit arithmetic.</p>
-<div id="d8ee2d9e" class="cell" data-execution_count="1">
+<div id="729978a5" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
@@ -490,7 +498,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <section id="penn-job-training-data" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="penn-job-training-data"><span class="header-section-number">1</span> Penn Job-Training Data</h2>
-<div id="7fdc1239" class="cell" data-execution_count="2">
+<div id="f4d12642" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>penndata <span class="op">=</span> pd.read_table(data_dir <span class="op">/</span> <span class="st">"Penn46_ascii.txt"</span>, sep<span class="op">=</span><span class="vs">r"</span><span class="dv">\s</span><span class="op">+</span><span class="vs">"</span>)</span>
@@ -599,7 +607,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="fisher-test-within-blocks" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fisher-test-within-blocks"><span class="header-section-number">2</span> Fisher Test Within Blocks</h2>
-<div id="161d9044" class="cell" data-execution_count="3">
+<div id="96928114" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
@@ -649,7 +657,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<div id="dbf00bed" class="cell" data-execution_count="4">
+<div id="3f3f1b38" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))</span>
@@ -672,7 +680,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="post-stratification-arithmetic" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="post-stratification-arithmetic"><span class="header-section-number">3</span> Post-Stratification Arithmetic</h2>
 <p>The source script also has a small two-stratum binary-outcome example. It is useful because there is no modeling hidden inside it: each stratum contributes its own risk difference and binomial variance, then the overall post-stratified estimate weights by stratum size.</p>
-<div id="a49b59cf" class="cell" data-execution_count="5">
+<div id="ded5d3d5" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>post_counts <span class="op">=</span> pd.DataFrame(</span>
@@ -1190,13 +1198,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

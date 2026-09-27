@@ -22,7 +22,7 @@ execute:
 `crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: estimator classes, transformer classes, an `Optimizers` helper namespace, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` pattern.
 
 The linked class pages describe each estimator's objective, assumptions, inference,
-and limitations. Tables below are generated from the installed v0.9.0 module.
+and limitations. Tables below are generated from the installed v0.9.1 module.
 
 ```{python}
 #| include: false
@@ -154,6 +154,8 @@ display(HTML(html_table(
 
 ## Causal inference and panels
 
+- [FE counterfactual imputation](examples/fe-imputation.qmd): `FEImputation`, untreated-only unit/time effects with missing cells and reversals; point estimates only.
+
 ### Treatment effects, IV, and balancing
 
 Reference pages:
@@ -180,6 +182,7 @@ Worked docs:
 display(HTML(html_table(
     ["Constructor", "Methods"],
     class_rows([
+        cm.FEImputation,
         cm.TwoSLS,
         cm.BalancingWeights,
         cm.MPE_CBPS,

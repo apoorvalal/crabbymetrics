@@ -1,6 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://apoorvalal.github.io/crabbymetrics/release-0.9.1.html</loc>
+    <lastmod>2026-09-27T03:39:31.247Z</lastmod>
+  </url>
+  <url>
+    <loc>https://apoorvalal.github.io/crabbymetrics/ablations/yqx-panel-lectures.html</loc>
+    <lastmod>2026-09-27T03:40:49.652Z</lastmod>
+  </url>
+  <url>
+    <loc>https://apoorvalal.github.io/crabbymetrics/ablations/yqx-panel-fixes.html</loc>
+    <lastmod>2026-09-27T03:40:49.652Z</lastmod>
+  </url>
+  <url>
+    <loc>https://apoorvalal.github.io/crabbymetrics/reference/SyntheticControl.html</loc>
+    <lastmod>2026-09-27T03:40:49.651Z</lastmod>
+  </url>
+  <url>
+    <loc>https://apoorvalal.github.io/crabbymetrics/reference/FixedEffectsOLS.html</loc>
+    <lastmod>2026-09-27T03:40:49.652Z</lastmod>
+  </url>
+  <url>
+    <loc>https://apoorvalal.github.io/crabbymetrics/examples/fe-imputation.html</loc>
+    <lastmod>2026-09-27T03:37:19.928Z</lastmod>
+  </url>
+  <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/ablations/bridging-finite-and-superpopulation.html</loc>
     <lastmod>2026-09-09T15:53:33.622Z</lastmod>
   </url>
@@ -34,7 +58,7 @@
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/api.html</loc>
-    <lastmod>2026-09-09T15:53:33.613Z</lastmod>
+    <lastmod>2026-09-27T03:39:31.300Z</lastmod>
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/ding/ch01-correlation-simpson.html</loc>
@@ -154,7 +178,7 @@
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/examples/fixed-effects-ols.html</loc>
-    <lastmod>2026-09-09T15:53:33.627Z</lastmod>
+    <lastmod>2026-09-27T03:37:19.929Z</lastmod>
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/examples/gmm-with-optimizers.html</loc>
@@ -242,7 +266,7 @@
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/examples/synthetic-control.html</loc>
-    <lastmod>2026-09-09T15:53:33.622Z</lastmod>
+    <lastmod>2026-09-27T03:37:19.929Z</lastmod>
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/examples/synthetic-did.html</loc>
@@ -258,7 +282,7 @@
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/index.html</loc>
-    <lastmod>2026-09-09T15:59:57.441Z</lastmod>
+    <lastmod>2026-09-27T03:39:31.301Z</lastmod>
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/mechanics-mestimator.html</loc>
@@ -315,10 +339,6 @@
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/reference/ExponentialPH.html</loc>
     <lastmod>2026-09-09T16:02:45.375Z</lastmod>
-  </url>
-  <url>
-    <loc>https://apoorvalal.github.io/crabbymetrics/reference/FixedEffectsOLS.html</loc>
-    <lastmod>2026-09-09T15:53:33.618Z</lastmod>
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/reference/GMM.html</loc>
@@ -385,10 +405,6 @@
     <lastmod>2026-09-09T15:53:33.617Z</lastmod>
   </url>
   <url>
-    <loc>https://apoorvalal.github.io/crabbymetrics/reference/SyntheticControl.html</loc>
-    <lastmod>2026-09-09T15:53:33.616Z</lastmod>
-  </url>
-  <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/reference/SyntheticDID.html</loc>
     <lastmod>2026-09-09T15:53:33.613Z</lastmod>
   </url>
@@ -406,6 +422,6 @@
   </url>
   <url>
     <loc>https://apoorvalal.github.io/crabbymetrics/reproducing.html</loc>
-    <lastmod>2026-09-09T15:41:33.222Z</lastmod>
+    <lastmod>2026-09-27T03:39:31.301Z</lastmod>
   </url>
 </urlset>

@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -509,54 +531,54 @@ window.Quarto = {
 <section id="partially-linear-dml" class="level2">
 <h2 class="anchored" data-anchor-id="partially-linear-dml">Partially Linear DML</h2>
 <p>The partially linear model is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i = \theta D_i + g(X_i) + U_i,
 \qquad
 D_i = m(X_i) + V_i,
-\]</span></p>
+</span></p>
 <p>with the orthogonal score</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \psi_i(\theta)
 =
 \left(D_i - m(X_i)\right)
 \left(
 Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 \right),
-\]</span></p>
-<p>where <span class="math inline">\(\ell(X_i) = \mathbb{E}[Y_i \mid X_i]\)</span>.</p>
+</span></p>
+<p>where <span class="math inline">\ell(X_i) = \mathbb{E}[Y_i \mid X_i]</span>.</p>
 <p>Cross-fitting matters because the residuals</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \tilde D_i = D_i - \hat m_{-k(i)}(X_i),
 \qquad
 \tilde Y_i = Y_i - \hat \ell_{-k(i)}(X_i),
-\]</span></p>
-<p>are predicted from models trained on folds that do not contain observation <span class="math inline">\(i\)</span>. The final estimate is then</p>
-<p><span class="math display">\[
+</span></p>
+<p>are predicted from models trained on folds that do not contain observation <span class="math inline">i</span>. The final estimate is then</p>
+<p><span class="math display">
 \hat \theta
 =
 \frac{\sum_i \tilde D_i \tilde Y_i}{\sum_i \tilde D_i^2}.
-\]</span></p>
+</span></p>
 </section>
 <section id="binary-treatment-aipw" class="level2">
 <h2 class="anchored" data-anchor-id="binary-treatment-aipw">Binary-Treatment AIPW</h2>
-<p>For a binary treatment <span class="math inline">\(D \in \{0, 1\}\)</span>, the cross-fit AIPW score for the ATE is</p>
-<p><span class="math display">\[
+<p>For a binary treatment <span class="math inline">D \in \{0, 1\}</span>, the cross-fit AIPW score for the ATE is</p>
+<p><span class="math display">
 \phi_i
 =
 \hat \mu_1(X_i) - \hat \mu_0(X_i)
 + \frac{D_i\left(Y_i - \hat \mu_1(X_i)\right)}{\hat \pi(X_i)}
 - \frac{(1-D_i)\left(Y_i - \hat \mu_0(X_i)\right)}{1-\hat \pi(X_i)},
-\]</span></p>
+</span></p>
 <p>and the estimate is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat \tau = \frac{1}{n}\sum_i \phi_i.
-\]</span></p>
+</span></p>
 <p>Here</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat \mu_1(X),\qquad \hat \mu_0(X),\qquad \hat \pi(X)
-\]</span></p>
-<p>are all cross-fit ridge nuisance models. The implementation clips <span class="math inline">\(\hat \pi(X)\)</span> away from <span class="math inline">\(0\)</span> and <span class="math inline">\(1\)</span> to stabilize the finite-sample weights.</p>
-<div id="55556a08" class="cell" data-execution_count="1">
+</span></p>
+<p>are all cross-fit ridge nuisance models. The implementation clips <span class="math inline">\hat \pi(X)</span> away from <span class="math inline">0</span> and <span class="math inline">1</span> to stabilize the finite-sample weights.</p>
+<div id="52c7fbe5" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -589,7 +611,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </section>
 <section id="continuous-treatment-example" class="level2">
 <h2 class="anchored" data-anchor-id="continuous-treatment-example">Continuous Treatment Example</h2>
-<div id="b46b086b" class="cell" data-execution_count="2">
+<div id="fbccb42f" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2028</span>)</span>
@@ -635,7 +657,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </table>
 </div>
 </div>
-<div id="9af6e8a3" class="cell" data-execution_count="3">
+<div id="12a522c3" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -694,7 +716,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </section>
 <section id="binary-treatment-example" class="level2">
 <h2 class="anchored" data-anchor-id="binary-treatment-example">Binary Treatment Example</h2>
-<div id="42b28e74" class="cell" data-execution_count="4">
+<div id="a81ff9d0" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2029</span>)</span>
@@ -739,7 +761,7 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 </table>
 </div>
 </div>
-<div id="fb8974d6" class="cell" data-execution_count="5">
+<div id="6ec3c07f" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -1227,13 +1249,18 @@ Y_i - \ell(X_i) - \theta\left(D_i - m(X_i)\right)
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

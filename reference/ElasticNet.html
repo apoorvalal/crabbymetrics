@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -506,38 +528,38 @@ window.Quarto = {
 <section id="where-it-fits" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Regression</p>
-<p><code>ElasticNet</code> estimates a penalized linear model with a convex combination of L1 and L2 penalties. With an intercept it centers both predictors and outcome: <span class="math inline">\(X_c=X-\mathbf1\bar x'\)</span> and <span class="math inline">\(y_c=y-\bar y\mathbf1\)</span>. It solves</p>
-<p><span class="math display">\[
+<p><code>ElasticNet</code> estimates a penalized linear model with a convex combination of L1 and L2 penalties. With an intercept it centers both predictors and outcome: <span class="math inline">X_c=X-\mathbf1\bar x'</span> and <span class="math inline">y_c=y-\bar y\mathbf1</span>. It solves</p>
+<p><span class="math display">
 \begin{aligned}
 \min_{\beta}\quad
 &amp;\frac{1}{2n}\|y_c-X_c\beta\|_2^2 \\
 &amp;+\lambda\rho\|\beta\|_1
 +\frac{\lambda(1-\rho)}{2}\|\beta\|_2^2.
 \end{aligned}
-\]</span></p>
-<p>The reconstructed intercept is <span class="math inline">\(\hat b_0=\bar y-\bar x'\hat\beta\)</span>, and predictions are <span class="math inline">\(\hat b_0+X\hat\beta\)</span>. This corrects the old outcome-only centering behavior: shifted-design predictions can change relative to earlier releases. The public constructor always fits an intercept; there is no <code>fit_intercept</code> keyword.</p>
+</span></p>
+<p>The reconstructed intercept is <span class="math inline">\hat b_0=\bar y-\bar x'\hat\beta</span>, and predictions are <span class="math inline">\hat b_0+X\hat\beta</span>. This corrects the old outcome-only centering behavior: shifted-design predictions can change relative to earlier releases. The public constructor always fits an intercept; there is no <code>fit_intercept</code> keyword.</p>
 </section>
 <section id="criterion-and-solver" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="criterion-and-solver"><span class="header-section-number">2</span> Criterion and solver</h2>
-<p>Here <span class="math inline">\(\lambda\)</span> is <code>penalty</code> and <span class="math inline">\(\rho\)</span> is <code>l1_ratio</code>. Coordinate updates use soft thresholding. The wrapper independently recomputes the final duality gap rather than treating the existence of returned coefficients as convergence. Let</p>
-<p><span class="math display">\[
+<p>Here <span class="math inline">\lambda</span> is <code>penalty</code> and <span class="math inline">\rho</span> is <code>l1_ratio</code>. Coordinate updates use soft thresholding. The wrapper independently recomputes the final duality gap rather than treating the existence of returned coefficients as convergence. Let</p>
+<p><span class="math display">
 \begin{aligned}
 r&amp;=y_c-X_c\hat\beta, \\
 a&amp;=X_c'r-n\lambda(1-\rho)\hat\beta, \\
 L&amp;=n\lambda\rho.
 \end{aligned}
-\]</span></p>
-<p>and let <span class="math inline">\(c=\min\{1,L/\|a\|_\infty\}\)</span>, with <span class="math inline">\(c=1\)</span> when <span class="math inline">\(\|a\|_\infty\leq L\)</span>. The reported gap is</p>
-<p><span class="math display">\[
+</span></p>
+<p>and let <span class="math inline">c=\min\{1,L/\|a\|_\infty\}</span>, with <span class="math inline">c=1</span> when <span class="math inline">\|a\|_\infty\leq L</span>. The reported gap is</p>
+<p><span class="math display">
 \begin{aligned}
 G={}&amp;\frac12(1+c^2)\|r\|_2^2
 +L\|\hat\beta\|_1 \\
 &amp;-c\,r'y_c
 +\frac{n\lambda(1-\rho)}{2}(1+c^2)\|\hat\beta\|_2^2.
 \end{aligned}
-\]</span></p>
-<p>The fit is accepted only when <span class="math inline">\(G\)</span> is finite and <span class="math inline">\(G\leq\tau\|y_c\|_2^2\)</span>, where <span class="math inline">\(\tau\)</span> is <code>tolerance</code>. Otherwise <code>fit()</code> raises <code>ValueError</code> and clears any previous fitted state. A successful summary exposes <code>duality_gap</code>, <code>duality_gap_tolerance</code>, <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final primal <code>objective</code>. Inputs and all hyperparameters are validated before fitting.</p>
-<p>The class does not standardize <span class="math inline">\(X\)</span>. Because both the L1 and L2 penalties act on raw coefficients, users must scale features explicitly when a common penalty across columns is intended.</p>
+</span></p>
+<p>The fit is accepted only when <span class="math inline">G</span> is finite and <span class="math inline">G\leq\tau\|y_c\|_2^2</span>, where <span class="math inline">\tau</span> is <code>tolerance</code>. Otherwise <code>fit()</code> raises <code>ValueError</code> and clears any previous fitted state. A successful summary exposes <code>duality_gap</code>, <code>duality_gap_tolerance</code>, <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final primal <code>objective</code>. Inputs and all hyperparameters are validated before fitting.</p>
+<p>The class does not standardize <span class="math inline">X</span>. Because both the L1 and L2 penalties act on raw coefficients, users must scale features explicitly when a common penalty across columns is intended.</p>
 </section>
 <section id="implementation-walkthrough-and-delegation-boundary" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough-and-delegation-boundary"><span class="header-section-number">3</span> Implementation walkthrough and delegation boundary</h2>
@@ -545,25 +567,25 @@ G={}&amp;\frac12(1+c^2)\|r\|_2^2
 <ol type="1">
 <li>The wrapper clears prior state, validates the dense arrays and every hyperparameter, centers feature columns when fitting an intercept, and delegates the mixed/L1 problem to Linfa. Linfa centers the outcome. No feature standardization is performed.</li>
 <li>Linfa runs coordinate descent and returns its hyperplane, intercept, and number of sweeps. The package does not expose or modify individual coordinate updates, active-set rules, or Linfa’s internal stopping decision.</li>
-<li>Crabbymetrics independently reconstructs <span class="math inline">\(y_c\)</span> when an intercept is requested, computes the residual and elastic-net dual certificate shown above, and compares the gap with <code>tolerance * dot(y_centered, y_centered)</code>. This second check, not merely Linfa returning a model, decides whether the public fit succeeds.</li>
-<li>The primal objective and gap use the same centered problem. The pure-L2 or zero-penalty endpoint instead uses augmented QR, with slope penalty <span class="math inline">\(n\lambda\)</span>, and reports a zero duality gap for the direct solve.</li>
+<li>Crabbymetrics independently reconstructs <span class="math inline">y_c</span> when an intercept is requested, computes the residual and elastic-net dual certificate shown above, and compares the gap with <code>tolerance * dot(y_centered, y_centered)</code>. This second check, not merely Linfa returning a model, decides whether the public fit succeeds.</li>
+<li>The primal objective and gap use the same centered problem. The pure-L2 or zero-penalty endpoint instead uses augmented QR, with slope penalty <span class="math inline">n\lambda</span>, and reports a zero duality gap for the direct solve.</li>
 <li>The wrapper owns the accepted coefficients and reconstructed original-scale intercept. Prediction validates feature width and finiteness before multiplying; empty batches are allowed. The pairs bootstrap repeats the corrected fitting pipeline and aborts at the first failed replicate.</li>
 </ol>
 <p>Centering changes the wrapper’s statistical contract without replacing Linfa’s coordinate-descent mechanics. Prediction does not retain a borrowed view of the training data.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>The summary deliberately returns no analytic covariance or standard errors. L1 selection makes naive inverse-Hessian inference inappropriate, and the implementation does not provide debiasing, selective inference, or cross-validated penalty selection. The pairs bootstrap refits the same fixed <span class="math inline">\((\lambda,\rho)\)</span> in every resample and returns raw intercept and coefficient draws. Those draws can describe algorithmic and sampling stability, but the class does not turn them into confidence intervals and does not account for tuning uncertainty.</p>
+<p>The summary deliberately returns no analytic covariance or standard errors. L1 selection makes naive inverse-Hessian inference inappropriate, and the implementation does not provide debiasing, selective inference, or cross-validated penalty selection. The pairs bootstrap refits the same fixed <span class="math inline">(\lambda,\rho)</span> in every resample and returns raw intercept and coefficient draws. Those draws can describe algorithmic and sampling stability, but the class does not turn them into confidence intervals and does not account for tuning uncertainty.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>One complete coordinate sweep is <span class="math inline">\(O(np)\)</span> for dense input, so runtime is approximately <span class="math inline">\(O(Inp)\)</span> for <span class="math inline">\(I\)</span> iterations. Centering and the final gap check add dense <span class="math inline">\(O(np)\)</span> work. Sparse coefficients do not reduce stored design size. Highly correlated or poorly scaled columns can slow coordinate descent. The pure-L2 endpoint uses QR; its equivalent dedicated <code>Ridge</code> penalty is <span class="math inline">\(n\lambda\)</span>, not <span class="math inline">\(\lambda\)</span>.</p>
+<p>One complete coordinate sweep is <span class="math inline">O(np)</span> for dense input, so runtime is approximately <span class="math inline">O(Inp)</span> for <span class="math inline">I</span> iterations. Centering and the final gap check add dense <span class="math inline">O(np)</span> work. Sparse coefficients do not reduce stored design size. Highly correlated or poorly scaled columns can slow coordinate descent. The pure-L2 endpoint uses QR; its equivalent dedicated <code>Ridge</code> penalty is <span class="math inline">n\lambda</span>, not <span class="math inline">\lambda</span>.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.ElasticNet</code></p>
 <p>Use <code>ElasticNet(penalty, l1_ratio, tolerance, max_iterations)</code>, then <code>fit(x, y)</code>, <code>predict(x)</code>, <code>summary()</code>, and optionally <code>bootstrap(B, seed=None)</code>. The summary reports point estimates, convergence diagnostics, and the final duality gap, and marks analytic inference unavailable. Bootstrap coefficient draws are stability diagnostics, not automatic confidence intervals; any nonconverged replicate aborts the bootstrap.</p>
-<div id="08935a3c" class="cell" data-execution_count="2">
+<div id="3f5cb9d4" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.ElasticNet))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -572,7 +594,7 @@ G={}&amp;\frac12(1+c^2)\|r\|_2^2
 <pre><code>(penalty=1.0, l1_ratio=0.5, tolerance=0.0001, max_iterations=1000)</code></pre>
 </div>
 </div>
-<div id="d8429523" class="cell" data-execution_count="3">
+<div id="8bfc6852" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.ElasticNet</span>
@@ -608,7 +630,7 @@ G={}&amp;\frac12(1+c^2)\|r\|_2^2
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="56882212" class="cell" data-execution_count="4">
+<div id="2e80392d" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">180</span>, <span class="dv">8</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> x[:, :<span class="dv">3</span>] <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.8</span>, <span class="fl">0.5</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.5</span>, size<span class="op">=</span><span class="dv">180</span>)</span>
@@ -629,7 +651,7 @@ G={}&amp;\frac12(1+c^2)\|r\|_2^2
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="263b4f93" class="cell" data-execution_count="5">
+<div id="72aa95e0" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">104</span>)</span>
@@ -1114,13 +1136,18 @@ G={}&amp;\frac12(1+c^2)\|r\|_2^2
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

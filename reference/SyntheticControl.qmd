@@ -45,33 +45,56 @@ $$
 \Delta_J=\{w:w_j\geq0,\ \mathbf1'w=1\}.
 $$
 
-It parameterizes $w=\operatorname{softmax}(\theta)$ and uses seven-vector-memory L-BFGS with fixed gradient and cost tolerances. This guarantees an interior simplex vector at every finite $\theta$; exact zero donor weights are not attainable except through numerical underflow. There is no intercept, predictor weighting, or pre-period weighting.
+The active-set solver operates directly on the closed simplex, so exact zero
+weights are permitted. There is no intercept, predictor weighting, or
+pre-period weighting.
 
 ## Implementation walkthrough
 
-The simplex objective and softmax gradient are native; Argmin supplies only the generic L-BFGS state machine and line search.
+1. `fit()` clears prior fitted state and validates finite, nonempty, aligned
+   arrays and a positive iteration budget.
+2. Under $\mathbf1'w=1$, $Dw-y=(D-y\mathbf1')w$. The implementation centers
+   every donor on the treated path and scales by the largest absolute residual
+   entry before forming its Gram matrix. This preserves the optimizer while
+   reducing cancellation from a large shared outcome level.
+3. Starting with uniform weights, the solver obtains an equality-constrained
+   direction on the current free set from a KKT system. It tries LU and falls
+   back to SVD when needed. A step stops at the first nonnegativity boundary;
+   active constraints are released when their reduced gradients permit descent.
+4. A small direction alone is not success. The final simplex vector must pass
+   a KKT residual check; iteration exhaustion or a failed numerical solve
+   raises an error. With one donor, the equality constraint determines weight one.
+5. `predict()` validates finite inputs and the fitted donor count, then applies
+   the stored weights. `summary()` reports RMSE and the objective in the original
+   outcome units, together with diagnostics for the scaled optimization problem.
+6. The bootstrap resamples pre-period rows in pairs and reruns the complete fit.
+   A failed replicate aborts instead of silently using unconverged weights.
 
-1. `fit()` validates finite donor and treated arrays, aligned pre-period rows, at least one period and donor, and a positive iteration budget. A single donor is an explicit shortcut returning weight one without optimization.
-2. With multiple donors, the unconstrained vector $\theta$ starts at zero, so the first weight vector is uniform. Stable softmax subtracts $\max_j\theta_j$ before exponentiating and normalizing.
-3. The cost callback forms $r=Dw-y$ and returns $r'r/(2T_0)$. The derivative with respect to simplex weights is $g_w=D'r/T_0$. Rather than materializing a $J\times J$ softmax Jacobian, the code applies it as
-
-   $$
-   \nabla_\theta Q=w\odot\{g_w-(w'g_w)\mathbf1\}.
-   $$
-
-4. Seven-pair L-BFGS uses a More-Thuente line search, gradient tolerance $10^{-8}$, and cost tolerance $10^{-12}$. The wrapper rejects any termination status other than solver convergence or target cost; reaching `max_iterations` does not return the current weights.
-5. The accepted best $\theta$ is transformed to weights once more and stored with owned fitting data. `predict()` checks only the donor-column count and performs a dense matrix-vector product, so the same weights can be applied to post-period donor rows.
-6. `summary()` recomputes pre-period RMSE from stored data. The bootstrap samples pre-period row indices with replacement, copies donor and treated rows together, and reruns the complete simplex fit; it returns raw weight draws and aborts on a failed replicate.
-
-Softmax makes feasibility automatic and the chain-rule gradient concise. Its common-shift redundancy and inability to represent exact boundary weights are the price; a projected or active-set simplex solver would expose sparse donor solutions more directly.
+The softmax/L-BFGS parameterization used in v0.9.0 could become nearly flat away
+from the constrained optimum. [Version 0.9.1](../release-0.9.1.qmd) replaces it;
+previously fitted synthetic controls should be refitted.
 
 ## Inference and diagnostics
 
-The summary reports the weights and in-sample pre-treatment RMSE. The class itself receives only donor and treated fitting paths, so it does not calculate a post-treatment effect or ATT. The bootstrap resamples time rows as iid pairs and refits the weights. Those draws are useful as a sensitivity diagnostic, but they do not preserve time-series dependence and are not converted into a formal covariance or confidence interval.
+`summary()` includes `weights`, `pre_rmse`, `objective`, `iterations`,
+`converged`, `stop_reason`, `scaled_kkt_residual`, and `feasibility_error`.
+The objective is half the mean squared pre-treatment error. The KKT residual
+belongs to the internally scaled quadratic problem, not the raw outcome scale.
+
+The class receives only donor and treated fitting paths, so it does not itself
+calculate a post-treatment ATT. Bootstrap weight draws resample time rows as iid
+pairs: they do not preserve time dependence and are not formal treatment-effect
+confidence intervals.
 
 ## Performance and numerical behavior
 
-Each objective and gradient evaluation is $O(T_0J)$ and stores the dense donor matrix. Runtime depends on L-BFGS iterations and is multiplied by the number of bootstrap draws. A single donor bypasses optimization with weight one. Collinear donors make weights weakly identified even when the synthetic path is stable; softmax parameter redundancy also leaves $\theta$ unidentified up to a common shift, though the weights remain identified by the optimization target.
+Forming the Gram matrix costs $O(T_0J^2)$ with $O(J^2)$ auxiliary storage in
+addition to the donor matrix. An active-set step solves a dense system whose
+dimension is the current free set plus its equality multiplier. Runtime depends
+on donor count and the number of constraint changes, and bootstrap multiplies
+that work. Redundant donors can leave weights nonunique even when the fitted
+path and objective agree. The solver does not claim identification of a unique
+donor-weight vector in that case.
 
 ## Python API
 

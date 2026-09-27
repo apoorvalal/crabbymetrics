@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -493,21 +515,21 @@ window.Quarto = {
 <p>Moment and Jacobian arrays must be finite with stable shapes. The solver scales its linear systems and checks undamped first-order and Newton-step residuals; a small damped step or absolute objective change alone does not mean convergence. <code>ridge</code> is dimensionless solver damping in diagonally normalized coordinates, not a statistical penalty: two-step weights and reported covariance use undamped inverses. Rank-deficient information is rejected.</p>
 <p>Fitted moments and their Jacobian are snapshotted at fit time. Subsequent <code>summary()</code> and <code>wald_test()</code> calls do not re-evaluate mutable Python callbacks. Failed refits clear the fitted state. Default sandwich inference is unchanged. <code>vcov="vanilla"</code> requires two-step iid weighting, or the explicit keyword <code>assume_optimal_weighting=True</code> asserting the information-identity assumption. The latter is an assumption, not a correction for a nonoptimal W. <code>j_test_valid</code> and <code>j_test_assumptions</code> distinguish a raw criterion statistic from its intended asymptotic iid optimal-weight interpretation; they cannot verify moment validity.</p>
 <p>At the algebra level, the class is solving</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \bar g(\theta) = \frac{1}{n} \sum_{i=1}^n g_i(\theta)
-\]</span></p>
+</span></p>
 <p>and minimizing the quadratic criterion</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
-\]</span></p>
-<p>In just-identified problems, the default path is vanilla Gauss-Newton with identity weighting. In overidentified problems, the class first fits with <span class="math inline">\(W = I\)</span>, estimates</p>
-<p><span class="math display">\[
+</span></p>
+<p>In just-identified problems, the default path is vanilla Gauss-Newton with identity weighting. In overidentified problems, the class first fits with <span class="math inline">W = I</span>, estimates</p>
+<p><span class="math display">
 \hat{\Omega} = \frac{1}{n} \sum_{i=1}^n g_i(\hat{\theta}_1) g_i(\hat{\theta}_1)^\top,
-\]</span></p>
-<p>sets <span class="math inline">\(W = \hat{\Omega}^{-1}\)</span>, and refits.</p>
+</span></p>
+<p>sets <span class="math inline">W = \hat{\Omega}^{-1}</span>, and refits.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="b1c5227a" class="cell" data-execution_count="1">
+<div id="90e6f476" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
@@ -518,10 +540,10 @@ Q(\theta) = \bar g(\theta)^\top W \bar g(\theta).
 <section id="just-identified-score-gmm" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="just-identified-score-gmm"><span class="header-section-number">2</span> Just-Identified Score GMM</h2>
 <p>MLE score equations are a clean just-identified GMM use case. For Poisson regression with a log link, the score moments are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 g_i(\theta) = x_i \left(y_i - \exp(x_i^\top \theta)\right).
-\]</span></p>
-<div id="66e41d74" class="cell" data-execution_count="2">
+</span></p>
+<div id="4bc575db" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">900</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>x_raw <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -560,11 +582,11 @@ GMM score SE: [0.031  0.0268 0.0283]</code></pre>
 <section id="overidentified-linear-iv-gmm" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="overidentified-linear-iv-gmm"><span class="header-section-number">3</span> Overidentified Linear IV GMM</h2>
 <p>For linear IV moments with more instruments than parameters,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 g_i(\theta) = z_i \left(y_i - x_i^\top \theta\right),
-\]</span></p>
-<p>the first step uses <span class="math inline">\(W = I\)</span>, then the class updates the weighting matrix with the inverse outer product of moments.</p>
-<div id="08839893" class="cell" data-execution_count="3">
+</span></p>
+<p>the first step uses <span class="math inline">W = I</span>, then the class updates the weighting matrix with the inverse outer product of moments.</p>
+<div id="f9cf86f0" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260322</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">3000</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -623,15 +645,15 @@ J-statistic: 13.4916 with df = 3</code></pre>
 <section id="lin-2013-as-a-stacked-moment-system" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="lin-2013-as-a-stacked-moment-system"><span class="header-section-number">4</span> Lin (2013) As A Stacked Moment System</h2>
 <p>Stacking matters most when later moments depend on nuisance parameters estimated from the data. In Lin’s centered regression adjustment with one covariate,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i = \alpha + \tau W_i + \beta (X_i - \mu_x) + \gamma W_i (X_i - \mu_x) + \varepsilon_i,
-\]</span></p>
-<p>the unknown centering parameter <span class="math inline">\(\mu_x\)</span> belongs in the parameter vector:</p>
-<p><span class="math display">\[
+</span></p>
+<p>the unknown centering parameter <span class="math inline">\mu_x</span> belongs in the parameter vector:</p>
+<p><span class="math display">
 \theta = (\mu_x, \alpha, \tau, \beta, \gamma).
-\]</span></p>
+</span></p>
 <p>That means the just-identified stack needs five moments, not three:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 g_i(\theta) =
 \begin{bmatrix}
 X_i - \mu_x \\
@@ -642,9 +664,9 @@ W_i (X_i - \mu_x) u_i(\theta)
 \end{bmatrix},
 \qquad
 u_i(\theta) = Y_i - \alpha - \tau W_i - \beta (X_i - \mu_x) - \gamma W_i (X_i - \mu_x).
-\]</span></p>
+</span></p>
 <p>The first block estimates the centering parameter. The remaining four blocks are the normal equations for the interacted regression.</p>
-<div id="a0f15c36" class="cell" data-execution_count="4">
+<div id="14ddbb81" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5151</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(loc<span class="op">=</span><span class="fl">1.5</span>, scale<span class="op">=</span><span class="fl">1.1</span>, size<span class="op">=</span>n)</span>
@@ -1134,13 +1156,18 @@ Newey-West SE: [0.0305 0.0256 0.0237 0.0154 0.0205]</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

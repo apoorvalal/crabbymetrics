@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./ablations/panel-dgp-comparisons.html">
@@ -497,19 +519,19 @@ window.Quarto = {
 <p>Unlike the closed-form <a href="./mechanics-ols.html">OLS path</a>, <code>Poisson</code> defines an objective, gradient, and Hessian in Rust. Python supplies arrays, not solver callbacks. The code is in <a href="https://github.com/apoorvalal/crabbymetrics/blob/v0.9.0/src/estimators/mle.rs"><code>src/estimators/mle.rs</code></a>; the <a href="./reference/Poisson.html">Poisson reference</a> documents the public API.</p>
 <section id="objective-and-solver" class="level2">
 <h2 class="anchored" data-anchor-id="objective-and-solver">Objective and solver</h2>
-<p>With <span class="math inline">\(\eta_i=b_0+x_i'\beta\)</span> and <span class="math inline">\(\mu_i=\exp(\eta_i)\)</span>, the objective is</p>
-<p><span class="math display">\[
+<p>With <span class="math inline">\eta_i=b_0+x_i'\beta</span> and <span class="math inline">\mu_i=\exp(\eta_i)</span>, the objective is</p>
+<p><span class="math display">
 \sum_i\{\mu_i-y_i\eta_i\}+\frac{\alpha}{2}\|\beta\|^2.
-\]</span></p>
+</span></p>
 <p>The intercept is not penalized. <code>alpha</code> is the slope penalty, not an intercept. The data-only log-factorial term is unnecessary for optimization.</p>
-<p><code>fit()</code> clears previous state, checks finite nonnegative outcomes and valid solver controls, and initializes slopes at zero and the intercept near <span class="math inline">\(\log(\bar y)\)</span>. Newton-CG uses analytic derivatives and a More-Thuente line search. Shared convergence checks reject a budget-exhausted fit instead of presenting it as successful. Valid coefficients, training arrays, and solver diagnostics are stored in Rust.</p>
+<p><code>fit()</code> clears previous state, checks finite nonnegative outcomes and valid solver controls, and initializes slopes at zero and the intercept near <span class="math inline">\log(\bar y)</span>. Newton-CG uses analytic derivatives and a More-Thuente line search. Shared convergence checks reject a budget-exhausted fit instead of presenting it as successful. Valid coefficients, training arrays, and solver diagnostics are stored in Rust.</p>
 </section>
 <section id="prediction-and-inference" class="level2">
 <h2 class="anchored" data-anchor-id="prediction-and-inference">Prediction and inference</h2>
-<p><code>predict_lin(x)</code> returns <span class="math inline">\(\eta\)</span>; <code>predict(x)</code> returns <span class="math inline">\(\exp(\eta)\)</span>. Prediction validates feature width and finite inputs, but extreme linear predictors can still overflow on exponentiation.</p>
+<p><code>predict_lin(x)</code> returns <span class="math inline">\eta</span>; <code>predict(x)</code> returns <span class="math inline">\exp(\eta)</span>. Prediction validates feature width and finite inputs, but extreme linear predictors can still overflow on exponentiation.</p>
 <p>For <code>alpha=0</code>, <code>summary(vcov="vanilla")</code> uses inverse Fisher information and <code>summary(vcov="sandwich")</code> uses the individual score outer products as the covariance meat. The latter supports Poisson QMLE when the conditional mean is correct but the conditional variance is not Poisson.</p>
 <p>Inference is marked unavailable for penalized fits or rank-deficient unpenalized information. No artificial diagonal ridge is added to make those standard errors look available. Check <code>inference_available</code> before accessing the inference fields.</p>
-<div id="ecf823cf" class="cell" data-execution_count="1">
+<div id="97aa29d1" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -945,13 +967,18 @@ Bootstrap shape: (20, 3)</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="./release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="./release-0.9.html">
 <p>v0.9 migration</p>

@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -495,8 +517,8 @@ window.Quarto = {
 <li><code>CoxPH</code>: Cox’s semiparametric proportional-hazards partial likelihood,</li>
 <li><code>AndersenGill</code>: the counting-process Cox model for recurrent events or time-split risk intervals.</li>
 </ul>
-<p>The common coefficient interpretation is multiplicative on the hazard. If a coefficient is <span class="math inline">\(\beta_j\)</span>, then <span class="math inline">\(\exp(\beta_j)\)</span> is a hazard ratio.</p>
-<div id="79e574b0" class="cell" data-execution_count="1">
+<p>The common coefficient interpretation is multiplicative on the hazard. If a coefficient is <span class="math inline">\beta_j</span>, then <span class="math inline">\exp(\beta_j)</span> is a hazard ratio.</p>
+<div id="6c812c76" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -509,58 +531,58 @@ window.Quarto = {
 </div>
 <section id="what-is-one-observation" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-one-observation">What is one observation?</h2>
-<p>The simplest survival observation is one unit followed from a well-defined origin until either an event happens or follow-up stops. For subject <span class="math inline">\(i\)</span>, the latent event time is <span class="math inline">\(T_i\)</span> and the censoring time is <span class="math inline">\(C_i\)</span>. With ordinary right censoring, the observed record is</p>
-<p><span class="math display">\[
+<p>The simplest survival observation is one unit followed from a well-defined origin until either an event happens or follow-up stops. For subject <span class="math inline">i</span>, the latent event time is <span class="math inline">T_i</span> and the censoring time is <span class="math inline">C_i</span>. With ordinary right censoring, the observed record is</p>
+<p><span class="math display">
 Y_i = \min(T_i, C_i),
 \qquad
 \Delta_i = \mathbf{1}\{T_i \le C_i\}.
-\]</span></p>
+</span></p>
 <p>So a row contains at least:</p>
 <ul>
-<li>a duration or stop time <span class="math inline">\(Y_i\)</span>;</li>
-<li>an event indicator <span class="math inline">\(\Delta_i\)</span>, equal to one for an observed event and zero for a right-censored record;</li>
-<li>covariates <span class="math inline">\(x_i\)</span>.</li>
+<li>a duration or stop time <span class="math inline">Y_i</span>;</li>
+<li>an event indicator <span class="math inline">\Delta_i</span>, equal to one for an observed event and zero for a right-censored record;</li>
+<li>covariates <span class="math inline">x_i</span>.</li>
 </ul>
-<p>Right censoring means we know the event did not occur before <span class="math inline">\(Y_i\)</span>, but we do not know when it would have occurred after <span class="math inline">\(Y_i\)</span>. This is the common setup for attrition, end-of-study censoring, or administrative follow-up windows. The standard identifying condition is independent censoring: conditional on covariates, censoring should not reveal extra information about the event time beyond the fact that the unit survived to the censoring time.</p>
-<p>Sometimes units only become observable after an entry time <span class="math inline">\(L_i\)</span>. This is left truncation, or delayed entry: a subject is included only if <span class="math inline">\(T_i &gt; L_i\)</span>. The observation is then a risk interval <span class="math inline">\((L_i, Y_i]\)</span> plus the event flag <span class="math inline">\(\Delta_i\)</span>. Left truncation changes the risk sets because the subject should not count as being at risk before <span class="math inline">\(L_i\)</span>. This differs from left censoring, where the event is known to have occurred before some time but the exact time is unknown. This vignette focuses on right censoring and, later, interval-style risk sets that can also represent delayed entry or recurrent-event data.</p>
+<p>Right censoring means we know the event did not occur before <span class="math inline">Y_i</span>, but we do not know when it would have occurred after <span class="math inline">Y_i</span>. This is the common setup for attrition, end-of-study censoring, or administrative follow-up windows. The standard identifying condition is independent censoring: conditional on covariates, censoring should not reveal extra information about the event time beyond the fact that the unit survived to the censoring time.</p>
+<p>Sometimes units only become observable after an entry time <span class="math inline">L_i</span>. This is left truncation, or delayed entry: a subject is included only if <span class="math inline">T_i &gt; L_i</span>. The observation is then a risk interval <span class="math inline">(L_i, Y_i]</span> plus the event flag <span class="math inline">\Delta_i</span>. Left truncation changes the risk sets because the subject should not count as being at risk before <span class="math inline">L_i</span>. This differs from left censoring, where the event is known to have occurred before some time but the exact time is unknown. This vignette focuses on right censoring and, later, interval-style risk sets that can also represent delayed entry or recurrent-event data.</p>
 <p>The basic survival objects are:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 S(t) = \Pr(T &gt; t),
 \qquad
 h(t) = \lim_{\Delta t \downarrow 0}
 \frac{\Pr(t \le T &lt; t + \Delta t \mid T \ge t)}{\Delta t},
 \qquad
 H(t) = \int_0^t h(u)\,du.
-\]</span></p>
+</span></p>
 <p>Survival and cumulative hazard are linked by</p>
-<p><span class="math display">\[
+<p><span class="math display">
 S(t) = \exp\{-H(t)\}.
-\]</span></p>
+</span></p>
 </section>
 <section id="kaplanmeier-as-the-baseline-nonparametric-estimate" class="level2">
 <h2 class="anchored" data-anchor-id="kaplanmeier-as-the-baseline-nonparametric-estimate">Kaplan–Meier as the baseline nonparametric estimate</h2>
-<p>Before fitting regressions, the Kaplan–Meier estimator is the workhorse nonparametric estimate of the survival curve under right censoring. At each distinct observed event time <span class="math inline">\(t_j\)</span>, let <span class="math inline">\(d_j\)</span> be the number of events at that time and <span class="math inline">\(n_j\)</span> the number of units still at risk just before that time. The estimator multiplies the conditional survival probabilities across event times:</p>
-<p><span class="math display">\[
+<p>Before fitting regressions, the Kaplan–Meier estimator is the workhorse nonparametric estimate of the survival curve under right censoring. At each distinct observed event time <span class="math inline">t_j</span>, let <span class="math inline">d_j</span> be the number of events at that time and <span class="math inline">n_j</span> the number of units still at risk just before that time. The estimator multiplies the conditional survival probabilities across event times:</p>
+<p><span class="math display">
 \widehat S(t)
 = \prod_{t_j \le t} \left(1 - \frac{d_j}{n_j}\right).
-\]</span></p>
+</span></p>
 <p>Censored observations do not create downward jumps in the curve. They simply leave the risk set after their censoring time. That is the key intuition: Kaplan–Meier estimates survival by using only units that are still genuinely under observation at each failure time.</p>
 <p>The Nelson–Aalen cumulative-hazard estimator is the companion object:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat H(t) = \sum_{t_j \le t} \frac{d_j}{n_j}.
-\]</span></p>
+</span></p>
 <p>Regression models below can be read as structured ways to let covariates shift hazards and survival curves, while preserving the same risk-set logic.</p>
 </section>
 <section id="simulate-right-censored-survival-data" class="level2">
 <h2 class="anchored" data-anchor-id="simulate-right-censored-survival-data">Simulate right-censored survival data</h2>
 <p>Generate a Weibull proportional-hazards design with two covariates. The event time satisfies</p>
-<p><span class="math display">\[
+<p><span class="math display">
 H_i(t) = \lambda t^\rho \exp(x_i'\beta),
 \qquad
 S_i(t) = \exp\{-H_i(t)\}.
-\]</span></p>
-<p>Here <span class="math inline">\(\rho &gt; 1\)</span> gives an increasing baseline hazard. Independent censoring creates the observed time and event indicator.</p>
-<div id="d2936fab" class="cell" data-execution_count="2">
+</span></p>
+<p>Here <span class="math inline">\rho &gt; 1</span> gives an increasing baseline hazard. Independent censoring creates the observed time and event indicator.</p>
+<div id="39e10d22" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">20260524</span>)</span>
@@ -583,7 +605,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 </div>
 </div>
 <p>A quick Kaplan–Meier curve from the simulated data shows the raw survival pattern before imposing a regression model. The step function drops only at observed event times; censored units affect later denominators by leaving the risk set.</p>
-<div id="9db90895" class="cell" data-execution_count="3">
+<div id="8110aa11" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kaplan_meier(times, events):</span>
@@ -656,7 +678,7 @@ S_i(t) = \exp\{-H_i(t)\}.
 </div>
 </div>
 </div>
-<div id="52d5a596" class="cell" data-execution_count="4">
+<div id="b095229b" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="fl">4.2</span>))</span>
@@ -678,19 +700,19 @@ S_i(t) = \exp\{-H_i(t)\}.
 </section>
 <section id="exponential-and-weibull-ph-fits" class="level2">
 <h2 class="anchored" data-anchor-id="exponential-and-weibull-ph-fits">Exponential and Weibull PH fits</h2>
-<p>The exponential model is the special case <span class="math inline">\(\rho = 1\)</span>:</p>
-<p><span class="math display">\[
+<p>The exponential model is the special case <span class="math inline">\rho = 1</span>:</p>
+<p><span class="math display">
 h_i(t) = \lambda \exp(x_i'\beta),
 \qquad
 H_i(t) = \lambda t \exp(x_i'\beta).
-\]</span></p>
-<p>The Weibull model estimates <span class="math inline">\(\rho\)</span> too:</p>
-<p><span class="math display">\[
+</span></p>
+<p>The Weibull model estimates <span class="math inline">\rho</span> too:</p>
+<p><span class="math display">
 h_i(t) = \lambda \rho t^{\rho - 1}\exp(x_i'\beta),
 \qquad
 H_i(t) = \lambda t^\rho\exp(x_i'\beta).
-\]</span></p>
-<div id="34fdd42f" class="cell" data-execution_count="5">
+</span></p>
+<div id="fc5fa9cf" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>exp_ph <span class="op">=</span> cm.ExponentialPH()</span>
@@ -758,7 +780,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <li>extra survival-specific surfaces such as <code>predict_hazard(...)</code>, <code>predict_cumulative_hazard(...)</code>, and <code>predict_survival(...)</code> when absolute survival objects are identified.</li>
 </ul>
 <p>For the parametric PH models, <code>predict(...)</code> defaults to survival probabilities at supplied horizons.</p>
-<div id="395d2ba7" class="cell" data-execution_count="6">
+<div id="7b928c6e" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>check_x <span class="op">=</span> x[:<span class="dv">5</span>]</span>
@@ -837,7 +859,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 </div>
-<div id="56c54a4b" class="cell" data-execution_count="7">
+<div id="32af76c7" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>weibull_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -914,7 +936,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 <p>The internal identities line up exactly:</p>
-<div id="2a7bcf05" class="cell" data-execution_count="8">
+<div id="2c07e97c" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"hazard"</span>], np.exp(exp_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -923,7 +945,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="cbbc7fa9" class="cell" data-execution_count="9">
+<div id="27d92536" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>np.allclose(exp_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>exp_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -932,7 +954,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="0eed44d0" class="cell" data-execution_count="10">
+<div id="9758b308" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"hazard"</span>], np.exp(weibull_preds[<span class="st">"lin"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -941,7 +963,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 <pre><code>True</code></pre>
 </div>
 </div>
-<div id="fc30cf2b" class="cell" data-execution_count="11">
+<div id="da9569c3" class="cell" data-execution_count="11">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>np.allclose(weibull_preds[<span class="st">"survival"</span>], np.exp(<span class="op">-</span>weibull_preds[<span class="st">"cumhaz"</span>]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -953,12 +975,12 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </section>
 <section id="cox-proportional-hazards" class="level2">
 <h2 class="anchored" data-anchor-id="cox-proportional-hazards">Cox proportional hazards</h2>
-<p>The Cox model leaves the baseline hazard unspecified and estimates <span class="math inline">\(\beta\)</span> from the ordering of failures through the partial likelihood:</p>
-<p><span class="math display">\[
+<p>The Cox model leaves the baseline hazard unspecified and estimates <span class="math inline">\beta</span> from the ordering of failures through the partial likelihood:</p>
+<p><span class="math display">
 \ell(\beta) = \sum_{i: d_i = 1}
 \left[x_i'\beta - \log\left\{\sum_{j: t_j \ge t_i}\exp(x_j'\beta)\right\}\right].
-\]</span></p>
-<div id="38fb2c1b" class="cell" data-execution_count="12">
+</span></p>
+<div id="eba208ed" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>cox <span class="op">=</span> cm.CoxPH()</span>
@@ -1011,7 +1033,7 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </div>
 </div>
 <p>For Cox, the default prediction is relative risk because the baseline hazard is left unspecified. The latent score is the log hazard ratio.</p>
-<div id="ecdd69d9" class="cell" data-execution_count="13">
+<div id="c2b59014" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>cox_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -1069,12 +1091,12 @@ H_i(t) = \lambda t^\rho\exp(x_i'\beta).
 </section>
 <section id="andersengill-counting-process-form" class="level2">
 <h2 class="anchored" data-anchor-id="andersengill-counting-process-form">Andersen–Gill counting-process form</h2>
-<p>Andersen–Gill is the Cox partial likelihood with risk intervals <span class="math inline">\((s_i, t_i]\)</span> instead of one row per subject. A row is in the risk set for an event at time <span class="math inline">\(t\)</span> when</p>
-<p><span class="math display">\[
+<p>Andersen–Gill is the Cox partial likelihood with risk intervals <span class="math inline">(s_i, t_i]</span> instead of one row per subject. A row is in the risk set for an event at time <span class="math inline">t</span> when</p>
+<p><span class="math display">
 s_i &lt; t \le t_i.
-\]</span></p>
+</span></p>
 <p>That makes the model useful for recurrent events and time-varying covariates. As a smoke test, split each original subject into two rows with unchanged covariates; only the second row can carry the original terminal event. The Andersen–Gill estimate then agrees with the ordinary Cox estimate.</p>
-<div id="f141b30d" class="cell" data-execution_count="14">
+<div id="3332ee62" class="cell" data-execution_count="14">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>start_long <span class="op">=</span> np.concatenate([np.zeros_like(time), time <span class="op">/</span> <span class="dv">2</span>])</span>
@@ -1122,7 +1144,7 @@ s_i &lt; t \le t_i.
 </div>
 </div>
 </div>
-<div id="c8ea3bfa" class="cell" data-execution_count="15">
+<div id="4e48eb53" class="cell" data-execution_count="15">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ag_preds <span class="op">=</span> pd.DataFrame(</span>
@@ -1181,7 +1203,7 @@ s_i &lt; t \le t_i.
 <section id="survival-curves-from-the-parametric-models" class="level2">
 <h2 class="anchored" data-anchor-id="survival-curves-from-the-parametric-models">Survival curves from the parametric models</h2>
 <p>Parametric models estimate an absolute survival curve because they estimate the baseline hazard. Cox-type partial-likelihood models estimate relative hazards unless a baseline-hazard estimator is added.</p>
-<div id="b7719a60" class="cell" data-execution_count="16">
+<div id="78c02091" class="cell" data-execution_count="16">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> np.linspace(<span class="fl">0.1</span>, np.quantile(time, <span class="fl">0.9</span>), <span class="dv">100</span>)</span>
@@ -1214,38 +1236,38 @@ s_i &lt; t \le t_i.
 </section>
 <section id="discrete-time-hazards-and-the-logistic-regression-equivalence" class="level2">
 <h2 class="anchored" data-anchor-id="discrete-time-hazards-and-the-logistic-regression-equivalence">Discrete-time hazards and the logistic-regression equivalence</h2>
-<p>A continuous-time survival record can be expanded into person-period rows. For subject <span class="math inline">\(i\)</span> and interval <span class="math inline">\(k\)</span>, define <span class="math inline">\(Y_{ik}=1\)</span> if the event occurs in that interval and <span class="math inline">\(0\)</span> if the subject survives the interval. Conditional on being at risk at the start of the interval,</p>
-<p><span class="math display">\[
+<p>A continuous-time survival record can be expanded into person-period rows. For subject <span class="math inline">i</span> and interval <span class="math inline">k</span>, define <span class="math inline">Y_{ik}=1</span> if the event occurs in that interval and <span class="math inline">0</span> if the subject survives the interval. Conditional on being at risk at the start of the interval,</p>
+<p><span class="math display">
 \Pr(Y_{ik}=1 \mid Y_{i1}=\cdots=Y_{i,k-1}=0, x_i)
 = h_{ik}.
-\]</span></p>
+</span></p>
 <p>A pooled binary regression on person-period rows is therefore a discrete-time hazard model. With a logit link,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \operatorname{logit}(h_{ik}) = \alpha_k + x_i'\beta,
-\]</span></p>
-<p>where the interval dummies <span class="math inline">\(\alpha_k\)</span> are the discrete baseline hazard. The survival function through interval <span class="math inline">\(K\)</span> is the product of conditional survival probabilities:</p>
-<p><span class="math display">\[
+</span></p>
+<p>where the interval dummies <span class="math inline">\alpha_k</span> are the discrete baseline hazard. The survival function through interval <span class="math inline">K</span> is the product of conditional survival probabilities:</p>
+<p><span class="math display">
 S_i(K) = \prod_{k=1}^K (1 - h_{ik}).
-\]</span></p>
+</span></p>
 <p>This is the same factorization that underlies grouped-duration likelihoods. If the interval event probabilities are small, the complementary-log-log link is especially close to a continuous-time proportional-hazards model because</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \log\{-\log(1-h_{ik})\} = \alpha_k + x_i'\beta
-\]</span></p>
+</span></p>
 <p>corresponds to a piecewise-constant baseline cumulative hazard. The logit link is not identical to Cox PH, but it is a very useful discrete-time analog: the regression is on the sequence of conditional hazards rather than on a one-shot outcome.</p>
 <section id="where-beta-binomial-enters" class="level3">
 <h3 class="anchored" data-anchor-id="where-beta-binomial-enters">Where beta-binomial enters</h3>
-<p>If we aggregate person-period rows within cells, say by interval and covariate group, we observe <span class="math inline">\(y_g\)</span> events out of <span class="math inline">\(m_g\)</span> risk-set trials. A plain grouped discrete-time hazard model treats</p>
-<p><span class="math display">\[
+<p>If we aggregate person-period rows within cells, say by interval and covariate group, we observe <span class="math inline">y_g</span> events out of <span class="math inline">m_g</span> risk-set trials. A plain grouped discrete-time hazard model treats</p>
+<p><span class="math display">
 y_g \sim \operatorname{Binomial}(m_g, h_g),
 \qquad
 \operatorname{logit}(h_g)=z_g'\theta.
-\]</span></p>
+</span></p>
 <p>A beta-binomial version adds extra-binomial heterogeneity by letting the cell hazard vary around its mean:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 p_g \sim \operatorname{Beta}(a_g, b_g),
 \qquad
 Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
-\]</span></p>
+</span></p>
 <p>That is a grouped, overdispersed discrete-time survival model. It is useful when subjects in the same interval/cell have unmodeled frailty or shared shocks, so the event counts are more variable than a binomial hazard would imply. In that sense:</p>
 <ul>
 <li>person-period logistic regression = individual-level discrete-time hazard model;</li>
@@ -1253,7 +1275,7 @@ Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
 <li>beta-binomial hazard model = grouped discrete-time hazard with extra heterogeneity/frailty.</li>
 </ul>
 <p>Here is the person-period construction with a few interval dummies. The coefficient should have the same sign as the Cox and Weibull estimates, though the scale is log-odds of interval failure rather than log instantaneous hazard.</p>
-<div id="9eb7f059" class="cell" data-execution_count="17">
+<div id="7c6b2ee0" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>breaks <span class="op">=</span> np.quantile(time, np.linspace(<span class="dv">0</span>, <span class="fl">0.85</span>, <span class="dv">9</span>))</span>
@@ -1728,13 +1750,18 @@ Y_g \mid p_g \sim \operatorname{Binomial}(m_g, p_g).
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

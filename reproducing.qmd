@@ -7,7 +7,7 @@ format:
 
 ## Environment
 
-The published site documents `crabbymetrics==0.9.0`. Quarto executes the Python
+The published site documents `crabbymetrics==0.9.1`. Quarto executes the Python
 cells; their dependencies are documentation extras, not package runtime
 requirements. Use a separate checkout so rendered files and caches cannot
 accidentally enter a source commit.

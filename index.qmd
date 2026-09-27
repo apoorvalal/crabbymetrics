@@ -12,12 +12,15 @@ execute:
 ![](logo.png){fig-alt="crabbymetrics logo" width="180"}
 
 Rust-backed econometrics with NumPy arrays and a Python `fit` / `predict` /
-`summary` interface. This site documents **v0.9.0**.
+`summary` interface. This site documents **v0.9.1**.
+
+The [v0.9.1 release notes](release-0.9.1.qmd) describe the corrected synthetic-control
+solver, FE level prediction, and [untreated-only FE imputation](examples/fe-imputation.qmd).
 
 ## Install and fit
 
 ```bash
-pip install --upgrade crabbymetrics==0.9.0
+pip install --upgrade crabbymetrics==0.9.1
 ```
 
 ```{python}

@@ -1,0 +1,120 @@
+---
+title: "Fixed-effect counterfactual imputation"
+subtitle: "Untreated-only estimation with missing observations and treatment reversals"
+format:
+  html:
+    code-fold: true
+execute:
+  cache: true
+freeze: auto
+jupyter: python3
+---
+
+`FEImputation` estimates an additive unit/time outcome model using **only observed,
+positive-weight untreated cells**. It predicts the counterfactual for observed
+treated cells and averages their outcome gaps. This is the FEct point-estimation
+workflow, not ordinary TWFE regression with a treatment coefficient and not an
+interactive-factor estimator.
+
+## Model and estimand
+
+The untreated outcome model is
+
+$$Y_{it}(0)=\alpha_i+\lambda_t+X_{it}'\beta+\epsilon_{it}.$$
+
+For an observation mask $O$ and nonnegative weights $w$, estimation minimizes
+
+$$\sum_{i,t:O_{it}=1,D_{it}=0} w_{it}(Y_{it}-\alpha_i-\lambda_t-X_{it}'\beta)^2.$$
+
+The reported ATT is the weighted mean of $Y_{it}-\widehat Y_{it}(0)$ over
+**observed treated cells**. Unit/time summaries use the corresponding subsets;
+periods or units with no evaluated treated cells receive `NaN`. Altering treated
+outcomes cannot change the fitted counterfactual.
+
+Causal interpretation requires an appropriate untreated-outcome model and
+exogeneity assumptions. Treatment may switch on and off mechanically, but that
+does not validate a no-carryover or no-anticipation assumption. This class provides
+**point estimates only**: it does not report standard errors, confidence bands,
+pretrend tests, or automatic model selection.
+
+## A reversible-treatment panel
+
+```{python}
+import numpy as np
+import crabbymetrics as cm
+
+rng = np.random.default_rng(2109)
+n, t = 30, 12
+x = rng.normal(size=(n, t, 1))
+y0 = (rng.normal(size=(n, 1)) + np.arange(t)[None, :] * .2
+      + .7 * x[:, :, 0] + rng.normal(scale=.08, size=(n, t)))
+d = np.zeros((n, t), dtype=float)
+d[15:, 5:8] = 1
+d[15:, 10:] = 1
+y = y0 + 1.5 * d
+observed = rng.random((n, t)) > .06
+y[~observed] = np.nan
+
+model = cm.FEImputation(tolerance=1e-10)
+model.fit(y, d, x, observed=observed)
+s = model.summary()
+print({key: s[key] for key in
+       ['att', 'n_train', 'n_treated', 'n_reversing_units', 'inference']})
+print('ATT by period:', s['att_by_time'])
+```
+
+```{python}
+before = model.predict()
+changed = y.copy()
+changed[s['evaluation_mask']] += 100
+model.fit(changed, d, x, observed=observed)
+np.testing.assert_allclose(model.predict(), before, equal_nan=True)
+print('Counterfactuals unchanged after perturbing treated outcomes.')
+```
+
+## Array contract and diagnostics
+
+```python
+model = cm.FEImputation(tolerance=1e-10, max_iterations=1000)
+model.fit(y, treatment, x=None, observed=None, sample_weight=None)
+model.predict()   # N x T counterfactuals, NaN at excluded cells
+model.summary()
+```
+
+- `y`, `treatment`: `float64`, shape `(units, periods)`. Treatment must be exactly
+  zero or one on observed cells. Use chronological columns; this matrix API does
+  not infer calendar spacing or validate long-form IDs.
+- `x`: optional `float64`, shape `(units, periods, covariates)`; omit for FE only.
+  Covariates must be finite at positive-weight observed cells.
+- `observed`: optional Boolean matrix. Default: finite entries of `y`. With an
+  explicit mask, masked cells may contain arbitrary values and are ignored;
+  observed outcomes must be finite. A real zero is never treated as missing.
+- `sample_weight`: optional finite nonnegative `float64` matrix. Zero-weight
+  cells are excluded from both fitting and the ATT. Positive weights affect both.
+- Summary includes the exact training/evaluation masks, coefficients, ATT,
+  unit/time aggregations, effects, untreated RMSE, counts, and absorption
+  iterations/residual norms. Only evaluated treated cells have finite effects.
+- Prediction fails for an unseen FE level or a combination crossing disconnected
+  components of the untreated unit/time graph. Gauge-dependent extrapolation is
+  not an identified counterfactual. Collinear covariates also raise an error.
+- A failed refit clears old fitted state. Insufficient solver budgets raise an
+  error rather than return apparently successful estimates.
+
+The Rust implementation uses compact FE IDs and sparse absorption via `within`;
+it does not construct a dense unit/time dummy design. Dense storage of the
+outcome/covariate matrices is still required.
+
+## Independent reference checks
+
+The original, redistributable fixtures in `tests/fixtures/yqx_panel/` are generated
+by base R `lm`, with and without weights. The standard test suite compares full
+counterfactual surfaces, coefficient vectors, aggregation and leakage behavior.
+
+`tests/test_yqx_lecture_replications.py` additionally replays the five available
+lecture/author-data FEct examples against saved R outputs. These tests require
+the ignored replication cache and otherwise skip; CI does not download data.
+The Bischof reference uses a looser R solver tolerance, so surface agreement is
+checked at $10^{-6}$ rather than forced to machine precision.
+
+IFEct, treatment-aware matrix completion, heterogeneous-DID estimators, and
+cluster/event-study inference remain separate work in the replication spec.

@@ -277,6 +277,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -349,6 +353,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -459,7 +467,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This page uses a factor-model donor panel and treated units whose untreated path is a sparse convex combination of high-score donors. That selection makes a raw donor average and a plain DiD contrast visibly biased, while still leaving a good weighted comparison inside the donor pool.</p>
 <section id="generate-a-selected-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="generate-a-selected-panel"><span class="header-section-number">1</span> Generate A Selected Panel</h2>
-<div id="0e355171" class="cell" data-execution_count="1">
+<div id="138fb66d" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -467,7 +475,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="70720ad0" class="cell" data-execution_count="2">
+<div id="2d1e85c3" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2031</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_control <span class="op">=</span> <span class="dv">72</span></span>
@@ -529,7 +537,7 @@ true post-period ATT: 1.06</code></pre>
 <section id="fit-did-synthetic-control-and-sdid" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-did-synthetic-control-and-sdid"><span class="header-section-number">2</span> Fit DID, Synthetic Control, And SDID</h2>
 <p>The synthetic-control comparator receives a 10,000-iteration budget for this 72-donor problem. Its former 800-iteration budget exhausted the solver; v0.9 correctly raises instead of exposing that unfinished fit. The data, objective, and convergence tolerance are unchanged.</p>
-<div id="572232bb" class="cell" data-execution_count="3">
+<div id="673e319c" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> did_estimate(panel, treated_idx, t_pre):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    treated <span class="op">=</span> panel[treated_idx]</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    controls <span class="op">=</span> np.delete(panel, treated_idx, axis<span class="op">=</span><span class="dv">0</span>)</span>
@@ -561,7 +569,7 @@ true post-period ATT: 1.06</code></pre>
 <span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"SDID pre RMSE:"</span>, <span class="bu">round</span>(<span class="bu">float</span>(sdid_summary[<span class="st">"pre_rmse"</span>]), <span class="dv">4</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>DiD estimate: 2.9571
-Synthetic-control estimate: 1.1043
+Synthetic-control estimate: 1.1036
 Synthetic DID estimate: 1.0894
 SDID pre RMSE: 0.0056</code></pre>
 </div>
@@ -574,7 +582,7 @@ SDID pre RMSE: 0.0056</code></pre>
 </section>
 <section id="inspect-the-weights" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="inspect-the-weights"><span class="header-section-number">3</span> Inspect The Weights</h2>
-<div id="ba36185f" class="cell" data-execution_count="4">
+<div id="edf3cdac" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>unit_weights <span class="op">=</span> np.asarray(sdid_summary[<span class="st">"unit_weights"</span>])[<span class="dv">0</span>, control_units]</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>time_weights <span class="op">=</span> np.asarray(sdid_summary[<span class="st">"time_weights"</span>])[<span class="dv">0</span>, :t_pre]</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -599,7 +607,7 @@ top donor weights:
   unit 9: 0.0523</code></pre>
 </div>
 </div>
-<div id="89412e25" class="cell" data-execution_count="5">
+<div id="354b0f74" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot(time <span class="op">+</span> <span class="dv">1</span>, treated_mean, color<span class="op">=</span><span class="st">"black"</span>, lw<span class="op">=</span><span class="fl">2.2</span>, label<span class="op">=</span><span class="st">"Treated mean"</span>)</span>
@@ -1066,13 +1074,18 @@ top donor weights:
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

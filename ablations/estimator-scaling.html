@@ -108,8 +108,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -310,6 +324,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -382,6 +400,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -543,9 +565,9 @@ window.Quarto = {
 </header>
 
 
-<p>This ablation reruns the 30-estimator benchmark inventory against <strong>v0.9.0</strong>, using adapter revision 2. The bounded grid is <span class="math inline">\(n \in
-\{10^3,10^4,10^5\}\)</span> and <span class="math inline">\(k \in \{5,20\}\)</span>. It does not include the newly added <a href="../reference/MPE_CBPS.html">MPE_CBPS</a>, which has its own executed API example and <a href="../examples/chronos-ltv-balancing.html">Chronos simulation</a>.</p>
-<p>The September 9 measurements replace the obsolete August charts. They include the corrected unpenalized GLM, centered ElasticNet, same-panel horizontal ridge, same-sample 2SLS, and R fit-only timing adapters. This is a smaller reproducible profiling grid, not a rerun of the old <span class="math inline">\(10^7\)</span>-row sweep.</p>
+<p>This ablation reruns the 30-estimator benchmark inventory against <strong>v0.9.0</strong>, using adapter revision 2. The bounded grid is <span class="math inline">n \in
+\{10^3,10^4,10^5\}</span> and <span class="math inline">k \in \{5,20\}</span>. It does not include the newly added <a href="../reference/MPE_CBPS.html">MPE_CBPS</a>, which has its own executed API example and <a href="../examples/chronos-ltv-balancing.html">Chronos simulation</a>.</p>
+<p>The September 9 measurements replace the obsolete August charts. They include the corrected unpenalized GLM, centered ElasticNet, same-panel horizontal ridge, same-sample 2SLS, and R fit-only timing adapters. This is a smaller reproducible profiling grid, not a rerun of the old <span class="math inline">10^7</span>-row sweep.</p>
 <p>The <a href="https://github.com/apoorvalal/crabbymetrics/blob/master/benchmarks/scaling/README.md">benchmark README</a> documents reference implementations and dimension conventions. Download the <a href="data/estimator-scaling.csv">measurements</a> and <a href="data/estimator-scaling.host.json">host metadata</a>.</p>
 <section id="guard-rails" class="level2">
 <h2 class="anchored" data-anchor-id="guard-rails">Guard rails</h2>
@@ -848,7 +870,7 @@ Per-cell timeout (s): 10.0</code></pre>
 <section id="common-grid-and-timing-boundary" class="level3">
 <h3 class="anchored" data-anchor-id="common-grid-and-timing-boundary">Common grid and timing boundary</h3>
 <p>This run is the Cartesian product of three sample sizes and two dimensions. A fresh seeded generator builds the complete input outside the fit timer. The reported <code>fit_seconds</code> starts immediately before the estimator call and stops on return; imports and data generation are excluded. In contrast, <code>peak_rss_bytes</code> covers the complete child process, including imported libraries, generated inputs, copies made by foreign-function boundaries, solver workspaces, and descendants such as R subprocesses.</p>
-<p>The preflight starts from the raw <span class="math inline">\(8nk\)</span> bytes for a <code>float64</code> design (or the family-specific panel/dynamic analogue), multiplies it by a conservative estimator-family workspace factor, and adds 192 MiB. The run-time monitor then enforces the requested 2 GiB cap or available RAM after a 4 GiB system reserve, whichever is smaller. The effective cap is printed above. Every child and descendant is subject to a 10-second wall clock. A preflight rejection, RSS kill, timeout, or execution error stops larger <code>n</code> values only for that estimator, implementation, and <code>k</code> path.</p>
+<p>The preflight starts from the raw <span class="math inline">8nk</span> bytes for a <code>float64</code> design (or the family-specific panel/dynamic analogue), multiplies it by a conservative estimator-family workspace factor, and adds 192 MiB. The run-time monitor then enforces the requested 2 GiB cap or available RAM after a 4 GiB system reserve, whichever is smaller. The effective cap is printed above. Every child and descendant is subject to a 10-second wall clock. A preflight rejection, RSS kill, timeout, or execution error stops larger <code>n</code> values only for that estimator, implementation, and <code>k</code> path.</p>
 </section>
 <section id="dimension-conventions" class="level3">
 <h3 class="anchored" data-anchor-id="dimension-conventions">Dimension conventions</h3>
@@ -866,7 +888,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="matched-reference-ratios" class="level2">
 <h2 class="anchored" data-anchor-id="matched-reference-ratios">Matched reference ratios</h2>
-<p>The table below uses only cells where both Crabbymetrics and the external implementation completed. <code>reference / native &gt; 1</code> means the Crabbymetrics fit was faster; values below one mean the external fit was faster. Medians summarize heterogeneous <span class="math inline">\((n,k)\)</span> cells and should be read as a profiling signal, not a single universal speed factor.</p>
+<p>The table below uses only cells where both Crabbymetrics and the external implementation completed. <code>reference / native &gt; 1</code> means the Crabbymetrics fit was faster; values below one mean the external fit was faster. Medians summarize heterogeneous <span class="math inline">(n,k)</span> cells and should be read as a profiling signal, not a single universal speed factor.</p>
 <div id="cell-matched-reference-ratios" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
@@ -1034,7 +1056,7 @@ Per-cell timeout (s): 10.0</code></pre>
 <p>Each subsection gives the exact DGP, fitted tuning values, reference status, completion frontier, median log-log runtime slope, and two scaling plots. A log-log slope near one indicates approximately linear empirical scaling along a fixed-<code>k</code> path; it is descriptive and can mix solver regimes over this short grid.</p>
 <section id="abcols" class="level3">
 <h3 class="anchored" data-anchor-id="abcols">ABCOLS</h3>
-<div id="e75561a9" class="cell" data-execution_count="4">
+<div id="7ecf1c84" class="cell" data-execution_count="4">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means continuous covariates (plus two categorical variables).</p>
 <p><strong>Data-generating process.</strong> Gaussian linear outcome with n rows and k standard-normal continuous covariates; two deterministic categorical variables cycle through 8 and 5 levels.</p>
@@ -1094,7 +1116,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="ols" class="level3">
 <h3 class="anchored" data-anchor-id="ols">OLS</h3>
-<div id="1a84f459" class="cell" data-execution_count="5">
+<div id="87f4a01f" class="cell" data-execution_count="5">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> Gaussian linear outcome y = X beta + epsilon with X of shape n by k, beta_j increasing from 0.2 to 1 and normalized by sqrt(k), and unit-variance noise.</p>
@@ -1168,7 +1190,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="fixedeffectsols" class="level3">
 <h3 class="anchored" data-anchor-id="fixedeffectsols">FixedEffectsOLS</h3>
-<div id="2a191888" class="cell" data-execution_count="6">
+<div id="5bfcb762" class="cell" data-execution_count="6">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>fixed-effects</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> The Gaussian linear design plus one fixed-effect identifier cycling over min(1000, n/20) groups.</p>
@@ -1256,7 +1278,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="elasticnet" class="level3">
 <h3 class="anchored" data-anchor-id="elasticnet">ElasticNet</h3>
-<div id="ebed0833" class="cell" data-execution_count="7">
+<div id="1f759c30" class="cell" data-execution_count="7">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> The Gaussian linear design with n rows and k covariates.</p>
@@ -1330,7 +1352,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="ridge" class="level3">
 <h3 class="anchored" data-anchor-id="ridge">Ridge</h3>
-<div id="97653717" class="cell" data-execution_count="8">
+<div id="048332ec" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>tabular</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> The Gaussian linear design with n rows and k covariates.</p>
@@ -1404,7 +1426,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="baggedpolynomialregressor" class="level3">
 <h3 class="anchored" data-anchor-id="baggedpolynomialregressor">BaggedPolynomialRegressor</h3>
-<div id="05f237d4" class="cell" data-execution_count="9">
+<div id="0b89c564" class="cell" data-execution_count="9">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>polynomial</code>; <code>k</code> means raw covariates.</p>
 <p><strong>Data-generating process.</strong> The Gaussian linear design is deliberately used even though the fitted basis is quadratic, isolating feature-expansion and bagging costs from a changing signal model.</p>
@@ -1478,7 +1500,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="logit" class="level3">
 <h3 class="anchored" data-anchor-id="logit">Logit</h3>
-<div id="3645f9d8" class="cell" data-execution_count="10">
+<div id="15c71b32" class="cell" data-execution_count="10">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>glm</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> Binary response 1[X beta plus a standard logistic shock exceeds zero].</p>
@@ -1552,7 +1574,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="multinomiallogit" class="level3">
 <h3 class="anchored" data-anchor-id="multinomiallogit">MultinomialLogit</h3>
-<div id="e8cb9df4" class="cell" data-execution_count="11">
+<div id="152063f4" class="cell" data-execution_count="11">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>glm</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> Three response classes obtained by thresholding X beta plus a standard-normal shock at -0.5 and 0.5.</p>
@@ -1626,7 +1648,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="poisson" class="level3">
 <h3 class="anchored" data-anchor-id="poisson">Poisson</h3>
-<div id="3f5e1097" class="cell" data-execution_count="12">
+<div id="3275a7e4" class="cell" data-execution_count="12">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>glm</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> Poisson response with mean exp(X beta), clipping the linear predictor to [-1.5, 1.5] to avoid pathological counts.</p>
@@ -1700,7 +1722,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="exponentialph" class="level3">
 <h3 class="anchored" data-anchor-id="exponentialph">ExponentialPH</h3>
-<div id="929028ee" class="cell" data-execution_count="13">
+<div id="d5d9a60a" class="cell" data-execution_count="13">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> Survival time is exponential with scale exp(-clip(X beta, -1, 1)); censoring/event indicator is Bernoulli(0.8).</p>
@@ -1760,7 +1782,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="weibullph" class="level3">
 <h3 class="anchored" data-anchor-id="weibullph">WeibullPH</h3>
-<div id="8f0050fd" class="cell" data-execution_count="14">
+<div id="3b60a916" class="cell" data-execution_count="14">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> The same censored proportional-hazards stress design used for the other survival estimators.</p>
@@ -1820,7 +1842,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="coxph" class="level3">
 <h3 class="anchored" data-anchor-id="coxph">CoxPH</h3>
-<div id="16edf138" class="cell" data-execution_count="15">
+<div id="5487522e" class="cell" data-execution_count="15">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> The censored proportional-hazards design with exponential baseline time and k Gaussian covariates.</p>
@@ -1908,7 +1930,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="andersengill" class="level3">
 <h3 class="anchored" data-anchor-id="andersengill">AndersenGill</h3>
-<div id="d2320d2b" class="cell" data-execution_count="16">
+<div id="941ffc46" class="cell" data-execution_count="16">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>survival</code>; <code>k</code> means covariates.</p>
 <p><strong>Data-generating process.</strong> Counting-process rows with uniform starts, exponentially distributed positive interval lengths, Bernoulli(0.7) events, and k Gaussian covariates.</p>
@@ -1982,7 +2004,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="twosls" class="level3">
 <h3 class="anchored" data-anchor-id="twosls">TwoSLS</h3>
-<div id="11e6bf65" class="cell" data-execution_count="17">
+<div id="b877108a" class="cell" data-execution_count="17">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>iv</code>; <code>k</code> means exogenous covariates and excluded instruments.</p>
 <p><strong>Data-generating process.</strong> k exogenous controls X and k excluded instruments Z; one endogenous regressor d = 0.7 Z_1 plus noise; y = d + X beta plus noise.</p>
@@ -2056,7 +2078,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="horizontalpanelridge" class="level3">
 <h3 class="anchored" data-anchor-id="horizontalpanelridge">HorizontalPanelRidge</h3>
-<div id="fc4119ca" class="cell" data-execution_count="18">
+<div id="f18f3b87" class="cell" data-execution_count="18">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means donor units.</p>
 <p><strong>Data-generating process.</strong> Low-rank panel with n periods and k units; control outcomes load on two common factors and treated outcomes are noisy convex combinations of controls, treated in the final third.</p>
@@ -2130,7 +2152,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="syntheticcontrol" class="level3">
 <h3 class="anchored" data-anchor-id="syntheticcontrol">SyntheticControl</h3>
-<div id="0970ccb1" class="cell" data-execution_count="19">
+<div id="82b88339" class="cell" data-execution_count="19">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>synthetic-control</code>; <code>k</code> means donor units.</p>
 <p><strong>Data-generating process.</strong> n pre-treatment periods by k independent Gaussian donor series; the treated series is the equal-weight donor average plus small noise.</p>
@@ -2190,7 +2212,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="syntheticdid" class="level3">
 <h3 class="anchored" data-anchor-id="syntheticdid">SyntheticDID</h3>
-<div id="572e320d" class="cell" data-execution_count="20">
+<div id="883b93e9" class="cell" data-execution_count="20">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
 <p><strong>Data-generating process.</strong> Low-rank n-period by k-unit panel; treated units are convex mixtures of controls and treatment starts after two thirds of periods.</p>
@@ -2250,7 +2272,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="augmentedbalancing" class="level3">
 <h3 class="anchored" data-anchor-id="augmentedbalancing">AugmentedBalancing</h3>
-<div id="6cc61b60" class="cell" data-execution_count="21">
+<div id="4860f9b7" class="cell" data-execution_count="21">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
 <p><strong>Data-generating process.</strong> The same low-rank staggered panel used for SyntheticDID, with no supplied outcome surface so runtime covers raw double balancing.</p>
@@ -2310,7 +2332,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="matrixcompletion" class="level3">
 <h3 class="anchored" data-anchor-id="matrixcompletion">MatrixCompletion</h3>
-<div id="1c3f456c" class="cell" data-execution_count="22">
+<div id="5b3ef1e6" class="cell" data-execution_count="22">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
 <p><strong>Data-generating process.</strong> The low-rank treated panel with n periods and k units.</p>
@@ -2370,7 +2392,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="interactivefixedeffects" class="level3">
 <h3 class="anchored" data-anchor-id="interactivefixedeffects">InteractiveFixedEffects</h3>
-<div id="e352d235" class="cell" data-execution_count="23">
+<div id="d2d02b5e" class="cell" data-execution_count="23">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>panel</code>; <code>k</code> means units; n is periods.</p>
 <p><strong>Data-generating process.</strong> The untreated low-rank n-period by k-unit outcome matrix from the panel generator.</p>
@@ -2430,7 +2452,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="balancingweights" class="level3">
 <h3 class="anchored" data-anchor-id="balancingweights">BalancingWeights</h3>
-<div id="fc64c978" class="cell" data-execution_count="24">
+<div id="d038638f" class="cell" data-execution_count="24">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>balancing</code>; <code>k</code> means balance functions.</p>
 <p><strong>Data-generating process.</strong> Gaussian X with the first 80 percent of rows as the source sample and the final 20 percent as the target sample.</p>
@@ -2490,7 +2512,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="mestimator" class="level3">
 <h3 class="anchored" data-anchor-id="mestimator">MEstimator</h3>
-<div id="565cfb64" class="cell" data-execution_count="25">
+<div id="cc45a2a6" class="cell" data-execution_count="25">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>moments</code>; <code>k</code> means parameters/covariates.</p>
 <p><strong>Data-generating process.</strong> Gaussian linear outcome with an explicit intercept-augmented n by (k+1) design.</p>
@@ -2550,7 +2572,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="gmm" class="level3">
 <h3 class="anchored" data-anchor-id="gmm">GMM</h3>
-<div id="f2f2ac77" class="cell" data-execution_count="26">
+<div id="f1839cf8" class="cell" data-execution_count="26">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>moments</code>; <code>k</code> means parameters/instruments.</p>
 <p><strong>Data-generating process.</strong> Exactly identified linear moments X_i(y_i - X_i’ theta) on the intercept-augmented Gaussian linear design.</p>
@@ -2610,7 +2632,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="eplm" class="level3">
 <h3 class="anchored" data-anchor-id="eplm">EPLM</h3>
-<div id="94f66340" class="cell" data-execution_count="27">
+<div id="2426c18c" class="cell" data-execution_count="27">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
 <p><strong>Data-generating process.</strong> Continuous treatment d = 0.25 X beta plus noise and outcome y = 0.8 d + X beta plus noise.</p>
@@ -2670,7 +2692,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="averagederivative" class="level3">
 <h3 class="anchored" data-anchor-id="averagederivative">AverageDerivative</h3>
-<div id="9be77735" class="cell" data-execution_count="28">
+<div id="5c6bb428" class="cell" data-execution_count="28">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
 <p><strong>Data-generating process.</strong> The continuous-treatment partially linear design used for EPLM.</p>
@@ -2730,7 +2752,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="partiallylineardml" class="level3">
 <h3 class="anchored" data-anchor-id="partiallylineardml">PartiallyLinearDML</h3>
-<div id="9c5f343b" class="cell" data-execution_count="29">
+<div id="8895d01a" class="cell" data-execution_count="29">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
 <p><strong>Data-generating process.</strong> Continuous treatment d = 0.25 X beta plus noise and outcome y = 0.8 d + X beta plus noise.</p>
@@ -2804,7 +2826,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="aipw" class="level3">
 <h3 class="anchored" data-anchor-id="aipw">AIPW</h3>
-<div id="f824e6df" class="cell" data-execution_count="30">
+<div id="1f3d61ac" class="cell" data-execution_count="30">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>semiparametric</code>; <code>k</code> means controls.</p>
 <p><strong>Data-generating process.</strong> Binary treatment obtained by median-splitting 0.25 X beta plus noise; y = 0.8 d + X beta plus noise.</p>
@@ -2878,7 +2900,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="dynamiccovariatebalance" class="level3">
 <h3 class="anchored" data-anchor-id="dynamiccovariatebalance">DynamicCovariateBalance</h3>
-<div id="0c16f7ee" class="cell" data-execution_count="31">
+<div id="dafcd38c" class="cell" data-execution_count="31">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>dynamic</code>; <code>k</code> means history covariates.</p>
 <p><strong>Data-generating process.</strong> Approximately n/4 units over four decision periods, k Gaussian history variables per period, logistic treatment driven by the first history coordinate, and a random-walk outcome with additive 0.5 treatment effects.</p>
@@ -2938,7 +2960,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="paralleltrendssnmm" class="level3">
 <h3 class="anchored" data-anchor-id="paralleltrendssnmm">ParallelTrendsSNMM</h3>
-<div id="df03fc9c" class="cell" data-execution_count="32">
+<div id="a0d0196d" class="cell" data-execution_count="32">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>dynamic</code>; <code>k</code> means history covariates.</p>
 <p><strong>Data-generating process.</strong> The four-period dynamic-treatment design with a five-column outcome path including baseline.</p>
@@ -2998,7 +3020,7 @@ Per-cell timeout (s): 10.0</code></pre>
 </section>
 <section id="regressionblip" class="level3">
 <h3 class="anchored" data-anchor-id="regressionblip">RegressionBlip</h3>
-<div id="3fd034a0" class="cell" data-execution_count="33">
+<div id="ab3152d9" class="cell" data-execution_count="33">
 <div class="cell-output cell-output-display cell-output-markdown">
 <p><strong>Family and dimensions.</strong> <code>dynamic</code>; <code>k</code> means history covariates.</p>
 <p><strong>Data-generating process.</strong> The four-period dynamic-treatment design with period outcomes aligned to treatment and k history covariates.</p>
@@ -3060,7 +3082,7 @@ Per-cell timeout (s): 10.0</code></pre>
 <section id="interpretation" class="level2">
 <h2 class="anchored" data-anchor-id="interpretation">Interpretation</h2>
 <p>The grid is a systems benchmark, not an accuracy horse race. Fit-only timing is reported; synthetic-data construction happens before the model call but remains inside the child process and therefore contributes to the memory guard. Reference rows test the same shapes and model family, but small differences in defaults, parameterization, convergence criteria, and inference work remain. “Nearest” references in the inventory are literature/code pointers only and never enter the timing plots.</p>
-<p>On this host, 26 of 30 native estimators completed at least one <span class="math inline">\(n=10^6\)</span> cell. The native sample-size frontiers were <span class="math inline">\(n=10^3\)</span> for synthetic DID and augmented balancing, <span class="math inline">\(n=10^4\)</span> for Cox PH and Andersen–Gill, and <span class="math inline">\(n=10^6\)</span> for the other 26 estimators. These maxima collapse across <span class="math inline">\(k\)</span> and therefore describe reach, not a claim that every dimension completed at that sample size.</p>
+<p>On this host, 26 of 30 native estimators completed at least one <span class="math inline">n=10^6</span> cell. The native sample-size frontiers were <span class="math inline">n=10^3</span> for synthetic DID and augmented balancing, <span class="math inline">n=10^4</span> for Cox PH and Andersen–Gill, and <span class="math inline">n=10^6</span> for the other 26 estimators. These maxima collapse across <span class="math inline">k</span> and therefore describe reach, not a claim that every dimension completed at that sample size.</p>
 
 
 </section>
@@ -3470,13 +3492,18 @@ Per-cell timeout (s): 10.0</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

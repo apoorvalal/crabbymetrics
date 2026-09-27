@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,72 +529,73 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Regression</p>
 <p><code>FixedEffectsOLS</code> partials out one or more categorical fixed effects, then runs least squares on residualized variables:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 M_F y = M_F X\beta + M_F u.
-\]</span></p>
-<p>The fixed-effect matrix <code>fe</code> is a 2D <code>uint32</code> array of zero-based category codes, one column per fixed-effect dimension.</p>
+</span></p>
+<p>The fixed-effect matrix <code>fe</code> is a 2D <code>uint32</code> array of category IDs, one column per fixed-effect dimension. IDs are compacted internally; they need not be contiguous.</p>
 </section>
 <section id="criterion-and-absorption" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="criterion-and-absorption"><span class="header-section-number">2</span> Criterion and absorption</h2>
-<p>For factor incidence matrix <span class="math inline">\(D\)</span>, the conceptual weighted problem is</p>
-<p><span class="math display">\[
+<p>For factor incidence matrix <span class="math inline">D</span>, the conceptual weighted problem is</p>
+<p><span class="math display">
 \min_{\beta,\alpha}
 \sum_{i=1}^n w_i(y_i-x_i'\beta-d_i'\alpha)^2.
-\]</span></p>
-<p>The class uses the Frisch-Waugh-Lovell representation. It iteratively demeans <span class="math inline">\(y\)</span> and every column of <span class="math inline">\(X\)</span> over each fixed-effect dimension using the within solver, producing <span class="math inline">\(M_Dy\)</span> and <span class="math inline">\(M_DX\)</span>, and then solves</p>
-<p><span class="math display">\[
+</span></p>
+<p>The class uses the Frisch-Waugh-Lovell representation. It iteratively demeans <span class="math inline">y</span> and every column of <span class="math inline">X</span> over each fixed-effect dimension using the within solver, producing <span class="math inline">M_Dy</span> and <span class="math inline">M_DX</span>, and then solves</p>
+<p><span class="math display">
 \hat\beta
 =
 \arg\min_\beta
 \|W^{1/2}M_D(y-X\beta)\|_2^2.
-\]</span></p>
-<p>The iterative absorption must converge for the outcome and every regressor; otherwise the fit raises an error. Fixed-effect coefficients are not recovered or stored.</p>
+</span></p>
+<p>The iterative absorption must converge for the outcome and every regressor; otherwise the fit raises an error. One- and two-way level effects are recovered for identified prediction. Their normalization is not itself an economic estimand.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>Weights have analytic, not frequency, semantics. Zero-weight rows are removed before absorption and excluded from observation counts, fixed-effect level/rank counts, HAC lag ordering, and cluster counts. Summary and Wald inference use the same active sample. A failed refit clears prior fitted state.</p>
 <p>This class has a narrow delegation boundary: the <code>within</code> Rust crate performs absorption, while crabbymetrics owns orchestration, the slope solve, degrees of freedom, covariance, and Python behavior.</p>
 <ol type="1">
-<li>The wrapper validates aligned rows, at least one regressor and fixed-effect dimension, and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to <code>within::Solver</code> using that crate’s default convergence parameters.</li>
-<li>Instead of invoking absorption separately, it creates one batch whose first right-hand side is <span class="math inline">\(y\)</span> and whose remaining right-hand sides are the columns of <span class="math inline">\(X\)</span>. One solver instance therefore uses the same encoded factors and numerical settings for every variable.</li>
+<li>The wrapper validates aligned rows, at least one fixed-effect dimension (zero regressors are allowed), and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to <code>within::Solver</code> using the constructor’s <code>tolerance</code> and <code>max_iterations</code> controls.</li>
+<li>Instead of invoking absorption separately, it creates one batch whose first right-hand side is <span class="math inline">y</span> and whose remaining right-hand sides are the columns of <span class="math inline">X</span>. One solver instance therefore uses the same encoded factors and numerical settings for every variable.</li>
 <li>The fit inspects the convergence flag for every right-hand side. If even one regressor has not converged, it raises an error containing the complete convergence and final-residual vectors. It never combines partially converged columns into a regression.</li>
-<li>The returned demeaned vectors are copied into <span class="math inline">\(y^*=M_Dy\)</span> and <span class="math inline">\(X^*=M_DX\)</span>. The package then applies optional square-root weights again in the slope least-squares solve. This matches the <code>within</code> solver’s weighted projection convention and the weighted Frisch-Waugh-Lovell objective.</li>
-<li>The slope vector and residualized arrays are retained; nuisance fixed-effect coefficients are never reconstructed. This is why the class can report slope inference but deliberately cannot predict level outcomes for new observations.</li>
-<li>For degrees of freedom, one factor contributes its observed level count. Two factors are represented as a bipartite graph and a union-find pass computes <span class="math inline">\(L_1+L_2-C\)</span> exactly. For three or more factors the code counts observed levels and subtracts <span class="math inline">\(J-1\)</span>, labeling the result as conservative rather than claiming exact graph rank.</li>
-<li>Covariance uses <span class="math inline">\(X^*\)</span> and residuals <span class="math inline">\(y^*-X^*\hat\beta\)</span> in the shared linear sandwich code. The bootstrap resamples <span class="math inline">\(X\)</span>, <span class="math inline">\(y\)</span>, every fixed-effect code, and optional weights together, then repeats absorption from scratch.</li>
+<li>The returned demeaned vectors are copied into <span class="math inline">y^*=M_Dy</span> and <span class="math inline">X^*=M_DX</span>. The package then applies optional square-root weights again in the slope least-squares solve. This matches the <code>within</code> solver’s weighted projection convention and the weighted Frisch-Waugh-Lovell objective.</li>
+<li>The slope vector and residualized arrays are retained. The fit recovers one- or two-way level effects and their connected-component information. Prediction rejects unseen levels and two-way combinations crossing disconnected components; three-or-more-way level prediction is unsupported.</li>
+<li>For degrees of freedom, one factor contributes its observed level count. Two factors are represented as a bipartite graph and a union-find pass computes <span class="math inline">L_1+L_2-C</span> exactly. For three or more factors the code counts observed levels and subtracts <span class="math inline">J-1</span>, labeling the result as conservative rather than claiming exact graph rank.</li>
+<li>Covariance uses <span class="math inline">X^*</span> and residuals <span class="math inline">y^*-X^*\hat\beta</span> in the shared linear sandwich code. The bootstrap resamples <span class="math inline">X</span>, <span class="math inline">y</span>, every fixed-effect code, and optional weights together, then repeats absorption from scratch.</li>
 </ol>
 <p>The implementation is optimized for many levels and few reported slopes: it avoids dummy expansion but keeps a dense residualized copy of every regressor. Convergence quality belongs to the delegated absorber; inferential conventions and failure policy belong to this wrapper.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
 <p>All OLS covariance options are applied to the residualized design and outcome: homoskedastic, HC0-HC3, Newey-West, and cluster robust. The residual degrees of freedom are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 d_f=n-p-r_D,
-\]</span></p>
-<p>where <span class="math inline">\(p\)</span> is the number of reported slopes and <span class="math inline">\(r_D\)</span> is the absorbed fixed-effect rank. The implementation computes <span class="math inline">\(r_D\)</span> exactly for one factor as its observed level count. For two factors it uses</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">p</span> is the number of reported slopes and <span class="math inline">r_D</span> is the absorbed fixed-effect rank. The implementation computes <span class="math inline">r_D</span> exactly for one factor as its observed level count. For two factors it uses</p>
+<p><span class="math display">
 r_D=L_1+L_2-C,
-\]</span></p>
-<p>where <span class="math inline">\(C\)</span> is the number of connected components in the bipartite level graph. With three or more factors it uses the conservative approximation <span class="math inline">\(\sum_jL_j-(J-1)\)</span>. Standard errors can therefore be conservative in disconnected multiway designs. Wald tests use the selected covariance, and the pairs bootstrap resamples rows, including all fixed-effect identifiers, before re-absorption and refitting.</p>
+</span></p>
+<p>where <span class="math inline">C</span> is the number of connected components in the bipartite level graph. With three or more factors it uses the conservative approximation <span class="math inline">\sum_jL_j-(J-1)</span>. Standard errors can therefore be conservative in disconnected multiway designs. Wald tests use the selected covariance, and the pairs bootstrap resamples rows, including all fixed-effect identifiers, before re-absorption and refitting.</p>
+<p>The default <code>fe_df="full"</code> preserves the previous full-FE correction. <code>fe_df="none"</code> excludes absorbed effects from the inference count; <code>fe_df="non_nested"</code> excludes effects nested in the supplied cluster partition and requires cluster covariance. Cluster inference also exposes <code>ssc="cluster"</code>, <code>"hc1"</code>, or <code>"none"</code>, and <code>cluster_correction=True/False</code>. Use the same settings in summaries and Wald tests. The <a href="../examples/fixed-effects-ols.html">worked example</a> and <a href="../ablations/yqx-panel-fixes.html">replication report</a> explain reference-library conventions; changing them changes the statistical correction, not the fitted slopes.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Absorption avoids an <span class="math inline">\(n\times\sum_jL_j\)</span> dummy matrix. Each demeaning sweep is approximately <span class="math inline">\(O(n(p+1)J)\)</span> for <span class="math inline">\(J\)</span> fixed-effect dimensions, with total cost multiplied by the number of sweeps required for convergence. Memory is dominated by the residualized <span class="math inline">\(n\times p\)</span> design. Poorly connected factor graphs can converge slowly. Covariance construction remains dense in the slope dimension, and bootstrap cost is the cost of full absorption and regression times the number of draws. Prediction is intentionally unavailable because the nuisance effects are discarded.</p>
+<p>Absorption avoids an <span class="math inline">n\times\sum_jL_j</span> dummy matrix. Each demeaning sweep is approximately <span class="math inline">O(n(p+1)J)</span> for <span class="math inline">J</span> fixed-effect dimensions, with total cost multiplied by the number of sweeps required for convergence. Memory is dominated by the residualized <span class="math inline">n\times p</span> design. Poorly connected factor graphs can converge slowly. Covariance construction remains dense in the slope dimension, and bootstrap cost is the cost of full absorption and regression times the number of draws. Level prediction adds the recovered effects to the slope prediction when the requested combination is identified.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.FixedEffectsOLS</code></p>
-<p>Call <code>fit(x, fe, y)</code> or <code>fit_weighted(x, fe, y, sample_weight)</code>. There is no <code>predict()</code> because the class is estimation-first and does not materialize fixed-effect coefficients. <code>summary()</code> supports the same covariance options as the other linear estimators and reports <code>absorbed_df</code>, <code>residual_df</code>, and <code>absorbed_df_method</code>. Rank is exact for one- and two-way fixed effects; three or more dimensions use a labeled conservative count.</p>
-<div id="87c64d8d" class="cell" data-execution_count="2">
+<p>Call <code>fit(x, fe, y)</code> or <code>fit_weighted(x, fe, y, sample_weight)</code>. <code>predict(x, fe)</code> returns identified level predictions for one- and two-way effects. For an FE-only fit, pass an <code>(n, 0)</code> regressor array. <code>summary()</code> supports the same covariance options as the other linear estimators and reports <code>absorbed_df</code>, <code>residual_df</code>, and <code>absorbed_df_method</code>. Rank is exact for one- and two-way fixed effects; three or more dimensions use a labeled conservative count.</p>
+<div id="5adf7391" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.FixedEffectsOLS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>()</code></pre>
+<pre><code>(tolerance=1e-08, max_iterations=1000)</code></pre>
 </div>
 </div>
-<div id="5dfa035b" class="cell" data-execution_count="3">
+<div id="790de29d" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.FixedEffectsOLS</span>
@@ -587,7 +610,7 @@ r_D=L_1+L_2-C,
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>FixedEffectsOLS()</code></td>
+<td><code>FixedEffectsOLS(tolerance=1e-08, max_iterations=1000)</code></td>
 </tr>
 <tr class="even">
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code></td>
@@ -599,10 +622,13 @@ r_D=L_1+L_2-C,
 <td><code>fit_weighted(self, /, x, fe, y, sample_weight)</code></td>
 </tr>
 <tr class="odd">
-<td><code>summary(self, /, vcov='hc1', lags=None, clusters=None)</code></td>
+<td><code>predict(self, /, x, fe)</code></td>
 </tr>
 <tr class="even">
-<td><code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None)</code></td>
+<td><code>summary(self, /, vcov='hc1', lags=None, clusters=None, *, fe_df='full', ssc='cluster', cluster_correction=True)</code></td>
+</tr>
+<tr class="odd">
+<td><code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None, *, fe_df='full', ssc='cluster', cluster_correction=True)</code></td>
 </tr>
 </tbody>
 </table>
@@ -611,7 +637,7 @@ r_D=L_1+L_2-C,
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="a94d9368" class="cell" data-execution_count="4">
+<div id="6cec3f6f" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">3</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">300</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -624,14 +650,14 @@ r_D=L_1+L_2-C,
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(model.summary(vcov<span class="op">=</span><span class="st">'cluster'</span>, clusters<span class="op">=</span>worker.astype(np.int64)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>{'coef': array([ 0.78646351, -0.52522162]), 'coef_se': array([0.01354886, 0.01305264]), 'vcov': array([[1.83571547e-04, 4.64880268e-05],
-       [4.64880268e-05, 1.70371338e-04]]), 'vcov_type': 'cluster', 'absorbed_df': 41, 'residual_df': 257.0, 'absorbed_df_method': 'exact_two_way'}</code></pre>
+       [4.64880268e-05, 1.70371338e-04]]), 'vcov_type': 'cluster', 'absorbed_df': 41, 'counted_fe_df': 41, 'fe_df': 'full', 'ssc': 'cluster', 'cluster_correction': True, 'residual_df': 257.0, 'absorbed_df_method': 'exact_two_way', 'converged': True, 'absorption_iterations': [22, 22, 21], 'absorption_residual_norms': [9.652144187311186e-09, 6.984514961255232e-09, 8.894950479535544e-09]}</code></pre>
 </div>
 </div>
 </section>
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="0e85aeca" class="cell" data-execution_count="5">
+<div id="ab78684e" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">103</span>)</span>
@@ -676,12 +702,40 @@ r_D=L_1+L_2-C,
 <td><code>()</code></td>
 </tr>
 <tr class="even">
+<td><code>counted_fe_df</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>fe_df</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>ssc</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>cluster_correction</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="even">
 <td><code>residual_df</code></td>
 <td><code>()</code></td>
 </tr>
 <tr class="odd">
 <td><code>absorbed_df_method</code></td>
 <td><code>()</code></td>
+</tr>
+<tr class="even">
+<td><code>converged</code></td>
+<td><code>()</code></td>
+</tr>
+<tr class="odd">
+<td><code>absorption_iterations</code></td>
+<td><code>(3,)</code></td>
+</tr>
+<tr class="even">
+<td><code>absorption_residual_norms</code></td>
+<td><code>(3,)</code></td>
 </tr>
 </tbody>
 </table>
@@ -1096,13 +1150,18 @@ r_D=L_1+L_2-C,
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

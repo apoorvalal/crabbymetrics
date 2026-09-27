@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -487,7 +509,7 @@ window.Quarto = {
 <p>This page shows the linear IV / 2SLS path used by <code>crabbymetrics.TwoSLS</code>, first with one endogenous regressor and then with several.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="65aa2971" class="cell" data-execution_count="1">
+<div id="f4988e59" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -499,59 +521,59 @@ window.Quarto = {
 <section id="algebra" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="algebra"><span class="header-section-number">2</span> Algebra</h2>
 <p>Write the structural equation as</p>
-<p><span class="math display">\[
+<p><span class="math display">
 y = X \beta + u,
-\]</span></p>
+</span></p>
 <p>where</p>
-<p><span class="math display">\[
+<p><span class="math display">
 X = \begin{bmatrix} X_{\mathrm{endog}} &amp; X_{\mathrm{exog}} \end{bmatrix},
 \qquad
 Z_{\mathrm{full}} = \begin{bmatrix} \mathbf{1} &amp; X_{\mathrm{exog}} &amp; Z_{\mathrm{excluded}} \end{bmatrix}.
-\]</span></p>
+</span></p>
 <p>The textbook 2SLS estimator is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat{\beta}_{\mathrm{2SLS}} = \left(X^\top P_Z X\right)^{-1} X^\top P_Z y,
-\]</span></p>
+</span></p>
 <p>with</p>
-<p><span class="math display">\[
+<p><span class="math display">
 P_Z = Z_{\mathrm{full}}
 \left(Z_{\mathrm{full}}^\top Z_{\mathrm{full}}\right)^{-1}
 Z_{\mathrm{full}}^\top.
-\]</span></p>
+</span></p>
 <p>That formula is correct, but the implementation does not form the projector explicitly for the point estimate. Instead it uses the equivalent two-stage least-squares solve:</p>
 <ol type="1">
 <li><p>solve the first-stage least-squares problem</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat{\Pi}
 =
 \arg\min_{\Pi}
 \left\lVert Z_{\mathrm{full}} \Pi - X_{\mathrm{endog}} \right\rVert_F^2
-\]</span></p></li>
+</span></p></li>
 <li><p>build fitted endogenous regressors</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat{X}_{\mathrm{endog}} = Z_{\mathrm{full}} \hat{\Pi}
-\]</span></p></li>
+</span></p></li>
 <li><p>form the stage-two design</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat{X}
 =
 \begin{bmatrix}
 \mathbf{1} &amp; \hat{X}_{\mathrm{endog}} &amp; X_{\mathrm{exog}}
 \end{bmatrix}
-\]</span></p></li>
+</span></p></li>
 <li><p>solve the second-stage least-squares problem</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat{\theta}
 =
 \arg\min_{\theta}
 \left\lVert \hat{X} \theta - y \right\rVert_2^2
-\]</span></p></li>
+</span></p></li>
 </ol>
 <p>In the Rust code, both least-squares problems are solved with a QR-based decomposition analogous to <code>np.linalg.lstsq</code>.</p>
 </section>
 <section id="helpers" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="helpers"><span class="header-section-number">3</span> Helpers</h2>
-<div id="129db367" class="cell" data-execution_count="2">
+<div id="5cb8a4f9" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_intercept(x):</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack([np.ones(x.shape[<span class="dv">0</span>]), x])</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -586,7 +608,7 @@ Z_{\mathrm{full}}^\top.
 <section id="single-endogenous-regressor" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="single-endogenous-regressor"><span class="header-section-number">4</span> Single Endogenous Regressor</h2>
 <p>This is the usual overidentified IV setup: one endogenous regressor, one exogenous regressor, and three excluded instruments.</p>
-<div id="df981166" class="cell" data-execution_count="3">
+<div id="d0c9129d" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -646,7 +668,7 @@ projection formula: [ 0.486   1.3787 -0.7785]
 <section id="robust-covariance-options" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="robust-covariance-options"><span class="header-section-number">5</span> Robust Covariance Options</h2>
 <p>Point estimation stays closed form, but the inference surface is shared with <code>OLS</code>, <code>Ridge</code>, and <code>FixedEffectsOLS</code>.</p>
-<div id="80185d7b" class="cell" data-execution_count="4">
+<div id="62d8853c" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>clusters <span class="op">=</span> np.repeat(np.arange(<span class="dv">40</span>, dtype<span class="op">=</span>np.int64), n <span class="op">//</span> <span class="dv">40</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>vanilla <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">"vanilla"</span>)</span>
@@ -665,15 +687,15 @@ cluster SE: [0.0173 0.0206]</code></pre>
 </section>
 <section id="multiple-endogenous-regressors" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="multiple-endogenous-regressors"><span class="header-section-number">6</span> Multiple Endogenous Regressors</h2>
-<p>Now the first stage solves for a whole coefficient matrix <span class="math inline">\(\hat{\Pi}\)</span>, one column for each endogenous regressor. The second stage is still just least squares on</p>
-<p><span class="math display">\[
+<p>Now the first stage solves for a whole coefficient matrix <span class="math inline">\hat{\Pi}</span>, one column for each endogenous regressor. The second stage is still just least squares on</p>
+<p><span class="math display">
 \hat{X}
 =
 \begin{bmatrix}
 \mathbf{1} &amp; \hat{X}_{\mathrm{endog}} &amp; X_{\mathrm{exog}}
 \end{bmatrix}.
-\]</span></p>
-<div id="7bede19a" class="cell" data-execution_count="5">
+</span></p>
+<div id="c9c7f63c" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1400</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1154,13 +1176,18 @@ projection formula: [-0.1713  1.138  -0.9109  0.5623]
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

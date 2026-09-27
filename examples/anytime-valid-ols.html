@@ -280,6 +280,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -352,6 +356,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -489,7 +497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="data-generating-example" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="data-generating-example"><span class="header-section-number">3</span> Data-Generating Example</h2>
 <p>This mirrors the structure of the <code>avlm</code> README example: three centered covariates, a binary treatment, and treatment-by-covariate interactions. The coefficient on <code>trt</code> is a baseline treatment effect, while the interaction coefficients allow that effect to vary with the covariates.</p>
-<div id="ca80e6a4" class="cell" data-execution_count="1">
+<div id="201158b0" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -538,7 +546,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 data-number="4" class="anchored" data-anchor-id="fit-ols-once"><span class="header-section-number">4</span> Fit OLS Once</h2>
 <p>The fitted model is just <code>cm.OLS()</code>. The <code>optimal_g(...)</code> helper chooses the mixture precision parameter that minimizes the anytime-valid confidence-interval width at this target sample size and significance level.</p>
 <p>The second argument to <code>optimal_g</code> is the total coefficient count, including the intercept fitted internally by <code>OLS</code>.</p>
-<div id="9798a76f" class="cell" data-execution_count="2">
+<div id="25bac332" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.OLS()</span>
@@ -557,7 +565,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The usual summary fields remain available. For example, the first three slope coefficients are unchanged when anytime-valid inference is requested:</p>
-<div id="f2deb47b" class="cell" data-execution_count="3">
+<div id="db885526" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"plain slope estimates:"</span>, np.<span class="bu">round</span>(plain[<span class="st">"coef"</span>][:<span class="dv">3</span>], <span class="dv">4</span>))</span>
@@ -580,7 +588,7 @@ AV slope estimates:    [0.0257 0.1183 1.4786]</code></pre>
 <li><code>confint</code>: anytime-valid confidence intervals</li>
 <li><code>f_statistic</code> and <code>f_p_value</code>: omnibus test for all non-intercept coefficients</li>
 </ul>
-<div id="bd969dc0" class="cell" data-execution_count="4">
+<div id="0be80ef0" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
@@ -677,7 +685,7 @@ AV slope estimates:    [0.0257 0.1183 1.4786]</code></pre>
 </div>
 </div>
 <p>The omnibus anytime-valid F-test is reported in the same dictionary:</p>
-<div id="96ed851b" class="cell" data-execution_count="5">
+<div id="eb708808" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"AV F-statistic:"</span>, <span class="bu">round</span>(av[<span class="st">"f_statistic"</span>], <span class="dv">4</span>))</span>
@@ -692,7 +700,7 @@ AV F-test p-value: 1.467e-33</code></pre>
 <section id="robust-variant" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="robust-variant"><span class="header-section-number">6</span> Robust Variant</h2>
 <p>The anytime-valid option composes with the ordinary <code>summary(vcov=...)</code> covariance interface. Here is the same fit with HC1 standard errors:</p>
-<div id="ba68dde6" class="cell" data-execution_count="6">
+<div id="75b4ae25" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>av_hc1 <span class="op">=</span> model.summary(vcov<span class="op">=</span><span class="st">"hc1"</span>, anytime_valid<span class="op">=</span><span class="va">True</span>, g<span class="op">=</span>g_star, level<span class="op">=</span><span class="fl">0.95</span>)</span>
@@ -794,7 +802,7 @@ AV F-test p-value: 1.467e-33</code></pre>
 <section id="compact-helper" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="compact-helper"><span class="header-section-number">7</span> Compact Helper</h2>
 <p><code>cm.av(...)</code> is a small convenience wrapper around the same <code>OLS.summary(...)</code> call. It returns the summary dictionary directly, not a new model object.</p>
-<div id="70c5c04a" class="cell" data-execution_count="7">
+<div id="b7ac1a8c" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>helper <span class="op">=</span> cm.av(model, g<span class="op">=</span>g_star, vcov<span class="op">=</span><span class="st">"vanilla"</span>)</span>
@@ -1215,13 +1223,18 @@ True</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

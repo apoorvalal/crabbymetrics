@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -510,37 +532,37 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Transforms</p>
 <p><code>PCA</code> learns an orthogonal low-rank basis from a design matrix. It centers the training data, computes principal directions, and maps observations to component scores:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Z = (X - \bar X) V_k.
-\]</span></p>
+</span></p>
 <p>With <code>whiten=True</code>, scores are rescaled by the singular values.</p>
 </section>
 <section id="objective-and-transforms" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="objective-and-transforms"><span class="header-section-number">2</span> Objective and transforms</h2>
-<p>Let <span class="math inline">\(X_c=X-\mathbf1\bar x'\)</span> and let <span class="math inline">\(X_c=U\operatorname{diag}(s)V'\)</span> be its singular value decomposition. Ordinary scores are</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">X_c=X-\mathbf1\bar x'</span> and let <span class="math inline">X_c=U\operatorname{diag}(s)V'</span> be its singular value decomposition. Ordinary scores are</p>
+<p><span class="math display">
 Z=X_cV_k,
-\]</span></p>
-<p>and the rank-<span class="math inline">\(k\)</span> reconstruction minimizes</p>
-<p><span class="math display">\[
+</span></p>
+<p>and the rank-<span class="math inline">k</span> reconstruction minimizes</p>
+<p><span class="math display">
 \min_{\operatorname{rank}(\tilde X)\leq k}\|X_c-\tilde X\|_F^2.
-\]</span></p>
-<p>For a fitted sample of size <span class="math inline">\(n\)</span>, whitening returns</p>
-<p><span class="math display">\[
+</span></p>
+<p>For a fitted sample of size <span class="math inline">n</span>, whitening returns</p>
+<p><span class="math display">
 Z_{\mathrm{white}}
 =
 X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
-\]</span></p>
-<p>so the retained in-sample score covariance is the identity. Inverse transformation removes that scaling before applying <span class="math inline">\(V_k'\)</span> and adding <span class="math inline">\(\bar x\)</span>. The summary reports</p>
-<p><span class="math display">\[
+</span></p>
+<p>so the retained in-sample score covariance is the identity. Inverse transformation removes that scaling before applying <span class="math inline">V_k'</span> and adding <span class="math inline">\bar x</span>. The summary reports</p>
+<p><span class="math display">
 \widehat{\operatorname{Var}}_j=\frac{s_j^2}{n-1},
 \qquad
 \text{explained ratio}_j
 =
 \frac{s_j^2}{\|X_c\|_F^2},
-\]</span></p>
+</span></p>
 <p>where the ratio denominator includes variance in discarded components.</p>
-<p><strong>PCA</strong> delegates a truncated largest-singular-vector solve to Linfa. <strong>RandomizedPCA</strong> instead constructs a randomized range of width <span class="math inline">\(k+s\)</span>, performs the requested power iterations, and takes a small SVD in that range. It returns unwhitened scores only and exposes singular values but not explained-variance fields.</p>
+<p><strong>PCA</strong> delegates a truncated largest-singular-vector solve to Linfa. <strong>RandomizedPCA</strong> instead constructs a randomized range of width <span class="math inline">k+s</span>, performs the requested power iterations, and takes a small SVD in that range. It returns unwhitened scores only and exposes singular values but not explained-variance fields.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
@@ -549,18 +571,18 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 <ol type="1">
 <li>The wrapper validates that at least two rows are present and separately computes the total sample variance from the centered entries. That full-spectrum denominator is retained because a truncated solver alone cannot recover the variance discarded outside the requested components.</li>
 <li>Linfa’s PCA implementation owns centering and the truncated singular-vector solve. The wrapper retains the fitted Linfa object, training row and feature counts, and the independently computed total variance.</li>
-<li><code>transform()</code> delegates projection to the fitted object. <code>summary()</code> converts Linfa’s principal-component columns into public component rows, obtains singular values from the fitted principal values, computes <span class="math inline">\(s_j^2/(n-1)\)</span>, and divides by the separately retained total variance for explained-variance ratios.</li>
-<li>Whitening and inverse transformation are package-facing behavior around that fitted decomposition: score columns are scaled by <span class="math inline">\(\sqrt{n-1}/s_j\)</span> on the way out and unscaled before multiplying by component rows and restoring the training mean.</li>
+<li><code>transform()</code> delegates projection to the fitted object. <code>summary()</code> converts Linfa’s principal-component columns into public component rows, obtains singular values from the fitted principal values, computes <span class="math inline">s_j^2/(n-1)</span>, and divides by the separately retained total variance for explained-variance ratios.</li>
+<li>Whitening and inverse transformation are package-facing behavior around that fitted decomposition: score columns are scaled by <span class="math inline">\sqrt{n-1}/s_j</span> on the way out and unscaled before multiplying by component rows and restoring the training mean.</li>
 </ol>
 </section>
 <section id="randomizedpca-native-randomized-svd" class="level3" data-number="3.2">
 <h3 data-number="3.2" class="anchored" data-anchor-id="randomizedpca-native-randomized-svd"><span class="header-section-number">3.2</span> <code>RandomizedPCA</code>: native randomized SVD</h3>
 <ol type="1">
-<li>The class computes and stores the column mean, centers an owned copy of <span class="math inline">\(X\)</span>, and calls the package’s randomized SVD with target rank <span class="math inline">\(k\)</span>, oversampling <span class="math inline">\(s\)</span>, and power count <span class="math inline">\(q\)</span>. The sketch width is <span class="math inline">\(\min(k+s,\min(n,p))\)</span>; ranks beyond the matrix dimensions and more than ten power iterations are rejected.</li>
-<li>The range finder draws a scaled Rademacher matrix whose entries are <span class="math inline">\(\pm1/\sqrt{k+s}\)</span> using the supplied seed or a fixed default. It forms <span class="math inline">\(Y=X_c\Omega\)</span> and obtains <span class="math inline">\(Q\)</span> from a dense QR factorization.</li>
-<li>Each power iteration forms <span class="math inline">\(X_c'Q\)</span>, orthonormalizes it, multiplies back by <span class="math inline">\(X_c\)</span>, and orthonormalizes again. Reorthogonalizing on both sides limits loss of numerical rank when singular values have a wide spread.</li>
-<li>The code projects to the small matrix <span class="math inline">\(B=Q'X_c\)</span>, computes a full dense SVD of <span class="math inline">\(B\)</span>, keeps its first <span class="math inline">\(k\)</span> triplets, and maps left vectors back as <span class="math inline">\(U=Q\tilde U\)</span>. <code>RandomizedPCA</code> stores the first <span class="math inline">\(k\)</span> right-singular-vector rows and singular values; it does not retain <span class="math inline">\(U\)</span>.</li>
-<li>Transform and inverse transform are direct <span class="math inline">\((X-\bar X)V_k\)</span> and <span class="math inline">\(ZV_k'+\bar X\)</span> products. There is no whitening branch and no uncertainty calculation for the randomized subspace.</li>
+<li>The class computes and stores the column mean, centers an owned copy of <span class="math inline">X</span>, and calls the package’s randomized SVD with target rank <span class="math inline">k</span>, oversampling <span class="math inline">s</span>, and power count <span class="math inline">q</span>. The sketch width is <span class="math inline">\min(k+s,\min(n,p))</span>; ranks beyond the matrix dimensions and more than ten power iterations are rejected.</li>
+<li>The range finder draws a scaled Rademacher matrix whose entries are <span class="math inline">\pm1/\sqrt{k+s}</span> using the supplied seed or a fixed default. It forms <span class="math inline">Y=X_c\Omega</span> and obtains <span class="math inline">Q</span> from a dense QR factorization.</li>
+<li>Each power iteration forms <span class="math inline">X_c'Q</span>, orthonormalizes it, multiplies back by <span class="math inline">X_c</span>, and orthonormalizes again. Reorthogonalizing on both sides limits loss of numerical rank when singular values have a wide spread.</li>
+<li>The code projects to the small matrix <span class="math inline">B=Q'X_c</span>, computes a full dense SVD of <span class="math inline">B</span>, keeps its first <span class="math inline">k</span> triplets, and maps left vectors back as <span class="math inline">U=Q\tilde U</span>. <code>RandomizedPCA</code> stores the first <span class="math inline">k</span> right-singular-vector rows and singular values; it does not retain <span class="math inline">U</span>.</li>
+<li>Transform and inverse transform are direct <span class="math inline">(X-\bar X)V_k</span> and <span class="math inline">ZV_k'+\bar X</span> products. There is no whitening branch and no uncertainty calculation for the randomized subspace.</li>
 </ol>
 <p>The approximation error comes from the randomized range, not from the final small SVD. Oversampling gives the range finder room to capture directions near the rank cutoff; power iterations amplify spectral gaps but require two extra matrix passes apiece. The fixed fallback seed makes an omitted seed reproducible.</p>
 </section>
@@ -568,13 +590,13 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 <section id="inference-and-performance" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference-and-performance"><span class="header-section-number">4</span> Inference and performance</h2>
 <p>These are deterministic or randomized feature transforms, not statistical coefficient estimators; neither class provides standard errors or uncertainty for the learned subspace. Principal directions are sign-indeterminate, and repeated singular values identify only a subspace.</p>
-<p>A full centered design requires <span class="math inline">\(O(np)\)</span> storage. Truncated PCA cost depends on the iterative eigensolver and requested <span class="math inline">\(k\)</span>. RandomizedPCA costs roughly <span class="math inline">\(O(np(k+s)(q+1))\)</span> for oversampling <span class="math inline">\(s\)</span> and power count <span class="math inline">\(q\)</span>, plus a small decomposition, and is most useful when <span class="math inline">\(k+s\ll\min(n,p)\)</span>. More power iterations improve spectral separation at additional passes over <span class="math inline">\(X\)</span>. Both transforms densify their input.</p>
+<p>A full centered design requires <span class="math inline">O(np)</span> storage. Truncated PCA cost depends on the iterative eigensolver and requested <span class="math inline">k</span>. RandomizedPCA costs roughly <span class="math inline">O(np(k+s)(q+1))</span> for oversampling <span class="math inline">s</span> and power count <span class="math inline">q</span>, plus a small decomposition, and is most useful when <span class="math inline">k+s\ll\min(n,p)</span>. More power iterations improve spectral separation at additional passes over <span class="math inline">X</span>. Both transforms densify their input.</p>
 </section>
 <section id="python-api" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="python-api"><span class="header-section-number">5</span> Python API</h2>
 <p>Constructors: <code>cm.PCA</code> and <code>cm.RandomizedPCA</code></p>
 <p>Use <code>PCA(n_components, whiten=False)</code> for the Linfa truncated solver or <code>RandomizedPCA(n_components, oversamples=10, power_iter=1, seed=None)</code> for randomized SVD. Both expose <code>fit</code>, <code>transform</code>, <code>fit_transform</code>, <code>inverse_transform</code>, and <code>summary</code>. At least two rows are required for <code>PCA</code>; randomized rank cannot exceed <code>min(x.shape)</code>.</p>
-<div id="e27c18f6" class="cell" data-execution_count="2">
+<div id="c15cfc12" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.PCA))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -583,7 +605,7 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 <pre><code>(n_components, whiten=False)</code></pre>
 </div>
 </div>
-<div id="99257175" class="cell" data-execution_count="3">
+<div id="e5bbf1f5" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.PCA</span>
@@ -619,7 +641,7 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 </table>
 </div>
 </div>
-<div id="e20c3623" class="cell" data-execution_count="4">
+<div id="1455c88c" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.RandomizedPCA</span>
@@ -658,7 +680,7 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 </section>
 <section id="minimal-example" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">6</span> Minimal example</h2>
-<div id="b85b43ba" class="cell" data-execution_count="5">
+<div id="d65cfd9d" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">22</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">150</span>, <span class="dv">5</span>)) <span class="op">@</span> np.array([[<span class="dv">1</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>, <span class="dv">0</span>, <span class="dv">0</span>], [<span class="dv">0</span>, <span class="fl">0.8</span>, <span class="fl">0.3</span>, <span class="fl">0.1</span>, <span class="dv">0</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.5</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.3</span>, <span class="fl">0.2</span>], [<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="fl">0.1</span>]])</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.PCA(n_components<span class="op">=</span><span class="dv">2</span>)</span>
@@ -684,7 +706,7 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 <section id="summary-contract" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">7</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="5f2f3d55" class="cell" data-execution_count="6">
+<div id="c431fe23" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">122</span>)</span>
@@ -1153,13 +1175,18 @@ X_cV_k\operatorname{diag}\left(\frac{\sqrt{n-1}}{s_j}\right),
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

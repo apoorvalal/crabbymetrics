@@ -104,6 +104,49 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../styles.css">
 </head>
@@ -277,6 +320,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -349,6 +396,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -458,7 +509,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This page shows how to estimate slope coefficients after partialling out one-way or multi-way categorical fixed effects with <code>within</code>.</p>
 <section id="simulate-a-two-way-fixed-effects-problem" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-two-way-fixed-effects-problem"><span class="header-section-number">1</span> Simulate A Two-Way Fixed Effects Problem</h2>
-<div id="cf5668ee" class="cell" data-execution_count="1">
+<div id="80fa72a2" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -466,7 +517,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="43816ac2" class="cell" data-execution_count="2">
+<div id="dbdd3ef7" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">800</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>beta_true <span class="op">=</span> np.array([<span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.9</span>])</span>
@@ -494,9 +545,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre><code>true coef: [ 1.2 -0.9]
 {'absorbed_df': 57,
  'absorbed_df_method': 'exact_two_way',
+ 'absorption_iterations': [18, 18, 18],
+ 'absorption_residual_norms': [7.019116151938364e-09,
+                               9.263346110384339e-09,
+                               8.198622018204918e-09],
+ 'cluster_correction': True,
  'coef': array([ 1.2034, -0.9   ]),
  'coef_se': array([0.0037, 0.0035]),
+ 'converged': True,
+ 'counted_fe_df': 57,
+ 'fe_df': 'full',
  'residual_df': 741.0,
+ 'ssc': 'cluster',
  'vcov': array([[ 0., -0.],
        [-0.,  0.]]),
  'vcov_type': 'hc1'}</code></pre>
@@ -506,7 +566,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="compare-to-explicit-dummy-ols" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="compare-to-explicit-dummy-ols"><span class="header-section-number">2</span> Compare To Explicit Dummy OLS</h2>
 <p><code>FixedEffectsOLS</code> is doing the Frisch-Waugh-Lovell version of the same regression. A useful check is to compare it against an OLS fit with worker and firm dummies added directly to the design matrix.</p>
-<div id="44ce4042" class="cell" data-execution_count="3">
+<div id="dc6eedf3" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dummy_block(levels):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    n_levels <span class="op">=</span> <span class="bu">int</span>(levels.<span class="bu">max</span>()) <span class="op">+</span> <span class="dv">1</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    block <span class="op">=</span> np.zeros((levels.shape[<span class="dv">0</span>], <span class="bu">max</span>(n_levels <span class="op">-</span> <span class="dv">1</span>, <span class="dv">0</span>)))</span>
@@ -534,7 +594,7 @@ Absolute difference:    [0. 0.]</code></pre>
 <section id="robust-covariance-options" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="robust-covariance-options"><span class="header-section-number">3</span> Robust Covariance Options</h2>
 <p>Once the fixed effects are partialled out, <code>summary()</code> exposes the same covariance choices as the other linear estimators.</p>
-<div id="203f0bd8" class="cell" data-execution_count="4">
+<div id="14cde392" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>worker_cluster <span class="op">=</span> worker.astype(np.int64)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>hc1 <span class="op">=</span> model.summary()</span>
@@ -556,9 +616,21 @@ Newey-West SE: [0.0036 0.0036]</code></pre>
 <ul>
 <li><code>fe</code> must be a 2D <code>uint32</code> matrix with one column per factor.</li>
 <li>Category codes should be zero-based and contiguous within each factor.</li>
-<li>The estimator absorbs the constant, so there is no intercept in the summary and no <code>predict()</code> method.</li>
+<li>The estimator absorbs the constant. <code>predict(x, fe)</code> includes identified one/two-way FE levels and rejects unseen levels or combinations crossing disconnected components. Three-or-more-way level prediction is not supported.</li>
 <li>Cluster labels passed to <code>summary(vcov="cluster", clusters=...)</code> should be a separate 1D <code>int64</code> array with one label per observation.</li>
 </ul>
+</section>
+<section id="solver-controls-and-covariance-conventions" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="solver-controls-and-covariance-conventions"><span class="header-section-number">5</span> Solver controls and covariance conventions</h2>
+<p><code>FixedEffectsOLS(tolerance=1e-8, max_iterations=1000)</code> exposes the absorption controls. An <code>(N, 0)</code> design fits FE only. Summary reports per-right-hand-side iterations and residual norms. Invalid settings and failed absorption raise errors.</p>
+<p>For clustered inference, <code>summary()</code> and <code>wald_test()</code> accept:</p>
+<ul>
+<li><code>fe_df="full"</code> (unchanged default), <code>"non_nested"</code> (exclude cluster-nested FE, counting an intercept), or <code>"none"</code> (slope count only). Multiway FE rank remains conservative beyond two FE dimensions.</li>
+<li><code>ssc="cluster"</code>: <span class="math inline">(N-1)/(N-K)</span>; <code>"hc1"</code>: <span class="math inline">N/(N-K)</span>; <code>"none"</code>: no observation count correction. Here <span class="math inline">K</span> includes slopes and the selected FE count.</li>
+<li><code>cluster_correction=True</code>: multiply by <span class="math inline">G/(G-1)</span>. Set false to omit this factor.</li>
+</ul>
+<p><code>ssc</code> and <code>cluster_correction</code> apply only to cluster covariance. These are explicit conventions, not claims that packages share a universal default. On the fatalities lecture, full FE gives SE 0.385787; <code>fe_df="non_nested"</code> reproduces fixest’s 0.357078; <code>fe_df="none", ssc="hc1", cluster_correction=False</code> reproduces plm HC1’s 0.350150. The slope is unchanged at -0.639980.</p>
+<p><code>summary()</code> retains <code>absorbed_df</code> (full model rank) and separately reports <code>counted_fe_df</code>, <code>residual_df</code>, and the selected correction policies.</p>
 
 
 </section>
@@ -968,13 +1040,18 @@ Newey-West SE: [0.0036 0.0036]</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

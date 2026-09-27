@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -521,11 +543,11 @@ window.Quarto = {
 </section>
 <section id="nonlinear-conjugate-gradient" class="level3" data-number="2.2">
 <h3 data-number="2.2" class="anchored" data-anchor-id="nonlinear-conjugate-gradient"><span class="header-section-number">2.2</span> Nonlinear conjugate gradient</h3>
-<p>This method uses Polak-Ribiere-plus directions and an Armijo backtracking line search with sufficient-decrease constant <span class="math inline">\(0.2\)</span>. It supports periodic and orthogonality restarts. Because the underlying solver does not use the public tolerance directly, the wrapper reevaluates the final Python gradient and upgrades the result to success when its Euclidean norm is at most <code>tolerance</code>.</p>
+<p>This method uses Polak-Ribiere-plus directions and an Armijo backtracking line search with sufficient-decrease constant <span class="math inline">0.2</span>. It supports periodic and orthogonality restarts. Because the underlying solver does not use the public tolerance directly, the wrapper reevaluates the final Python gradient and upgrades the result to success when its Euclidean norm is at most <code>tolerance</code>.</p>
 </section>
 <section id="gauss-newton-least-squares" class="level3" data-number="2.3">
 <h3 data-number="2.3" class="anchored" data-anchor-id="gauss-newton-least-squares"><span class="header-section-number">2.3</span> Gauss-Newton least squares</h3>
-<p>The package owns this loop. At each iterate it calls the residual and Jacobian functions, requires Jacobian shape <code>(n_residuals, n_parameters)</code>, forms <span class="math inline">\(g=J'r\)</span> and <span class="math inline">\(J'J\)</span>, explicitly inverts <span class="math inline">\(J'J\)</span>, and proposes <span class="math inline">\((J'J)^{-1}g\)</span>. Gradient or step norm below tolerance stops. Otherwise a halving line search requires strict decrease in <span class="math inline">\(\|r\|^2/2\)</span> down to scale <span class="math inline">\(10^{-8}\)</span>. A small objective change succeeds; a singular normal matrix, callback error, or malformed shape raises, while line-search or iteration exhaustion returns <code>success=False</code>.</p>
+<p>The package owns this loop. At each iterate it calls the residual and Jacobian functions, requires Jacobian shape <code>(n_residuals, n_parameters)</code>, forms <span class="math inline">g=J'r</span> and <span class="math inline">J'J</span>, explicitly inverts <span class="math inline">J'J</span>, and proposes <span class="math inline">(J'J)^{-1}g</span>. Gradient or step norm below tolerance stops. Otherwise a halving line search requires strict decrease in <span class="math inline">\|r\|^2/2</span> down to scale <span class="math inline">10^{-8}</span>. A small objective change succeeds; a singular normal matrix, callback error, or malformed shape raises, while line-search or iteration exhaustion returns <code>success=False</code>.</p>
 </section>
 <section id="simulated-annealing" class="level3" data-number="2.4">
 <h3 data-number="2.4" class="anchored" data-anchor-id="simulated-annealing"><span class="header-section-number">2.4</span> Simulated annealing</h3>
@@ -534,13 +556,13 @@ window.Quarto = {
 </section>
 <section id="performance-and-failure-behavior" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="performance-and-failure-behavior"><span class="header-section-number">3</span> Performance and failure behavior</h2>
-<p>Every objective, gradient, residual, or Jacobian evaluation crosses the Python-Rust boundary and copies NumPy results. BFGS stores <span class="math inline">\(O(p^2)\)</span> curvature state, L-BFGS and nonlinear CG use <span class="math inline">\(O(p)\)</span> state aside from callback data, and native Gauss-Newton forms and inverts a dense <span class="math inline">\(p\times p\)</span> normal matrix. The wrappers return the best parameter, then reevaluate the public objective to populate <code>fun</code>; a callback that is stochastic or stateful can therefore report a value different from the one attached to the optimizer’s best state.</p>
+<p>Every objective, gradient, residual, or Jacobian evaluation crosses the Python-Rust boundary and copies NumPy results. BFGS stores <span class="math inline">O(p^2)</span> curvature state, L-BFGS and nonlinear CG use <span class="math inline">O(p)</span> state aside from callback data, and native Gauss-Newton forms and inverts a dense <span class="math inline">p\times p</span> normal matrix. The wrappers return the best parameter, then reevaluate the public objective to populate <code>fun</code>; a callback that is stochastic or stateful can therefore report a value different from the one attached to the optimizer’s best state.</p>
 </section>
 <section id="python-api" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="python-api"><span class="header-section-number">4</span> Python API</h2>
 <p>Constructor: <code>cm.Optimizers</code></p>
 <p>The methods are static and return plain dictionaries with scipy-like keys: <code>x</code>, <code>fun</code>, <code>nit</code>, <code>success</code>, <code>message</code>, and <code>method</code>. Smooth minimizers require objective and gradient callbacks; Gauss-Newton requires residual and Jacobian callbacks; simulated annealing only requires the objective.</p>
-<div id="e2376ff6" class="cell" data-execution_count="2">
+<div id="1a9fed5e" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Optimizers))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -549,7 +571,7 @@ window.Quarto = {
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="33f9fa74" class="cell" data-execution_count="3">
+<div id="a8667c98" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Optimizers</span>
@@ -588,7 +610,7 @@ window.Quarto = {
 </section>
 <section id="minimal-example" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">5</span> Minimal example</h2>
-<div id="ef6543e2" class="cell" data-execution_count="4">
+<div id="c3aef245" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fun(theta):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(np.<span class="bu">sum</span>((theta <span class="op">-</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">2.0</span>])) <span class="op">**</span> <span class="dv">2</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> grad(theta):</span>
@@ -603,7 +625,7 @@ window.Quarto = {
 <section id="summary-contract" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">6</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="315c46dd" class="cell" data-execution_count="5">
+<div id="3c31bd6e" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> _Dummy:</span>
@@ -1040,13 +1062,18 @@ window.Quarto = {
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

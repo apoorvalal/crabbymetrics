@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -511,43 +533,43 @@ window.Quarto = {
 </section>
 <section id="criterion-and-identification" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="criterion-and-identification"><span class="header-section-number">2</span> Criterion and identification</h2>
-<p>Let <span class="math inline">\(X_f\)</span> be the full, overcomplete design containing the intercept, continuous regressors, every observed indicator level, and all requested continuous-by-category and category-by-category terms. The class constructs a constraint matrix <span class="math inline">\(A\)</span> from empirical category abundances and solves</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">X_f</span> be the full, overcomplete design containing the intercept, continuous regressors, every observed indicator level, and all requested continuous-by-category and category-by-category terms. The class constructs a constraint matrix <span class="math inline">A</span> from empirical category abundances and solves</p>
+<p><span class="math display">
 \min_\theta \|y-X_f\theta\|_2^2
 \quad\text{subject to}\quad
 A\theta=0.
-\]</span></p>
-<p>For a categorical main effect, the constraint is the abundance-weighted zero mean <span class="math inline">\(\sum_\ell \hat p_\ell\theta_\ell=0\)</span>. Continuous-by-category coefficients use the same weighted-zero constraint over category levels. A category-by-category table receives weighted zero-margin restrictions along both dimensions, with one redundant margin removed.</p>
-<p>The implementation eigendecomposes <span class="math inline">\(A'A\)</span> and collects an orthonormal null-space basis <span class="math inline">\(Q\)</span> satisfying <span class="math inline">\(AQ=0\)</span>. It then parameterizes <span class="math inline">\(\theta=Q\phi\)</span> and solves</p>
-<p><span class="math display">\[
+</span></p>
+<p>For a categorical main effect, the constraint is the abundance-weighted zero mean <span class="math inline">\sum_\ell \hat p_\ell\theta_\ell=0</span>. Continuous-by-category coefficients use the same weighted-zero constraint over category levels. A category-by-category table receives weighted zero-margin restrictions along both dimensions, with one redundant margin removed.</p>
+<p>The implementation eigendecomposes <span class="math inline">A'A</span> and collects an orthonormal null-space basis <span class="math inline">Q</span> satisfying <span class="math inline">AQ=0</span>. It then parameterizes <span class="math inline">\theta=Q\phi</span> and solves</p>
+<p><span class="math display">
 \hat\phi=\arg\min_\phi\|y-X_fQ\phi\|_2^2,
 \qquad
 \hat\theta=Q\hat\phi.
-\]</span></p>
+</span></p>
 <p>This identifies one empirically centered representative from the otherwise non-unique full-indicator coefficient system. The constraints depend on the estimation sample, so coefficients need not be invariant to changing the sample’s category proportions.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The abundance-based parameterization is constructed explicitly; it is not implemented by choosing omitted levels and recoding coefficients afterward.</p>
 <ol type="1">
-<li><p>Continuous columns are optionally centered by their estimation-sample means, which are retained for prediction. Each categorical column must use contiguous observed codes <span class="math inline">\(0,\ldots,L_k-1\)</span>; a gap is rejected rather than silently treated as an empty level.</p></li>
+<li><p>Continuous columns are optionally centered by their estimation-sample means, which are retained for prediction. Each categorical column must use contiguous observed codes <span class="math inline">0,\ldots,L_k-1</span>; a gap is rejected rather than silently treated as an empty level.</p></li>
 <li><p>The code computes empirical marginal level shares and, for every requested category-by-category interaction, empirical cell shares. Every requested interaction cell must occur. These sample shares become coefficients in the restrictions, so the constraints and the coefficient interpretation are data-dependent.</p></li>
 <li><p>The full design is materialized in a deterministic order: intercept, continuous main effects, all indicator columns for each category, requested continuous-by-category products, and requested category-by-category cell indicators. Metadata for every column is stored alongside human-readable names.</p></li>
 <li><p>Constraint rows are assembled against those column metadata. Main categorical effects and continuous-by-category blocks receive abundance-weighted zero-sum rows. A two-category table receives weighted margin restrictions in both directions, with one redundant margin omitted before numerical null-space construction.</p></li>
-<li><p>The code forms <span class="math inline">\(A'A\)</span>, performs a symmetric eigendecomposition, and defines a numerical null direction when its eigenvalue is no larger than</p>
-<p><span class="math display">\[
+<li><p>The code forms <span class="math inline">A'A</span>, performs a symmetric eigendecomposition, and defines a numerical null direction when its eigenvalue is no larger than</p>
+<p><span class="math display">
 100\max(m,p)\epsilon\max\{\lambda_{\max}(A'A),1\}.
-\]</span></p>
-<p>The selected eigenvectors are the orthonormal columns of <span class="math inline">\(Q\)</span>. This avoids choosing an arbitrary reference cell but squares the condition number of <span class="math inline">\(A\)</span>.</p></li>
-<li><p>It materializes <span class="math inline">\(Z=X_fQ\)</span>, checks that at least one free coordinate and positive residual degrees of freedom remain, solves <span class="math inline">\(Z\phi\approx y\)</span> by least squares, and maps back with <span class="math inline">\(\theta=Q\phi\)</span>. Fitted values use the original full design and constrained coefficients.</p></li>
-<li><p>Prediction centers new continuous values with the stored training means, rejects unseen categorical codes, rebuilds the same full column layout, and multiplies by <span class="math inline">\(\hat\theta\)</span>. The reported maximum violation is <span class="math inline">\(\|A\hat\theta\|_\infty\)</span> and is a direct numerical audit of the reparameterization.</p></li>
+</span></p>
+<p>The selected eigenvectors are the orthonormal columns of <span class="math inline">Q</span>. This avoids choosing an arbitrary reference cell but squares the condition number of <span class="math inline">A</span>.</p></li>
+<li><p>It materializes <span class="math inline">Z=X_fQ</span>, checks that at least one free coordinate and positive residual degrees of freedom remain, solves <span class="math inline">Z\phi\approx y</span> by least squares, and maps back with <span class="math inline">\theta=Q\phi</span>. Fitted values use the original full design and constrained coefficients.</p></li>
+<li><p>Prediction centers new continuous values with the stored training means, rejects unseen categorical codes, rebuilds the same full column layout, and multiplies by <span class="math inline">\hat\theta</span>. The reported maximum violation is <span class="math inline">\|A\hat\theta\|_\infty</span> and is a direct numerical audit of the reparameterization.</p></li>
 </ol>
-<p>The null-space route makes the estimand transparent and keeps the least-squares solve unconstrained. Its cost is dense expansion plus a tolerance-sensitive eigendecomposition; a sparse QR of <span class="math inline">\(A'\)</span> would be a more scalable construction for high-cardinality systems.</p>
+<p>The null-space route makes the estimand transparent and keeps the least-squares solve unconstrained. Its cost is dense expansion plus a tolerance-sensitive eigendecomposition; a sparse QR of <span class="math inline">A'</span> would be a more scalable construction for high-cardinality systems.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>Inference is homoskedastic and conditional on the constructed design and empirical constraints. With <span class="math inline">\(Z=X_fQ\)</span>, <span class="math inline">\(r=\operatorname{rank}(Z)\)</span>, and <span class="math inline">\(e=y-Z\hat\phi\)</span>,</p>
-<p><span class="math display">\[
+<p>Inference is homoskedastic and conditional on the constructed design and empirical constraints. With <span class="math inline">Z=X_fQ</span>, <span class="math inline">r=\operatorname{rank}(Z)</span>, and <span class="math inline">e=y-Z\hat\phi</span>,</p>
+<p><span class="math display">
 \hat\sigma^2=\frac{e'e}{n-r},
 \qquad
 \widehat{\operatorname{Var}}(\hat\phi)
@@ -557,19 +579,19 @@ A\theta=0.
 \widehat{\operatorname{Var}}(\hat\theta)
 =
 Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
-\]</span></p>
+</span></p>
 <p>The reported standard errors use a checked covariance diagonal: only tiny negative roundoff is clipped, while materially negative or nonfinite variances raise. The class does not implement robust or bootstrap covariance. It treats the abundance constraints as fixed rather than accounting for their sampling variation.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>The main risk is feature expansion. If <span class="math inline">\(p_f\)</span> is the width of the full design, the constraint eigendecomposition and covariance are dense <span class="math inline">\(p_f\times p_f\)</span> operations with roughly cubic factorization cost and quadratic storage. Category-by-category interactions can make <span class="math inline">\(p_f\)</span> grow as the product of level counts, and the fit requires every requested interaction cell to be represented. Prediction rebuilds the same dense full design and rejects unseen or inconsistently ordered category levels. This estimator is appropriate for moderate categorical systems where the centered coefficient parameterization is substantively useful, not high-cardinality sparse designs.</p>
+<p>The main risk is feature expansion. If <span class="math inline">p_f</span> is the width of the full design, the constraint eigendecomposition and covariance are dense <span class="math inline">p_f\times p_f</span> operations with roughly cubic factorization cost and quadratic storage. Category-by-category interactions can make <span class="math inline">p_f</span> grow as the product of level counts, and the fit requires every requested interaction cell to be represented. Prediction rebuilds the same dense full design and rejects unseen or inconsistently ordered category levels. This estimator is appropriate for moderate categorical systems where the centered coefficient parameterization is substantively useful, not high-cardinality sparse designs.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.ABCOLS</code></p>
 <p>Call <code>fit(y, x, categories, cont_cat_interactions=None, cat_cat_interactions=None, center_continuous=True)</code>. Categorical inputs are zero-based dense <code>uint32</code> codes. <code>predict(x, categories)</code> returns fitted means for new rows under the same coding scheme. <code>summary()</code> reports constrained coefficients, standard errors, column names, constraint names, residual variance, residual degrees of freedom, rank, and a maximum-constraint-violation diagnostic.</p>
 <p>Sparse enormous category codes are rejected before count-array allocation. Checked interaction dimensions and a 512 MiB per-matrix limit guard the expanded design and constraint workspace. This is not a total-process memory guarantee.</p>
-<div id="c598d800" class="cell" data-execution_count="2">
+<div id="03254f60" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.ABCOLS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -578,7 +600,7 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="45293338" class="cell" data-execution_count="3">
+<div id="300d1044" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.ABCOLS</span>
@@ -626,7 +648,7 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="179dd7f5" class="cell" data-execution_count="4">
+<div id="3ab47156" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2026</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>group <span class="op">=</span> np.repeat(np.array([<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>], dtype<span class="op">=</span>np.uint32), [<span class="dv">36</span>, <span class="dv">54</span>, <span class="dv">30</span>])</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>sex <span class="op">=</span> np.tile(np.array([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>np.uint32), <span class="bu">len</span>(group) <span class="op">//</span> <span class="dv">2</span>)</span>
@@ -650,7 +672,7 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="8821d970" class="cell" data-execution_count="5">
+<div id="a600569d" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2126</span>)</span>
@@ -1128,13 +1150,18 @@ Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

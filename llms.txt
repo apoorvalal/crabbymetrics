@@ -4,7 +4,7 @@
 
 This file is for coding agents and LLMs that need to use `crabbymetrics` correctly in applications. Prefer this file when you need a dense API map, data-shape conventions, estimator selection guidance, and links into the human documentation site.
 
-Documentation baseline: v0.9.0. See release-0.9.html for migration notes and reproducing.html for fresh execution and data provenance.
+Documentation baseline: v0.9.1. See release-0.9.1.html for the SCM/FE patch and release-0.9.html for migration notes and reproducing.html for fresh execution and data provenance.
 
 Canonical project locations:
 
@@ -41,7 +41,7 @@ The package is built with PyO3/maturin and ships native wheels. Python package v
 - `summary()` returns a plain Python `dict`, not a rich result object. Downstream code should index by keys.
 - `bootstrap(n_bootstrap, seed=None)` returns NumPy arrays or dicts depending on estimator; if an estimator has an intercept, bootstrap draws place the intercept first.
 - OLS, Ridge, ElasticNet, Logit, MultinomialLogit, Poisson, and TwoSLS fit an intercept internally.
-- `FixedEffectsOLS`, `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
+- `EPLM`, `AverageDerivative`, `PartiallyLinearDML`, `AIPW`, `GMM`, and `MEstimator` are estimation-first and intentionally do not expose `predict()`.
 - Weighted fits exist for OLS, Ridge, FixedEffectsOLS, and TwoSLS.
 - Starting in 0.9.0, those weights are explicitly analytic, not frequency weights. Zero-weight rows and zero-only clusters are excluded from inference counts; HAC lags use the active-row sequence. Ridge CV retains row-modulo fold assignment.
 - Estimator fit methods clear prior learned state on entry, including failed numerical/validation refits. Python argument conversion errors occur before Rust fit entry and cannot enforce this reset.
@@ -98,6 +98,10 @@ Use these defaults unless the application has a reason to do otherwise:
 - Feature transformations: `cm.PCA(...)`, `cm.RandomizedPCA(...)`, `cm.KernelBasis(...)`, `cm.NystromBasis(...)`, and `cm.RandomFourierFeatures(...)`.
 - Regularized estimators expose point estimates for prediction but do not claim analytic standard errors unless the fitted objective and covariance match.
 - Direct numerical optimization with Python callbacks: `cm.Optimizers.minimize_*`.
+
+## FE counterfactual imputation
+
+`cm.FEImputation(tolerance=1e-10, max_iterations=1000).fit(y, treatment, x=None, observed=None, sample_weight=None)` uses float64 N x T outcomes/treatment, optional N x T x K covariates, Boolean observation mask, and nonnegative cell weights. Fits only observed untreated positive-weight cells. Supports missing observations and reversals, unlike the absorbing-only estimators. `predict()` returns N x T counterfactuals (NaN excluded); `summary()` returns weighted observed-treated-cell ATT, unit/time effects, masks, counts and diagnostics. Unidentified FE predictions fail. Point estimates only: no SEs, IFEct or MCct. See examples/fe-imputation.qmd.
 
 ## Panel causal API
 
@@ -184,14 +188,15 @@ bootstrap(n_bootstrap, seed=None)
 `penalty` may be a scalar or a grid. With a grid, Ridge cross-validates, stores coefficient paths, and exposes `penalty`, `penalties`, `best_penalty_index`, `cv_mse`, `intercept_path`, and `coef_path` in addition to coefficient summaries.
 
 ```python
-cm.FixedEffectsOLS()
+cm.FixedEffectsOLS(tolerance=1e-8, max_iterations=1000)
 fit(x, fe, y)
 fit_weighted(x, fe, y, sample_weight)
-summary(vcov="hc1", lags=None, clusters=None)
+predict(x, fe)  # identified levels: one/two FE dimensions only
+summary(vcov="hc1", lags=None, clusters=None, fe_df="full", ssc="cluster", cluster_correction=True)
 bootstrap(n_bootstrap, seed=None)
 ```
 
-`fe` is a 2D `uint32`-like matrix of zero-based category codes, shape `(n_observations, n_fixed_effect_dimensions)`. The estimator partials out fixed effects and estimates slopes without an intercept. `summary()` reports absorbed and residual degrees of freedom; one- and two-way absorbed rank is exact, while three-or-more-way rank is explicitly labeled conservative.
+`fe` is a 2D `uint32`-like matrix of zero-based category codes, shape `(n_observations, n_fixed_effect_dimensions)`. The estimator partials out fixed effects and estimates slopes without a separate intercept. Empty-column x supports FE-only fits. IDs are compacted internally. Level prediction rejects unseen levels and disconnected two-way combinations. Full-FE df correction remains the default; fe_df="non_nested" excludes cluster-nested FE (with an intercept convention), and "none" excludes all FE from the correction. Cluster ssc can be "cluster" ((N-1)/(N-K)), "hc1" (N/(N-K)), or "none"; cluster_correction controls G/(G-1). `summary()` reports absorbed and residual degrees of freedom; one- and two-way absorbed rank is exact, while three-or-more-way rank is explicitly labeled conservative.
 
 ```python
 cm.TwoSLS()
@@ -611,7 +616,8 @@ If you need to inspect or modify source, start here:
 - `src/estimators/linear.rs`: OLS, FixedEffectsOLS, anytime-valid linear inference, and shared linear covariance helpers.
 - `src/estimators/iv.rs`: TwoSLS.
 - `src/estimators/panel.rs`: InteractiveFixedEffects, MatrixCompletion, HorizontalPanelRidge, factor/fixed-effect panel helpers, and shared panel summaries.
-- `src/estimators/synthetic.rs`: SyntheticControl and SyntheticDID.
+- `src/estimators/synthetic.rs`: SyntheticControl and SyntheticDID. SCM uses an active-set simplex QP with exact zeros, KKT diagnostics, and errors on nonconvergence.
+- `src/estimators/imputation.rs`: untreated-only FEImputation.
 - `src/estimators/augmented_balancing.rs`: composable outcome-model, unit-balancing, and double-balancing panel ATT.
 - `src/estimators/regularized.rs`: Ridge, ElasticNet, BaggedPolynomialRegressor.
 - `src/estimators/mle.rs`: Logit, MultinomialLogit, Poisson, MEstimator.

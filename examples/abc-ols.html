@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -517,115 +539,115 @@ window.Quarto = {
 </section>
 <section id="setup" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="setup"><span class="header-section-number">2</span> Setup</h2>
-<p>Let <span class="math inline">\(y_i \in \mathbb R\)</span>, continuous covariates <span class="math inline">\(x_i \in \mathbb R^p\)</span>, and categorical covariates <span class="math inline">\(c_i = (c_{i1}, \ldots, c_{iK})\)</span>. For a categorical variable <span class="math inline">\(C_k\)</span> with levels <span class="math inline">\(\ell = 0, \ldots, L_k - 1\)</span>, define empirical level abundances</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">y_i \in \mathbb R</span>, continuous covariates <span class="math inline">x_i \in \mathbb R^p</span>, and categorical covariates <span class="math inline">c_i = (c_{i1}, \ldots, c_{iK})</span>. For a categorical variable <span class="math inline">C_k</span> with levels <span class="math inline">\ell = 0, \ldots, L_k - 1</span>, define empirical level abundances</p>
+<p><span class="math display">
 \hat\pi_{k\ell} = \frac{1}{n}\sum_{i=1}^n 1\{c_{ik}=\ell\}.
-\]</span></p>
-<p>For two categorical variables <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span>, define empirical cell abundances</p>
-<p><span class="math display">\[
+</span></p>
+<p>For two categorical variables <span class="math inline">A</span> and <span class="math inline">B</span>, define empirical cell abundances</p>
+<p><span class="math display">
 \hat\pi_{ab} = \frac{1}{n}\sum_{i=1}^n 1\{A_i=a, B_i=b\}.
-\]</span></p>
+</span></p>
 <p><code>ABCOLS</code> expects categorical variables to be supplied as zero-based integer codes in a dense matrix. This keeps the runtime dependency footprint NumPy-only; callers with pandas categoricals should convert levels to stable codes before fitting.</p>
 </section>
 <section id="main-effect-constraints" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="main-effect-constraints"><span class="header-section-number">3</span> Main-effect constraints</h2>
 <p>For categorical main effects, the overcomplete model includes one coefficient for every level:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mu_i = \alpha_0 + x_i'\alpha + \sum_{\ell=0}^{L_k-1} 1\{C_{ik}=\ell\}\beta_{k\ell}.
-\]</span></p>
+</span></p>
 <p>The abundance-based identifying constraint is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_{\ell=0}^{L_k-1} \hat\pi_{k\ell}\beta_{k\ell}=0.
-\]</span></p>
-<p>So <span class="math inline">\(\beta_{k\ell}\)</span> is the deviation of level <span class="math inline">\(\ell\)</span> from the sample-abundance-weighted average, not the deviation from a reference level. With centered continuous covariates, the intercept is interpretable as the sample-weighted grand mean at the sample mean of <span class="math inline">\(x\)</span>.</p>
+</span></p>
+<p>So <span class="math inline">\beta_{k\ell}</span> is the deviation of level <span class="math inline">\ell</span> from the sample-abundance-weighted average, not the deviation from a reference level. With centered continuous covariates, the intercept is interpretable as the sample-weighted grand mean at the sample mean of <span class="math inline">x</span>.</p>
 </section>
 <section id="continuous-by-categorical-interactions" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="continuous-by-categorical-interactions"><span class="header-section-number">4</span> Continuous-by-categorical interactions</h2>
-<p>For a continuous variable <span class="math inline">\(x_j\)</span> and categorical modifier <span class="math inline">\(C_k\)</span>, the overcomplete model adds</p>
-<p><span class="math display">\[
+<p>For a continuous variable <span class="math inline">x_j</span> and categorical modifier <span class="math inline">C_k</span>, the overcomplete model adds</p>
+<p><span class="math display">
 \sum_{\ell=0}^{L_k-1} x_{ij}1\{C_{ik}=\ell\}\gamma_{jk\ell}.
-\]</span></p>
+</span></p>
 <p><code>ABCOLS</code> imposes</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_{\ell=0}^{L_k-1} \hat\pi_{k\ell}\gamma_{jk\ell}=0.
-\]</span></p>
-<p>The group-specific slope in level <span class="math inline">\(\ell\)</span> is</p>
-<p><span class="math display">\[
+</span></p>
+<p>The group-specific slope in level <span class="math inline">\ell</span> is</p>
+<p><span class="math display">
 s_{j\ell} = \alpha_j + \gamma_{jk\ell}.
-\]</span></p>
+</span></p>
 <p>The constraint implies</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \alpha_j = \sum_{\ell=0}^{L_k-1}\hat\pi_{k\ell}s_{j\ell}.
-\]</span></p>
+</span></p>
 <p>Thus the continuous main effect remains the empirical-abundance-weighted average of group-specific slopes.</p>
 </section>
 <section id="categorical-by-categorical-interactions" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="categorical-by-categorical-interactions"><span class="header-section-number">5</span> Categorical-by-categorical interactions</h2>
-<p>For two categorical variables <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span>, the overcomplete model includes a cell coefficient <span class="math inline">\(\delta_{ab}\)</span> for every observed cell:</p>
-<p><span class="math display">\[
+<p>For two categorical variables <span class="math inline">A</span> and <span class="math inline">B</span>, the overcomplete model includes a cell coefficient <span class="math inline">\delta_{ab}</span> for every observed cell:</p>
+<p><span class="math display">
 \sum_a\sum_b 1\{A_i=a,B_i=b\}\delta_{ab}.
-\]</span></p>
+</span></p>
 <p>The ABC constraints impose weighted zero margins:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_b \hat\pi_{ab}\delta_{ab}=0 \quad \text{for each } a,
-\]</span></p>
+</span></p>
 <p>and</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_a \hat\pi_{ab}\delta_{ab}=0 \quad \text{for each } b.
-\]</span></p>
-<p>One of these constraints is redundant. <code>ABCOLS</code> uses a deterministic rule: it includes all <span class="math inline">\(A\)</span>-margin constraints and all but the first <span class="math inline">\(B\)</span>-margin constraint.</p>
+</span></p>
+<p>One of these constraints is redundant. <code>ABCOLS</code> uses a deterministic rule: it includes all <span class="math inline">A</span>-margin constraints and all but the first <span class="math inline">B</span>-margin constraint.</p>
 </section>
 <section id="null-space-implementation" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="null-space-implementation"><span class="header-section-number">6</span> Null-space implementation</h2>
 <p>Rather than hand-building weighted contrast columns, <code>ABCOLS</code> uses the constraint/null-space route.</p>
-<p>First build an overcomplete design matrix <span class="math inline">\(X_{\rm full}\)</span> containing:</p>
+<p>First build an overcomplete design matrix <span class="math inline">X_{\rm full}</span> containing:</p>
 <ol type="1">
 <li>an intercept;</li>
 <li>centered continuous variables;</li>
 <li>one indicator for every categorical level;</li>
-<li>one column <span class="math inline">\(x_j1\{C_k=\ell\}\)</span> for every requested continuous-categorical interaction level;</li>
-<li>one column <span class="math inline">\(1\{A=a,B=b\}\)</span> for every requested categorical-categorical interaction cell.</li>
+<li>one column <span class="math inline">x_j1\{C_k=\ell\}</span> for every requested continuous-categorical interaction level;</li>
+<li>one column <span class="math inline">1\{A=a,B=b\}</span> for every requested categorical-categorical interaction cell.</li>
 </ol>
-<p>Let <span class="math inline">\(\theta\)</span> collect all overcomplete coefficients. The ABC restrictions are linear:</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">\theta</span> collect all overcomplete coefficients. The ABC restrictions are linear:</p>
+<p><span class="math display">
 A\theta = 0.
-\]</span></p>
-<p>Let <span class="math inline">\(Q\)</span> be a basis for the null space of <span class="math inline">\(A\)</span>, so <span class="math inline">\(AQ=0\)</span>. Write</p>
-<p><span class="math display">\[
+</span></p>
+<p>Let <span class="math inline">Q</span> be a basis for the null space of <span class="math inline">A</span>, so <span class="math inline">AQ=0</span>. Write</p>
+<p><span class="math display">
 \theta = Q\phi.
-\]</span></p>
+</span></p>
 <p>Then fit the unconstrained OLS problem</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\phi = \arg\min_\phi \|y - X_{\rm full}Q\phi\|_2^2.
-\]</span></p>
-<p>With <span class="math inline">\(Z = X_{\rm full}Q\)</span>,</p>
-<p><span class="math display">\[
+</span></p>
+<p>With <span class="math inline">Z = X_{\rm full}Q</span>,</p>
+<p><span class="math display">
 \hat\phi = (Z'Z)^{-1}Z'y,
 \qquad
 \hat\theta = Q\hat\phi.
-\]</span></p>
+</span></p>
 <p>The fitted values are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat y = X_{\rm full}\hat\theta = Z\hat\phi.
-\]</span></p>
+</span></p>
 <p>For homoskedastic OLS inference in the reduced coordinates,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat{\operatorname{Var}}(\hat\phi)
 = \hat\sigma^2 (Z'Z)^{-1},
 \qquad
 \hat\sigma^2 = \frac{\|y - Z\hat\phi\|_2^2}{n - \operatorname{rank}(Z)}.
-\]</span></p>
+</span></p>
 <p>Mapping back gives</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat{\operatorname{Var}}(\hat\theta)
 = Q\widehat{\operatorname{Var}}(\hat\phi)Q'.
-\]</span></p>
-<p>The implementation reports coefficient standard errors from the diagonal of this matrix and records the maximum constraint violation <span class="math inline">\(\|A\hat\theta\|_\infty\)</span> as a numerical check.</p>
+</span></p>
+<p>The implementation reports coefficient standard errors from the diagonal of this matrix and records the maximum constraint violation <span class="math inline">\|A\hat\theta\|_\infty</span> as a numerical check.</p>
 </section>
 <section id="example-abc-versus-base-category-coding" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="example-abc-versus-base-category-coding"><span class="header-section-number">7</span> Example: ABC versus base-category coding</h2>
 <p>The example below cooks an unbalanced sample with a three-level categorical modifier <code>group</code> and a two-level categorical variable <code>sex</code>. The true data-generating process has group-specific intercept and slope deviations.</p>
-<div id="067618d4" class="cell" data-execution_count="1">
+<div id="90cf02ae" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -657,7 +679,7 @@ A\theta = 0.
 </details>
 </div>
 <p>The raw simulation parameters are therefore:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \alpha_0 = 1.25,
 \qquad
 \beta_0 = 1.10,
@@ -669,22 +691,22 @@ A\theta = 0.
 \delta_s = (0,\ 0.35),
 \qquad
 \sigma = 0.08.
-\]</span></p>
-<p>Here <span class="math inline">\(\gamma_g\)</span> are the raw group intercept deviations, <span class="math inline">\(\eta_g\)</span> are the raw <code>x0:group</code> slope deviations, and <span class="math inline">\(\delta_s\)</span> is the raw sex main effect. Since ABC reports abundance-centered effects, the population coefficients in the ABC parameterization shift these raw effects by their sample-abundance averages. With <span class="math inline">\(\hat\pi_g=(0.30,0.45,0.25)\)</span> and <span class="math inline">\(\hat\pi_s=(0.50,0.50)\)</span>,</p>
-<p><span class="math display">\[
+</span></p>
+<p>Here <span class="math inline">\gamma_g</span> are the raw group intercept deviations, <span class="math inline">\eta_g</span> are the raw <code>x0:group</code> slope deviations, and <span class="math inline">\delta_s</span> is the raw sex main effect. Since ABC reports abundance-centered effects, the population coefficients in the ABC parameterization shift these raw effects by their sample-abundance averages. With <span class="math inline">\hat\pi_g=(0.30,0.45,0.25)</span> and <span class="math inline">\hat\pi_s=(0.50,0.50)</span>,</p>
+<p><span class="math display">
 \bar\gamma = \hat\pi_g'\gamma = 0.08,
 \qquad
 \bar\eta = \hat\pi_g'\eta = 0.07,
 \qquad
 \bar\delta = \hat\pi_s'\delta = 0.175.
-\]</span></p>
+</span></p>
 <p>So the true ABC-centered coefficients implied by the DGP are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \alpha = 1.25 + 0.08 + 0.175 = 1.505,
 \qquad
 \beta = 1.10 + 0.07 = 1.17,
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 g = (-0.83,\ 0.07,\ 0.87),
 \qquad
 s = (-0.175,\ 0.175),
@@ -692,68 +714,68 @@ s = (-0.175,\ 0.175),
 h = (0.38,\ -0.27,\ 0.03),
 \qquad
 d_{ab}=0 \;\; \text{for all cells}.
-\]</span></p>
+</span></p>
 <p>These are the targets to keep in mind before looking at the overcomplete design matrix and its constraints.</p>
 <section id="the-concrete-overparameterized-design" class="level3" data-number="7.1">
 <h3 data-number="7.1" class="anchored" data-anchor-id="the-concrete-overparameterized-design"><span class="header-section-number">7.1</span> The concrete overparameterized design</h3>
 <p>For this simulation, the overparameterized coefficient vector is ordered as</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \theta =
 (\alpha,\ \beta,\
 g_0,g_1,g_2,\
 s_0,s_1,\
 h_0,h_1,h_2,\
 d_{00},d_{01},d_{10},d_{11},d_{20},d_{21})'.
-\]</span></p>
-<p>Here <span class="math inline">\(\alpha\)</span> is the intercept, <span class="math inline">\(\beta\)</span> is the main slope on centered <code>x0</code>, <span class="math inline">\(g_a\)</span> is the <code>group=a</code> main effect, <span class="math inline">\(s_b\)</span> is the <code>sex=b</code> main effect, <span class="math inline">\(h_a\)</span> is the <code>x0:group=a</code> slope deviation, and <span class="math inline">\(d_{ab}\)</span> is the <code>group=a:sex=b</code> interaction cell coefficient.</p>
+</span></p>
+<p>Here <span class="math inline">\alpha</span> is the intercept, <span class="math inline">\beta</span> is the main slope on centered <code>x0</code>, <span class="math inline">g_a</span> is the <code>group=a</code> main effect, <span class="math inline">s_b</span> is the <code>sex=b</code> main effect, <span class="math inline">h_a</span> is the <code>x0:group=a</code> slope deviation, and <span class="math inline">d_{ab}</span> is the <code>group=a:sex=b</code> interaction cell coefficient.</p>
 <p>The sample abundances are fixed by construction:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\pi_g = (0.30,0.45,0.25), \qquad
 \hat\pi_s = (0.50,0.50),
-\]</span></p>
+</span></p>
 <p>and, because <code>sex</code> alternates within each group,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\pi_{00}=0.150,\quad \hat\pi_{01}=0.150,\quad
 \hat\pi_{10}=0.225,\quad \hat\pi_{11}=0.225,\quad
 \hat\pi_{20}=0.125,\quad \hat\pi_{21}=0.125.
-\]</span></p>
-<p>Thus the concrete constraint system <span class="math inline">\(A\theta=0\)</span> is</p>
-<p><span class="math display">\[
+</span></p>
+<p>Thus the concrete constraint system <span class="math inline">A\theta=0</span> is</p>
+<p><span class="math display">
 0.30g_0 + 0.45g_1 + 0.25g_2 = 0,
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 0.50s_0 + 0.50s_1 = 0,
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 0.30h_0 + 0.45h_1 + 0.25h_2 = 0,
-\]</span></p>
+</span></p>
 <p>and, for the <code>group:sex</code> interaction,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 0.150d_{00}+0.150d_{01}=0,
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 0.225d_{10}+0.225d_{11}=0,
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 0.125d_{20}+0.125d_{21}=0,
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 0.150d_{01}+0.225d_{11}+0.125d_{21}=0.
-\]</span></p>
+</span></p>
 <p>There are 16 overparameterized coefficients and 7 independent constraints, so the constrained coefficient space is 9-dimensional. One especially readable null-space parameterization chooses</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \phi = (\alpha,\beta,g_1,g_2,s_1,h_1,h_2,d_{11},d_{21})'.
-\]</span></p>
-<p>Then <span class="math inline">\(\theta = Q_{\rm hand}\phi\)</span> where the constrained coefficients are recovered as</p>
-<p><span class="math display">\[
+</span></p>
+<p>Then <span class="math inline">\theta = Q_{\rm hand}\phi</span> where the constrained coefficients are recovered as</p>
+<p><span class="math display">
 g_0 = -\frac{3}{2}g_1 - \frac{5}{6}g_2,
 \qquad
 s_0 = -s_1,
 \qquad
 h_0 = -\frac{3}{2}h_1 - \frac{5}{6}h_2,
-\]</span></p>
+</span></p>
 <p>and</p>
-<p><span class="math display">\[
+<p><span class="math display">
 d_{01} = -\frac{3}{2}d_{11} - \frac{5}{6}d_{21},
 \qquad
 d_{00} = \frac{3}{2}d_{11} + \frac{5}{6}d_{21},
@@ -761,13 +783,13 @@ d_{00} = \frac{3}{2}d_{11} + \frac{5}{6}d_{21},
 d_{10} = -d_{11},
 \qquad
 d_{20} = -d_{21}.
-\]</span></p>
-<p>Equivalently, the columns of <span class="math inline">\(Q_{\rm hand}\)</span> are: the intercept direction, the main-slope direction, two weighted group-effect contrast directions, one sex-effect contrast direction, two weighted group-slope contrast directions, and two weighted interaction contrast directions. The package uses a numerical orthonormal basis for the same span; the coordinate system for <span class="math inline">\(\phi\)</span> can rotate, but the implied constrained <span class="math inline">\(\hat\theta\)</span> and fitted values are invariant.</p>
+</span></p>
+<p>Equivalently, the columns of <span class="math inline">Q_{\rm hand}</span> are: the intercept direction, the main-slope direction, two weighted group-effect contrast directions, one sex-effect contrast direction, two weighted group-slope contrast directions, and two weighted interaction contrast directions. The package uses a numerical orthonormal basis for the same span; the coordinate system for <span class="math inline">\phi</span> can rotate, but the implied constrained <span class="math inline">\hat\theta</span> and fitted values are invariant.</p>
 </section>
 <section id="raw-numpy-constrained-solve" class="level3" data-number="7.2">
 <h3 data-number="7.2" class="anchored" data-anchor-id="raw-numpy-constrained-solve"><span class="header-section-number">7.2</span> Raw NumPy constrained solve</h3>
-<p>Before using <code>crabbymetrics</code>, we can solve the overparameterized constrained least-squares problem directly in NumPy. First construct <span class="math inline">\(X_{\rm full}\)</span>, <span class="math inline">\(A\)</span>, and the hand-written null-space basis <span class="math inline">\(Q_{\rm hand}\)</span>.</p>
-<div id="5f61da8d" class="cell" data-execution_count="2">
+<p>Before using <code>crabbymetrics</code>, we can solve the overparameterized constrained least-squares problem directly in NumPy. First construct <span class="math inline">X_{\rm full}</span>, <span class="math inline">A</span>, and the hand-written null-space basis <span class="math inline">Q_{\rm hand}</span>.</p>
+<div id="8182c7ee" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> overparameterized_design(x_centered, group, sex):</span>
@@ -830,8 +852,8 @@ Q_hand shape: (16, 9)
 max |A Q_hand|: 5.551115123125783e-17</code></pre>
 </div>
 </div>
-<p>Now solve the reduced problem <span class="math inline">\(\min_\phi \|y - X_{\rm full}Q_{\rm hand}\phi\|^2\)</span> and map back to the overparameterized coefficients.</p>
-<div id="51f1dfa5" class="cell" data-execution_count="3">
+<p>Now solve the reduced problem <span class="math inline">\min_\phi \|y - X_{\rm full}Q_{\rm hand}\phi\|^2</span> and map back to the overparameterized coefficients.</p>
+<div id="23e4106a" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Z_hand <span class="op">=</span> X_full <span class="op">@</span> Q_hand</span>
@@ -865,12 +887,12 @@ g2:s0      -0.0027
 g2:s1       0.0027</code></pre>
 </div>
 </div>
-<p>This is the ABC solution in raw NumPy. Notice that <span class="math inline">\(Q_{\rm hand}\)</span> is not orthonormal. It does not need to be: any full-rank basis for <span class="math inline">\(\operatorname{null}(A)\)</span> gives the same constrained fitted values.</p>
+<p>This is the ABC solution in raw NumPy. Notice that <span class="math inline">Q_{\rm hand}</span> is not orthonormal. It does not need to be: any full-rank basis for <span class="math inline">\operatorname{null}(A)</span> gives the same constrained fitted values.</p>
 </section>
 <section id="the-crabbymetrics-solution" class="level3" data-number="7.3">
 <h3 data-number="7.3" class="anchored" data-anchor-id="the-crabbymetrics-solution"><span class="header-section-number">7.3</span> The <code>crabbymetrics</code> solution</h3>
 <p>Now fit <code>ABCOLS</code> with the same continuous-by-categorical and categorical-by-categorical interactions:</p>
-<div id="68ed95f0" class="cell" data-execution_count="4">
+<div id="54d6f0cd" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>abc <span class="op">=</span> cm.ABCOLS()</span>
@@ -906,9 +928,9 @@ max |yhat_np - yhat_crabby|: 1.2156942119645464e-14
 max constraint violation: 6.245004513516506e-17</code></pre>
 </div>
 </div>
-<p>The package is doing the same constrained least-squares operation. The only implementation difference is that <code>ABCOLS</code> computes a numerical orthonormal null-space basis internally rather than using the hand-written <span class="math inline">\(Q_{\rm hand}\)</span> above.</p>
+<p>The package is doing the same constrained least-squares operation. The only implementation difference is that <code>ABCOLS</code> computes a numerical orthonormal null-space basis internally rather than using the hand-written <span class="math inline">Q_{\rm hand}</span> above.</p>
 <p>Now fit the same linear span using ordinary base-category coding. This drops <code>group=0</code>, <code>sex=0</code>, and the corresponding interaction baseline columns.</p>
-<div id="92a6c2f8" class="cell" data-execution_count="5">
+<div id="deface9c" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> base_category_design(x_centered, group, sex):</span>
@@ -1131,7 +1153,7 @@ max constraint violation: 6.245004513516506e-17</code></pre>
 <section id="interpreting-the-abc-slope" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="interpreting-the-abc-slope"><span class="header-section-number">8</span> Interpreting the ABC slope</h2>
 <p>Under ABC coding, <code>x0</code> is the abundance-weighted average of group-specific slopes. We can verify this directly.</p>
-<div id="f8f07e1e" class="cell" data-execution_count="6">
+<div id="e9212309" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>coef <span class="op">=</span> <span class="bu">dict</span>(<span class="bu">zip</span>(abc_summary[<span class="st">"column_names"</span>], abc_summary[<span class="st">"coef"</span>]))</span>
@@ -1155,7 +1177,7 @@ ABC main slope: 1.175173399782689</code></pre>
 <section id="interpreting-the-abc-categorical-effects" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="interpreting-the-abc-categorical-effects"><span class="header-section-number">9</span> Interpreting the ABC categorical effects</h2>
 <p>The same logic applies to categorical main effects. The ABC group effects have sample-weighted mean zero:</p>
-<div id="21b0593c" class="cell" data-execution_count="7">
+<div id="c23ebb0b" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>group_effects <span class="op">=</span> np.array([coef[<span class="ss">f"c0[</span><span class="sc">{</span>level<span class="sc">}</span><span class="ss">]"</span>] <span class="cf">for</span> level <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>)])</span>
@@ -1602,13 +1624,18 @@ weighted mean group effect: -2.7755575615628914e-17</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

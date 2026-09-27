@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,28 +529,28 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Regression</p>
 <p><code>Poisson</code> fits</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathbb E[Y_i\mid X_i=x_i]=\exp(\alpha+x_i'\beta).
-\]</span></p>
+</span></p>
 <p>The <code>alpha</code> constructor argument is an L2 penalty, not the intercept. For <code>alpha=0</code>, <code>summary(vcov='vanilla')</code> reports Fisher-information standard errors and <code>summary(vcov='sandwich')</code> reports robust QMLE-style standard errors. Penalized fits mark inference unavailable and omit <code>se</code>/<code>vcov</code>.</p>
 </section>
 <section id="likelihood-and-solver" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="likelihood-and-solver"><span class="header-section-number">2</span> Likelihood and solver</h2>
-<p>With <span class="math inline">\(\eta_i=\alpha_0+x_i'\beta\)</span> and <span class="math inline">\(\mu_i=\exp(\eta_i)\)</span>, the implemented criterion is the Poisson negative log-likelihood up to the data-only <span class="math inline">\(\log(y_i!)\)</span> term:</p>
-<p><span class="math display">\[
+<p>With <span class="math inline">\eta_i=\alpha_0+x_i'\beta</span> and <span class="math inline">\mu_i=\exp(\eta_i)</span>, the implemented criterion is the Poisson negative log-likelihood up to the data-only <span class="math inline">\log(y_i!)</span> term:</p>
+<p><span class="math display">
 Q(\alpha_0,\beta)
 =
 \sum_{i=1}^n\{\mu_i-y_i\eta_i\}
 +\frac{\lambda}{2}\|\beta\|_2^2.
-\]</span></p>
+</span></p>
 <p>The intercept is unpenalized. Newton-CG uses the exact gradient and Hessian</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \nabla^2 Q
 =
 \tilde X'\operatorname{diag}(\mu_i)\tilde X
 +\operatorname{diag}(0,\lambda,\ldots,\lambda),
-\]</span></p>
-<p>with <span class="math inline">\(10^{-8}\)</span> added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at <span class="math inline">\(\log\{\max(\bar y,10^{-12})\}\)</span> and slopes start at zero. A fit is stored only after Argmin reports solver convergence or a target cost. Reaching <code>max_iterations</code> raises <code>ValueError</code> and clears any previous fitted state. Successful summaries include <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final penalized <code>objective</code> <span class="math inline">\(Q(\hat\alpha_0,\hat\beta)\)</span>.</p>
+</span></p>
+<p>with <span class="math inline">10^{-8}</span> added to the Hessian diagonal for numerical stability and a More-Thuente line search. The intercept starts at <span class="math inline">\log\{\max(\bar y,10^{-12})\}</span> and slopes start at zero. A fit is stored only after Argmin reports solver convergence or a target cost. Reaching <code>max_iterations</code> raises <code>ValueError</code> and clears any previous fitted state. Successful summaries include <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final penalized <code>objective</code> <span class="math inline">Q(\hat\alpha_0,\hat\beta)</span>.</p>
 <div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -539,33 +561,33 @@ Warning
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The fit requires finite <span class="math inline">\(y_i\geq0\)</span>, a finite nonnegative penalty, finite regressors, a positive tolerance, and a positive iteration budget. Outcomes need not be integers, which permits Poisson QMLE for nonnegative responses.</p>
+<p>The fit requires finite <span class="math inline">y_i\geq0</span>, a finite nonnegative penalty, finite regressors, a positive tolerance, and a positive iteration budget. Outcomes need not be integers, which permits Poisson QMLE for nonnegative responses.</p>
 </div>
 </div>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
-<p>Unlike <code>Logit</code>, this native GLM uses the exact Hessian. It is Newton-CG with line search, not the textbook IRLS presentation, although the Hessian <span class="math inline">\(\tilde X'W\tilde X\)</span> is the same weighted cross-product that IRLS uses.</p>
+<p>Unlike <code>Logit</code>, this native GLM uses the exact Hessian. It is Newton-CG with line search, not the textbook IRLS presentation, although the Hessian <span class="math inline">\tilde X'W\tilde X</span> is the same weighted cross-product that IRLS uses.</p>
 <ol type="1">
-<li><code>fit()</code> clears all fitted state and validates finite regressors, finite nonnegative outcomes, a nonnegative penalty, and positive iteration and tolerance controls. Fractional <span class="math inline">\(y_i\)</span> pass intentionally because the score equations remain valid for Poisson QMLE.</li>
-<li>The optimizer vector is <span class="math inline">\((\alpha_0,\beta')\)</span> when the intercept is enabled. Slopes start at zero and the intercept starts at <span class="math inline">\(\log\{\max(\bar y,10^{-12})\}\)</span>, so the initial constant mean matches the sample mean except for the zero-mean floor.</li>
-<li>The cost callback computes the entire index vector, exponentiates it without clipping, and returns <span class="math inline">\(\sum_i(e^{\eta_i}-y_i\eta_i)+\lambda\beta'\beta/2\)</span>. The gradient uses the residual vector <span class="math inline">\(e^\eta-y\)</span>, with an unpenalized intercept score and <span class="math inline">\(\lambda\beta\)</span> added to the slope score.</li>
-<li>The Hessian callback multiplies every row of <span class="math inline">\(X\)</span> by <span class="math inline">\(\mu_i\)</span>, forms <span class="math inline">\(X'\operatorname{diag}(\mu)X\)</span>, fills the intercept cross-products from <span class="math inline">\(X'\mu\)</span>, and adds <span class="math inline">\(\lambda+10^{-8}\)</span> to each slope diagonal and <span class="math inline">\(10^{-8}\)</span> to the intercept diagonal. The small ridge is used in every Newton system, including an otherwise unpenalized fit.</li>
+<li><code>fit()</code> clears all fitted state and validates finite regressors, finite nonnegative outcomes, a nonnegative penalty, and positive iteration and tolerance controls. Fractional <span class="math inline">y_i</span> pass intentionally because the score equations remain valid for Poisson QMLE.</li>
+<li>The optimizer vector is <span class="math inline">(\alpha_0,\beta')</span> when the intercept is enabled. Slopes start at zero and the intercept starts at <span class="math inline">\log\{\max(\bar y,10^{-12})\}</span>, so the initial constant mean matches the sample mean except for the zero-mean floor.</li>
+<li>The cost callback computes the entire index vector, exponentiates it without clipping, and returns <span class="math inline">\sum_i(e^{\eta_i}-y_i\eta_i)+\lambda\beta'\beta/2</span>. The gradient uses the residual vector <span class="math inline">e^\eta-y</span>, with an unpenalized intercept score and <span class="math inline">\lambda\beta</span> added to the slope score.</li>
+<li>The Hessian callback multiplies every row of <span class="math inline">X</span> by <span class="math inline">\mu_i</span>, forms <span class="math inline">X'\operatorname{diag}(\mu)X</span>, fills the intercept cross-products from <span class="math inline">X'\mu</span>, and adds <span class="math inline">\lambda+10^{-8}</span> to each slope diagonal and <span class="math inline">10^{-8}</span> to the intercept diagonal. The small ridge is used in every Newton system, including an otherwise unpenalized fit.</li>
 <li>Argmin’s Newton-CG obtains a Newton direction using that dense Hessian and globalizes the update with a More-Thuente line search. <code>tolerance</code> is the Newton-CG stopping tolerance. The wrapper rejects an exhausted iteration budget and installs the best parameter, data, and diagnostics only after accepted convergence.</li>
-<li><code>predict_lin()</code> evaluates <span class="math inline">\(\alpha_0+X\beta\)</span>; <code>predict()</code> exponentiates it directly. The same absence of clipping that preserves the literal Poisson mean also means sufficiently extreme new rows can return infinity.</li>
+<li><code>predict_lin()</code> evaluates <span class="math inline">\alpha_0+X\beta</span>; <code>predict()</code> exponentiates it directly. The same absence of clipping that preserves the literal Poisson mean also means sufficiently extreme new rows can return infinity.</li>
 </ol>
 <p>IRLS would express each Newton step as weighted least squares on a working response. Newton-CG instead exposes the objective, gradient, and Hessian to a generic optimizer. Statistically the local quadratic step is the same; operationally the line search and conjugate-gradient machinery, rather than a dedicated GLM loop, control step acceptance.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>Analytic inference is disabled for <span class="math inline">\(\lambda&gt;0\)</span>. For an unpenalized fit, the vanilla covariance is the inverse Fisher information</p>
-<p><span class="math display">\[
+<p>Analytic inference is disabled for <span class="math inline">\lambda&gt;0</span>. For an unpenalized fit, the vanilla covariance is the inverse Fisher information</p>
+<p><span class="math display">
 \widehat V_{\mathrm{vanilla}}
 =
 (\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X)^{-1}.
-\]</span></p>
+</span></p>
 <p>The sandwich, also accepted under the alias QMLE, is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat V_{\mathrm{QMLE}}
 =
 B^{-1}
@@ -575,19 +597,19 @@ B^{-1}
 B^{-1},
 \qquad
 B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X.
-\]</span></p>
+</span></p>
 <p>No HC finite-sample or cluster correction is applied. Wald tests use either covariance. The pairs bootstrap refits the fixed penalty in every draw, and any nonconverged replicate aborts the bootstrap.</p>
 <p>Inference uses QR of the Fisher-weighted design, without the optimization ridge or a floor on fitted means. Numerically rank-deficient information returns <code>inference_available=False</code>, null covariance/SEs, and <code>inference_reason</code> while preserving valid point estimates; Wald inference raises.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Every Newton Hessian evaluation costs <span class="math inline">\(O(np^2)\)</span> and the dense Newton system is up to <span class="math inline">\(O(p^3)\)</span>, so this is more expensive per iteration than first-order GLM solvers at large <span class="math inline">\(p\)</span>. The code evaluates <span class="math inline">\(\exp(\eta)\)</span> without clipping; extreme indices can overflow and abort optimization. There is no exposure or offset argument, so users must encode those effects in the supplied design only if estimating their coefficient is appropriate. Covariance and bootstrap add dense inversion and repeated-fit costs.</p>
+<p>Every Newton Hessian evaluation costs <span class="math inline">O(np^2)</span> and the dense Newton system is up to <span class="math inline">O(p^3)</span>, so this is more expensive per iteration than first-order GLM solvers at large <span class="math inline">p</span>. The code evaluates <span class="math inline">\exp(\eta)</span> without clipping; extreme indices can overflow and abort optimization. There is no exposure or offset argument, so users must encode those effects in the supplied design only if estimating their coefficient is appropriate. Covariance and bootstrap add dense inversion and repeated-fit costs.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.Poisson</code></p>
 <p>Use <code>fit(x, y)</code> with nonnegative count-like outcomes. <code>predict_lin(x)</code> returns the log mean, <code>predict(x)</code> returns fitted conditional means, and <code>summary()</code> includes fit diagnostics. The class also supports <code>bootstrap(B, seed=None)</code>.</p>
-<div id="da0909ae" class="cell" data-execution_count="2">
+<div id="b3c51904" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Poisson))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -596,7 +618,7 @@ B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X.
 <pre><code>(alpha=0.0, max_iterations=100, tolerance=0.0001)</code></pre>
 </div>
 </div>
-<div id="940543c5" class="cell" data-execution_count="3">
+<div id="8a935308" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Poisson</span>
@@ -638,7 +660,7 @@ B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X.
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="33289f38" class="cell" data-execution_count="4">
+<div id="0da7857d" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">250</span>, <span class="dv">2</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>mu <span class="op">=</span> np.exp(<span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.25</span>]))</span>
@@ -661,7 +683,7 @@ B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X.
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="5ad40998" class="cell" data-execution_count="5">
+<div id="320dcdb4" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">107</span>)</span>
@@ -1142,13 +1164,18 @@ B=\tilde X'\operatorname{diag}(\hat\mu_i)\tilde X.
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

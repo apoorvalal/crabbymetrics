@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Apoorva Lal · CrabbyMetrics audit">
+<meta name="dcterms.date" content="2026-09-21">
+
+<title>Panel lectures as an empirical test suite – crabbymetrics</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-4d9afe2b8d18ee9fa5d0d57b5ed4214d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-e24765cfd7a3581c6056d50e5478e7c4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../logo.png" alt="" class="navbar-logo light-content">
+    <img src="../logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">crabbymetrics</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-api" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">API</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-api">    
+        <li>
+    <a class="dropdown-item" href="../api.html">
+ <span class="dropdown-text">API Overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#regression-and-glms">
+ <span class="dropdown-text">Regression And GLMs</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#survival-time-to-event-and-recurrent-event-models">
+ <span class="dropdown-text">Survival / Event-Time</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#causal-inference-and-panels">
+ <span class="dropdown-text">Causal Inference And Panels</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../reference/MPE_CBPS.html">
+ <span class="dropdown-text">MPE_CBPS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#hypothesis-testing-and-utilities">
+ <span class="dropdown-text">Hypothesis Testing And Utilities</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#transforms">
+ <span class="dropdown-text">Transforms</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../api.html#estimation-interfaces-and-optimizers">
+ <span class="dropdown-text">Estimation Interfaces</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../mechanics-ols.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-regression" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Regression</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-regression">    
+        <li>
+    <a class="dropdown-item" href="../examples/ols.html">
+ <span class="dropdown-text">OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/abc-ols.html">
+ <span class="dropdown-text">ABC OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/anytime-valid-ols.html">
+ <span class="dropdown-text">Anytime-Valid Confidence Sequences</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/ridge.html">
+ <span class="dropdown-text">Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bagged-polynomial-regression.html">
+ <span class="dropdown-text">Bagged Polynomial Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/fixed-effects-ols.html">
+ <span class="dropdown-text">Fixed Effects OLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/elastic-net.html">
+ <span class="dropdown-text">ElasticNet</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/logit.html">
+ <span class="dropdown-text">Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multinomial-logit.html">
+ <span class="dropdown-text">Multinomial Logit</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/poisson.html">
+ <span class="dropdown-text">Poisson</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mle-prediction-interface.html">
+ <span class="dropdown-text">MLE Prediction Interface</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival-time-to-event-and-recurrent-events.html">
+ <span class="dropdown-text">Survival / Recurrent Events</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm.html">
+ <span class="dropdown-text">GMM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/mestimator-poisson.html">
+ <span class="dropdown-text">MEstimator Poisson</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-causal--panels" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Causal / Panels</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-causal--panels">    
+        <li>
+    <a class="dropdown-item" href="../examples/balancing-weights.html">
+ <span class="dropdown-text">Balancing Weights</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/chronos-ltv-balancing.html">
+ <span class="dropdown-text">Chronos LTV Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/cressie-read-balancing.html">
+ <span class="dropdown-text">Cressie-Read And Rényi Balancing</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/eplm.html">
+ <span class="dropdown-text">EPLM</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/average-derivative.html">
+ <span class="dropdown-text">Average Derivative</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/double-ml.html">
+ <span class="dropdown-text">Double ML And AIPW</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/richer-regression.html">
+ <span class="dropdown-text">Richer Regression</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/twosls.html">
+ <span class="dropdown-text">TwoSLS</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-control.html">
+ <span class="dropdown-text">Synthetic Control</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/synthetic-did.html">
+ <span class="dropdown-text">Synthetic DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/augmented-balancing.html">
+ <span class="dropdown-text">Augmented Balancing For Panel Data</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/horizontal-panel-ridge.html">
+ <span class="dropdown-text">Horizontal Panel Ridge</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/matrix-completion.html">
+ <span class="dropdown-text">Matrix Completion</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/interactive-fixed-effects.html">
+ <span class="dropdown-text">Interactive Fixed Effects</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/staggered-panel-event-study.html">
+ <span class="dropdown-text">Staggered Panel Event Study</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/joint-hypothesis-tests-causal.html">
+ <span class="dropdown-text">Joint Hypothesis Tests</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/snmm-blips.html">
+ <span class="dropdown-text">Dynamic Treatment Effects</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-transforms" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Transforms</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-transforms">    
+        <li>
+    <a class="dropdown-item" href="../examples/pca-and-kernel-basis.html">
+ <span class="dropdown-text">PCA And Kernel Basis</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/sparse-rotations.html">
+ <span class="dropdown-text">Sparse Factor Rotations</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ablations" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ablations</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ablations">    
+        <li>
+    <a class="dropdown-item" href="../ablations/variance-estimators.html">
+ <span class="dropdown-text">Variance Estimators</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/semiparametric-estimators.html">
+ <span class="dropdown-text">Semiparametric Estimator Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/two-period-did-semiparametric.html">
+ <span class="dropdown-text">Two-Period Semiparametric DID</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
+ <span class="dropdown-text">Panel Estimator DGP Comparisons</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/same-root-panel-cases.html">
+ <span class="dropdown-text">Same Root Panel Case Studies</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/randomized-sketching-ols.html">
+ <span class="dropdown-text">Randomized Sketching And Least Squares</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/estimator-scaling.html">
+ <span class="dropdown-text">Estimator Scaling And References</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-optimization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Optimization</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-optimization">    
+        <li>
+    <a class="dropdown-item" href="../examples/optimizers.html">
+ <span class="dropdown-text">Optimizers</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/gmm-with-optimizers.html">
+ <span class="dropdown-text">GMM With Optimizers</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ding" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Ding</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ding">    
+        <li>
+    <a class="dropdown-item" href="../first-course-ding.html">
+ <span class="dropdown-text">Chapter Index</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-foundations.html">
+ <span class="dropdown-text">Foundations (1-4)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-design-adjustment.html">
+ <span class="dropdown-text">Design And Adjustment (5-8)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
+ <span class="dropdown-text">Finite And Superpopulation (9)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-observational-adjustment.html">
+ <span class="dropdown-text">Observational Studies (11-13, 27)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ding/ding-iv.html">
+ <span class="dropdown-text">Instrumental Variables (21, 23)</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/apoorvalal/crabbymetrics"> <i class="bi bi-github" role="img" aria-label="GitHub repository">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#implementation-follow-up" id="toc-implementation-follow-up" class="nav-link active" data-scroll-target="#implementation-follow-up">Implementation follow-up</a></li>
+  <li><a href="#findings" id="toc-findings" class="nav-link" data-scroll-target="#findings">Findings</a></li>
+  <li><a href="#sources-samples-and-verification" id="toc-sources-samples-and-verification" class="nav-link" data-scroll-target="#sources-samples-and-verification">Sources, samples, and verification</a></li>
+  <li><a href="#lectures-12-fixed-effects-and-basic-did" id="toc-lectures-12-fixed-effects-and-basic-did" class="nav-link" data-scroll-target="#lectures-12-fixed-effects-and-basic-did">Lectures 1–2: fixed effects and basic DID</a></li>
+  <li><a href="#lecture-3-factorial-did" id="toc-lecture-3-factorial-did" class="nav-link" data-scroll-target="#lecture-3-factorial-did">Lecture 3: factorial DID</a></li>
+  <li><a href="#lecture-4-twfe-event-studies-and-decomposition" id="toc-lecture-4-twfe-event-studies-and-decomposition" class="nav-link" data-scroll-target="#lecture-4-twfe-event-studies-and-decomposition">Lecture 4: TWFE event studies and decomposition</a></li>
+  <li><a href="#lecture-5-modern-did-and-the-49-study-archive" id="toc-lecture-5-modern-did-and-the-49-study-archive" class="nav-link" data-scroll-target="#lecture-5-modern-did-and-the-49-study-archive">Lecture 5: modern DID and the 49-study archive</a></li>
+  <li><a href="#lecture-6-synthetic-panels" id="toc-lecture-6-synthetic-panels" class="nav-link" data-scroll-target="#lecture-6-synthetic-panels">Lecture 6: synthetic panels</a></li>
+  <li><a href="#development-priorities" id="toc-development-priorities" class="nav-link" data-scroll-target="#development-priorities">Development priorities</a></li>
+  <li><a href="#complete-empirical-family-inventory" id="toc-complete-empirical-family-inventory" class="nav-link" data-scroll-target="#complete-empirical-family-inventory">Complete empirical-family inventory</a></li>
+  <li><a href="#reproducibility-and-limitations" id="toc-reproducibility-and-limitations" class="nav-link" data-scroll-target="#reproducibility-and-limitations">Reproducibility and limitations</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Panel lectures as an empirical test suite</h1>
+<p class="subtitle lead">A replication audit and development specification for CrabbyMetrics 0.9.0</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Apoorva Lal · CrabbyMetrics audit </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">September 21, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="implementation-follow-up" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-follow-up">Implementation follow-up</h2>
+<p>The original findings below describe the unmodified 0.9.0 audit. The subsequent <a href="../ablations/yqx-panel-fixes.html">implementation report</a> documents the corrected SCM solver, FE prediction/covariance controls, native FE imputation, and new R-backed tests. Historical audit numbers are intentionally preserved.</p>
+</section>
+<section id="findings" class="level2">
+<h2 class="anchored" data-anchor-id="findings">Findings</h2>
+<p>Yiqing Xu’s six <a href="https://github.com/xuyiqing/panel-lectures">panel-data lectures</a> provide a useful empirical test of the distinction between <strong>regression kernels</strong> and <strong>complete causal-panel workflows</strong>. CrabbyMetrics’ regression kernels cover much of the first category. Treatment-aware sample construction, counterfactual prediction, heterogeneous-effect aggregation, and joint diagnostic inference remain substantial gaps.</p>
+<p>This is a <strong>partial replication and an implementation specification</strong>, not a claim to have reproduced all empirical results in the decks. All six decks were inventoried. Published illustrations without matching microdata, methods without current APIs, and resource-limited cases remain explicitly identified.</p>
+<p>The initial audit used <code>0b56835</code> (v0.9.0) without estimator modifications. Its findings below are historical; PR #23 subsequently repaired the identified SCM defect and added FE imputation, released in <a href="../release-0.9.1.html">v0.9.1</a>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Result</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Core OLS/FE estimates agree with R</td>
+<td>59 specifications, 102 coefficients; maximum absolute difference <span class="math inline">2.28\times10^{-12}</span></td>
+</tr>
+<tr class="even">
+<td>Broad reanalysis regression coverage</td>
+<td>47 of 49 archive datasets fitted through CM and R; 45 source point specifications and 2 explicitly simplified, no-unit-trend baselines</td>
+</tr>
+<tr class="odd">
+<td>Standalone SCM has a numerical defect</td>
+<td>Prop99 pre-RMSE 2.399913 versus same-objective optimum 1.656400; reports convergence at budgets 50, 500 and 5,000</td>
+</tr>
+<tr class="even">
+<td>FE counterfactuals are composable but not first-class</td>
+<td>Five CM explicit-dummy fits match R FEct closely, without a native treatment-aware imputation/inference API</td>
+</tr>
+<tr class="odd">
+<td>Default inference conventions differ</td>
+<td>Fatalities TWFE SE: CM 0.385787; fixest 0.357078; lecture plm HC1 0.350150</td>
+</tr>
+<tr class="even">
+<td>Large and method-specific gaps remain</td>
+<td>Two 89m/158m-observation data sets not loaded; full multi-method/bootstrap/sensitivity pipelines not reproduced</td>
+</tr>
+</tbody>
+</table>
+<p>The most valuable next changes are <strong>SCM solver correctness</strong>, followed by a <strong>panel observation/treatment-mask contract and efficient FE imputation</strong>. Adding another in-sample low-rank decomposition would not address the central gap exposed by these lectures.</p>
+<p>Downloads: <a href="https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/SPEC.md">implementation specification</a> · <a href="https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/coverage.csv">family inventory</a> · <a href="https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/README.md">replication guide</a> · <a href="https://github.com/apoorvalal/crabbymetrics/archive/refs/tags/v0.9.1.zip">code and numerical results</a>.</p>
+</section>
+<section id="sources-samples-and-verification" class="level2">
+<h2 class="anchored" data-anchor-id="sources-samples-and-verification">Sources, samples, and verification</h2>
+<p>The lectures are pinned to commit <code>891412f174fc0283677de84d612622ff602dd1d3</code>. Ten initial public data inputs cover Swiss naturalization, Card–Krueger stores, beer taxes and fatalities, unilateral divorce, the Chinese famine, smoking, turnout, and coethnic donations.</p>
+<p>The Chiu–Lan–Liu–Xu <a href="https://doi.org/10.7910/DVN/9RJFZF">reanalysis archive</a>, version 1.0, supplies 49 study datasets and their scripts. Its 582 MB ZIP was checksum-verified. The modern examples use the verified archive inputs.</p>
+<p>All raw inputs live in an ignored local cache. The branch records source URLs, hashes, source-derived model specifications, package versions, output tables, and reproducible scripts. R references are independent of the CM fitting implementation. Equal designs are verified separately from equal source specifications. In particular, the divorce event-study check uses the lecture’s original <code>i(rel_b, ref=-1)</code> formula, not merely the Python-generated dummies.</p>
+<div id="8ad56c46" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, json</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> crabbymetrics <span class="im">as</span> cm</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>override <span class="op">=</span> os.environ.get(<span class="st">"YQX_REPLICATION_ROOT"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> override:</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    root <span class="op">=</span> Path(override)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    root <span class="op">=</span> <span class="bu">next</span>(p <span class="op">/</span> <span class="st">"replications/yqx_panel"</span> <span class="cf">for</span> p <span class="kw">in</span> [Path.cwd(), <span class="op">*</span>Path.cwd().parents]</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> (p <span class="op">/</span> <span class="st">"replications/yqx_panel/results"</span>).exists())</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> root <span class="op">/</span> <span class="st">"results"</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>verification <span class="op">=</span> json.loads((out <span class="op">/</span> <span class="st">"verification.json"</span>).read_text())</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>linear <span class="op">=</span> pd.read_csv(out <span class="op">/</span> <span class="st">"linear-comparison.csv"</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>archive <span class="op">=</span> pd.read_csv(out <span class="op">/</span> <span class="st">"archive-comparison.csv"</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> verification[<span class="st">"linear_specifications"</span>] <span class="op">==</span> <span class="dv">59</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> linear.coef_error.<span class="bu">max</span>() <span class="op">&lt;</span> <span class="fl">1e-8</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> verification[<span class="st">"schafer_error_tight_R"</span>] <span class="op">&lt;</span> <span class="fl">1e-8</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="bu">len</span>(linear)<span class="sc">}</span><span class="ss"> linear coefficients checked; "</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>archive<span class="sc">.</span>status<span class="sc">.</span>eq(<span class="st">'completed'</span>)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss">/49 archive regressions completed."</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"This verifies recorded comparisons, not all causal estimators in the archive."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>102 linear coefficients checked; 47/49 archive regressions completed.
+This verifies recorded comparisons, not all causal estimators in the archive.</code></pre>
+</div>
+</div>
+<section id="what-the-counts-do-not-mean" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-counts-do-not-mean">What the counts do not mean</h3>
+<ul>
+<li>The 47 archive runs are <strong>regressions</strong>, not 47 full reproductions of FEct, Sun–Abraham, Callaway–Sant’Anna, stacked DID, PanelMatch, DID-multiple, HonestDiD, all diagnostic tests, or all confidence intervals.</li>
+<li>Two runs omit source-required unit-specific slopes and are labeled baseline comparisons. They are not exact Kogan/Magaloni source replications.</li>
+<li>The Hall–Yoder and Sanford metadata report about 89m and 158m observations. They were excluded before decompression on this 16-GiB workstation. Their failure boundary was <strong>not measured</strong>; an exact aggregation or larger-memory run is needed. Subsampling would change the replication claim.</li>
+<li>Simulated illustrations, causal diagrams, title-page crops and context-only maps are not counted as empirical estimates.</li>
+</ul>
+</section>
+</section>
+<section id="lectures-12-fixed-effects-and-basic-did" class="level2">
+<h2 class="anchored" data-anchor-id="lectures-12-fixed-effects-and-basic-did">Lectures 1–2: fixed effects and basic DID</h2>
+<section id="swiss-naturalization-and-fatalities" class="level3">
+<h3 class="anchored" data-anchor-id="swiss-naturalization-and-fatalities">Swiss naturalization and fatalities</h3>
+<p>The 245-municipality, 19-year Swiss panel produces these treatment coefficients:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Specification</th>
+<th style="text-align: right;">CM estimate</th>
+<th>Comparison</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Pooled</td>
+<td style="text-align: right;">2.503318</td>
+<td>R agreement</td>
+</tr>
+<tr class="even">
+<td>Municipality FE</td>
+<td style="text-align: right;">3.022800</td>
+<td>R agreement</td>
+</tr>
+<tr class="odd">
+<td>Municipality + year FE</td>
+<td style="text-align: right;">1.203658</td>
+<td>R agreement</td>
+</tr>
+<tr class="even">
+<td>Municipality FE + common linear trend</td>
+<td style="text-align: right;">0.824793</td>
+<td>R agreement</td>
+</tr>
+<tr class="odd">
+<td>Municipality + year FE + municipality slopes</td>
+<td style="text-align: right;">0.986524</td>
+<td>Explicit slope-column workaround</td>
+</tr>
+<tr class="even">
+<td>Plus municipality quadratic trends</td>
+<td style="text-align: right;">1.222728</td>
+<td>Explicit slope-column workaround</td>
+</tr>
+</tbody>
+</table>
+<p>The SVP linear interaction and four vote-share bins also match R coefficients, as do supplementary distributed-lag and lead–lag specifications. The latter follow commented source formulas; the old Stata demonstrations are conditional frames rather than all active empirical targets.</p>
+<p>Beer-tax coefficients are 0.364605 (pooled), -0.655874 (state FE), and -0.639980 (state/year FE). The lecture’s Swamy–Arora random-effects result, -0.052016, is regenerated <strong>in R only</strong>; CM has no corresponding random-effects estimator.</p>
+<p>The principal regression gap is inference configuration, not coefficient accuracy. CM currently uses an all-absorbed-FE residual-df correction. Default fixest treats cluster-nested effects differently; the lecture’s plm HC1 uses another convention. Aligning the correction makes ordinary-design SEs agree. The explicit varying-slope designs retain small rank-accounting differences (about <span class="math inline">4\times10^{-5}</span> and <span class="math inline">10^{-4}</span> in SE), which should be exposed rather than called unexplained numerical noise.</p>
+</section>
+<section id="cardkrueger-sample-bookkeeping-matters" class="level3">
+<h3 class="anchored" data-anchor-id="cardkrueger-sample-bookkeeping-matters">Card–Krueger: sample bookkeeping matters</h3>
+<p>The available-outcome four-cell DID is <strong>2.753606</strong>; the complete-store first-difference and store-FE estimates are <strong>2.75</strong>. Both are valid reconstructions of their specifications, but they are not the same sample. Unbalanced missing outcomes must not disappear behind a single “replicated” flag.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/yqx-panel/ck-wages.svg" class="img-fluid figure-img"></p>
+<figcaption>Starting-wage distributions regenerated from the store microdata using the lecture’s binning recipe.</figcaption>
+</figure>
+</div>
+<p>The longer Card–Krueger (2000) pretrend series is not reproduced: the source explicitly says the underlying BLS ES-202 series is not public. The typed Mariel, Gruber triple-difference and Hong tables are not freshly estimated here; their microdata/specification pipelines were not among the retrieved inputs. The WWI-tax and four shared reanalysis figures also lack matching inputs in this checkout/archive. Re-entering those numbers would not count as replication.</p>
+</section>
+</section>
+<section id="lecture-3-factorial-did" class="level2">
+<h2 class="anchored" data-anchor-id="lecture-3-factorial-did">Lecture 3: factorial DID</h2>
+<p>The updated example has 921 counties: 412 without pre-PRC genealogies and 509 with them. The comparison is the mean mortality change over 1958–1961 relative to 1957. All-population estimates are:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Estimator</th>
+<th style="text-align: right;">Estimate</th>
+<th>SE / status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Unadjusted DID</td>
+<td style="text-align: right;">-1.540746</td>
+<td>0.806678, CM/R agreement</td>
+</tr>
+<tr class="even">
+<td>Covariate-adjusted OLS1</td>
+<td style="text-align: right;">-2.688038</td>
+<td>0.771132, CM/R agreement</td>
+</tr>
+<tr class="odd">
+<td>Fully interacted OLS2</td>
+<td style="text-align: right;">-2.779546</td>
+<td>0.812714 with composed variance correction</td>
+</tr>
+<tr class="even">
+<td>R IPW</td>
+<td style="text-align: right;">-2.321293</td>
+<td>R reference only</td>
+</tr>
+<tr class="odd">
+<td>R GRF AIPW</td>
+<td style="text-align: right;">-2.370370</td>
+<td>R reference, seeded forest</td>
+</tr>
+<tr class="even">
+<td>CM ridge/logit AIPW</td>
+<td style="text-align: right;">+0.264135</td>
+<td>Different nuisance pipeline; <strong>not an exact replication</strong></td>
+</tr>
+</tbody>
+</table>
+<p>OLS2 illustrates why a generic robust SE is insufficient. The fdid implementation uses <code>car::hccm(lm)</code>, whose actual default is HC3 (despite an HC0 source comment), then adds <span class="math inline">\gamma'\widehat\Sigma_X\gamma/n</span>. Composing that correction around CM’s HC3 covariance reproduces the R SE to machine precision. Ordinary HC1 gives 0.781958 and is not the same inference procedure.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/yqx-panel/famine.svg" class="img-fluid figure-img"></p>
+<figcaption>Famine dynamic contrasts. CM lines are estimated with its OLS API; the green line is the separate R causal-forest reference.</figcaption>
+</figure>
+</div>
+<p>The multivalued illustration was reconstructed in R using the specified 412/254/255 groups. Entropy balancing is also an R reference, but targets group 1 in the current fdid implementation, not the all-county population. Historical <code>fig5</code>/table results use a different high-genealogy definition and are not claimed as reproduced by the updated any-genealogy exercise. Geographic map boundary data were not acquired.</p>
+<p>The required package extension is a <strong>contrast/target-population wrapper with external nuisance-prediction support</strong>, not an assertion that ridge/logit and causal forests should return identical estimates.</p>
+</section>
+<section id="lecture-4-twfe-event-studies-and-decomposition" class="level2">
+<h2 class="anchored" data-anchor-id="lecture-4-twfe-event-studies-and-decomposition">Lecture 4: TWFE event studies and decomposition</h2>
+<p>The divorce TWFE estimate is <strong>-3.048894695</strong>, matching the lecture’s own -3.05 reproduction rather than the historical paper’s -3.08. The CM event-study coefficients agree with the original R formula within <span class="math inline">8\times10^{-12}</span>.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/yqx-panel/divorce.svg" class="img-fluid figure-img"></p>
+<figcaption>Divorce event study. Both endpoint bins are retained in estimation; only -8 through +15 are displayed. CM intervals use its current all-FE df convention.</figcaption>
+</figure>
+</div>
+<p>A consequential detail: the -9 and +16 endpoint bins belong in the regression. The plot omits them, but dropping the -9 regressor changes all coefficients. The replication harness was corrected after the direct source-formula check exposed that difference. Regression-engine parity alone would not have caught a shared, incorrectly constructed design.</p>
+<p>The R Bacon decomposition has weights summing to one and reconstructs the same -3.048894695. It is an independent reference; CM does not yet supply the decomposition or its design diagnostics.</p>
+</section>
+<section id="lecture-5-modern-did-and-the-49-study-archive" class="level2">
+<h2 class="anchored" data-anchor-id="lecture-5-modern-did-and-the-49-study-archive">Lecture 5: modern DID and the 49-study archive</h2>
+<section id="regression-coverage-and-numerical-accuracy" class="level3">
+<h3 class="anchored" data-anchor-id="regression-coverage-and-numerical-accuracy">Regression coverage and numerical accuracy</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/yqx-panel/archive-errors.svg" class="img-fluid figure-img"></p>
+<figcaption>Absolute coefficient differences against fresh R fits. The visible outlier comes from the R default stopping tolerance, not a CM error.</figcaption>
+</figure>
+</div>
+<p>Among the 47 fitted archive cases, 46 agree with default R within <span class="math inline">2.72\times10^{-10}</span>. The remaining case is Schäfer’s individual/year/age model: default R yields -0.030371304, while CM yields -0.030391894. Tightening R’s FE tolerance from <span class="math inline">10^{-6}</span> to <span class="math inline">10^{-10}</span> gives -0.030391893, agreeing with CM within <span class="math inline">2\times10^{-10}</span>. Three permutations of CM’s FE-column order agree to about <span class="math inline">10^{-12}</span>. This is evidence for recording convergence settings, <strong>not</strong> for changing CM to reproduce the looser reference result.</p>
+<p>Additional source effects were incorporated where specified: candidate-year, state-chamber-year, province-year, district-census-group and age fixed effects. The two source unit-trend specifications remain labeled baseline-only.</p>
+</section>
+<section id="main-applications" class="level3">
+<h3 class="anchored" data-anchor-id="main-applications">Main applications</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Application</th>
+<th>What was re-estimated</th>
+<th>What remains</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Bischof–Wagner</td>
+<td>CM TWFE; explicit-dummy CM FEct 0.082334 versus R 0.082334</td>
+<td>Full six-estimator event curves and joint inference</td>
+</tr>
+<tr class="even">
+<td>Grumbach–Sahn donations</td>
+<td>Source covariates, CM TWFE; composed CM/R FEct 0.127749</td>
+<td>PanelMatch and bootstrap diagnostics; 118 retained treated cells versus lecture text’s 74</td>
+</tr>
+<tr class="odd">
+<td>Trounstine lawsuits</td>
+<td>Native CM TWFE -0.050607; R FEct -0.057846</td>
+<td>Trend-augmented diagnostics, joint pretrend/placebo tests</td>
+</tr>
+<tr class="even">
+<td>Christensen–Garfias cadastre</td>
+<td>Native full-sample TWFE 0.031675; R FEct full -0.119774, trimmed +0.044482</td>
+<td>Full set of heterogeneous-DID/event/inference comparisons</td>
+</tr>
+</tbody>
+</table>
+<p>The Brazil saved summary uses <code>chris_sub</code>, not the full-sample exercise. The trim selects <code>anyswitch_period == 1</code> and years through 2014, changing support and comparison cohorts. The sign change is exactly why an estimator result should carry an explicit sample/exclusion record.</p>
+<p>The archived aggregate table also contains unresolved naming/value discrepancies for Eckhouse and Esberg relative to fresh fits of their correspondingly named data and scripts. These are retained in the comparison CSV rather than “corrected” by silently swapping labels. Consequently, matching R on an exported design is distinguished from reproducing an archived result under its label.</p>
+</section>
+<section id="saved-output-reconstruction-is-not-re-estimation" class="level3">
+<h3 class="anchored" data-anchor-id="saved-output-reconstruction-is-not-re-estimation">Saved-output reconstruction is not re-estimation</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/yqx-panel/archive-saved.svg" class="img-fluid figure-img"></p>
+<figcaption>The 49-study comparison redrawn from the archived summary table. These imputation estimates are saved author outputs, not 49 fresh CM fits.</figcaption>
+</figure>
+</div>
+<p>The saved imputation/reported-estimate ratio has mean <strong>1.021957</strong> and median <strong>1.006334</strong>. The latter rounds to 1.01, not the lecture text’s 1.00. This may reflect source-version/rounding differences; the exact recorded numbers are preserved. The saved p-value and sensitivity summaries are not presented as newly computed bootstrap results.</p>
+<p>Current CM APIs do not supply the full Sun–Abraham, group-time ATT, PanelMatch, DID-multiple, carryover/equivalence or HonestDiD workflows. Some algebra can be composed from current kernels, but that is different from having validated sample rules, aggregation weights and joint covariance interfaces.</p>
+</section>
+</section>
+<section id="lecture-6-synthetic-panels" class="level2">
+<h2 class="anchored" data-anchor-id="lecture-6-synthetic-panels">Lecture 6: synthetic panels</h2>
+<section id="confirmed-scm-failure" class="level3">
+<h3 class="anchored" data-anchor-id="confirmed-scm-failure">Confirmed SCM failure</h3>
+<p>The source-script outcome-only SCM is a constrained least-squares problem. R augsynth and an independent SciPy SLSQP solve agree on its optimum. CM’s standalone solver does not:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Implementation</th>
+<th style="text-align: right;">Pre-RMSE</th>
+<th style="text-align: right;">Mean post-treatment gap</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>CM standalone SCM</td>
+<td style="text-align: right;">2.399913</td>
+<td style="text-align: right;">-18.998496</td>
+</tr>
+<tr class="even">
+<td>R augsynth, no augmentation</td>
+<td style="text-align: right;">1.656400</td>
+<td style="text-align: right;">-19.513629</td>
+</tr>
+<tr class="odd">
+<td>Independent SciPy simplex QP</td>
+<td style="text-align: right;">1.656400</td>
+<td style="text-align: right;">-19.513630</td>
+</tr>
+</tbody>
+</table>
+<p>CM returns the same suboptimal answer at 50, 500 and 5,000 iterations and sets <code>converged=True</code>. This is not a discrepancy attributable to covariates, augmentation or a different target. A constrained solver with boundary-optimum support and objective/KKT-based diagnostics is the first proposed fix.</p>
+<p>The table below displays the saved <strong>pre-fix v0.9.0</strong> results. It does not rerun the old optimizer using the newly installed library. The <a href="../ablations/yqx-panel-fixes.html">implementation report</a> gives the corrected estimates.</p>
+<div id="8f9c9183" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>panel_audit <span class="op">=</span> pd.read_csv(out <span class="op">/</span> <span class="st">"panels-crabby.csv"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>display(panel_audit.loc[panel_audit.model.<span class="bu">str</span>.startswith(<span class="st">"prop99_scm"</span>),</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"model"</span>, <span class="st">"estimate"</span>, <span class="st">"pre_rmse"</span>, <span class="st">"reported_converged"</span>]])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">model</th>
+<th data-quarto-table-cell-role="th">estimate</th>
+<th data-quarto-table-cell-role="th">pre_rmse</th>
+<th data-quarto-table-cell-role="th">reported_converged</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>prop99_scm</td>
+<td>-18.998496</td>
+<td>2.399913</td>
+<td>NaN</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>prop99_scm_scipy_audit</td>
+<td>-19.513630</td>
+<td>1.656400</td>
+<td>NaN</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">3</th>
+<td>prop99_scm_iterations_50</td>
+<td>-18.998496</td>
+<td>2.399913</td>
+<td>True</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">4</th>
+<td>prop99_scm_iterations_5000</td>
+<td>-18.998496</td>
+<td>2.399913</td>
+<td>True</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="data/yqx-panel/prop99.svg" class="img-fluid figure-img"></p>
+<figcaption>Prop99 gaps. The orange curve is the historical v0.9.0 standalone SCM; the augmented curves are separately re-estimated R references.</figcaption>
+</figure>
+</div>
+<p>The three lecture-script augsynth variants yield -19.513629, -15.952567 and -12.710049. Their paths and pointwise bounds are saved. The separate canonical ADH predictor recipe and 39 in-space placebo fits are reconstructed in R; the lecture does not distribute its original <code>ca1</code>–<code>ca8</code> script, so these are not claimed as exact figure-provenance matches or as a native CM predictor-V API.</p>
+</section>
+<section id="sdid-and-imputation" class="level3">
+<h3 class="anchored" data-anchor-id="sdid-and-imputation">SDID and imputation</h3>
+<p>CM synthetic DID gives <strong>-15.605398</strong>, versus <strong>-15.603828</strong> from R synthdid. That is close, not exact optimizer parity. The independently resampled 100-draw placebo SEs are 10.2815 and 10.6955. Equal integer seeds across R and Rust do not create identical draws. The SDID scalar ATT is a double-weighted contrast and must not be conflated with the mean of an arbitrary displayed counterfactual-gap path.</p>
+<p>On the turnout data, CM’s ordinary TWFE treatment coefficient is 0.777574. Explicit-dummy CM FE imputation matches R at <strong>1.425566</strong>. R’s fixed-rank-2 IFEct estimate is <strong>5.005401</strong>; this is a reference configuration, not a claim to have replicated Xu’s full rank-selection/CV/inference workflow.</p>
+<p>Actual-data API probes establish the current boundary:</p>
+<ul>
+<li>Incomplete coethnic panels: MC/SDID reject nonfinite outcomes.</li>
+<li>Complete-case panels that retain treatment reversals: MC/SDID reject nonabsorbing treatment.</li>
+<li><code>InteractiveFixedEffects.fit(Y, W)</code> is not a supported signature; fitting all observed outcomes with <code>fit(Y)</code> would leak treatment effects into the nuisance surface and would <strong>not</strong> be IFEct.</li>
+</ul>
+<p>Benin remote-sensing outcomes and the TROP experiments are not reproduced. The TROP lecture script merely transcribes a published RMSE table; redrawing that heatmap would not rerun its 21 experimental designs.</p>
+</section>
+</section>
+<section id="development-priorities" class="level2">
+<h2 class="anchored" data-anchor-id="development-priorities">Development priorities</h2>
+<p>The <a href="https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/SPEC.md">full specification</a> defines APIs, statistical contracts, acceptance cases, and an implementation sequence.</p>
+<ol type="1">
+<li><strong>Fix standalone SCM numerical correctness and truthful convergence.</strong></li>
+<li><strong>Introduce separate observation/treatment masks and FE counterfactual fitting</strong>, with IDs, support checks, level prediction and explicit aggregation.</li>
+<li><strong>Expose FE tolerance, rank/SSC choices, varying slopes and event-study conventions.</strong> Preserve endpoint bins and record sample exclusions.</li>
+<li><strong>Add heterogeneous-effect DID and joint diagnostic inference.</strong> Cohort targets, control groups, pretrend/placebo/carryover tests, and sensitivity analysis cannot be inferred from a coefficient vector alone.</li>
+<li><strong>Build treatment-aware IFE/MC and augmented-SCM workflows</strong>, with tuning restricted to untreated training data.</li>
+<li><strong>Add factorial-DID orchestration and external nuisance predictions</strong>; consider random effects and other curricular gaps separately.</li>
+</ol>
+<p>The immediate engineering opportunity is to turn well-performing regression kernels into transparent, treatment-aware workflows, while repairing the specific constrained-optimization failure exposed by Proposition 99.</p>
+</section>
+<section id="complete-empirical-family-inventory" class="level2">
+<h2 class="anchored" data-anchor-id="complete-empirical-family-inventory">Complete empirical-family inventory</h2>
+<div id="77b0bf2f" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> Markdown, display</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>coverage <span class="op">=</span> pd.read_csv(root <span class="op">/</span> <span class="st">"coverage.csv"</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>lines <span class="op">=</span> [<span class="st">"| Deck | Empirical family | Status / boundary |"</span>, <span class="st">"|---|---|---|"</span>]</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row <span class="kw">in</span> coverage.itertuples(index<span class="op">=</span><span class="va">False</span>):</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    clean <span class="op">=</span> <span class="kw">lambda</span> s: <span class="bu">str</span>(s).replace(<span class="st">"|"</span>, <span class="st">"/"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    lines.append(<span class="ss">f"| </span><span class="sc">{</span>clean(row.deck)<span class="sc">}</span><span class="ss"> | </span><span class="sc">{</span>clean(row.family)<span class="sc">}</span><span class="ss"> | </span><span class="sc">{</span>clean(row.status)<span class="sc">}</span><span class="ss">. </span><span class="sc">{</span>clean(row.scope)<span class="sc">}</span><span class="ss"> |"</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>display(Markdown(<span class="st">"</span><span class="ch">\n</span><span class="st">"</span>.join(lines)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display cell-output-markdown">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Deck</th>
+<th>Empirical family</th>
+<th>Status / boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Swiss panel pooled/unit FE/TWFE/common trend</td>
+<td>replicated coefficients; SSC differs. Included 245-municipality panel; source R formulas.</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>Swiss unit-linear/quadratic trends</td>
+<td>composed replication. Explicit slope columns; coefficient parity; varying-slope df policy remains different.</td>
+</tr>
+<tr class="odd">
+<td>1</td>
+<td>Swiss SVP heterogeneity</td>
+<td>replicated coefficients; SSC differs. Linear interaction and vote-share quartile bins on swissnat.</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>Swiss distributed lags and leads</td>
+<td>supplementary replication. Reproduced commented formulas; legacy Stata demonstration frames are conditional/inactive.</td>
+</tr>
+<tr class="odd">
+<td>1</td>
+<td>Beer taxes: pooled/FE/TWFE</td>
+<td>replicated coefficients; SSC differs. plm HC1 values independently regenerated; see fatalities-plm.csv.</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>Beer taxes: Swamy-Arora random effects</td>
+<td>R reference only; API gap. No random-effects estimator in CM.</td>
+</tr>
+<tr class="odd">
+<td>1</td>
+<td>EDR and Swiss treatment/raw-data displays</td>
+<td>data recovered; estimator audit. Turnout/HH2019 public data used; original raw figure scripts omitted.</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Card-Krueger employment table and DID</td>
+<td>replicated with sample distinction. Available-case DID 2.753606; paired FE/change DID 2.75; cell means saved.</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Card-Krueger wage distributions</td>
+<td>reconstructed from microdata. Same wage-bin recipe as source R, no estimation required.</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Card-Krueger 2000 longer pretrends</td>
+<td>not reproduced: data missing. SOURCES.md explicitly says underlying BLS ES-202 series not public.</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Mariel Boatlift sample-means table</td>
+<td>not re-estimated. Typed published numbers; underlying CPS extraction not included in downloaded inputs.</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Gruber maternity-benefit triple difference</td>
+<td>not re-estimated. Typed Table 3; underlying design/microdata absent from retrieved inputs.</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Hong composition tables</td>
+<td>not re-estimated. Typed Tables 1 and 8; underlying design/microdata absent from retrieved inputs.</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Scheve-Stasavage WWI tax rates</td>
+<td>not reproduced: inputs not retrieved. Figure Ken.pdf; source notes replication data not retrieved.</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Gun control/WTO/democracy-GDP/political connections</td>
+<td>not reproduced: figure-only provenance. Shared reanalysis figures; no matching estimation scripts/data found in retrieved archive.</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>Famine any-genealogy DID/OLS1/OLS2 event/dynamic</td>
+<td>replicated point estimates. 921 counties; 412/509 groups; baseline 1957; event 1958-61.</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Famine OLS2 inference</td>
+<td>composed replication. CM HC3 plus population correction matches fdid; ordinary HC1 is not the same variance.</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>Famine IPW/entropy balancing/GRF AIPW</td>
+<td>R references; CM AIPW related only. Forest vs ridge/logit differ; entropy balance target is G=1, not all counties.</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Famine multivalued moderator</td>
+<td>R reference reconstruction. 412/254/255 groups; two pairwise forest fits; original figure seed not supplied.</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>Historical Cao-Xu-Zhang fig5/table</td>
+<td>not separately re-estimated. Historical high-genealogy definition differs from updated any-genealogy illustration.</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Famine geographic maps</td>
+<td>not reproduced: boundary inputs absent. No matching geographic boundary files acquired.</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Unilateral divorce TWFE/event study</td>
+<td>replicated point estimates. Both endpoint bins included in fit; independent check against source i(rel_b,ref=-1).</td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td>Goodman-Bacon decomposition</td>
+<td>R reference only; API gap. Weights sum to one and decomposition recovers -3.048894695.</td>
+</tr>
+<tr class="even">
+<td>4/5</td>
+<td>49-study aggregate estimates</td>
+<td>partial regression audit plus saved-table reconstruction. 47 native regression runs; 2 huge-data preflight exclusions; saved causal estimates are not fresh fits.</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Bischof-Wagner six-estimator comparison</td>
+<td>partial. TWFE and composed FEct replicated; remaining estimator/event/inference pipelines not native.</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Grumbach-Sahn coethnic donations</td>
+<td>partial. Archive covariates included in TWFE and composed FEct; 118 vs lecture 74 treated cells unresolved.</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Trounstine land-use lawsuits</td>
+<td>partial. TWFE native, FEct R reference; trend-augmented diagnostics and bootstrap p-values not rerun.</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Christensen-Garfias cadastral maps</td>
+<td>partial. Full-sample TWFE native; full/trimmed FEct R; saved aggregate uses trimmed sample.</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Carryover/HonestDiD/equivalence diagnostics</td>
+<td>not implemented in CM. Archive has saved outputs and code; joint inference/sensitivity pipeline not freshly rerun.</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Hall-Yoder and Sanford large panels</td>
+<td>resource preflight exclusion. Published n about 89m/158m; no claim of estimator failure; require larger-memory run.</td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td>Prop99 outcome-only SCM</td>
+<td>attempted; confirmed numerical failure. CM misses same-objective R/SciPy optimum while reporting convergence.</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Prop99 ridge-augmented SCM and covariates</td>
+<td>R references only; API gap. Three source-script augsynth fits and pointwise bands regenerated.</td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td>Prop99 canonical predictor-SCM/placebos</td>
+<td>R reconstruction. ADH recipe reconstructed; original ca1-ca8 script absent; not exact figure provenance.</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Prop99 synthetic DID</td>
+<td>close point-estimate reproduction. Native -15.605398 versus R -15.603828; independent 100-draw placebo SEs not exact-draw parity.</td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td>Xu EDR FEct/IFEct</td>
+<td>partial. CM TWFE and composed FE imputation; R fixed-rank IFEct; no native treatment-aware IFE API.</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Benin land titling/remote sensing</td>
+<td>not reproduced: inputs not retrieved. Illustration/imagery and outcomes not supplied in lecture repository or downloaded reanalysis data.</td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td>TROP Table 1 heatmap</td>
+<td>not an empirical rerun. Source script transcribes published 21-design RMSEs; underlying experiments not in lectures.</td>
+</tr>
+<tr class="even">
+<td>all</td>
+<td>Toy simulations, diagrams, maps used only for context, paper covers</td>
+<td>excluded from empirical-result count. No claim to have replicated unrelated simulations or reproduced third-party artwork.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="reproducibility-and-limitations" class="level2">
+<h2 class="anchored" data-anchor-id="reproducibility-and-limitations">Reproducibility and limitations</h2>
+<p>The release source archive contains original audit code, numerical summaries, specifications and manifests, but no third-party microdata. Follow its README to fetch the verified inputs and install the recorded R reference versions locally. <code>summarize.py</code> verifies coefficient comparisons and rebuilds plots; it does not silently replace missing native estimators with R outputs.</p>
+<p>Source scripts are the primary specification where supplied. Where only images or saved estimates exist, exact version/sample/inference parity remains a separate unresolved requirement. The archive’s very large datasets, full resampling pipelines, two source unit-trend regressions, several missing-data examples, and unprovided empirical inputs are explicitly left open. Completing all lecture results requires both those inputs/resources and the API work in the specification—not merely a larger “tests passed” count.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/apoorvalal\.github\.io\/crabbymetrics\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>crabbymetrics 0.9.1</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.html">
+<p>v0.9 migration</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../reproducing.html">
+<p>Reproduction</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

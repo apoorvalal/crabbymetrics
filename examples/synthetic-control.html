@@ -277,6 +277,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -349,6 +353,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -458,7 +466,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This example builds a 50-unit, 20-period panel from a two-factor model. The treated unit is selected from the high end of the first principal component of the pre-treatment panel, so the raw donor average has obvious pre-trend mismatch. <code>SyntheticControl</code> reweights donors on the simplex to match the treated unit before treatment at period 15.</p>
 <section id="generate-a-factor-model-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="generate-a-factor-model-panel"><span class="header-section-number">1</span> Generate A Factor-Model Panel</h2>
-<div id="96446485" class="cell" data-execution_count="1">
+<div id="238db264" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -466,7 +474,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="11b5072d" class="cell" data-execution_count="2">
+<div id="aaa5ea69" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2027</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_units <span class="op">=</span> <span class="dv">50</span></span>
@@ -529,7 +537,7 @@ treated unit PC1 score: 8.7376</code></pre>
 </section>
 <section id="fit-synthetic-control-on-pre-treatment-periods" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-synthetic-control-on-pre-treatment-periods"><span class="header-section-number">2</span> Fit Synthetic Control On Pre-Treatment Periods</h2>
-<div id="70bcecf4" class="cell" data-execution_count="3">
+<div id="10bc9025" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>pre_idx <span class="op">=</span> <span class="bu">slice</span>(<span class="dv">0</span>, treatment_start <span class="op">-</span> <span class="dv">1</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>post_idx <span class="op">=</span> <span class="bu">slice</span>(treatment_start <span class="op">-</span> <span class="dv">1</span>, <span class="va">None</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -556,16 +564,16 @@ treated unit PC1 score: 8.7376</code></pre>
 synthetic-control pre RMSE: 0.6732
 top donor weights:
   1. donor unit 17: weight=1.0000
-  2. donor unit 22: weight=0.0000
-  3. donor unit 19: weight=0.0000
-  4. donor unit 45: weight=0.0000
+  2. donor unit 49: weight=0.0000
+  3. donor unit 24: weight=0.0000
+  4. donor unit 22: weight=0.0000
   5. donor unit 21: weight=0.0000</code></pre>
 </div>
 </div>
 </section>
 <section id="compare-raw-trends-to-synthetic-control" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="compare-raw-trends-to-synthetic-control"><span class="header-section-number">3</span> Compare Raw Trends To Synthetic Control</h2>
-<div id="8f4e5589" class="cell" data-execution_count="4">
+<div id="b0a7ad9a" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].plot(time <span class="op">+</span> <span class="dv">1</span>, treated_observed, color<span class="op">=</span><span class="st">"black"</span>, lw<span class="op">=</span><span class="fl">2.2</span>, label<span class="op">=</span><span class="st">"Treated"</span>)</span>
@@ -608,6 +616,19 @@ top donor weights:
 </div>
 </div>
 <p>The treated unit was deliberately chosen from the high-positive side of the first principal component, so the naive donor average fails even before treatment. The synthetic control fit sharply reduces pre-treatment mismatch, making the post-treatment gap much easier to interpret as treatment effect rather than latent-factor imbalance.</p>
+</section>
+<section id="optimization-diagnostics" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="optimization-diagnostics"><span class="header-section-number">4</span> Optimization diagnostics</h2>
+<p>The solver minimizes half the mean squared pre-treatment error directly on the nonnegative unit simplex. An active-set quadratic solver permits exact zero donor weights; a softmax parameterization can falsely flatten gradients near a boundary. The internally normalized donor-minus-target design avoids large-common-level cancellation. <code>summary()</code> reports <code>objective</code> in original outcome-squared units, <code>iterations</code>, <code>feasibility_error</code>, <code>scaled_kkt_residual</code>, <code>stop_reason</code>, and <code>converged</code>. The KKT residual uses the normalized design and is not in raw outcome units. Insufficient iterations or a failed optimality check raises <code>ValueError</code> and clears fitted state. Prediction rejects nonfinite donor inputs.</p>
+<div id="cab3b01c" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>({key: summary[key] <span class="cf">for</span> key <span class="kw">in</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>       [<span class="st">'solver'</span>, <span class="st">'iterations'</span>, <span class="st">'objective'</span>, <span class="st">'scaled_kkt_residual'</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">'feasibility_error'</span>, <span class="st">'stop_reason'</span>, <span class="st">'converged'</span>]})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>{'solver': 'active_set_simplex_qp', 'iterations': 52, 'objective': 0.22661881128084935, 'scaled_kkt_residual': 0.0, 'feasibility_error': 0.0, 'stop_reason': 'kkt_optimality', 'converged': True}</code></pre>
+</div>
+</div>
+<p>The Proposition 99 regression fixture reproduces outcome-only SCM pre-RMSE 1.656400 and ATT -19.513630 from R and an independent constrained solver. It is not the canonical predictor-weighted SCM specification.</p>
 
 
 </section>
@@ -1017,13 +1038,18 @@ top donor weights:
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

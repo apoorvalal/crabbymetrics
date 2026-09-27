@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,15 +529,15 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Survival / event-time models</p>
 <p><code>CoxPH</code> estimates log hazard ratios without parameterizing the baseline hazard:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 h_i(t \mid x_i) = h_0(t) \exp(x_i'\beta).
-\]</span></p>
+</span></p>
 <p>That means the paved prediction target is relative risk rather than absolute survival. The latent linear index is still useful and is exposed as <code>predict_lin(x)</code>.</p>
 </section>
 <section id="partial-likelihood-and-ties" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="partial-likelihood-and-ties"><span class="header-section-number">2</span> Partial likelihood and ties</h2>
-<p>For event time <span class="math inline">\(t_i\)</span> and risk set <span class="math inline">\(R(t_i)=\{r:t_r\geq t_i\}\)</span>, the implementation maximizes</p>
-<p><span class="math display">\[
+<p>For event time <span class="math inline">t_i</span> and risk set <span class="math inline">R(t_i)=\{r:t_r\geq t_i\}</span>, the implementation maximizes</p>
+<p><span class="math display">
 \ell_p(\beta)
 =
 \sum_{i:d_i=1}
@@ -523,43 +545,43 @@ h_i(t \mid x_i) = h_0(t) \exp(x_i'\beta).
 x_i'\beta
 -\log\left\{\sum_{r\in R(t_i)}\exp(x_r'\beta)\right\}
 \right].
-\]</span></p>
-<p>When several events share a time, the same full risk-set denominator is subtracted once per event. This is the Breslow partial-likelihood treatment of ties. Newton updates use the analytic score and information, a <span class="math inline">\(10^{-8}\)</span> ridge in the solve, coordinate-wise step clipping to <span class="math inline">\([-1,1]\)</span>, and backtracking. Convergence requires either <span class="math inline">\(\|\nabla\ell_p\|_\infty&lt;\tau\)</span> or an accepted partial-likelihood change below <span class="math inline">\(\tau(1+|\ell_p|)\)</span>.</p>
+</span></p>
+<p>When several events share a time, the same full risk-set denominator is subtracted once per event. This is the Breslow partial-likelihood treatment of ties. Newton updates use the analytic score and information, a <span class="math inline">10^{-8}</span> ridge in the solve, coordinate-wise step clipping to <span class="math inline">[-1,1]</span>, and backtracking. Convergence requires either <span class="math inline">\|\nabla\ell_p\|_\infty&lt;\tau</span> or an accepted partial-likelihood change below <span class="math inline">\tau(1+|\ell_p|)</span>.</p>
 <p>Risk sums use dynamic log rescaling instead of index clipping, so likelihood, score, and Hessian refer to the same Breslow objective. Covariates are centered internally to improve origin invariance; the fitted slopes and original-scale prediction contract are unchanged.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The package owns a cumulative risk-moment kernel and Newton solver.</p>
 <ol type="1">
-<li><p><code>fit()</code> clears state, validates finite <span class="math inline">\(X\)</span>, positive times, binary events, and at least one event. It copies owned arrays before detaching the pure-Rust fit from the GIL. Slopes start at zero and descending stop-time order is cached once.</p></li>
-<li><p>At each candidate, the kernel computes centered indices and visits groups of equal stop time in descending order. Adding each group maintains the risk set <span class="math inline">\(t_r\geq t_i\)</span> before any tied events are evaluated.</p></li>
+<li><p><code>fit()</code> clears state, validates finite <span class="math inline">X</span>, positive times, binary events, and at least one event. It copies owned arrays before detaching the pure-Rust fit from the GIL. Slopes start at zero and descending stop-time order is cached once.</p></li>
+<li><p>At each candidate, the kernel computes centered indices and visits groups of equal stop time in descending order. Adding each group maintains the risk set <span class="math inline">t_r\geq t_i</span> before any tied events are evaluated.</p></li>
 <li><p>Dynamic rescaling maintains the risk mass, first moment, and second moment without clipping. In unscaled notation, an event contributes</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \eta_i-\log S^{(0)},\qquad
 x_i-S^{(1)}/S^{(0)},\qquad
 -\{S^{(2)}/S^{(0)}-\bar x\bar x'\}
-\]</span></p>
+</span></p>
 <p>to likelihood, score, and Hessian. Tied events share the accumulated denominator, giving the Breslow contribution.</p></li>
-<li><p>The Newton helper subtracts <span class="math inline">\(10^{-8}\)</span> from the log-likelihood Hessian diagonal and explicitly inverts it. Coordinates of <span class="math inline">\(H^{-1}g\)</span> are clipped to <span class="math inline">\([-1,1]\)</span>, a tighter bound than in the parametric models. Up to 30 halvings seek a finite partial likelihood no smaller than the current value minus <span class="math inline">\(10^{-10}\)</span>.</p></li>
+<li><p>The Newton helper subtracts <span class="math inline">10^{-8}</span> from the log-likelihood Hessian diagonal and explicitly inverts it. Coordinates of <span class="math inline">H^{-1}g</span> are clipped to <span class="math inline">[-1,1]</span>, a tighter bound than in the parametric models. Up to 30 halvings seek a finite partial likelihood no smaller than the current value minus <span class="math inline">10^{-10}</span>.</p></li>
 <li><p>The loop stops before a step when the maximum score is below tolerance or after a step when the likelihood change is relatively small. An exhausted budget or failed line search raises. Final covariance reevaluates the Hessian, negates it, and inverts it without the optimization ridge.</p></li>
-<li><p>Prediction performs only <span class="math inline">\(X\hat\beta\)</span> and its exponential. No baseline hazard is estimated as a post-fit step, so no absolute-risk or survival prediction is available.</p></li>
+<li><p>Prediction performs only <span class="math inline">X\hat\beta</span> and its exponential. No baseline hazard is estimated as a post-fit step, so no absolute-risk or survival prediction is available.</p></li>
 </ol>
 <p>Backtracking uses likelihood-only evaluations, skipping derivative accumulation. A direct Breslow reference and finite-difference derivative tests cover ties and the shared start/stop kernel. No baseline hazard is added by this refactor.</p>
 </section>
 <section id="inference-and-prediction" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference-and-prediction"><span class="header-section-number">4</span> Inference and prediction</h2>
-<p>The covariance is the inverse observed partial-likelihood information. Standard errors, normal <span class="math inline">\(z\)</span> statistics, and approximate two-sided chi-square-one <span class="math inline">\(p\)</span>-values are derived from it. There is no robust sandwich, clustering, strata, weights, or bootstrap. The class does not estimate a baseline cumulative hazard, so it cannot return survival probabilities; default prediction is <span class="math inline">\(\exp(x'\hat\beta)\)</span> and the linear method returns <span class="math inline">\(x'\hat\beta\)</span>.</p>
+<p>The covariance is the inverse observed partial-likelihood information. Standard errors, normal <span class="math inline">z</span> statistics, and approximate two-sided chi-square-one <span class="math inline">p</span>-values are derived from it. There is no robust sandwich, clustering, strata, weights, or bootstrap. The class does not estimate a baseline cumulative hazard, so it cannot return survival probabilities; default prediction is <span class="math inline">\exp(x'\hat\beta)</span> and the linear method returns <span class="math inline">x'\hat\beta</span>.</p>
 <p>Reaching <code>max_iterations</code> raises <code>ValueError</code> before covariance or fitted state is stored. A successful summary exposes <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and <code>objective</code>, where <code>objective=-\ell_p(\hat\beta)</code>. Model-based inference assumes independent subjects and a correctly specified proportional-hazards relative-risk model.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Sorting costs <span class="math inline">\(O(n\log n)\)</span> once; derivative evaluation then costs <span class="math inline">\(O(np^2)\)</span> and the Newton solve adds <span class="math inline">\(O(p^3)\)</span>. Likelihood-only trials avoid second moments. Owned native fitting releases the GIL but does not implement cancellation or signal polling. Prediction still exponentiates the original-scale new-data index, which can overflow; use <code>predict_lin()</code> for extreme values.</p>
+<p>Sorting costs <span class="math inline">O(n\log n)</span> once; derivative evaluation then costs <span class="math inline">O(np^2)</span> and the Newton solve adds <span class="math inline">O(p^3)</span>. Likelihood-only trials avoid second moments. Owned native fitting releases the GIL but does not implement cancellation or signal polling. Prediction still exponentiates the original-scale new-data index, which can overflow; use <code>predict_lin()</code> for extreme values.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.CoxPH</code></p>
 <p>Use <code>fit(x, time, event)</code>. <code>predict_lin(x)</code> returns the log hazard ratio and <code>predict_relative_risk(x)</code> exponentiates it. The default <code>predict(x)</code> is the same relative-risk object. <code>summary()</code> reports coefficients, standard errors, hazard ratios, and optimization diagnostics.</p>
-<div id="f66a0828" class="cell" data-execution_count="2">
+<div id="6359258b" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.CoxPH))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -568,7 +590,7 @@ x_i-S^{(1)}/S^{(0)},\qquad
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="244b976f" class="cell" data-execution_count="3">
+<div id="9d918df3" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.CoxPH</span>
@@ -610,7 +632,7 @@ x_i-S^{(1)}/S^{(0)},\qquad
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="cad97946" class="cell" data-execution_count="4">
+<div id="a34d0c88" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">33</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">260</span>,<span class="dv">2</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.05</span><span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.5</span>,<span class="op">-</span><span class="fl">0.25</span>]))<span class="op">;</span> t_event<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">25</span>,size<span class="op">=</span><span class="dv">260</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>time<span class="op">=</span>np.minimum(t_event,c)<span class="op">;</span> event<span class="op">=</span>(t_event<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
@@ -628,7 +650,7 @@ x_i-S^{(1)}/S^{(0)},\qquad
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="0edcdcb7" class="cell" data-execution_count="5">
+<div id="38cc3c5d" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng<span class="op">=</span>np.random.default_rng(<span class="dv">133</span>)<span class="op">;</span> x<span class="op">=</span>rng.normal(size<span class="op">=</span>(<span class="dv">130</span>,<span class="dv">2</span>))<span class="op">;</span> rate<span class="op">=</span><span class="fl">0.06</span><span class="op">*</span>np.exp(x<span class="op">@</span>np.array([<span class="fl">0.45</span>,<span class="op">-</span><span class="fl">0.2</span>]))<span class="op">;</span> te<span class="op">=</span>rng.exponential(<span class="fl">1.0</span><span class="op">/</span>rate)<span class="op">;</span> c<span class="op">=</span>rng.exponential(<span class="dv">20</span>,size<span class="op">=</span><span class="dv">130</span>)<span class="op">;</span> time<span class="op">=</span>np.minimum(te,c)<span class="op">;</span> event<span class="op">=</span>(te<span class="op">&lt;=</span>c).astype(<span class="bu">float</span>)</span>
@@ -1106,13 +1128,18 @@ x_i-S^{(1)}/S^{(0)},\qquad
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

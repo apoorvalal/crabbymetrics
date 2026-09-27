@@ -1,0 +1,67 @@
+---
+title: "CrabbyMetrics 0.9.1"
+subtitle: "Synthetic-control correctness and fixed-effect counterfactuals"
+format:
+  html:
+    toc: true
+---
+
+Version 0.9.1 includes [PR #23](https://github.com/apoorvalal/crabbymetrics/pull/23):
+a corrected synthetic-control optimizer, explicit fixed-effect inference
+conventions, and untreated-only fixed-effect imputation.
+
+```bash
+pip install --upgrade crabbymetrics==0.9.1
+```
+
+## Synthetic control
+
+[`SyntheticControl`](reference/SyntheticControl.qmd) now solves its least-squares
+objective directly on the simplex with an active-set quadratic solver. Exact
+zero donor weights are allowed. Convergence requires feasibility and KKT checks;
+exhausting the iteration budget raises an error instead of returning a
+misleading success flag. Summaries expose the objective, iteration count,
+feasibility error, normalized KKT residual, and stopping reason.
+
+Previously fitted models should be refitted. In the outcome-only Proposition 99
+example, pre-treatment RMSE changes from **2.399913 to 1.656400**, and the mean
+post-treatment gap from **−18.998496 to −19.513630**. The corrected values agree
+with independent R and SciPy optimizers for the same objective. This remains
+outcome-only SCM, not predictor-weighted or augmented SCM.
+
+## Fixed-effect regression
+
+[`FixedEffectsOLS`](reference/FixedEffectsOLS.qmd) adds absorption controls,
+FE-only fits, and level prediction for identified one- and two-way effects.
+Unknown levels and disconnected combinations are rejected. Three-or-more-way
+slope fitting remains supported, but level prediction is not.
+
+Summary and Wald inference accept explicit FE degrees-of-freedom and
+small-sample corrections. The existing full-FE default is preserved; examples
+show how to match `fixest` and `plm` conventions rather than treating different
+corrections as numerical disagreements.
+
+## Fixed-effect imputation
+
+[`FEImputation`](examples/fe-imputation.qmd) estimates additive unit/time
+counterfactuals using observed, positive-weight untreated cells only. It accepts
+missing observations, treatment reversals, covariates and weights, and exposes
+training/evaluation masks and unit/time effect aggregations. Unidentified
+counterfactuals and collinear nuisance covariates are rejected.
+
+The class provides **point estimates only**. It does not supply confidence
+intervals, justify treatment reversals causally, or implement interactive-factor
+or matrix-completion counterfactual estimation.
+
+## Evidence and compatibility
+
+The [implementation report](ablations/yqx-panel-fixes.qmd) records independent
+R-generated fixtures, leakage checks and the lecture-data comparisons. The
+[original audit](ablations/yqx-panel-lectures.qmd) preserves the pre-fix evidence
+and clearly separates saved results from current estimator examples.
+
+The Python runtime dependency remains NumPy. The release workflow tests Python
+3.10 and 3.12, builds Linux/macOS wheels for Python 3.10–3.14, and publishes a
+source distribution without rendered documentation. See the
+[GitHub release](https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.9.1)
+and [documentation reproduction guide](reproducing.qmd).

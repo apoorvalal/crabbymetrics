@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -506,72 +528,72 @@ window.Quarto = {
 <section id="where-it-fits" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Causal inference</p>
-<p><code>EPLM</code> targets a scalar treatment effect in a partially linear model. It combines an outcome equation with a working model for <span class="math inline">\(E[D\mid W]\)</span> and solves the resulting stacked moment system.</p>
-<p>The intended estimand is the coefficient on the scalar treatment after accounting for controls <span class="math inline">\(W\)</span> without treating the nuisance regression as the object of interest.</p>
+<p><code>EPLM</code> targets a scalar treatment effect in a partially linear model. It combines an outcome equation with a working model for <span class="math inline">E[D\mid W]</span> and solves the resulting stacked moment system.</p>
+<p>The intended estimand is the coefficient on the scalar treatment after accounting for controls <span class="math inline">W</span> without treating the nuisance regression as the object of interest.</p>
 </section>
 <section id="estimating-equations" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="estimating-equations"><span class="header-section-number">2</span> Estimating equations</h2>
-<p>Let <span class="math inline">\(\tilde W=[\mathbf1,W]\)</span>. The class first fits the linear treatment projection</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">\tilde W=[\mathbf1,W]</span>. The class first fits the linear treatment projection</p>
+<p><span class="math display">
 \hat\pi=\arg\min_\pi\|D-\tilde W\pi\|_2^2,
 \qquad
 \hat v=D-\tilde W\hat\pi,
-\]</span></p>
+</span></p>
 <p>and then estimates</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\beta
 =
 \frac{\hat v'Y}{\hat v'D}.
-\]</span></p>
-<p>Because OLS makes <span class="math inline">\(\hat v\)</span> orthogonal to <span class="math inline">\(\tilde W\)</span>, the denominator equals <span class="math inline">\(\hat v'\hat v\)</span> up to numerical error. This is the partialling-out coefficient in the partially linear specification</p>
-<p><span class="math display">\[
+</span></p>
+<p>Because OLS makes <span class="math inline">\hat v</span> orthogonal to <span class="math inline">\tilde W</span>, the denominator equals <span class="math inline">\hat v'\hat v</span> up to numerical error. This is the partialling-out coefficient in the partially linear specification</p>
+<p><span class="math display">
 Y=\beta D+g(W)+U
-\]</span></p>
+</span></p>
 <p>when both the treatment projection and control adjustment are restricted to the supplied linear control basis.</p>
-<p>Inference treats <span class="math inline">\(\theta=(\pi',\beta)'\)</span> as the exactly identified solution to the stacked per-observation moments</p>
-<p><span class="math display">\[
+<p>Inference treats <span class="math inline">\theta=(\pi',\beta)'</span> as the exactly identified solution to the stacked per-observation moments</p>
+<p><span class="math display">
 \psi_i(\theta)
 =
 \begin{bmatrix}
 \tilde W_i(D_i-\tilde W_i'\pi)\\
 (D_i-\tilde W_i'\pi)(Y_i-D_i\beta)
 \end{bmatrix}.
-\]</span></p>
+</span></p>
 <p>The treatment is not required to be binary; it may be continuous.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The point estimate and stacked-moment inference are both native dense linear algebra.</p>
 <ol type="1">
-<li><code>fit()</code> validates aligned finite arrays and prepends an explicit intercept to <span class="math inline">\(W\)</span>. It solves the treatment projection by rectangular least squares, then stores <span class="math inline">\(v=D-\tilde W\hat\pi\)</span>.</li>
-<li>The scalar coefficient is computed directly as <span class="math inline">\(v'Y/(v'D)\)</span> rather than by a second regression object. A denominator below <span class="math inline">\(10^{-12}\)</span> in absolute value is treated as lack of residual treatment variation and raises.</li>
-<li>The stored parameter vector is ordered $(‘,)’`. At summary time, the code reconstructs every observation’s full moment row by scaling <span class="math inline">\(\tilde W_i\)</span> with <span class="math inline">\(v_i\)</span> and appending <span class="math inline">\(v_i(Y_i-D_i\beta)\)</span>.</li>
-<li>For each parameter coordinate it perturbs by <span class="math inline">\(h_j=\text{fd eps}\max(|\theta_j|,1)\)</span>, reevaluates the complete moment matrix at plus and minus perturbations, averages columns, and fills one central-difference Jacobian column. No closed-form Jacobian is used even though this particular system is analytic.</li>
-<li>The square Jacobian is inverted once. Moment rows are mapped to parameter-score rows as <span class="math inline">\(\psi_iA^{-T}/n\)</span>; the shared iid, HC1, Newey-West, or cluster aggregator then supplies the covariance. Only the final scalar row and column are exposed publicly.</li>
+<li><code>fit()</code> validates aligned finite arrays and prepends an explicit intercept to <span class="math inline">W</span>. It solves the treatment projection by rectangular least squares, then stores <span class="math inline">v=D-\tilde W\hat\pi</span>.</li>
+<li>The scalar coefficient is computed directly as <span class="math inline">v'Y/(v'D)</span> rather than by a second regression object. A denominator below <span class="math inline">10^{-12}</span> in absolute value is treated as lack of residual treatment variation and raises.</li>
+<li>The stored parameter vector is ordered $(‘,)’`. At summary time, the code reconstructs every observation’s full moment row by scaling <span class="math inline">\tilde W_i</span> with <span class="math inline">v_i</span> and appending <span class="math inline">v_i(Y_i-D_i\beta)</span>.</li>
+<li>For each parameter coordinate it perturbs by <span class="math inline">h_j=\text{fd eps}\max(|\theta_j|,1)</span>, reevaluates the complete moment matrix at plus and minus perturbations, averages columns, and fills one central-difference Jacobian column. No closed-form Jacobian is used even though this particular system is analytic.</li>
+<li>The square Jacobian is inverted once. Moment rows are mapped to parameter-score rows as <span class="math inline">\psi_iA^{-T}/n</span>; the shared iid, HC1, Newey-West, or cluster aggregator then supplies the covariance. Only the final scalar row and column are exposed publicly.</li>
 </ol>
 <p>The implementation deliberately treats nuisance estimation and target inference as one exactly identified system. This accounts for the linear treatment projection algebraically, at the cost of repeated moment construction during numerical differentiation.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>The mean-moment Jacobian <span class="math inline">\(A=\partial\bar\psi/\partial\theta'\)</span> is evaluated by central differences. The uncorrected iid option, named vanilla, is already an empirical sandwich:</p>
-<p><span class="math display">\[
+<p>The mean-moment Jacobian <span class="math inline">A=\partial\bar\psi/\partial\theta'</span> is evaluated by central differences. The uncorrected iid option, named vanilla, is already an empirical sandwich:</p>
+<p><span class="math display">
 \widehat V
 =
 \frac1n\hat A^{-1}
 \left\{\frac1n\sum_i\psi_i\psi_i'\right\}
 \hat A^{-T}.
-\]</span></p>
-<p>HC1 multiplies the corresponding parameter-score covariance by <span class="math inline">\(n/(n-k)\)</span>, where <span class="math inline">\(k\)</span> includes nuisance parameters. Newey-West applies Bartlett lag weights and that same correction; cluster covariance sums parameter scores by cluster and applies the package’s <span class="math inline">\(G/(G-1)\times(n-1)/(n-k)\)</span> correction. The summary returns only the <span class="math inline">\(\beta\)</span> variance block and nuisance point estimates. There is no bootstrap or built-in Wald method.</p>
+</span></p>
+<p>HC1 multiplies the corresponding parameter-score covariance by <span class="math inline">n/(n-k)</span>, where <span class="math inline">k</span> includes nuisance parameters. Newey-West applies Bartlett lag weights and that same correction; cluster covariance sums parameter scores by cluster and applies the package’s <span class="math inline">G/(G-1)\times(n-1)/(n-k)</span> correction. The summary returns only the <span class="math inline">\beta</span> variance block and nuisance point estimates. There is no bootstrap or built-in Wald method.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Point estimation is a pair of dense least-squares calculations with approximately <span class="math inline">\(O(np^2+p^3)\)</span> work for <span class="math inline">\(p\)</span> control columns. Summary-time numerical differentiation evaluates the full moment system twice per element of <span class="math inline">\((\pi,\beta)\)</span> and then inverts its dense Jacobian, so inference can cost more than fitting. Near-zero residual treatment variation raises. There is no sample splitting, nonlinear nuisance learner, or regularization, and collinear controls can make both projection and covariance unstable.</p>
+<p>Point estimation is a pair of dense least-squares calculations with approximately <span class="math inline">O(np^2+p^3)</span> work for <span class="math inline">p</span> control columns. Summary-time numerical differentiation evaluates the full moment system twice per element of <span class="math inline">(\pi,\beta)</span> and then inverts its dense Jacobian, so inference can cost more than fitting. Near-zero residual treatment variation raises. There is no sample splitting, nonlinear nuisance learner, or regularization, and collinear controls can make both projection and covariance unstable.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.EPLM</code></p>
 <p>Call <code>fit(y, d, w)</code> with scalar treatment <code>d</code> and 2D controls <code>w</code>. <code>summary(vcov=None, lags=None, clusters=None)</code> returns the coefficient, standard error, covariance matrix, and nuisance coefficients. There is no <code>predict()</code> method.</p>
-<div id="462e4f17" class="cell" data-execution_count="2">
+<div id="b70fe8b4" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.EPLM))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -580,7 +602,7 @@ Y=\beta D+g(W)+U
 <pre><code>(fd_eps=1e-06)</code></pre>
 </div>
 </div>
-<div id="22ade4e9" class="cell" data-execution_count="3">
+<div id="96f9090d" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.EPLM</span>
@@ -610,7 +632,7 @@ Y=\beta D+g(W)+U
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="2850099d" class="cell" data-execution_count="4">
+<div id="b21e94c8" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">11</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">300</span>, <span class="dv">3</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.4</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.6</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(size<span class="op">=</span><span class="dv">300</span>)</span>
@@ -628,7 +650,7 @@ Y=\beta D+g(W)+U
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="d4a3654a" class="cell" data-execution_count="5">
+<div id="aa9adb53" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">111</span>)</span>
@@ -1078,13 +1100,18 @@ Y=\beta D+g(W)+U
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

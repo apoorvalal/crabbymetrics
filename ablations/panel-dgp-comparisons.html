@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -495,11 +517,11 @@ window.Quarto = {
 <li><code>SyntheticDID</code>, using the panel estimator exposed by <code>crabbymetrics</code>;</li>
 <li><code>MatrixCompletion</code>, fit after masking treated post-treatment outcomes and using the completed values as counterfactuals.</li>
 </ul>
-<p>All four DGPs have the same true post-treatment ATT, <span class="math inline">\(\tau = 1\)</span>. The DGPs differ in whether untreated outcomes are additive or low-rank and in whether treatment is randomly assigned or selected on latent factor loadings.</p>
+<p>All four DGPs have the same true post-treatment ATT, <span class="math inline">\tau = 1</span>. The DGPs differ in whether untreated outcomes are additive or low-rank and in whether treatment is randomly assigned or selected on latent factor loadings.</p>
 <p>The page uses Quarto execution caching and freezing, so the Monte Carlo runs once and later site renders reuse the saved output unless this file changes.</p>
 <section id="setup" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup"><span class="header-section-number">1</span> Setup</h2>
-<div id="f5c97e27" class="cell" data-execution_count="1">
+<div id="5678b7df" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
@@ -540,11 +562,11 @@ window.Quarto = {
 <section id="dgp" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="dgp"><span class="header-section-number">2</span> DGP</h2>
 <p>The untreated potential outcome is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
-\]</span></p>
+</span></p>
 <p>with the factor term omitted in the additive benchmark. In selected-adoption designs, the treated units are more likely to have large latent factor scores. In the strongest design, treatment is assigned to the units with the highest factor-selection score, so parallel trends is deliberately false.</p>
-<div id="b8458548" class="cell" data-execution_count="2">
+<div id="8c9cdec5" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_panel(</span>
@@ -650,8 +672,8 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 </section>
 <section id="estimators" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="estimators"><span class="header-section-number">3</span> Estimators</h2>
-<p>The estimators are intentionally fed identical panels within a replication. <code>SyntheticDID</code> and <code>MatrixCompletion</code> use the common <code>fit(Y, W)</code> panel API: <code>Y</code> is the observed panel and <code>W</code> is the same-shaped absorbing treatment matrix. <code>MatrixCompletion</code> treats the untreated cells (<code>W == 0</code>) as observed and reconstructs <span class="math inline">\(Y(0)\)</span> in exactly the treated cells where the ATT is evaluated.</p>
-<div id="40ac038b" class="cell" data-execution_count="3">
+<p>The estimators are intentionally fed identical panels within a replication. <code>SyntheticDID</code> and <code>MatrixCompletion</code> use the common <code>fit(Y, W)</code> panel API: <code>Y</code> is the observed panel and <code>W</code> is the same-shaped absorbing treatment matrix. <code>MatrixCompletion</code> treats the untreated cells (<code>W == 0</code>) as observed and reconstructs <span class="math inline">Y(0)</span> in exactly the treated cells where the ATT is evaluated.</p>
+<div id="f4d395a3" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_twfe(panel, treated_units, t_pre):</span>
@@ -709,7 +731,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 </section>
 <section id="monte-carlo" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="monte-carlo"><span class="header-section-number">4</span> Monte Carlo</h2>
-<div id="f7cd7d26" class="cell" data-execution_count="4">
+<div id="454a26a5" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_mc(reps<span class="op">=</span><span class="dv">160</span>, seed<span class="op">=</span><span class="dv">2026050202</span>):</span>
@@ -742,7 +764,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 </section>
 <section id="att-distribution-by-dgp" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="att-distribution-by-dgp"><span class="header-section-number">5</span> ATT Distribution By DGP</h2>
-<div id="6d6bfac6" class="cell" data-fig-height="6.4" data-fig-width="9" data-execution_count="5">
+<div id="45d17f56" class="cell" data-fig-height="6.4" data-fig-width="9" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rmse(vals, truth<span class="op">=</span><span class="fl">1.0</span>):</span>
@@ -808,7 +830,7 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 </section>
 <section id="summary-table" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="summary-table"><span class="header-section-number">6</span> Summary Table</h2>
-<div id="b6298a44" class="cell" data-execution_count="6">
+<div id="e234167f" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rows <span class="op">=</span> []</span>
@@ -852,10 +874,10 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 <tr class="even">
 <td>A. Additive FE / parallel trends</td>
 <td>SC</td>
-<td>142</td>
+<td>160</td>
 <td>+0.003</td>
-<td>0.037</td>
-<td>18</td>
+<td>0.036</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td>A. Additive FE / parallel trends</td>
@@ -884,10 +906,10 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 <tr class="even">
 <td>B. Factor structure / random adoption</td>
 <td>SC</td>
-<td>113</td>
-<td>+0.018</td>
-<td>0.203</td>
-<td>47</td>
+<td>160</td>
+<td>+0.015</td>
+<td>0.194</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td>B. Factor structure / random adoption</td>
@@ -916,10 +938,10 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 <tr class="even">
 <td>C. Factor structure / mild selection</td>
 <td>SC</td>
-<td>125</td>
+<td>160</td>
 <td>+0.183</td>
-<td>0.309</td>
-<td>35</td>
+<td>0.297</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td>C. Factor structure / mild selection</td>
@@ -948,10 +970,10 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 <tr class="even">
 <td>D. Factor structure / strong selection</td>
 <td>SC</td>
-<td>158</td>
-<td>+1.112</td>
-<td>1.196</td>
-<td>2</td>
+<td>160</td>
+<td>+1.118</td>
+<td>1.192</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td>D. Factor structure / strong selection</td>
@@ -1387,13 +1409,18 @@ Y_{it}(0) = \alpha_i + \gamma_t + \lambda_i' f_t + \varepsilon_{it},
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

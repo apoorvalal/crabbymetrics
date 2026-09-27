@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -491,19 +513,19 @@ window.Quarto = {
 <p>The common point estimator is the treatment coefficient in a fully interacted regression for a randomized experiment with centered covariate adjustment. We compare four interval constructions:</p>
 <ul>
 <li><code>HC2 finite-population</code>: the Eicker-Huber-White variance from the fully interacted regression, treating the realized covariates as fixed.</li>
-<li><code>Closed-form superpopulation</code>: Ding’s correction that adds the interaction-slope term <span class="math inline">\(\hat{\gamma}^\top \widehat{\Sigma}_W \hat{\gamma} / n\)</span> to the HC2 variance.</li>
-<li><code>Bootstrap superpopulation</code>: a nonparametric row bootstrap that resamples <span class="math inline">\((Y_i, Z_i, X_i)\)</span> and rebuilds the centered interacted regression inside each bootstrap draw.</li>
-<li><code>Stacked GMM superpopulation</code>: an exactly identified moment system that jointly estimates the treatment effect together with the centering nuisance parameter <span class="math inline">\(\mu\)</span>, then reports the sandwich variance for <span class="math inline">\(\tau\)</span>.</li>
+<li><code>Closed-form superpopulation</code>: Ding’s correction that adds the interaction-slope term <span class="math inline">\hat{\gamma}^\top \widehat{\Sigma}_W \hat{\gamma} / n</span> to the HC2 variance.</li>
+<li><code>Bootstrap superpopulation</code>: a nonparametric row bootstrap that resamples <span class="math inline">(Y_i, Z_i, X_i)</span> and rebuilds the centered interacted regression inside each bootstrap draw.</li>
+<li><code>Stacked GMM superpopulation</code>: an exactly identified moment system that jointly estimates the treatment effect together with the centering nuisance parameter <span class="math inline">\mu</span>, then reports the sandwich variance for <span class="math inline">\tau</span>.</li>
 </ul>
 <p>The same reported interval can then be judged against two estimands:</p>
 <ul>
-<li><code>SATE</code>: the realized sample average treatment effect <span class="math inline">\(n^{-1} \sum_i (Y_i(1) - Y_i(0))\)</span></li>
-<li><code>PATE</code>: the population average treatment effect <span class="math inline">\(\mathbb{E}[Y_i(1) - Y_i(0)]\)</span></li>
+<li><code>SATE</code>: the realized sample average treatment effect <span class="math inline">n^{-1} \sum_i (Y_i(1) - Y_i(0))</span></li>
+<li><code>PATE</code>: the population average treatment effect <span class="math inline">\mathbb{E}[Y_i(1) - Y_i(0)]</span></li>
 </ul>
 <p>The first three procedures use the actual <code>cm.OLS</code> fit for point estimation. The fourth uses the first-class <code>cm.GMM</code> estimator directly. As with the other ablation pages, Quarto caching and freezing are enabled so later site renders reuse the saved outputs.</p>
 <section id="imports-and-helpers" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports-and-helpers"><span class="header-section-number">1</span> Imports And Helpers</h2>
-<div id="b1d44e52" class="cell" data-execution_count="1">
+<div id="7688df29" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -692,61 +714,61 @@ window.Quarto = {
 <section id="design" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="design"><span class="header-section-number">2</span> Design</h2>
 <p>The data generating process follows the Chapter 9 notebook:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 X_i \sim \mathcal{N}(0, I_2),
 \qquad
 Z_i \sim \mathrm{Bernoulli}(0.6),
-\]</span></p>
+</span></p>
 <p>with potential outcomes</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i(0) = X_{i1} + X_{i1}^2 + U_{0i},
 \qquad
 U_{0i} \sim \mathrm{Uniform}(-0.5, 0.5),
-\]</span></p>
+</span></p>
 <p>and</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i(1) = X_{i2} + X_{i2}^2 + U_{1i},
 \qquad
 U_{1i} \sim \mathrm{Uniform}(-1, 1).
-\]</span></p>
+</span></p>
 <p>The two targets are different:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \tau_{\mathrm{SATE}} = \frac{1}{n} \sum_{i=1}^n \left( Y_i(1) - Y_i(0) \right),
 \qquad
 \tau_{\mathrm{PATE}} = \mathbb{E}\left[ Y_i(1) - Y_i(0) \right].
-\]</span></p>
-<p>In this design, <span class="math inline">\(\tau_{\mathrm{PATE}} = 0\)</span> because both potential outcomes have expectation one, but <span class="math inline">\(\tau_{\mathrm{SATE}}\)</span> varies from sample to sample.</p>
+</span></p>
+<p>In this design, <span class="math inline">\tau_{\mathrm{PATE}} = 0</span> because both potential outcomes have expectation one, but <span class="math inline">\tau_{\mathrm{SATE}}</span> varies from sample to sample.</p>
 <p>The adjusted regression is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i = \alpha + \tau Z_i + \beta^\top W_i + \gamma^\top (Z_i W_i) + \varepsilon_i,
-\]</span></p>
-<p>where <span class="math inline">\(W_i\)</span> is the centered covariate vector,</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">W_i</span> is the centered covariate vector,</p>
+<p><span class="math display">
 W_i = X_i - \mu,
-\]</span></p>
-<p>with <span class="math inline">\(\mu\)</span> the vector of sample means. Ding’s closed-form superpopulation correction is</p>
-<p><span class="math display">\[
+</span></p>
+<p>with <span class="math inline">\mu</span> the vector of sample means. Ding’s closed-form superpopulation correction is</p>
+<p><span class="math display">
 \widehat{\mathrm{Var}}_{\mathrm{super}}(\hat{\tau})
 =
 \widehat{\mathrm{Var}}_{\mathrm{HC2}}(\hat{\tau})
 +
 \hat{\gamma}^\top \widehat{\Sigma}_W \hat{\gamma} / n.
-\]</span></p>
+</span></p>
 <p>The stacked GMM system treats the centering as a generated regressor and estimates it jointly with the regression coefficients. The parameter vector is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \theta = (\mu, \alpha, \tau, \beta, \gamma),
-\]</span></p>
+</span></p>
 <p>and the exactly identified moments are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 g_i(\theta)
 =
 \begin{bmatrix}
 X_i - \mu \\
 \ell_i(\theta) r_i(\theta)
 \end{bmatrix},
-\]</span></p>
+</span></p>
 <p>where</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \ell_i(\theta) =
 \begin{bmatrix}
 1 \\
@@ -754,15 +776,15 @@ Z_i \\
 W_i \\
 Z_i W_i
 \end{bmatrix},
-\]</span></p>
+</span></p>
 <p>with</p>
-<p><span class="math display">\[
+<p><span class="math display">
 r_i(\theta)
 =
 Y_i - \alpha - \tau Z_i - \beta^\top W_i - \gamma^\top (Z_i W_i).
-\]</span></p>
-<p>So the first block estimates the sample means, and the second block is the vectorized least-squares orthogonality condition. This makes the superpopulation correction automatic at summary time: the sandwich covariance for <span class="math inline">\(\tau\)</span> already accounts for the nuisance estimation step.</p>
-<div id="61284f67" class="cell" data-execution_count="2">
+</span></p>
+<p>So the first block estimates the sample means, and the second block is the vectorized least-squares orthogonality condition. This makes the superpopulation correction automatic at summary time: the sandwich covariance for <span class="math inline">\tau</span> already accounts for the nuisance estimation step.</p>
+<div id="87100144" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">500</span></span>
@@ -803,7 +825,7 @@ Y_i - \alpha - \tau Z_i - \beta^\top W_i - \gamma^\top (Z_i W_i).
 </section>
 <section id="representative-dataset" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="representative-dataset"><span class="header-section-number">3</span> Representative Dataset</h2>
-<div id="2b427745" class="cell" data-execution_count="3">
+<div id="f3d26b62" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">42</span>)</span>
@@ -911,7 +933,7 @@ Absolute gap between OLS and stacked-GMM tau: 0.0</code></pre>
 </section>
 <section id="monte-carlo-results" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="monte-carlo-results"><span class="header-section-number">4</span> Monte Carlo Results</h2>
-<div id="3f9c238c" class="cell" data-execution_count="4">
+<div id="cd0a6577" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> simulate_bridging(reps<span class="op">=</span>reps, n<span class="op">=</span>n, seed<span class="op">=</span><span class="dv">20260331</span>, n_bootstrap<span class="op">=</span>n_bootstrap)</span>
@@ -998,7 +1020,7 @@ Absolute gap between OLS and stacked-GMM tau: 0.0</code></pre>
 </table>
 </div>
 </div>
-<div id="cd1ef3ad" class="cell" data-execution_count="5">
+<div id="dab13961" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>methods <span class="op">=</span> [entry[<span class="st">"method"</span>] <span class="cf">for</span> entry <span class="kw">in</span> results]</span>
@@ -1457,13 +1479,18 @@ Absolute gap between OLS and stacked-GMM tau: 0.0</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

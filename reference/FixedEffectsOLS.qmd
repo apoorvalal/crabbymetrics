@@ -30,7 +30,7 @@ $$
 M_F y = M_F X\beta + M_F u.
 $$
 
-The fixed-effect matrix `fe` is a 2D `uint32` array of zero-based category codes, one column per fixed-effect dimension.
+The fixed-effect matrix `fe` is a 2D `uint32` array of category IDs, one column per fixed-effect dimension. IDs are compacted internally; they need not be contiguous.
 
 ## Criterion and absorption
 
@@ -50,7 +50,7 @@ $$
 \|W^{1/2}M_D(y-X\beta)\|_2^2.
 $$
 
-The iterative absorption must converge for the outcome and every regressor; otherwise the fit raises an error. Fixed-effect coefficients are not recovered or stored.
+The iterative absorption must converge for the outcome and every regressor; otherwise the fit raises an error. One- and two-way level effects are recovered for identified prediction. Their normalization is not itself an economic estimand.
 
 ## Implementation walkthrough
 
@@ -61,11 +61,11 @@ same active sample. A failed refit clears prior fitted state.
 
 This class has a narrow delegation boundary: the `within` Rust crate performs absorption, while crabbymetrics owns orchestration, the slope solve, degrees of freedom, covariance, and Python behavior.
 
-1. The wrapper validates aligned rows, at least one regressor and fixed-effect dimension, and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to `within::Solver` using that crate's default convergence parameters.
+1. The wrapper validates aligned rows, at least one fixed-effect dimension (zero regressors are allowed), and optional nonnegative weights. It passes the fixed-effect code matrix and a contiguous weight slice to `within::Solver` using the constructor’s `tolerance` and `max_iterations` controls.
 2. Instead of invoking absorption separately, it creates one batch whose first right-hand side is $y$ and whose remaining right-hand sides are the columns of $X$. One solver instance therefore uses the same encoded factors and numerical settings for every variable.
 3. The fit inspects the convergence flag for every right-hand side. If even one regressor has not converged, it raises an error containing the complete convergence and final-residual vectors. It never combines partially converged columns into a regression.
 4. The returned demeaned vectors are copied into $y^*=M_Dy$ and $X^*=M_DX$. The package then applies optional square-root weights again in the slope least-squares solve. This matches the `within` solver's weighted projection convention and the weighted Frisch-Waugh-Lovell objective.
-5. The slope vector and residualized arrays are retained; nuisance fixed-effect coefficients are never reconstructed. This is why the class can report slope inference but deliberately cannot predict level outcomes for new observations.
+5. The slope vector and residualized arrays are retained. The fit recovers one- or two-way level effects and their connected-component information. Prediction rejects unseen levels and two-way combinations crossing disconnected components; three-or-more-way level prediction is unsupported.
 6. For degrees of freedom, one factor contributes its observed level count. Two factors are represented as a bipartite graph and a union-find pass computes $L_1+L_2-C$ exactly. For three or more factors the code counts observed levels and subtracts $J-1$, labeling the result as conservative rather than claiming exact graph rank.
 7. Covariance uses $X^*$ and residuals $y^*-X^*\hat\beta$ in the shared linear sandwich code. The bootstrap resamples $X$, $y$, every fixed-effect code, and optional weights together, then repeats absorption from scratch.
 
@@ -87,15 +87,25 @@ $$
 
 where $C$ is the number of connected components in the bipartite level graph. With three or more factors it uses the conservative approximation $\sum_jL_j-(J-1)$. Standard errors can therefore be conservative in disconnected multiway designs. Wald tests use the selected covariance, and the pairs bootstrap resamples rows, including all fixed-effect identifiers, before re-absorption and refitting.
 
+The default `fe_df="full"` preserves the previous full-FE correction.
+`fe_df="none"` excludes absorbed effects from the inference count;
+`fe_df="non_nested"` excludes effects nested in the supplied cluster partition
+and requires cluster covariance. Cluster inference also exposes
+`ssc="cluster"`, `"hc1"`, or `"none"`, and `cluster_correction=True/False`.
+Use the same settings in summaries and Wald tests. The
+[worked example](../examples/fixed-effects-ols.qmd) and
+[replication report](../ablations/yqx-panel-fixes.qmd) explain reference-library
+conventions; changing them changes the statistical correction, not the fitted slopes.
+
 ## Performance and numerical behavior
 
-Absorption avoids an $n\times\sum_jL_j$ dummy matrix. Each demeaning sweep is approximately $O(n(p+1)J)$ for $J$ fixed-effect dimensions, with total cost multiplied by the number of sweeps required for convergence. Memory is dominated by the residualized $n\times p$ design. Poorly connected factor graphs can converge slowly. Covariance construction remains dense in the slope dimension, and bootstrap cost is the cost of full absorption and regression times the number of draws. Prediction is intentionally unavailable because the nuisance effects are discarded.
+Absorption avoids an $n\times\sum_jL_j$ dummy matrix. Each demeaning sweep is approximately $O(n(p+1)J)$ for $J$ fixed-effect dimensions, with total cost multiplied by the number of sweeps required for convergence. Memory is dominated by the residualized $n\times p$ design. Poorly connected factor graphs can converge slowly. Covariance construction remains dense in the slope dimension, and bootstrap cost is the cost of full absorption and regression times the number of draws. Level prediction adds the recovered effects to the slope prediction when the requested combination is identified.
 
 ## Python API
 
 Constructor: `cm.FixedEffectsOLS`
 
-Call `fit(x, fe, y)` or `fit_weighted(x, fe, y, sample_weight)`. There is no `predict()` because the class is estimation-first and does not materialize fixed-effect coefficients. `summary()` supports the same covariance options as the other linear estimators and reports `absorbed_df`, `residual_df`, and `absorbed_df_method`. Rank is exact for one- and two-way fixed effects; three or more dimensions use a labeled conservative count.
+Call `fit(x, fe, y)` or `fit_weighted(x, fe, y, sample_weight)`. `predict(x, fe)` returns identified level predictions for one- and two-way effects. For an FE-only fit, pass an `(n, 0)` regressor array. `summary()` supports the same covariance options as the other linear estimators and reports `absorbed_df`, `residual_df`, and `absorbed_df_method`. Rank is exact for one- and two-way fixed effects; three or more dimensions use a labeled conservative count.
 
 ```{python}
 print(inspect.signature(cm.FixedEffectsOLS))

@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,18 +529,18 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Estimation interfaces</p>
 <p><code>MEstimator</code> is the lowest-level public estimation interface. It minimizes a user-supplied objective with gradient and uses a user-supplied per-observation score matrix for covariance estimation:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\theta = \arg\min_\theta Q_n(\theta), \qquad \widehat V = A^{-1} B A^{-T} / n.
-\]</span></p>
-<p>The bread <span class="math inline">\(A\)</span> is the numerical Jacobian of the mean score and the meat <span class="math inline">\(B\)</span> is the empirical score outer product. The class checks optimizer convergence and validates score dimensions before reporting inference.</p>
+</span></p>
+<p>The bread <span class="math inline">A</span> is the numerical Jacobian of the mean score and the meat <span class="math inline">B</span> is the empirical score outer product. The class checks optimizer convergence and validates score dimensions before reporting inference.</p>
 </section>
 <section id="objective-and-estimating-equations" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="objective-and-estimating-equations"><span class="header-section-number">2</span> Objective and estimating equations</h2>
-<p>The objective callback supplies both <span class="math inline">\(Q_n(\theta)\)</span> and <span class="math inline">\(\nabla Q_n(\theta)\)</span>. The class minimizes that objective with seven-vector-memory L-BFGS, a More-Thuente line search, and joint gradient and cost tolerances. Only an Argmin solver-converged or target-cost termination is accepted. Budget exhaustion or another nonconverged status raises <code>ValueError</code> and clears any previous fitted state. A successful summary exposes <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the callback’s final <code>objective</code>.</p>
-<p>Separately, the score callback must return rows <span class="math inline">\(\psi_i(\theta)'\in\mathbb R^k\)</span>. Inference treats the fitted parameter as the solution to</p>
-<p><span class="math display">\[
+<p>The objective callback supplies both <span class="math inline">Q_n(\theta)</span> and <span class="math inline">\nabla Q_n(\theta)</span>. The class minimizes that objective with seven-vector-memory L-BFGS, a More-Thuente line search, and joint gradient and cost tolerances. Only an Argmin solver-converged or target-cost termination is accepted. Budget exhaustion or another nonconverged status raises <code>ValueError</code> and clears any previous fitted state. A successful summary exposes <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the callback’s final <code>objective</code>.</p>
+<p>Separately, the score callback must return rows <span class="math inline">\psi_i(\theta)'\in\mathbb R^k</span>. Inference treats the fitted parameter as the solution to</p>
+<p><span class="math display">
 \frac1n\sum_{i=1}^n\psi_i(\theta)=0.
-\]</span></p>
+</span></p>
 <p>The class does not verify that the objective gradient equals the sum of those scores or even that their sample mean is near zero at the optimizer solution. That mathematical consistency is the callback author’s responsibility.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
@@ -528,19 +550,19 @@ window.Quarto = {
 <li><code>fit()</code> clears fitted state, validates the initial vector and controls, and stores Python callable objects inside an Argmin problem. Each cost request calls <code>objective_fn(theta, data)</code>, requires a two-element tuple, and extracts only its scalar first element.</li>
 <li>Each gradient request calls the same Python function again and extracts the second tuple element as a one-dimensional NumPy array. Cost and gradient remain separate calls. Objectives and gradients must be finite, and gradient length must equal the parameter count.</li>
 <li>Seven-pair L-BFGS starts exactly at <code>theta0</code>, uses More-Thuente line search, and applies the same tolerance to gradient and cost stopping. The wrapper converts Argmin termination to common diagnostics and rejects an iteration cap or other nonconverged status before storing parameters and data.</li>
-<li>Covariance is computed before <code>fit()</code> succeeds. The score callback must return a finite nonempty <span class="math inline">\(n\times k\)</span> matrix with <span class="math inline">\(k=\dim\theta\)</span>; each coordinate perturbation must retain that shape. Invalid score inference rejects the fit and clears state.</li>
-<li>Column means of those perturbed score matrices yield the central-difference bread <span class="math inline">\(A\)</span>. The meat is the uncentered <span class="math inline">\(\Psi'\Psi/n\)</span>. The code explicitly inverts <span class="math inline">\(A\)</span>, computes <span class="math inline">\(A^{-1}BA^{-T}/n\)</span>, and symmetrizes it. Summaries reuse this fit-time covariance, so later callback-data mutation does not silently change inference. An explicit <code>compute_vcov()</code> call recomputes it from the retained data. Bootstrap still retains the original Python data: keep that data immutable if using bootstrap.</li>
+<li>Covariance is computed before <code>fit()</code> succeeds. The score callback must return a finite nonempty <span class="math inline">n\times k</span> matrix with <span class="math inline">k=\dim\theta</span>; each coordinate perturbation must retain that shape. Invalid score inference rejects the fit and clears state.</li>
+<li>Column means of those perturbed score matrices yield the central-difference bread <span class="math inline">A</span>. The meat is the uncentered <span class="math inline">\Psi'\Psi/n</span>. The code explicitly inverts <span class="math inline">A</span>, computes <span class="math inline">A^{-1}BA^{-T}/n</span>, and symmetrizes it. Summaries reuse this fit-time covariance, so later callback-data mutation does not silently change inference. An explicit <code>compute_vcov()</code> call recomputes it from the retained data. Bootstrap still retains the original Python data: keep that data immutable if using bootstrap.</li>
 <li>Bootstrap reads <code>data['n']</code>, draws row indices, shallow-copies the Python dictionary, inserts an <code>indices</code> array, and calls the same L-BFGS problem from the original fitted estimate. The score callback is not used in bootstrap fitting. Correct resampling therefore depends entirely on <code>objective_fn</code> honoring that injected key.</li>
 </ol>
 <p>The split callback design is flexible but intentionally low level. It permits objective and score equations that disagree, repeats Python work between cost and gradient, and leaves all data-index semantics to the caller; those are API powers and failure modes, not hidden implementation details.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>For coordinate <span class="math inline">\(j\)</span>, the mean-score Jacobian is estimated by central differences with</p>
-<p><span class="math display">\[
+<p>For coordinate <span class="math inline">j</span>, the mean-score Jacobian is estimated by central differences with</p>
+<p><span class="math display">
 h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 \hat A_{\cdot j}
 =
 \frac{
@@ -549,24 +571,24 @@ h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
 {2h_j},
 \qquad
 \hat B=\frac1n\sum_i\psi_i(\hat\theta)\psi_i(\hat\theta)'.
-\]</span></p>
+</span></p>
 <p>The covariance is symmetrized after computing</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat V
 =
 \frac1n\hat A^{-1}\hat B\hat A^{-T}.
-\]</span></p>
-<p>There are no HC, HAC, or cluster variants and no built-in Wald method. The pairs bootstrap is available only when data is a dictionary containing the sample size under the key <span class="math inline">\(n\)</span> and the objective callback honors the injected row-index vector. Bootstrap fits start from the original estimate and abort on the first failed optimization.</p>
+</span></p>
+<p>There are no HC, HAC, or cluster variants and no built-in Wald method. The pairs bootstrap is available only when data is a dictionary containing the sample size under the key <span class="math inline">n</span> and the objective callback honors the injected row-index vector. Bootstrap fits start from the original estimate and abort on the first failed optimization.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Every optimizer cost and gradient request crosses the Python-Rust boundary and calls the objective callback. Covariance requires the score at the fit plus two additional full score evaluations per parameter, so callback work is at least <span class="math inline">\(2k+1\)</span> score matrices of shape <span class="math inline">\(n\times k\)</span>. It then stores and factors dense <span class="math inline">\(k\times k\)</span> matrices. Numerical inference is sensitive to the derivative step and fails if <span class="math inline">\(\hat A\)</span> is singular. Cached covariance avoids repeating this work on later summaries, but bootstrap performs one full callback-driven optimization per draw and aborts on any nonconverged replicate.</p>
+<p>Every optimizer cost and gradient request crosses the Python-Rust boundary and calls the objective callback. Covariance requires the score at the fit plus two additional full score evaluations per parameter, so callback work is at least <span class="math inline">2k+1</span> score matrices of shape <span class="math inline">n\times k</span>. It then stores and factors dense <span class="math inline">k\times k</span> matrices. Numerical inference is sensitive to the derivative step and fails if <span class="math inline">\hat A</span> is singular. Cached covariance avoids repeating this work on later summaries, but bootstrap performs one full callback-driven optimization per draw and aborts on any nonconverged replicate.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.MEstimator</code></p>
-<p>Construct with <code>MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-6)</code>. <code>objective_fn(theta, data)</code> must return <code>(objective, gradient)</code>. <code>score_fn(theta, data)</code> must return an <span class="math inline">\((n,k)\)</span> matrix when <span class="math inline">\(\theta\in\mathbb R^k\)</span>. For bootstrap support, include <code>n</code> in <code>data</code> and have the objective respect optional <code>data['indices']</code>.</p>
-<div id="608f9c2f" class="cell" data-execution_count="2">
+<p>Construct with <code>MEstimator(objective_fn, score_fn, max_iterations=100, tolerance=1e-6, derivative_step=1e-6)</code>. <code>objective_fn(theta, data)</code> must return <code>(objective, gradient)</code>. <code>score_fn(theta, data)</code> must return an <span class="math inline">(n,k)</span> matrix when <span class="math inline">\theta\in\mathbb R^k</span>. For bootstrap support, include <code>n</code> in <code>data</code> and have the objective respect optional <code>data['indices']</code>.</p>
+<div id="e0e618ec" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MEstimator))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -575,7 +597,7 @@ h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
 <pre><code>(objective_fn, score_fn, max_iterations=100, tolerance=1e-06, derivative_step=1e-06)</code></pre>
 </div>
 </div>
-<div id="0b4a7017" class="cell" data-execution_count="3">
+<div id="ba188706" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.MEstimator</span>
@@ -611,7 +633,7 @@ h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="f35e1b00" class="cell" data-execution_count="4">
+<div id="0798db97" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> obj(theta, data):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    X, y <span class="op">=</span> (data[<span class="st">'X'</span>], data[<span class="st">'y'</span>])</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> data.get(<span class="st">'indices'</span>, np.arange(<span class="bu">len</span>(y)))</span>
@@ -637,7 +659,7 @@ h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="c8b4a91f" class="cell" data-execution_count="5">
+<div id="1cfd9988" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> obj(theta, data):</span>
@@ -1106,13 +1128,18 @@ h_j=\text{derivative step}\times\max\{|\hat\theta_j|,1\},
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -510,18 +532,18 @@ window.Quarto = {
 </section>
 <section id="objective-and-decomposition" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="objective-and-decomposition"><span class="header-section-number">2</span> Objective and decomposition</h2>
-<p>For a balanced <span class="math inline">\(T\times N\)</span> outcome matrix, the model is</p>
-<p><span class="math display">\[
+<p>For a balanced <span class="math inline">T\times N</span> outcome matrix, the model is</p>
+<p><span class="math display">
 Y_{ti}
 =
 \mu+\alpha_i+\xi_t+f_t'\lambda_i+e_{ti}.
-\]</span></p>
-<p>The grand mean <span class="math inline">\(\mu\)</span> is always removed, including when force is zero. Force values one and three include column effects <span class="math inline">\(\alpha_i\)</span>; values two and three include row effects <span class="math inline">\(\xi_t\)</span>. After those additive effects are removed, the estimator solves the rank-constrained approximation</p>
-<p><span class="math display">\[
+</span></p>
+<p>The grand mean <span class="math inline">\mu</span> is always removed, including when force is zero. Force values one and three include column effects <span class="math inline">\alpha_i</span>; values two and three include row effects <span class="math inline">\xi_t</span>. After those additive effects are removed, the estimator solves the rank-constrained approximation</p>
+<p><span class="math display">
 \min_{\operatorname{rank}(L)\leq r}
 \|Y-\mu\mathbf1\mathbf1'-\mathbf1\alpha'-\xi\mathbf1'-L\|_F^2.
-\]</span></p>
-<p>With the exact method, <span class="math inline">\(L\)</span> is the rank-<span class="math inline">\(r\)</span> truncated SVD. Factors are normalized as <span class="math inline">\(F=\sqrt{T}U_r\)</span> and loadings as <span class="math inline">\(\Lambda=V_r\operatorname{diag}(s_r)/\sqrt{T}\)</span>, so <span class="math inline">\(L=F\Lambda'\)</span>. The randomized method substitutes a randomized range finder and truncated SVD controlled by oversampling and power iterations.</p>
+</span></p>
+<p>With the exact method, <span class="math inline">L</span> is the rank-<span class="math inline">r</span> truncated SVD. Factors are normalized as <span class="math inline">F=\sqrt{T}U_r</span> and loadings as <span class="math inline">\Lambda=V_r\operatorname{diag}(s_r)/\sqrt{T}</span>, so <span class="math inline">L=F\Lambda'</span>. The randomized method substitutes a randomized range finder and truncated SVD controlled by oversampling and power iterations.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
@@ -529,9 +551,9 @@ Y_{ti}
 <ol type="1">
 <li><code>fit()</code> requires a finite nonempty balanced matrix. It always subtracts the grand mean. With <code>force</code> 1 or 3 it then subtracts column means from that centered matrix; with <code>force</code> 2 or 3 it subsequently subtracts row means. Under <code>force=3</code>, the second means are computed after the first removal, giving the usual two-way additive decomposition.</li>
 <li>Rank zero is a real model: it returns empty factor and loading matrices and a zero interactive component. The fitted surface then consists only of the requested additive pieces.</li>
-<li>Exact factor fitting chooses the smaller covariance matrix. If <span class="math inline">\(T&lt;N\)</span>, it decomposes <span class="math inline">\(EE'/(NT)\)</span>, sets <span class="math inline">\(F=\sqrt{T}U_r\)</span>, and obtains <span class="math inline">\(\Lambda=E'F/T\)</span>. If <span class="math inline">\(T\geq N\)</span>, it decomposes <span class="math inline">\(E'E/(NT)\)</span>, sets <span class="math inline">\(\Lambda=\sqrt{N}V_r\)</span>, and obtains <span class="math inline">\(F=E\Lambda/N\)</span>. This avoids an SVD of the larger Gram matrix while enforcing the stated normalizations.</li>
-<li>The exact <code>vnt</code> diagonal stores the leading eigenvalues of that scaled Gram matrix. The reconstructed interaction is always the direct product <span class="math inline">\(F\Lambda'\)</span>.</li>
-<li>Randomized mode instead calls the native randomized SVD of the demeaned <span class="math inline">\(E\)</span>: a Rademacher range sketch, optional alternating power iterations with QR reorthogonalization, and a small projected SVD. It sets <span class="math inline">\(F=\sqrt{T}U_r\)</span>, <span class="math inline">\(\Lambda_{jk}=V_{jk}s_k/\sqrt{T}\)</span>, and stores <span class="math inline">\(s_k^2/(NT)\)</span> on the <code>vnt</code> diagonal.</li>
+<li>Exact factor fitting chooses the smaller covariance matrix. If <span class="math inline">T&lt;N</span>, it decomposes <span class="math inline">EE'/(NT)</span>, sets <span class="math inline">F=\sqrt{T}U_r</span>, and obtains <span class="math inline">\Lambda=E'F/T</span>. If <span class="math inline">T\geq N</span>, it decomposes <span class="math inline">E'E/(NT)</span>, sets <span class="math inline">\Lambda=\sqrt{N}V_r</span>, and obtains <span class="math inline">F=E\Lambda/N</span>. This avoids an SVD of the larger Gram matrix while enforcing the stated normalizations.</li>
+<li>The exact <code>vnt</code> diagonal stores the leading eigenvalues of that scaled Gram matrix. The reconstructed interaction is always the direct product <span class="math inline">F\Lambda'</span>.</li>
+<li>Randomized mode instead calls the native randomized SVD of the demeaned <span class="math inline">E</span>: a Rademacher range sketch, optional alternating power iterations with QR reorthogonalization, and a small projected SVD. It sets <span class="math inline">F=\sqrt{T}U_r</span>, <span class="math inline">\Lambda_{jk}=V_{jk}s_k/\sqrt{T}</span>, and stores <span class="math inline">s_k^2/(NT)</span> on the <code>vnt</code> diagonal.</li>
 <li>The final fitted matrix starts from the interactive product, adds the grand mean to every cell, then broadcasts column and row effects according to the decomposition. Residuals are the original matrix minus this in-sample reconstruction. <code>predict()</code> simply returns the stored fitted panel; there is no transform for new units or periods.</li>
 </ol>
 <p>Both exact branches and the randomized branch produce the same normalization target, though signs and rotations remain arbitrary. The exact smaller-Gram route squares the singular-value condition number; the randomized direct-SVD route trades exactness for fewer passes when rank is small.</p>
@@ -542,13 +564,13 @@ Y_{ti}
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Exact dense SVD costs approximately <span class="math inline">\(O(\min\{TN^2,T^2N\})\)</span> and stores the full panel. Randomized SVD reduces the leading work to roughly <span class="math inline">\(O(TN(r+s)(q+1))\)</span> for rank <span class="math inline">\(r\)</span>, oversampling <span class="math inline">\(s\)</span>, and power count <span class="math inline">\(q\)</span>, but is approximate and still stores dense matrices. Rank must not exceed <span class="math inline">\(\min(T,N)\)</span>. Because only complete balanced panels are accepted, use MatrixCompletion when treated or otherwise missing cells must be excluded from fitting.</p>
+<p>Exact dense SVD costs approximately <span class="math inline">O(\min\{TN^2,T^2N\})</span> and stores the full panel. Randomized SVD reduces the leading work to roughly <span class="math inline">O(TN(r+s)(q+1))</span> for rank <span class="math inline">r</span>, oversampling <span class="math inline">s</span>, and power count <span class="math inline">q</span>, but is approximate and still stores dense matrices. Rank must not exceed <span class="math inline">\min(T,N)</span>. Because only complete balanced panels are accepted, use MatrixCompletion when treated or otherwise missing cells must be excluded from fitting.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.InteractiveFixedEffects</code></p>
 <p>Use <code>InteractiveFixedEffects(rank=0, force=3, ...)</code>, then <code>fit(y)</code>. <code>predict()</code> reconstructs the fitted panel. <code>summary()</code> reports low-rank pieces, additive effects, singular values, chosen rank, and diagnostics.</p>
-<div id="6a9f7a63" class="cell" data-execution_count="2">
+<div id="22561408" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.InteractiveFixedEffects))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -557,7 +579,7 @@ Y_{ti}
 <pre><code>(rank=0, force=3, factor_method=Ellipsis, factor_oversamples=10, factor_power_iter=1, factor_seed=None)</code></pre>
 </div>
 </div>
-<div id="45d13550" class="cell" data-execution_count="3">
+<div id="77329b24" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.InteractiveFixedEffects</span>
@@ -590,7 +612,7 @@ Y_{ti}
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="e153a114" class="cell" data-execution_count="4">
+<div id="e80b050d" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">19</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">16</span>)) <span class="op">+</span> rng.normal(size<span class="op">=</span>(<span class="dv">12</span>, <span class="dv">1</span>)) <span class="op">+</span> rng.normal(size<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">16</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> cm.InteractiveFixedEffects(rank<span class="op">=</span><span class="dv">2</span>)</span>
@@ -606,7 +628,7 @@ Y_{ti}
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="167d501c" class="cell" data-execution_count="5">
+<div id="df3d3bfb" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">119</span>)</span>
@@ -1090,13 +1112,18 @@ Y_{ti}
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

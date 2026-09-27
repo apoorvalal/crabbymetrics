@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -497,25 +519,25 @@ window.Quarto = {
 
 
 <p><code>EPLM</code> implements the partially linear E-estimator for a scalar treatment:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i = \beta D_i + g(W_i) + U_i,
 \qquad
 \mathbb{E}[U_i \mid D_i, W_i] = 0.
-\]</span></p>
+</span></p>
 <p>The key nuisance is the treatment regression</p>
-<p><span class="math display">\[
+<p><span class="math display">
 e(W_i) = \mathbb{E}[D_i \mid W_i].
-\]</span></p>
+</span></p>
 <p>If we define the residualized treatment</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Z_i = D_i - e(W_i),
-\]</span></p>
+</span></p>
 <p>then the identifying moment is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathbb{E}\left[ Z_i \left(Y_i - \beta D_i\right) \right] = 0.
-\]</span></p>
+</span></p>
 <p>The implementation in <code>crabbymetrics</code> writes this as an exactly identified stacked-moment system:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathbb{E}
 \begin{bmatrix}
 \tilde W_i \left(D_i - \tilde W_i^\top \pi\right) \\
@@ -523,18 +545,18 @@ Z_i = D_i - e(W_i),
 \end{bmatrix}
 =
 0,
-\]</span></p>
-<p>where <span class="math inline">\(\tilde W_i = (1, W_i^\top)^\top\)</span>. The first block estimates the linear working model for <span class="math inline">\(e(W)\)</span>, and the second block is the E-estimating equation for <span class="math inline">\(\beta\)</span>.</p>
+</span></p>
+<p>where <span class="math inline">\tilde W_i = (1, W_i^\top)^\top</span>. The first block estimates the linear working model for <span class="math inline">e(W)</span>, and the second block is the E-estimating equation for <span class="math inline">\beta</span>.</p>
 <p>In a just-identified system like this, the point estimate has the familiar ratio form</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat \beta
 =
 \frac{\sum_i \hat Z_i Y_i}{\sum_i \hat Z_i D_i},
 \qquad
 \hat Z_i = D_i - \hat e(W_i),
-\]</span></p>
+</span></p>
 <p>but <code>summary()</code> reports a stacked-moment sandwich covariance so the nuisance estimation step is accounted for directly.</p>
-<div id="47ca9459" class="cell" data-execution_count="1">
+<div id="3a9fbf91" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -618,9 +640,9 @@ Z_i = D_i - e(W_i),
 <section id="interpretation" class="level2">
 <h2 class="anchored" data-anchor-id="interpretation">Interpretation</h2>
 <ul>
-<li>This is the partially linear coefficient on the scalar treatment <span class="math inline">\(D\)</span>, not a generic nonparametric effect.</li>
+<li>This is the partially linear coefficient on the scalar treatment <span class="math inline">D</span>, not a generic nonparametric effect.</li>
 <li>The current implementation is continuous-treatment only.</li>
-<li>The nuisance model for <span class="math inline">\(e(W)\)</span> is linear in the supplied controls. If that is too rigid, the cross-fit <code>PartiallyLinearDML</code> estimator is the next page to look at.</li>
+<li>The nuisance model for <span class="math inline">e(W)</span> is linear in the supplied controls. If that is too rigid, the cross-fit <code>PartiallyLinearDML</code> estimator is the next page to look at.</li>
 </ul>
 
 
@@ -1031,13 +1053,18 @@ Z_i = D_i - e(W_i),
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

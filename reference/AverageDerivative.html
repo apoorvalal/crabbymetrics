@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -511,46 +533,46 @@ window.Quarto = {
 </section>
 <section id="linear-average-derivative-estimators" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="linear-average-derivative-estimators"><span class="header-section-number">2</span> Linear average-derivative estimators</h2>
-<p>Let <span class="math inline">\(\mu=E_n[W]\)</span>, <span class="math inline">\(W_i^c=W_i-\mu\)</span>, and</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">\mu=E_n[W]</span>, <span class="math inline">W_i^c=W_i-\mu</span>, and</p>
+<p><span class="math display">
 R_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ D_i)'.
-\]</span></p>
-<p>Centering makes the final coefficient in the linear interaction regression equal the sample-average derivative with respect to <span class="math inline">\(D\)</span>.</p>
+</span></p>
+<p>Centering makes the final coefficient in the linear interaction regression equal the sample-average derivative with respect to <span class="math inline">D</span>.</p>
 <p>The outcome-based method fits</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\lambda_{\mathrm{OB}}
 =
 \arg\min_\lambda\sum_i(Y_i-R_i'\lambda)^2
-\]</span></p>
-<p>and reports the last component. Its joint moments estimate <span class="math inline">\(\mu\)</span> from <span class="math inline">\(W_i-\mu\)</span> and use <span class="math inline">\(R_i(Y_i-R_i'\lambda)\)</span> for the regression.</p>
-<p>The IPW method first projects <span class="math inline">\(D\)</span> on <span class="math inline">\(\tilde W=[\mathbf1,W]\)</span>, sets</p>
-<p><span class="math display">\[
+</span></p>
+<p>and reports the last component. Its joint moments estimate <span class="math inline">\mu</span> from <span class="math inline">W_i-\mu</span> and use <span class="math inline">R_i(Y_i-R_i'\lambda)</span> for the regression.</p>
+<p>The IPW method first projects <span class="math inline">D</span> on <span class="math inline">\tilde W=[\mathbf1,W]</span>, sets</p>
+<p><span class="math display">
 v_i=D_i-\tilde W_i'\hat\pi,
 \qquad
 \hat\sigma^2=E_n[v_i^2],
 \qquad
 g_i=\frac{v_i}{\hat\sigma^2},
-\]</span></p>
+</span></p>
 <p>and reports</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \hat\beta_{\mathrm{IPW}}
 =
 \frac{\sum_i g_iY_i}{\sum_i g_iD_i}.
-\]</span></p>
-<p>Its stacked moments include <span class="math inline">\(\tilde W_iv_i\)</span>, <span class="math inline">\(v_i^2-\sigma^2\)</span>, and <span class="math inline">\(g_i(Y_i-D_i\beta)\)</span>.</p>
-<p>The DR method combines both structures. It uses regressors <span class="math inline">\(R_i\)</span> and instruments</p>
-<p><span class="math display">\[
+</span></p>
+<p>Its stacked moments include <span class="math inline">\tilde W_iv_i</span>, <span class="math inline">v_i^2-\sigma^2</span>, and <span class="math inline">g_i(Y_i-D_i\beta)</span>.</p>
+<p>The DR method combines both structures. It uses regressors <span class="math inline">R_i</span> and instruments</p>
+<p><span class="math display">
 Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
-\]</span></p>
-<p>in a just-identified linear IV fit and reports the coefficient on <span class="math inline">\(D\)</span>. The full moment system jointly accounts for treatment-projection coefficients, <span class="math inline">\(\log\sigma^2\)</span>, control means, and outcome coefficients. These are linear-basis OB, IPW, and DR estimators; the class does not fit generic nonparametric derivatives.</p>
+</span></p>
+<p>in a just-identified linear IV fit and reports the coefficient on <span class="math inline">D</span>. The full moment system jointly accounts for treatment-projection coefficients, <span class="math inline">\log\sigma^2</span>, control means, and outcome coefficients. These are linear-basis OB, IPW, and DR estimators; the class does not fit generic nonparametric derivatives.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The three methods share validation and exactly identified sandwich code, but construct their point estimates and nuisance vectors separately.</p>
 <ol type="1">
-<li>OB computes raw control means, centers <span class="math inline">\(W\)</span>, builds the dense columns <span class="math inline">\((1,W^c,DW^c,D)\)</span>, and solves one rectangular least-squares problem. Centering is performed before the interaction, so the last coefficient is the derivative averaged at the sample control mean.</li>
-<li>IPW solves <span class="math inline">\(D\sim(1,W)\)</span> by least squares, computes <span class="math inline">\(\hat\sigma^2=v'v/n\)</span>, rejects values at or below <span class="math inline">\(10^{-12}\)</span>, and forms <span class="math inline">\(g=v/\hat\sigma^2\)</span>. It then evaluates the scalar ratio <span class="math inline">\(g'Y/(g'D)\)</span>. The nuisance vector stores <span class="math inline">\(\log\hat\sigma^2\)</span> so perturbed covariance calculations keep the variance positive.</li>
-<li>DR repeats that treatment projection, centers controls, and builds the OB outcome design. Its instrument matrix replaces the final raw treatment column by <span class="math inline">\(g\)</span>. The just-identified IV solve first projects the outcome design on those instruments and then regresses <span class="math inline">\(Y\)</span> on the projected design; the reported target is again the final outcome coefficient.</li>
+<li>OB computes raw control means, centers <span class="math inline">W</span>, builds the dense columns <span class="math inline">(1,W^c,DW^c,D)</span>, and solves one rectangular least-squares problem. Centering is performed before the interaction, so the last coefficient is the derivative averaged at the sample control mean.</li>
+<li>IPW solves <span class="math inline">D\sim(1,W)</span> by least squares, computes <span class="math inline">\hat\sigma^2=v'v/n</span>, rejects values at or below <span class="math inline">10^{-12}</span>, and forms <span class="math inline">g=v/\hat\sigma^2</span>. It then evaluates the scalar ratio <span class="math inline">g'Y/(g'D)</span>. The nuisance vector stores <span class="math inline">\log\hat\sigma^2</span> so perturbed covariance calculations keep the variance positive.</li>
+<li>DR repeats that treatment projection, centers controls, and builds the OB outcome design. Its instrument matrix replaces the final raw treatment column by <span class="math inline">g</span>. The just-identified IV solve first projects the outcome design on those instruments and then regresses <span class="math inline">Y</span> on the projected design; the reported target is again the final outcome coefficient.</li>
 <li>Each method packs every nuisance component and the target into a fixed order and has a matching row-moment constructor. OB stacks control-centering moments with outcome normal equations. IPW stacks treatment normal equations, a variance moment, and the weighted outcome moment. DR stacks all four blocks.</li>
 <li><code>summary()</code> obtains the complete moment matrix, central-differences its mean once per packed parameter coordinate, verifies the Jacobian is square, and maps observation moments through its inverse. The requested iid, HC1, HAC, or cluster covariance is computed for the whole system before the final scalar block is selected.</li>
 </ol>
@@ -563,13 +585,13 @@ Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>OB is a dense least-squares fit; IPW adds a treatment projection; DR adds a just-identified IV system. Summary-time differentiation is the dominant risk: the DR nuisance vector has <span class="math inline">\(4p+4\)</span> elements for <span class="math inline">\(p\)</span> raw controls, requiring two full moment evaluations per element followed by a dense cubic inversion. Interactions also double the outcome-design width. Scaling and collinearity matter, and there is no regularization.</p>
+<p>OB is a dense least-squares fit; IPW adds a treatment projection; DR adds a just-identified IV system. Summary-time differentiation is the dominant risk: the DR nuisance vector has <span class="math inline">4p+4</span> elements for <span class="math inline">p</span> raw controls, requiring two full moment evaluations per element followed by a dense cubic inversion. Interactions also double the outcome-design width. Scaling and collinearity matter, and there is no regularization.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.AverageDerivative</code></p>
 <p>Call <code>fit(y, d, w)</code>. The summary reports <code>method</code>, <code>coef</code>, <code>se</code>, and <code>vcov</code>. There is no <code>predict()</code> method because the object is a semiparametric target rather than a full conditional mean model.</p>
-<div id="af5ca99a" class="cell" data-execution_count="2">
+<div id="20224046" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.AverageDerivative))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -578,7 +600,7 @@ Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
 <pre><code>(method='dr', fd_eps=1e-06)</code></pre>
 </div>
 </div>
-<div id="a895d0ae" class="cell" data-execution_count="3">
+<div id="5efc7bf4" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.AverageDerivative</span>
@@ -608,7 +630,7 @@ Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="3be377c4" class="cell" data-execution_count="4">
+<div id="d43ce9c5" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">12</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>w <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">320</span>, <span class="dv">2</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="fl">0.2</span> <span class="op">+</span> w <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.3</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.7</span>, size<span class="op">=</span><span class="dv">320</span>)</span>
@@ -624,7 +646,7 @@ Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="8b57cd54" class="cell" data-execution_count="5">
+<div id="537a2863" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">112</span>)</span>
@@ -1074,13 +1096,18 @@ Z_i=(1,\ {W_i^c}',\ D_i{W_i^c}',\ g_i)'
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

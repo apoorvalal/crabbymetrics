@@ -280,6 +280,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -352,6 +356,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -475,7 +483,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="data-generating-process" class="level2">
 <h2 class="anchored" data-anchor-id="data-generating-process">Data-generating process</h2>
 <p>There are 240 units and 18 periods. Three cohorts adopt in periods 6, 9, and 12; the remaining units are never treated. Untreated outcomes contain unit effects, common time effects, and independent noise. Treatment effects vary with cohort and grow with exposure, so a single constant-effect TWFE coefficient is not automatically the relevant dynamic effect.</p>
-<div id="b4a1c401" class="cell" data-execution_count="1">
+<div id="81a1f635" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
@@ -515,7 +523,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 True treated-cell average: 1.398</code></pre>
 </div>
 </div>
-<div id="e375c8b2" class="cell" data-execution_count="2">
+<div id="263247ed" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">7</span>, <span class="dv">4</span>))</span>
@@ -535,7 +543,7 @@ True treated-cell average: 1.398</code></pre>
 <section id="matrix-panel-estimators" class="level2">
 <h2 class="anchored" data-anchor-id="matrix-panel-estimators">Matrix-panel estimators</h2>
 <p><code>HorizontalPanelRidge</code>, <code>MatrixCompletion</code>, and <code>SyntheticDID</code> provide scalar effects and nested event-study summaries. Always inspect convergence diagnostics where available. MatrixCompletion can retain a nonconverged iterate on budget exhaustion; returning from <code>fit</code> alone is not a convergence check.</p>
-<div id="6cff3759" class="cell" data-execution_count="3">
+<div id="0704d079" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>estimators <span class="op">=</span> {</span>
@@ -606,7 +614,7 @@ True treated-cell average: 1.398</code></pre>
 <section id="two-way-fixed-effects-and-saturated-event-studies" class="level2">
 <h2 class="anchored" data-anchor-id="two-way-fixed-effects-and-saturated-event-studies">Two-way fixed effects and saturated event studies</h2>
 <p>The first PyFixest fit pools event-time effects across cohorts. The second fits cohort-specific effects and aggregates them using the saturated/Sun-Abraham-style interface. Both use unit-clustered intervals and period <code>-1</code> as the reference. The outermost TWFE event times are binned.</p>
-<div id="0679f790" class="cell" data-execution_count="4">
+<div id="a17c5a8a" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df[<span class="st">"rel"</span>] <span class="op">=</span> np.where(df.g <span class="op">&gt;</span> <span class="dv">0</span>, df.period <span class="op">-</span> df.g, <span class="op">-</span><span class="dv">999</span>)</span>
@@ -700,7 +708,7 @@ True treated-cell average: 1.398</code></pre>
 <section id="event-paths-and-known-effects" class="level2">
 <h2 class="anchored" data-anchor-id="event-paths-and-known-effects">Event paths and known effects</h2>
 <p>For display, matrix-estimator paths are centered on their own period <code>-1</code> estimate. This makes their normalization explicit; it does not make their weighting identical to PyFixest’s. The truth curve averages effects among the ever-treated units observed at each event time. Restricting to interior periods avoids interpreting the binned TWFE endpoints as single-period effects.</p>
-<div id="9133266d" class="cell" data-execution_count="5">
+<div id="a4899816" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>truth <span class="op">=</span> df.loc[df.g <span class="op">&gt;</span> <span class="dv">0</span>].groupby(<span class="st">"rel"</span>).truth.mean()</span>
@@ -1143,13 +1151,18 @@ True treated-cell average: 1.398</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

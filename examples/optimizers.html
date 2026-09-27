@@ -277,6 +277,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -349,6 +353,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -458,7 +466,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This page shows the direct optimizer wrappers in the style they are meant to be used: a Python callback for the objective, a starting value, optional derivative callbacks, and a plain dictionary back with the minimizer and objective value. The first section rebuilds a Bernoulli logit fit from its likelihood, then the page moves to two rougher test functions where nonlinear conjugate gradient and simulated annealing are more natural tools.</p>
 <section id="imports" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports"><span class="header-section-number">1</span> Imports</h2>
-<div id="358f21ea" class="cell" data-execution_count="1">
+<div id="3f4b520b" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -475,7 +483,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The built-in <code>Logit</code> class reports the linear index and probability for label 1. The synthetic data below are therefore generated from</p>
 <p><code>Pr(y = 1 | x) = sigmoid(theta_0 + x @ theta)</code>.</p>
 <p>We then minimize the negative Bernoulli log-likelihood directly with <code>Optimizers.minimize_bfgs</code> and compare the optimizer output with the built-in regression.</p>
-<div id="510f1b19" class="cell" data-execution_count="2">
+<div id="fe802d33" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">7</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">1200</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="dv">3</span></span>
@@ -525,7 +533,7 @@ max |BFGS - Logit|: 7.73e-06
 BFGS objective: 630.913716</code></pre>
 </div>
 </div>
-<div id="d756f4e9" class="cell" data-execution_count="3">
+<div id="1cfd2796" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>prob_one_bfgs <span class="op">=</span> sigmoid(X <span class="op">@</span> bfgs_result[<span class="st">"x"</span>])</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>prob_one_logit <span class="op">=</span> sigmoid(X <span class="op">@</span> logit_theta)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -564,7 +572,7 @@ BFGS objective: 630.913716</code></pre>
 <section id="nonlinear-conjugate-gradient-on-beales-function" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="nonlinear-conjugate-gradient-on-beales-function"><span class="header-section-number">3</span> Nonlinear Conjugate Gradient On Beale’s Function</h2>
 <p>The Beale function is a good stress test for deterministic gradient-based methods. It is smooth, but the surface bends sharply and the minimum sits in a narrow basin at <code>(3, 0.5)</code>.</p>
-<div id="290a3af9" class="cell" data-execution_count="4">
+<div id="dc60782e" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> beale(theta):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    x1, x2 <span class="op">=</span> theta</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(</span>
@@ -597,7 +605,7 @@ BFGS objective: 630.913716</code></pre>
 <pre><code>{'x': array([3. , 0.5]), 'fun': 2.422589769173851e-24, 'nit': 2000, 'success': True, 'message': 'Gradient norm below tolerance (2.608e-12 &lt;= 1.000e-6)', 'method': 'nonlinear_cg'}</code></pre>
 </div>
 </div>
-<div id="39a87eee" class="cell" data-execution_count="5">
+<div id="84e5849d" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> np.linspace(<span class="op">-</span><span class="fl">1.0</span>, <span class="fl">4.5</span>, <span class="dv">320</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> np.linspace(<span class="op">-</span><span class="fl">0.5</span>, <span class="fl">1.5</span>, <span class="dv">280</span>)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>xx1, xx2 <span class="op">=</span> np.meshgrid(x1, x2)</span>
@@ -639,7 +647,7 @@ BFGS objective: 630.913716</code></pre>
 <section id="simulated-annealing-on-rastrigins-function" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="simulated-annealing-on-rastrigins-function"><span class="header-section-number">4</span> Simulated Annealing On Rastrigin’s Function</h2>
 <p>Rastrigin’s function is the opposite kind of problem: a simple global minimum at the origin, but with a dense field of local minima. That is the setting where a stochastic global method is much more natural than a deterministic descent method.</p>
-<div id="7badaf82" class="cell" data-execution_count="6">
+<div id="c1f84844" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rastrigin(theta):</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    a <span class="op">=</span> <span class="fl">10.0</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(a <span class="op">*</span> theta.size <span class="op">+</span> np.<span class="bu">sum</span>(theta<span class="op">**</span><span class="dv">2</span> <span class="op">-</span> a <span class="op">*</span> np.cos(<span class="fl">2.0</span> <span class="op">*</span> np.pi <span class="op">*</span> theta)))</span>
@@ -661,7 +669,7 @@ BFGS objective: 630.913716</code></pre>
 <pre><code>{'x': array([ 0.0007, -0.0022]), 'fun': 0.001062433017398945, 'nit': 2078, 'success': False, 'message': 'BestStallIterExceeded', 'method': 'simulated_annealing'}</code></pre>
 </div>
 </div>
-<div id="18ecc08f" class="cell" data-execution_count="7">
+<div id="8d89d819" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> np.linspace(<span class="op">-</span><span class="fl">5.12</span>, <span class="fl">5.12</span>, <span class="dv">320</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> np.linspace(<span class="op">-</span><span class="fl">5.12</span>, <span class="fl">5.12</span>, <span class="dv">320</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>xx1, xx2 <span class="op">=</span> np.meshgrid(x1, x2)</span>
@@ -1115,13 +1123,18 @@ BFGS objective: 630.913716</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

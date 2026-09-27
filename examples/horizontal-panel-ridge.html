@@ -277,6 +277,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -349,6 +353,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -460,7 +468,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This example simulates a staggered panel where treated paths are predictable from donor histories before treatment, then recovers the average post-treatment effect.</p>
 <section id="simulate-a-balanced-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-balanced-panel"><span class="header-section-number">1</span> Simulate A Balanced Panel</h2>
-<div id="69b3c6d7" class="cell" data-execution_count="1">
+<div id="2073daf6" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -468,7 +476,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="72688fcc" class="cell" data-execution_count="2">
+<div id="ea809087" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">4401</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>n_control <span class="op">=</span> <span class="dv">45</span></span>
@@ -521,7 +529,7 @@ first treatment periods: [17 17 17 17 17 21 21 21 21 21]</code></pre>
 </section>
 <section id="fit-and-inspect-the-summary" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-and-inspect-the-summary"><span class="header-section-number">2</span> Fit And Inspect The Summary</h2>
-<div id="98f5cf84" class="cell" data-execution_count="3">
+<div id="3853b2f9" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> HorizontalPanelRidge(penalty<span class="op">=</span><span class="fl">0.8</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>model.fit(Y, W)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
@@ -538,7 +546,7 @@ summary keys: ['att', 'coef', 'cohort_coef', 'cohort_intercepts', 'cohorts', 'co
 </div>
 </div>
 <p>The high-level outputs are available without carrying around long-form panel data: <code>counterfactual</code>, <code>treatment_effect</code>, <code>event_study</code>, and <code>group_means</code> all use the same matrix orientation as the input panel.</p>
-<div id="365cf11a" class="cell" data-execution_count="4">
+<div id="901e8a07" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>treated <span class="op">=</span> np.asarray(summary[<span class="st">"treated_units"</span>], dtype<span class="op">=</span><span class="bu">int</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>cf <span class="op">=</span> np.asarray(summary[<span class="st">"counterfactual"</span>])</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>te <span class="op">=</span> np.asarray(summary[<span class="st">"treatment_effect"</span>])</span>
@@ -981,13 +989,18 @@ summary keys: ['att', 'coef', 'cohort_coef', 'cohort_intercepts', 'cohorts', 'co
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

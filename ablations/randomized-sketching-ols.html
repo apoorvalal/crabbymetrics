@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -501,132 +523,132 @@ window.Quarto = {
 <p>The important design choice is conservative: exact algorithms remain the defaults for estimator classes. Sketching is opt-in through explicit method arguments or reusable transform classes.</p>
 <section id="the-projection-view" class="level3" data-number="1.1">
 <h3 data-number="1.1" class="anchored" data-anchor-id="the-projection-view"><span class="header-section-number">1.1</span> The projection view</h3>
-<p>Let <span class="math inline">\(A \in \mathbb{R}^{m \times n}\)</span>. Many estimators do not need all of <span class="math inline">\(A\)</span>; they need either:</p>
+<p>Let <span class="math inline">A \in \mathbb{R}^{m \times n}</span>. Many estimators do not need all of <span class="math inline">A</span>; they need either:</p>
 <ul>
-<li>the action of <span class="math inline">\(A\)</span> on a low-dimensional subspace;</li>
+<li>the action of <span class="math inline">A</span> on a low-dimensional subspace;</li>
 <li>the dominant left/right singular subspaces;</li>
-<li>the Gram matrix <span class="math inline">\(A'A\)</span> or <span class="math inline">\(AA'\)</span>;</li>
-<li>the solution to a least-squares or moment equation involving <span class="math inline">\(A\)</span>.</li>
+<li>the Gram matrix <span class="math inline">A'A</span> or <span class="math inline">AA'</span>;</li>
+<li>the solution to a least-squares or moment equation involving <span class="math inline">A</span>.</li>
 </ul>
 <p>A sketch introduces a random linear map and solves a smaller problem. There are two common orientations.</p>
 <p>A <strong>range sketch</strong> multiplies on the right:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y = A\Omega,
 \qquad
 \Omega \in \mathbb{R}^{n \times \ell},
 \qquad
 \ell = k + q,
-\]</span></p>
-<p>where <span class="math inline">\(k\)</span> is the target rank and <span class="math inline">\(q\)</span> is an oversampling buffer. If <span class="math inline">\(A\)</span> is exactly or approximately rank <span class="math inline">\(k\)</span>, the columns of <span class="math inline">\(Y\)</span> span approximately the dominant column space of <span class="math inline">\(A\)</span>. After orthogonalizing,</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">k</span> is the target rank and <span class="math inline">q</span> is an oversampling buffer. If <span class="math inline">A</span> is exactly or approximately rank <span class="math inline">k</span>, the columns of <span class="math inline">Y</span> span approximately the dominant column space of <span class="math inline">A</span>. After orthogonalizing,</p>
+<p><span class="math display">
 Y = QR,
 \qquad
 Q'Q = I_\ell,
-\]</span></p>
+</span></p>
 <p>we approximate</p>
-<p><span class="math display">\[
+<p><span class="math display">
 A \approx QQ'A.
-\]</span></p>
+</span></p>
 <p>A <strong>row sketch</strong> multiplies on the left:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widetilde A = SA,
 \qquad
 S \in \mathbb{R}^{s \times m},
 \qquad
 s \ll m.
-\]</span></p>
-<p>For regression, this compresses observations. The sketch should be a subspace embedding: for vectors <span class="math inline">\(v\)</span> in the relevant column span,</p>
-<p><span class="math display">\[
+</span></p>
+<p>For regression, this compresses observations. The sketch should be a subspace embedding: for vectors <span class="math inline">v</span> in the relevant column span,</p>
+<p><span class="math display">
 (1-\varepsilon)\lVert v \rVert_2^2
 \le
 \lVert Sv \rVert_2^2
 \le
 (1+\varepsilon)\lVert v \rVert_2^2.
-\]</span></p>
+</span></p>
 <p>This condition is stronger than merely preserving pairwise distances for a few rows. It says that the random map approximately preserves the whole low-dimensional residual geometry.</p>
 </section>
 <section id="randomized-range-finding-and-svd" class="level3" data-number="1.2">
 <h3 data-number="1.2" class="anchored" data-anchor-id="randomized-range-finding-and-svd"><span class="header-section-number">1.2</span> Randomized range finding and SVD</h3>
-<p>The randomized SVD in <code>crabbymetrics</code> starts from the range sketch above. Given <span class="math inline">\(A \in \mathbb{R}^{m \times n}\)</span> and a requested rank <span class="math inline">\(k\)</span>:</p>
+<p>The randomized SVD in <code>crabbymetrics</code> starts from the range sketch above. Given <span class="math inline">A \in \mathbb{R}^{m \times n}</span> and a requested rank <span class="math inline">k</span>:</p>
 <ol type="1">
-<li>draw <span class="math inline">\(\Omega \in \mathbb{R}^{n \times (k+q)}\)</span>;</li>
-<li>form <span class="math inline">\(Y=A\Omega\)</span>;</li>
+<li>draw <span class="math inline">\Omega \in \mathbb{R}^{n \times (k+q)}</span>;</li>
+<li>form <span class="math inline">Y=A\Omega</span>;</li>
 <li>optionally perform power iterations;</li>
-<li>orthogonalize <span class="math inline">\(Y=QR\)</span>;</li>
-<li>compute the small SVD of <span class="math inline">\(B=Q'A\)</span>:</li>
+<li>orthogonalize <span class="math inline">Y=QR</span>;</li>
+<li>compute the small SVD of <span class="math inline">B=Q'A</span>:</li>
 </ol>
-<p><span class="math display">\[
+<p><span class="math display">
 B = \widetilde U \Sigma V';
-\]</span></p>
+</span></p>
 <ol start="6" type="1">
 <li>lift the left singular vectors:</li>
 </ol>
-<p><span class="math display">\[
+<p><span class="math display">
 U \approx Q\widetilde U,
 \qquad
 A \approx U\Sigma V'.
-\]</span></p>
-<p>If the singular values of <span class="math inline">\(A\)</span> decay quickly, a small <span class="math inline">\(q\)</span> is often enough. If singular values decay slowly, the leading subspace is harder to identify. Power iteration improves separation by replacing the sampled range with roughly</p>
-<p><span class="math display">\[
+</span></p>
+<p>If the singular values of <span class="math inline">A</span> decay quickly, a small <span class="math inline">q</span> is often enough. If singular values decay slowly, the leading subspace is harder to identify. Power iteration improves separation by replacing the sampled range with roughly</p>
+<p><span class="math display">
 Y = (AA')^r A\Omega.
-\]</span></p>
-<p>The singular values are effectively transformed from <span class="math inline">\(\sigma_j\)</span> to <span class="math inline">\(\sigma_j^{2r+1}\)</span>, so dominant directions stand out more sharply. The tradeoff is additional passes over <span class="math inline">\(A\)</span>.</p>
+</span></p>
+<p>The singular values are effectively transformed from <span class="math inline">\sigma_j</span> to <span class="math inline">\sigma_j^{2r+1}</span>, so dominant directions stand out more sharply. The tradeoff is additional passes over <span class="math inline">A</span>.</p>
 <p>The useful error heuristic is:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \lVert A - QQ'A \rVert
 \approx
 \text{tail singular value scale},
-\]</span></p>
+</span></p>
 <p>not machine precision. Randomized SVD is an approximation to a low-rank target, not a replacement for an exact full-rank factorization.</p>
 </section>
 <section id="randomized-qr-and-approximate-least-squares" class="level3" data-number="1.3">
 <h3 data-number="1.3" class="anchored" data-anchor-id="randomized-qr-and-approximate-least-squares"><span class="header-section-number">1.3</span> Randomized QR and approximate least squares</h3>
-<p>Randomized QR uses the same range basis. If <span class="math inline">\(Q\)</span> approximately spans the column space of <span class="math inline">\(A\)</span>, then QR can be computed on the compressed coordinates and lifted back. Equivalently, randomized least squares can be viewed as solving on a sketch that preserves the column space of the design.</p>
-<p>For a tall design <span class="math inline">\(X \in \mathbb{R}^{n \times p}\)</span> with <span class="math inline">\(n \gg p\)</span>, OLS is</p>
-<p><span class="math display">\[
+<p>Randomized QR uses the same range basis. If <span class="math inline">Q</span> approximately spans the column space of <span class="math inline">A</span>, then QR can be computed on the compressed coordinates and lifted back. Equivalently, randomized least squares can be viewed as solving on a sketch that preserves the column space of the design.</p>
+<p>For a tall design <span class="math inline">X \in \mathbb{R}^{n \times p}</span> with <span class="math inline">n \gg p</span>, OLS is</p>
+<p><span class="math display">
 \hat\beta
 = \arg\min_b \lVert y-Xb \rVert_2^2.
-\]</span></p>
-<p>A sketched least-squares fit draws <span class="math inline">\(S \in \mathbb{R}^{s \times n}\)</span> and solves</p>
-<p><span class="math display">\[
+</span></p>
+<p>A sketched least-squares fit draws <span class="math inline">S \in \mathbb{R}^{s \times n}</span> and solves</p>
+<p><span class="math display">
 \hat\beta_S
 = \arg\min_b \lVert S(y-Xb) \rVert_2^2.
-\]</span></p>
-<p>If <span class="math inline">\(S\)</span> is a subspace embedding for <span class="math inline">\(\operatorname{span}([X,y])\)</span>, then the sketched objective is uniformly close to the full objective over the relevant parameter region. That is the reason a smaller problem can recover a similar coefficient vector.</p>
+</span></p>
+<p>If <span class="math inline">S</span> is a subspace embedding for <span class="math inline">\operatorname{span}([X,y])</span>, then the sketched objective is uniformly close to the full objective over the relevant parameter region. That is the reason a smaller problem can recover a similar coefficient vector.</p>
 </section>
 <section id="countsketch-row-embeddings" class="level3" data-number="1.4">
 <h3 data-number="1.4" class="anchored" data-anchor-id="countsketch-row-embeddings"><span class="header-section-number">1.4</span> CountSketch row embeddings</h3>
-<p>The row-sketching path uses CountSketch. Each original row <span class="math inline">\(i\)</span> receives:</p>
+<p>The row-sketching path uses CountSketch. Each original row <span class="math inline">i</span> receives:</p>
 <ul>
-<li>a bucket <span class="math inline">\(h(i) \in \{1,\ldots,s\}\)</span>;</li>
-<li>a sign <span class="math inline">\(\sigma_i \in \{-1,+1\}\)</span>.</li>
+<li>a bucket <span class="math inline">h(i) \in \{1,\ldots,s\}</span>;</li>
+<li>a sign <span class="math inline">\sigma_i \in \{-1,+1\}</span>.</li>
 </ul>
 <p>Then rows are accumulated as</p>
-<p><span class="math display">\[
+<p><span class="math display">
 (SX)_{h(i),\cdot} \mathrel{+}= \sigma_i X_{i,\cdot},
 \qquad
 (Sy)_{h(i)} \mathrel{+}= \sigma_i y_i.
-\]</span></p>
-<p>The matrix <span class="math inline">\(S\)</span> is never materialized densely. Construction is one pass through the rows, so the cost is proportional to the number of nonzero entries touched. For dense <span class="math inline">\(X\)</span>, that is <span class="math inline">\(O(np)\)</span> to build the sketch plus the cost of solving the <span class="math inline">\(s \times p\)</span> compressed least-squares problem.</p>
-<p>The sketch size <span class="math inline">\(s\)</span> controls the bias–variance approximation tradeoff. A very small sketch is fast but noisy; a larger sketch approaches the full estimator.</p>
+</span></p>
+<p>The matrix <span class="math inline">S</span> is never materialized densely. Construction is one pass through the rows, so the cost is proportional to the number of nonzero entries touched. For dense <span class="math inline">X</span>, that is <span class="math inline">O(np)</span> to build the sketch plus the cost of solving the <span class="math inline">s \times p</span> compressed least-squares problem.</p>
+<p>The sketch size <span class="math inline">s</span> controls the bias–variance approximation tradeoff. A very small sketch is fast but noisy; a larger sketch approaches the full estimator.</p>
 </section>
 <section id="matrix-completion-via-randomized-singular-value-thresholding" class="level3" data-number="1.5">
 <h3 data-number="1.5" class="anchored" data-anchor-id="matrix-completion-via-randomized-singular-value-thresholding"><span class="header-section-number">1.5</span> Matrix completion via randomized singular-value thresholding</h3>
 <p>Panel matrix completion repeatedly solves a low-rank denoising problem. A stylized singular-value-thresholding update is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 M^{(t+1)}
 = \mathcal{S}_\lambda(A^{(t)}),
-\]</span></p>
-<p>where <span class="math inline">\(\mathcal{S}_\lambda\)</span> soft-thresholds singular values. If</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">\mathcal{S}_\lambda</span> soft-thresholds singular values. If</p>
+<p><span class="math display">
 A^{(t)} = U\operatorname{diag}(\sigma_j)V',
-\]</span></p>
+</span></p>
 <p>then</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathcal{S}_\lambda(A^{(t)})
 = U\operatorname{diag}((\sigma_j-\lambda)_+)V'.
-\]</span></p>
-<p>When the desired panel signal is low rank, most singular values are discarded or heavily shrunk. Computing a full exact SVD in every iteration can therefore waste work. The randomized path computes an approximate rank-<span class="math inline">\(k\)</span> SVD and applies the same soft-thresholding to the retained singular values.</p>
+</span></p>
+<p>When the desired panel signal is low rank, most singular values are discarded or heavily shrunk. Computing a full exact SVD in every iteration can therefore waste work. The randomized path computes an approximate rank-<span class="math inline">k</span> SVD and applies the same soft-thresholding to the retained singular values.</p>
 <p>This is why the <code>MatrixCompletion</code> sketching knobs are explicit:</p>
 <ul>
 <li><code>svd_method="exact"</code> keeps the deterministic path;</li>
@@ -639,102 +661,102 @@ A^{(t)} = U\operatorname{diag}(\sigma_j)V',
 <section id="interactive-fixed-effects-and-randomized-factor-extraction" class="level3" data-number="1.6">
 <h3 data-number="1.6" class="anchored" data-anchor-id="interactive-fixed-effects-and-randomized-factor-extraction"><span class="header-section-number">1.6</span> Interactive fixed effects and randomized factor extraction</h3>
 <p>Interactive fixed effects use a low-rank factor structure such as</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_{it}(0) \approx \lambda_i'f_t + \alpha_i + \xi_t.
-\]</span></p>
+</span></p>
 <p>After additive effects are handled, factor extraction is again an SVD problem on a residualized panel matrix. Exact factor extraction computes leading singular vectors of the full matrix. The randomized path approximates the same leading subspace with randomized SVD.</p>
 <p>The target is not equality of individual factor signs or rotations. Factors are only identified up to invertible transformations. The relevant comparisons are reconstructed fitted values, counterfactual paths, and treatment-effect summaries.</p>
 </section>
 <section id="kernel-approximation-nyström-features" class="level3" data-number="1.7">
 <h3 data-number="1.7" class="anchored" data-anchor-id="kernel-approximation-nyström-features"><span class="header-section-number">1.7</span> Kernel approximation: Nyström features</h3>
 <p>Kernel methods replace dot products with similarities</p>
-<p><span class="math display">\[
+<p><span class="math display">
 K(x_i,x_j).
-\]</span></p>
-<p>A full kernel matrix for <span class="math inline">\(n\)</span> observations costs <span class="math inline">\(O(n^2)\)</span> memory. Nyström approximation chooses <span class="math inline">\(m \ll n\)</span> landmarks <span class="math inline">\(L = \{\ell_1,\ldots,\ell_m\}\)</span> and forms</p>
-<p><span class="math display">\[
+</span></p>
+<p>A full kernel matrix for <span class="math inline">n</span> observations costs <span class="math inline">O(n^2)</span> memory. Nyström approximation chooses <span class="math inline">m \ll n</span> landmarks <span class="math inline">L = \{\ell_1,\ldots,\ell_m\}</span> and forms</p>
+<p><span class="math display">
 K_{nm} = K(X,L),
 \qquad
 K_{mm} = K(L,L).
-\]</span></p>
+</span></p>
 <p>The low-rank kernel approximation is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 K(X,X) \approx K_{nm}K_{mm}^{\dagger}K_{mn}.
-\]</span></p>
+</span></p>
 <p>A convenient feature representation is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \Phi_{Nys}(X) = K_{nm}K_{mm}^{-1/2},
-\]</span></p>
+</span></p>
 <p>so that</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \Phi_{Nys}(X)\Phi_{Nys}(X)' \approx K(X,X).
-\]</span></p>
+</span></p>
 <p><code>NystromBasis</code> exposes these features as a transformer. Downstream estimators can stay ordinary linear estimators, e.g.&nbsp;ridge on Nyström features.</p>
 </section>
 <section id="kernel-approximation-random-fourier-features" class="level3" data-number="1.8">
 <h3 data-number="1.8" class="anchored" data-anchor-id="kernel-approximation-random-fourier-features"><span class="header-section-number">1.8</span> Kernel approximation: random Fourier features</h3>
-<p>For shift-invariant kernels <span class="math inline">\(K(x,z)=\kappa(x-z)\)</span>, Bochner’s theorem says that a continuous positive-definite kernel is the Fourier transform of a nonnegative measure. For the Gaussian/RBF kernel,</p>
-<p><span class="math display">\[
+<p>For shift-invariant kernels <span class="math inline">K(x,z)=\kappa(x-z)</span>, Bochner’s theorem says that a continuous positive-definite kernel is the Fourier transform of a nonnegative measure. For the Gaussian/RBF kernel,</p>
+<p><span class="math display">
 K(x,z) = \exp\left(-\frac{\lVert x-z\rVert^2}{2b^2}\right),
-\]</span></p>
+</span></p>
 <p>one can draw random frequencies</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \omega_j \sim N(0, b^{-2}I)
-\]</span></p>
+</span></p>
 <p>and phases</p>
-<p><span class="math display">\[
+<p><span class="math display">
 b_j \sim \operatorname{Uniform}(0,2\pi),
-\]</span></p>
+</span></p>
 <p>then construct features</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \phi_j(x)
 = \sqrt{\frac{2}{D}}\cos(\omega_j'x+b_j),
 \qquad j=1,\ldots,D.
-\]</span></p>
+</span></p>
 <p>The inner product approximates the kernel:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \phi(x)'\phi(z) \approx K(x,z).
-\]</span></p>
+</span></p>
 <p><code>RandomFourierFeatures</code> is useful when a smooth nonlinear relationship can be learned by a linear estimator after random nonlinear expansion.</p>
 </section>
 <section id="many-moment-gmm-sketching" class="level3" data-number="1.9">
 <h3 data-number="1.9" class="anchored" data-anchor-id="many-moment-gmm-sketching"><span class="header-section-number">1.9</span> Many-moment GMM sketching</h3>
 <p>A GMM estimator solves moments</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \bar g(\theta) = \frac{1}{n}\sum_{i=1}^n g_i(\theta) \in \mathbb{R}^q,
-\]</span></p>
+</span></p>
 <p>by minimizing</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Q(\theta) = \bar g(\theta)'W\bar g(\theta).
-\]</span></p>
-<p>When <span class="math inline">\(q\)</span> is large, the moment system and weighting matrix can dominate computation. A moment sketch draws a projection</p>
-<p><span class="math display">\[
+</span></p>
+<p>When <span class="math inline">q</span> is large, the moment system and weighting matrix can dominate computation. A moment sketch draws a projection</p>
+<p><span class="math display">
 R \in \mathbb{R}^{s \times q},
 \qquad s &lt; q,
-\]</span></p>
+</span></p>
 <p>and fits the compressed moments</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widetilde g(\theta) = R\bar g(\theta).
-\]</span></p>
+</span></p>
 <p>The Jacobian is compressed consistently:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widetilde G(\theta) = R G(\theta),
 \qquad
 G(\theta)=\frac{\partial \bar g(\theta)}{\partial \theta'}.
-\]</span></p>
+</span></p>
 <p><code>GMM.fit_sketch(...)</code> uses a fixed Rademacher projection. The conservative interpretation is important: the fitted and summarized model is the sketched moment problem, not the full moment problem with magically free inference. Moment sketching is most appropriate when there are many redundant or highly correlated moments.</p>
 </section>
 <section id="randomized-pca-before-balancing-weights" class="level3" data-number="1.10">
 <h3 data-number="1.10" class="anchored" data-anchor-id="randomized-pca-before-balancing-weights"><span class="header-section-number">1.10</span> Randomized PCA before balancing weights</h3>
-<p>Balancing weights solve for weights <span class="math inline">\(w_i\)</span> that make weighted source covariates match target covariates. In the simplest form, the balance condition is</p>
-<p><span class="math display">\[
+<p>Balancing weights solve for weights <span class="math inline">w_i</span> that make weighted source covariates match target covariates. In the simplest form, the balance condition is</p>
+<p><span class="math display">
 \sum_i w_i x_i \approx \bar x_{target}.
-\]</span></p>
-<p>If <span class="math inline">\(x_i\)</span> is a long donor history or wide feature vector, exact balance can be high-dimensional and unstable. One explicit compression strategy is to first map covariates to randomized principal-component scores:</p>
-<p><span class="math display">\[
+</span></p>
+<p>If <span class="math inline">x_i</span> is a long donor history or wide feature vector, exact balance can be high-dimensional and unstable. One explicit compression strategy is to first map covariates to randomized principal-component scores:</p>
+<p><span class="math display">
 z_i = V_k'(x_i-\bar x),
-\]</span></p>
-<p>where <span class="math inline">\(V_k\)</span> is obtained by randomized SVD. Balance is then imposed on <span class="math inline">\(z_i\)</span> rather than the full <span class="math inline">\(x_i\)</span>.</p>
+</span></p>
+<p>where <span class="math inline">V_k</span> is obtained by randomized SVD. Balance is then imposed on <span class="math inline">z_i</span> rather than the full <span class="math inline">x_i</span>.</p>
 <p>This is deliberately exposed as <code>RandomizedPCA</code>, not hidden inside <code>BalancingWeights</code> or synthetic-control estimators. Compression changes the estimand-relevant diagnostics: balance in compressed coordinates does not imply exact balance in original coordinates unless the discarded directions are irrelevant.</p>
 </section>
 <section id="practical-tuning-rules" class="level3" data-number="1.11">
@@ -744,7 +766,7 @@ z_i = V_k'(x_i-\bar x),
 <li>Use randomized SVD when a matrix is large and plausibly low rank.</li>
 <li>Increase <code>oversamples</code> when approximation quality is unstable.</li>
 <li>Increase <code>power_iter</code> when singular values decay slowly.</li>
-<li>Use row sketches when <span class="math inline">\(n\)</span> is large relative to the number of regressors and the least-squares geometry is well conditioned.</li>
+<li>Use row sketches when <span class="math inline">n</span> is large relative to the number of regressors and the least-squares geometry is well conditioned.</li>
 <li>Treat GMM moment sketching as a point-estimation acceleration first; be cautious with inference.</li>
 <li>For kernel approximations, choose the feature dimension by validation or an approximation diagnostic, not by aesthetics.</li>
 <li>For balancing compression, always inspect balance in original variables as a diagnostic.</li>
@@ -753,7 +775,7 @@ z_i = V_k'(x_i-\bar x),
 </section>
 <section id="ablation" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="ablation"><span class="header-section-number">2</span> Ablation</h2>
-<div id="734fe59b" class="cell" data-execution_count="1">
+<div id="dc0b111e" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -783,7 +805,7 @@ z_i = V_k'(x_i-\bar x),
 <section id="ols-design" class="level3" data-number="2.1">
 <h3 data-number="2.1" class="anchored" data-anchor-id="ols-design"><span class="header-section-number">2.1</span> OLS design</h3>
 <p>The first design is intentionally friendly to OLS: standardized Gaussian regressors, a dense linear signal, and homoskedastic additive noise. Full OLS is the numerical target. The sketch size is a multiple of the full design dimension, including the intercept.</p>
-<div id="488f757c" class="cell" data-execution_count="2">
+<div id="64670cb8" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_ols_once(n, p, noise, multiple, seed):</span>
@@ -844,7 +866,7 @@ z_i = V_k'(x_i-\bar x),
 OLS design: {'n': 20000, 'p': 40, 'noise': 0.2}</code></pre>
 </div>
 </div>
-<div id="eb70b368" class="cell" data-execution_count="3">
+<div id="decff1a8" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ols_summary <span class="op">=</span> []</span>
@@ -905,35 +927,35 @@ OLS design: {'n': 20000, 'p': 40, 'noise': 0.2}</code></pre>
 <td>82</td>
 <td>0.0312</td>
 <td>0.2242</td>
-<td>14.87x</td>
+<td>15.08x</td>
 </tr>
 <tr class="even">
 <td>4x</td>
 <td>164</td>
 <td>0.0188</td>
 <td>0.1140</td>
-<td>12.33x</td>
+<td>12.36x</td>
 </tr>
 <tr class="odd">
 <td>8x</td>
 <td>328</td>
 <td>0.0106</td>
 <td>0.0745</td>
-<td>14.38x</td>
+<td>14.98x</td>
 </tr>
 <tr class="even">
 <td>12x</td>
 <td>492</td>
 <td>0.0086</td>
 <td>0.0629</td>
-<td>13.96x</td>
+<td>13.21x</td>
 </tr>
 <tr class="odd">
 <td>16x</td>
 <td>656</td>
 <td>0.0083</td>
 <td>0.0562</td>
-<td>12.31x</td>
+<td>10.70x</td>
 </tr>
 </tbody>
 </table>
@@ -942,13 +964,13 @@ OLS design: {'n': 20000, 'p': 40, 'noise': 0.2}</code></pre>
 </section>
 <section id="kernel-ridge-design" class="level3" data-number="2.2">
 <h3 data-number="2.2" class="anchored" data-anchor-id="kernel-ridge-design"><span class="header-section-number">2.2</span> Kernel ridge design</h3>
-<p>The second design is nonlinear. The full target is Gaussian kernel ridge regression using the full <span class="math inline">\(n \times n\)</span> training kernel. The randomized alternatives replace the full kernel by explicit features: Nyström features from sampled landmarks and random Fourier features. This makes the downstream regression an ordinary ridge problem on a much smaller feature matrix.</p>
+<p>The second design is nonlinear. The full target is Gaussian kernel ridge regression using the full <span class="math inline">n \times n</span> training kernel. The randomized alternatives replace the full kernel by explicit features: Nyström features from sampled landmarks and random Fourier features. This makes the downstream regression an ordinary ridge problem on a much smaller feature matrix.</p>
 <p>The comparison reports two things:</p>
 <ul>
-<li>the relative Frobenius error of the training-kernel approximation, <span class="math inline">\(\lVert K-\Phi\Phi'\rVert_F / \lVert K\rVert_F\)</span>;</li>
+<li>the relative Frobenius error of the training-kernel approximation, <span class="math inline">\lVert K-\Phi\Phi'\rVert_F / \lVert K\rVert_F</span>;</li>
 <li>downstream test RMSE against the true regression function and against the full kernel-ridge predictor.</li>
 </ul>
-<div id="7a2995f3" class="cell" data-execution_count="4">
+<div id="f637e32f" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rbf_kernel(x, z, bandwidth):</span>
@@ -1070,7 +1092,7 @@ OLS design: {'n': 20000, 'p': 40, 'noise': 0.2}</code></pre>
 Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penalty': 1.0}</code></pre>
 </div>
 </div>
-<div id="055b2de5" class="cell" data-execution_count="5">
+<div id="810704b5" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>kernel_summary <span class="op">=</span> []</span>
@@ -1149,7 +1171,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.3137</td>
 <td>0.9244</td>
 <td>0.5892</td>
-<td>11.89x</td>
+<td>12.33x</td>
 </tr>
 <tr class="even">
 <td>Nyström</td>
@@ -1157,7 +1179,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.1577</td>
 <td>0.7547</td>
 <td>0.3639</td>
-<td>4.94x</td>
+<td>4.73x</td>
 </tr>
 <tr class="odd">
 <td>Nyström</td>
@@ -1165,7 +1187,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.0694</td>
 <td>0.6203</td>
 <td>0.1511</td>
-<td>1.48x</td>
+<td>1.35x</td>
 </tr>
 <tr class="even">
 <td>Nyström</td>
@@ -1173,7 +1195,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.0200</td>
 <td>0.5826</td>
 <td>0.0552</td>
-<td>0.31x</td>
+<td>0.28x</td>
 </tr>
 <tr class="odd">
 <td>Random Fourier</td>
@@ -1181,7 +1203,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.8513</td>
 <td>0.9714</td>
 <td>0.6732</td>
-<td>14.90x</td>
+<td>14.29x</td>
 </tr>
 <tr class="even">
 <td>Random Fourier</td>
@@ -1189,7 +1211,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.6446</td>
 <td>0.8057</td>
 <td>0.4599</td>
-<td>7.31x</td>
+<td>7.02x</td>
 </tr>
 <tr class="odd">
 <td>Random Fourier</td>
@@ -1197,7 +1219,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.4394</td>
 <td>0.7697</td>
 <td>0.3668</td>
-<td>3.54x</td>
+<td>3.44x</td>
 </tr>
 <tr class="even">
 <td>Random Fourier</td>
@@ -1205,7 +1227,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <td>0.2927</td>
 <td>0.6285</td>
 <td>0.2293</td>
-<td>1.74x</td>
+<td>1.63x</td>
 </tr>
 </tbody>
 </table>
@@ -1217,7 +1239,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 </section>
 <section id="plots" class="level3" data-number="2.3">
 <h3 data-number="2.3" class="anchored" data-anchor-id="plots"><span class="header-section-number">2.3</span> Plots</h3>
-<div id="34bb2417" class="cell" data-execution_count="6">
+<div id="a6ffce7d" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">14</span>, <span class="dv">7</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
@@ -1295,7 +1317,7 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 </div>
 </div>
 </div>
-<p>For the tall OLS design, larger row sketches move the approximate coefficients and predictions toward the full-data fit while keeping the solve on a smaller synthetic dataset. For the nonlinear design, explicit kernel features trade approximation error against a much smaller ridge problem. The useful diagnostic is not just whether <span class="math inline">\(\Phi\Phi'\)</span> resembles <span class="math inline">\(K\)</span>, but whether the downstream ridge predictions track the full kernel-ridge benchmark.</p>
+<p>For the tall OLS design, larger row sketches move the approximate coefficients and predictions toward the full-data fit while keeping the solve on a smaller synthetic dataset. For the nonlinear design, explicit kernel features trade approximation error against a much smaller ridge problem. The useful diagnostic is not just whether <span class="math inline">\Phi\Phi'</span> resembles <span class="math inline">K</span>, but whether the downstream ridge predictions track the full kernel-ridge benchmark.</p>
 
 
 </section>
@@ -1706,13 +1728,18 @@ Kernel design: {'n_train': 1200, 'n_test': 600, 'p': 5, 'bandwidth': 8.0, 'penal
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

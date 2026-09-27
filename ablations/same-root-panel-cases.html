@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -493,12 +515,12 @@ window.Quarto = {
 <li>the Basque Country GDP case from Abadie and Gardeazabal;</li>
 <li>the California Proposition 99 tobacco case from Abadie, Diamond, and Hainmueller.</li>
 </ul>
-<p>For each case, the page runs the same panel through DID/TWFE, horizontal ridge prediction, vertical ridge prediction, synthetic control, synthetic DID, and matrix completion. It then reports the relevant placebo standard error and donor-placebo <span class="math inline">\(p\)</span>-value that treat the donor pool as the comparison population, while leaving bootstrap/jackknife entries null where they are not meaningful for the design.</p>
+<p>For each case, the page runs the same panel through DID/TWFE, horizontal ridge prediction, vertical ridge prediction, synthetic control, synthetic DID, and matrix completion. It then reports the relevant placebo standard error and donor-placebo <span class="math inline">p</span>-value that treat the donor pool as the comparison population, while leaving bootstrap/jackknife entries null where they are not meaningful for the design.</p>
 <p>The final section runs a small semi-synthetic placebo simulation on the two real donor panels: each donor takes a turn as the treated unit, a known effect is added after the historical treatment date, and the estimators are scored against that known truth.</p>
 <p>Data are vendored under <code>docs/data/</code> so the page renders without network access.</p>
 <section id="setup" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="setup"><span class="header-section-number">1</span> Setup</h2>
-<div id="db87e081" class="cell" data-execution_count="1">
+<div id="43292f3d" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
@@ -553,7 +575,7 @@ window.Quarto = {
 </section>
 <section id="load-the-two-case-panels" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="load-the-two-case-panels"><span class="header-section-number">2</span> Load The Two Case Panels</h2>
-<div id="d0b33dc5" class="cell" data-execution_count="2">
+<div id="fa1e78a6" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wide_from_long(df, unit_col, time_col, outcome_col, units<span class="op">=</span><span class="va">None</span>):</span>
@@ -684,7 +706,7 @@ window.Quarto = {
 <li><strong>vertical ridge</strong> remains a short reference calculation: it regresses donor outcomes in each post-treatment period on donor pre-treatment histories, then predicts the treated unit’s missing counterfactual from its pre-treatment history.</li>
 </ul>
 <p>Synthetic control remains the low-level simplex-weight reference. Synthetic DID and matrix completion now use the same <code>fit(Y, W)</code> panel contract as horizontal ridge, so the vignette no longer constructs estimator-specific masks or treated-unit arguments for the modal panel estimators.</p>
-<div id="1f32fb29" class="cell" data-execution_count="3">
+<div id="7c1ee908" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
@@ -825,8 +847,8 @@ window.Quarto = {
 </section>
 <section id="inference-helper" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference-helper"><span class="header-section-number">4</span> Inference Helper</h2>
-<p>The <strong>donor-placebo standard error and <span class="math inline">\(p\)</span>-value</strong> rotate treatment across donor units at the same intervention date and compare the realized estimate with that placebo distribution. Bootstrap and jackknife columns are kept explicit in the summary table, but are left null where that inferential leaf is not meaningful or not exposed for the estimator. In particular, both case studies have a single treated unit/group, so SDID’s bootstrap and jackknife SEs are undefined; placebo is the relevant SDID inference method here.</p>
-<div id="2a86dd5d" class="cell" data-execution_count="4">
+<p>The <strong>donor-placebo standard error and <span class="math inline">p</span>-value</strong> rotate treatment across donor units at the same intervention date and compare the realized estimate with that placebo distribution. Bootstrap and jackknife columns are kept explicit in the summary table, but are left null where that inferential leaf is not meaningful or not exposed for the estimator. In particular, both case studies have a single treated unit/group, so SDID’s bootstrap and jackknife SEs are undefined; placebo is the relevant SDID inference method here.</p>
+<div id="f6b38975" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_placebo_distribution(case, estimator_fn, tau_to_add<span class="op">=</span><span class="fl">0.0</span>):</span>
@@ -874,7 +896,7 @@ window.Quarto = {
 </section>
 <section id="case-study-estimates" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="case-study-estimates"><span class="header-section-number">5</span> Case Study Estimates</h2>
-<div id="1c0ca754" class="cell" data-execution_count="5">
+<div id="691e6950" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>case_results <span class="op">=</span> {}</span>
@@ -989,7 +1011,7 @@ window.Quarto = {
 <td>0.076</td>
 <td>--</td>
 <td>--</td>
-<td>0.512</td>
+<td>0.507</td>
 <td>0.118</td>
 </tr>
 <tr class="even">
@@ -1055,12 +1077,12 @@ window.Quarto = {
 <tr class="even">
 <td>California Proposition 99</td>
 <td>Synthetic control</td>
-<td>-18.998</td>
-<td>2.400</td>
+<td>-19.514</td>
+<td>1.656</td>
 <td>--</td>
 <td>--</td>
-<td>10.987</td>
-<td>0.081</td>
+<td>10.776</td>
+<td>0.077</td>
 </tr>
 <tr class="odd">
 <td>California Proposition 99</td>
@@ -1089,7 +1111,7 @@ window.Quarto = {
 </section>
 <section id="outcome-paths-and-gaps" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="outcome-paths-and-gaps"><span class="header-section-number">6</span> Outcome Paths And Gaps</h2>
-<div id="ebb5d570" class="cell" data-fig-height="7.4" data-fig-width="10" data-execution_count="6">
+<div id="1f372e22" class="cell" data-fig-height="7.4" data-fig-width="10" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>plot_methods <span class="op">=</span> [<span class="st">"Horizontal ridge"</span>, <span class="st">"Synthetic control"</span>, <span class="st">"Synthetic DID"</span>, <span class="st">"Matrix completion"</span>]</span>
@@ -1150,7 +1172,7 @@ window.Quarto = {
 <section id="semi-synthetic-placebo-simulation" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="semi-synthetic-placebo-simulation"><span class="header-section-number">7</span> Semi-Synthetic Placebo Simulation</h2>
 <p>This simulation keeps the empirical donor panels intact. For each case and each donor unit, we temporarily declare that donor treated, remove the real treated unit from the donor pool, add a known post-treatment effect, and rerun every estimator. This is not a universal Monte Carlo; it is a compact stress test of the estimator/inference code on the two empirical designs used above.</p>
-<div id="687dfc0a" class="cell" data-execution_count="7">
+<div id="2c864205" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> donor_turn_simulation(case):</span>
@@ -1260,10 +1282,10 @@ window.Quarto = {
 <td>Synthetic control</td>
 <td>16</td>
 <td>-0.75</td>
-<td>-0.733</td>
-<td>+0.017</td>
-<td>0.496</td>
-<td>0.241</td>
+<td>-0.737</td>
+<td>+0.013</td>
+<td>0.491</td>
+<td>0.237</td>
 </tr>
 <tr class="even">
 <td>Basque Country GDP</td>
@@ -1328,12 +1350,12 @@ window.Quarto = {
 <tr class="even">
 <td>California Proposition 99</td>
 <td>Synthetic control</td>
-<td>36</td>
+<td>38</td>
 <td>-15.00</td>
-<td>-15.469</td>
-<td>-0.469</td>
-<td>10.844</td>
-<td>7.108</td>
+<td>-14.705</td>
+<td>+0.295</td>
+<td>10.637</td>
+<td>6.007</td>
 </tr>
 <tr class="odd">
 <td>California Proposition 99</td>
@@ -1362,7 +1384,7 @@ window.Quarto = {
 </section>
 <section id="reading-the-results" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="reading-the-results"><span class="header-section-number">8</span> Reading The Results</h2>
-<p>The Basque and California panels are small enough that no single inferential convention should be treated as dispositive. That is exactly the Shen-Ding-Sekhon-Yu lesson. The table therefore keeps unavailable bootstrap/jackknife leaves null and reports the donor-placebo leaf where it is relevant. For SDID in these two single-treated-unit designs, that means placebo inference only. A donor-placebo standard error or <span class="math inline">\(p\)</span>-value asks whether the treated unit looks unusual relative to donor units assigned the same historical intervention date.</p>
+<p>The Basque and California panels are small enough that no single inferential convention should be treated as dispositive. That is exactly the Shen-Ding-Sekhon-Yu lesson. The table therefore keeps unavailable bootstrap/jackknife leaves null and reports the donor-placebo leaf where it is relevant. For SDID in these two single-treated-unit designs, that means placebo inference only. A donor-placebo standard error or <span class="math inline">p</span>-value asks whether the treated unit looks unusual relative to donor units assigned the same historical intervention date.</p>
 <p>The semi-synthetic donor-turn simulation is the sanity check: when the true effect is known and injected into real donor paths, the matching and matrix-completion leaves usually beat raw DID/TWFE when pre-treatment factor mismatch is important, but their placebo inference remains limited by the size and quality of the donor pool. In other words, the estimators and the inference really are leaves from the same root, not interchangeable black boxes.</p>
 
 
@@ -1773,13 +1795,18 @@ window.Quarto = {
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

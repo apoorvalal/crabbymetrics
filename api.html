@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./ablations/panel-dgp-comparisons.html">
@@ -514,7 +536,7 @@ window.Quarto = {
 <section id="overview" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="overview"><span class="header-section-number">1</span> Overview</h2>
 <p><code>crabbymetrics</code> is a compact Rust-backed econometrics library exposed to Python through <code>pyo3</code> and packaged with <code>maturin</code>. The public API is intentionally small: estimator classes, transformer classes, an <code>Optimizers</code> helper namespace, <code>numpy</code> arrays as the only runtime dependency, and a scikit-adjacent <code>fit</code> / <code>predict</code> / <code>summary</code> pattern.</p>
-<p>The linked class pages describe each estimator’s objective, assumptions, inference, and limitations. Tables below are generated from the installed v0.9.0 module.</p>
+<p>The linked class pages describe each estimator’s objective, assumptions, inference, and limitations. Tables below are generated from the installed v0.9.1 module.</p>
 </section>
 <section id="shared-contracts" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="shared-contracts"><span class="header-section-number">2</span> Shared contracts</h2>
@@ -553,7 +575,7 @@ window.Quarto = {
 <li><a href="./examples/multinomial-logit.html">Multinomial Logit</a></li>
 <li><a href="./examples/poisson.html">Poisson</a></li>
 </ul>
-<div id="64e027db" class="cell" data-execution_count="2">
+<div id="a7b7a4fb" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -614,12 +636,13 @@ window.Quarto = {
 <code>summary(self, /, vcov='hc1', lags=None, clusters=None)</code></td>
 </tr>
 <tr class="even">
-<td><code>FixedEffectsOLS()</code></td>
+<td><code>FixedEffectsOLS(tolerance=1e-08, max_iterations=1000)</code></td>
 <td><code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
 <code>fit(self, /, x, fe, y)</code><br>
 <code>fit_weighted(self, /, x, fe, y, sample_weight)</code><br>
-<code>summary(self, /, vcov='hc1', lags=None, clusters=None)</code><br>
-<code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None)</code></td>
+<code>predict(self, /, x, fe)</code><br>
+<code>summary(self, /, vcov='hc1', lags=None, clusters=None, *, fe_df='full', ssc='cluster', cluster_correction=True)</code><br>
+<code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None, *, fe_df='full', ssc='cluster', cluster_correction=True)</code></td>
 </tr>
 <tr class="odd">
 <td><code>ElasticNet(penalty=1.0, l1_ratio=0.5, tolerance=0.0001, max_iterations=1000)</code></td>
@@ -681,7 +704,7 @@ window.Quarto = {
 <li><a href="./examples/survival-time-to-event-and-recurrent-events.html">Survival / Time-to-Event / Recurrent Events</a></li>
 <li><a href="./examples/survival-models.html">Survival Models (compact worked example)</a></li>
 </ul>
-<div id="0cd4a36b" class="cell" data-execution_count="3">
+<div id="2d3da91d" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -756,6 +779,9 @@ window.Quarto = {
 </section>
 <section id="causal-inference-and-panels" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="causal-inference-and-panels"><span class="header-section-number">5</span> Causal inference and panels</h2>
+<ul>
+<li><a href="./examples/fe-imputation.html">FE counterfactual imputation</a>: <code>FEImputation</code>, untreated-only unit/time effects with missing cells and reversals; point estimates only.</li>
+</ul>
 <section id="treatment-effects-iv-and-balancing" class="level3" data-number="5.1">
 <h3 data-number="5.1" class="anchored" data-anchor-id="treatment-effects-iv-and-balancing"><span class="header-section-number">5.1</span> Treatment effects, IV, and balancing</h3>
 <p>Reference pages:</p>
@@ -778,21 +804,22 @@ window.Quarto = {
 <li><a href="./examples/average-derivative.html">Average Derivative</a></li>
 <li><a href="./examples/double-ml.html">Double ML and AIPW</a></li>
 </ul>
-<div id="89bdfa98" class="cell" data-execution_count="4">
+<div id="2deae42a" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"Constructor"</span>, <span class="st">"Methods"</span>],</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    class_rows([</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>        cm.TwoSLS,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        cm.BalancingWeights,</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        cm.MPE_CBPS,</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        cm.EPLM,</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        cm.AverageDerivative,</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        cm.PartiallyLinearDML,</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        cm.AIPW,</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>        cm.FEImputation,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        cm.TwoSLS,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        cm.BalancingWeights,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        cm.MPE_CBPS,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        cm.EPLM,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        cm.AverageDerivative,</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        cm.PartiallyLinearDML,</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        cm.AIPW,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -808,6 +835,12 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
+<td><code>FEImputation(tolerance=1e-10, max_iterations=1000)</code></td>
+<td><code>fit(self, /, y, treatment, x=None, *, observed=None, sample_weight=None)</code><br>
+<code>predict(self, /)</code><br>
+<code>summary(self, /)</code></td>
+</tr>
+<tr class="even">
 <td><code>TwoSLS()</code></td>
 <td><code>anderson_rubin_test(self, /, beta=0.0, vcov='hc1', lags=None, clusters=None)</code><br>
 <code>bootstrap(self, /, n_bootstrap, seed=None)</code><br>
@@ -818,35 +851,35 @@ window.Quarto = {
 <code>summary(self, /, vcov='hc1', lags=None, clusters=None)</code><br>
 <code>wald_test(self, /, r, q=None, vcov=None, lags=None, clusters=None)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>BalancingWeights(objective='quadratic', solver='auto', autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-08, divergence_power=0.0, dual_ridge=0.0)</code></td>
 <td><code>fit(self, /, covariates, target_covariates, baseline_weights=None, target_weights=None)</code><br>
 <code>get_weights(self, /)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MPE_CBPS(standardize=True, max_iterations=500, tolerance=1e-08, max_log_weight=50.0)</code></td>
 <td><code>estimate(self, /, outcome, denominator=None)</code><br>
 <code>fit(self, /, covariates, treatment, policy_derivative=None)</code><br>
 <code>get_weights(self, /, arm)</code><br>
 <code>summary(self, /)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>EPLM(fd_eps=1e-06)</code></td>
 <td><code>fit(self, /, y, d, w)</code><br>
 <code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>AverageDerivative(method='dr', fd_eps=1e-06)</code></td>
 <td><code>fit(self, /, y, d, w)</code><br>
 <code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PartiallyLinearDML(penalty=None, cv=5, n_folds=5, seed=42)</code></td>
 <td><code>fit(self, /, y, d, x)</code><br>
 <code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>AIPW(penalty=None, cv=5, n_folds=5, propensity_clip=0.02, seed=42)</code></td>
 <td><code>fit(self, /, y, d, x)</code><br>
 <code>summary(self, /, vcov=None, lags=None, clusters=None)</code></td>
@@ -858,11 +891,11 @@ window.Quarto = {
 </section>
 <section id="dynamic-treatment-regimes" class="level3" data-number="5.2">
 <h3 data-number="5.2" class="anchored" data-anchor-id="dynamic-treatment-regimes"><span class="header-section-number">5.2</span> Dynamic treatment regimes</h3>
-<p>The three longitudinal estimators have deliberately different timing contracts. <code>RegressionBlip</code> takes same-shaped outcome and treatment panels because treatment at <span class="math inline">\(t\)</span> may affect <span class="math inline">\(Y_t\)</span>. <code>ParallelTrendsSNMM</code> takes an outcome panel with one extra column because treatment at <span class="math inline">\(t\)</span> first affects <span class="math inline">\(Y_{t+1}\)</span>. <code>DynamicCovariateBalance</code> takes a scalar final outcome and estimates one path-specific mean per fitted object.</p>
+<p>The three longitudinal estimators have deliberately different timing contracts. <code>RegressionBlip</code> takes same-shaped outcome and treatment panels because treatment at <span class="math inline">t</span> may affect <span class="math inline">Y_t</span>. <code>ParallelTrendsSNMM</code> takes an outcome panel with one extra column because treatment at <span class="math inline">t</span> first affects <span class="math inline">Y_{t+1}</span>. <code>DynamicCovariateBalance</code> takes a scalar final outcome and estimates one path-specific mean per fitted object.</p>
 <ul>
 <li><a href="./examples/snmm-blips.html">RegressionBlip, ParallelTrendsSNMM, and DynamicCovariateBalance</a></li>
 </ul>
-<div id="5bbe4a62" class="cell" data-execution_count="5">
+<div id="7da382de" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -929,7 +962,7 @@ window.Quarto = {
 <li><a href="./examples/interactive-fixed-effects.html">Interactive Fixed Effects</a></li>
 <li><a href="./examples/staggered-panel-event-study.html">Staggered Panel Event Study</a></li>
 </ul>
-<div id="c312b147" class="cell" data-execution_count="6">
+<div id="038f089e" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -1018,7 +1051,7 @@ window.Quarto = {
 <li><a href="./reference/KernelBasis.html">KernelBasis, NystromBasis, and RandomFourierFeatures</a></li>
 <li><a href="./examples/sparse-rotations.html">Sparse Factor Rotations</a></li>
 </ul>
-<div id="1787bed9" class="cell" data-execution_count="7">
+<div id="8b5fceda" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -1103,7 +1136,7 @@ window.Quarto = {
 <li><a href="./reference/MEstimator.html">MEstimator</a></li>
 <li><a href="./reference/Optimizers.html">Optimizers</a></li>
 </ul>
-<div id="bbd689eb" class="cell" data-execution_count="8">
+<div id="a5a633c4" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table(</span>
@@ -1559,13 +1592,18 @@ window.Quarto = {
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="./release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="./release-0.9.html">
 <p>v0.9 migration</p>

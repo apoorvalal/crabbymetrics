@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,52 +529,52 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Regression</p>
 <p><code>Ridge</code> solves</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \min_{\alpha,\beta} \sum_i (y_i - \alpha - x_i'\beta)^2 + \lambda \|\beta\|_2^2.
-\]</span></p>
+</span></p>
 <p>A scalar penalty gives one ridge fit. A penalty grid with <code>cv</code> selects a penalty by cross-validation, stores the coefficient path, and refits on the full sample.</p>
 </section>
 <section id="criterion-and-tuning" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="criterion-and-tuning"><span class="header-section-number">2</span> Criterion and tuning</h2>
-<p>With <span class="math inline">\(\tilde X=[\mathbf 1,X]\)</span> and <span class="math inline">\(P_\lambda=\operatorname{diag}(0,\lambda,\ldots,\lambda)\)</span>, the fitted parameter solves</p>
-<p><span class="math display">\[
+<p>With <span class="math inline">\tilde X=[\mathbf 1,X]</span> and <span class="math inline">P_\lambda=\operatorname{diag}(0,\lambda,\ldots,\lambda)</span>, the fitted parameter solves</p>
+<p><span class="math display">
 \hat\theta_\lambda
 =
 \arg\min_\theta
 \sum_i w_i(y_i-\tilde x_i'\theta)^2+\theta'P_\lambda\theta.
-\]</span></p>
-<p>The penalty is not divided by <span class="math inline">\(n\)</span>, so its scale depends on the sample weights and sample size. The intercept is never penalized. The implementation solves an augmented least-squares problem with <span class="math inline">\(\sqrt{\lambda}I\)</span> rows, avoiding an explicit normal-equation inverse for the point estimate.</p>
-<p>When given a grid, the class fits every penalty and chooses the lowest mean validation MSE. Folds are deterministic, unshuffled assignments <span class="math inline">\(i\bmod K\)</span>; weighted fits use weighted validation MSE. It then selects the corresponding full-sample path coefficient. The grid search does not standardize features, so penalty effects depend directly on column scale.</p>
+</span></p>
+<p>The penalty is not divided by <span class="math inline">n</span>, so its scale depends on the sample weights and sample size. The intercept is never penalized. The implementation solves an augmented least-squares problem with <span class="math inline">\sqrt{\lambda}I</span> rows, avoiding an explicit normal-equation inverse for the point estimate.</p>
+<p>When given a grid, the class fits every penalty and chooses the lowest mean validation MSE. Folds are deterministic, unshuffled assignments <span class="math inline">i\bmod K</span>; weighted fits use weighted validation MSE. It then selects the corresponding full-sample path coefficient. The grid search does not standardize features, so penalty effects depend directly on column scale.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
-<p>The point estimate is implemented as augmented least squares rather than through <span class="math inline">\((X'X+P_\lambda)^{-1}X'y\)</span>.</p>
+<p>The point estimate is implemented as augmented least squares rather than through <span class="math inline">(X'X+P_\lambda)^{-1}X'y</span>.</p>
 <ol type="1">
-<li>The wrapper validates the penalty array and data, prepends a column of ones, and, for a weighted fit, multiplies each design row and outcome by <span class="math inline">\(\sqrt{w_i}\)</span>. Zero weights therefore contribute zero rows to the numerical problem.</li>
-<li>For <span class="math inline">\(\lambda&gt;0\)</span>, it appends one synthetic row for each penalized coefficient. The slope block of those rows is <span class="math inline">\(\sqrt{\lambda}I\)</span> and their synthetic outcomes are zero; the intercept column is omitted from this block. Ordinary QR least squares on the augmented system exactly minimizes the stated ridge criterion. At <span class="math inline">\(\lambda=0\)</span>, it solves the original design directly.</li>
-<li>Multi-penalty paths center <span class="math inline">\(X\)</span> and <span class="math inline">\(y\)</span> using the optional analytic weights, factor the square-root-weighted centered design once by SVD, and reuse <span class="math inline">\(U,D,V'\)</span> across positive penalties. Zero penalty retains the original QR path. Intercepts are reconstructed from the weighted means.</li>
-<li>Cross-validation assigns row <span class="math inline">\(i\)</span> to fold <span class="math inline">\(i\bmod K\)</span>. Each fold constructs its arrays once and computes the whole path from one factorization. Held-out ordinary or weight-normalized MSE selects the first minimum in grid order. The corresponding full-sample path column becomes the fitted model. Weight shape, sign, finiteness, and positive mass are validated before splitting.</li>
-<li>Prediction is a dense <span class="math inline">\(X\beta\)</span> plus intercept. The training design, response, optional weights, selected penalty, and complete path are retained because <code>summary()</code>, robust covariance calculations, and the pairs bootstrap need them.</li>
+<li>The wrapper validates the penalty array and data, prepends a column of ones, and, for a weighted fit, multiplies each design row and outcome by <span class="math inline">\sqrt{w_i}</span>. Zero weights therefore contribute zero rows to the numerical problem.</li>
+<li>For <span class="math inline">\lambda&gt;0</span>, it appends one synthetic row for each penalized coefficient. The slope block of those rows is <span class="math inline">\sqrt{\lambda}I</span> and their synthetic outcomes are zero; the intercept column is omitted from this block. Ordinary QR least squares on the augmented system exactly minimizes the stated ridge criterion. At <span class="math inline">\lambda=0</span>, it solves the original design directly.</li>
+<li>Multi-penalty paths center <span class="math inline">X</span> and <span class="math inline">y</span> using the optional analytic weights, factor the square-root-weighted centered design once by SVD, and reuse <span class="math inline">U,D,V'</span> across positive penalties. Zero penalty retains the original QR path. Intercepts are reconstructed from the weighted means.</li>
+<li>Cross-validation assigns row <span class="math inline">i</span> to fold <span class="math inline">i\bmod K</span>. Each fold constructs its arrays once and computes the whole path from one factorization. Held-out ordinary or weight-normalized MSE selects the first minimum in grid order. The corresponding full-sample path column becomes the fitted model. Weight shape, sign, finiteness, and positive mass are validated before splitting.</li>
+<li>Prediction is a dense <span class="math inline">X\beta</span> plus intercept. The training design, response, optional weights, selected penalty, and complete path are retained because <code>summary()</code>, robust covariance calculations, and the pairs bootstrap need them.</li>
 </ol>
 <p>This QR construction is more numerically defensible than explicitly solving the normal equations for coefficients, but the inferential code still forms dense cross-products and inverses. The deterministic interleaved folds make a run reproducible without a seed; they are inappropriate when row order itself encodes time, clusters, or another dependence structure.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>Let <span class="math inline">\(B=\tilde X'\tilde X+P_\lambda\)</span> after any square-root weight transformation and define the effective degrees of freedom</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">B=\tilde X'\tilde X+P_\lambda</span> after any square-root weight transformation and define the effective degrees of freedom</p>
+<p><span class="math display">
 d_{\mathrm{eff}}
 =
 \operatorname{tr}\{\tilde X'\tilde X B^{-1}\}.
-\]</span></p>
+</span></p>
 <p>The model-based covariance is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat V_{\mathrm{vanilla}}
 =
 \hat\sigma^2B^{-1}\tilde X'\tilde X B^{-1},
 \qquad
 \hat\sigma^2=\frac{e'e}{n-d_{\mathrm{eff}}}.
-\]</span></p>
-<p>HC1, Newey-West, and cluster options use parameter scores <span class="math inline">\(e_i\tilde x_i'B^{-1}\)</span> and the same finite-sample corrections as OLS, replacing <span class="math inline">\(n-p\)</span> by <span class="math inline">\(n-d_{\mathrm{eff}}\)</span>. These are conditional linearization variances around the penalized estimator. They do not remove ridge shrinkage bias or account for selecting <span class="math inline">\(\lambda\)</span> by cross-validation. The pairs bootstrap refits at the already selected penalty; it does not rerun the grid search.</p>
+</span></p>
+<p>HC1, Newey-West, and cluster options use parameter scores <span class="math inline">e_i\tilde x_i'B^{-1}</span> and the same finite-sample corrections as OLS, replacing <span class="math inline">n-p</span> by <span class="math inline">n-d_{\mathrm{eff}}</span>. These are conditional linearization variances around the penalized estimator. They do not remove ridge shrinkage bias or account for selecting <span class="math inline">\lambda</span> by cross-validation. The pairs bootstrap refits at the already selected penalty; it does not rerun the grid search.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
@@ -562,7 +584,7 @@ d_{\mathrm{eff}}
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.Ridge</code></p>
 <p>The main methods mirror <code>OLS</code>: <code>fit</code>, <code>fit_weighted</code>, <code>predict</code>, <code>summary</code>, and <code>bootstrap</code>. <code>summary()</code> includes the selected penalty and, for grid fits, cross-validation diagnostics and coefficient paths.</p>
-<div id="f4576197" class="cell" data-execution_count="2">
+<div id="b0015af3" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Ridge))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -571,7 +593,7 @@ d_{\mathrm{eff}}
 <pre><code>(penalty=None, cv=5)</code></pre>
 </div>
 </div>
-<div id="045c76e2" class="cell" data-execution_count="3">
+<div id="cd70c966" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Ridge</span>
@@ -610,7 +632,7 @@ d_{\mathrm{eff}}
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="68c5ada4" class="cell" data-execution_count="4">
+<div id="8ac409ea" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">240</span>, <span class="dv">5</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">0.3</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.8</span>, <span class="fl">0.0</span>, <span class="fl">0.25</span>, <span class="fl">0.1</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.6</span>, size<span class="op">=</span><span class="dv">240</span>)</span>
@@ -629,7 +651,7 @@ d_{\mathrm{eff}}
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="aa801027" class="cell" data-execution_count="5">
+<div id="c794cd72" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">102</span>)</span>
@@ -1106,13 +1128,18 @@ d_{\mathrm{eff}}
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

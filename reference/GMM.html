@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -508,96 +530,96 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Estimation interfaces</p>
 <p><code>GMM</code> solves moment restrictions of the form</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathbb E[g_i(\theta)] = 0.
-\]</span></p>
+</span></p>
 <p>The user supplies a Python callback returning the per-observation moment matrix. In exactly identified cases the class can solve by Gauss-Newton; in overidentified cases it can use identity or two-step weighting and report sandwich covariance estimates.</p>
 </section>
 <section id="criterion-and-weighting" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="criterion-and-weighting"><span class="header-section-number">2</span> Criterion and weighting</h2>
-<p>The moment callback returns rows <span class="math inline">\(g_i(\theta)'\in\mathbb R^m\)</span>, and</p>
-<p><span class="math display">\[
+<p>The moment callback returns rows <span class="math inline">g_i(\theta)'\in\mathbb R^m</span>, and</p>
+<p><span class="math display">
 \bar g(\theta)=\frac1n\sum_i g_i(\theta).
-\]</span></p>
-<p>For a fixed positive-semidefinite weight matrix <span class="math inline">\(W\)</span>, the implemented criterion is</p>
-<p><span class="math display">\[
+</span></p>
+<p>For a fixed positive-semidefinite weight matrix <span class="math inline">W</span>, the implemented criterion is</p>
+<p><span class="math display">
 Q(\theta;W)
 =
 \frac12\bar g(\theta)'W\bar g(\theta).
-\]</span></p>
-<p>With mean-moment Jacobian <span class="math inline">\(D=\partial\bar g(\theta)/\partial\theta'\)</span>, one Gauss-Newton direction is</p>
-<p><span class="math display">\[
+</span></p>
+<p>With mean-moment Jacobian <span class="math inline">D=\partial\bar g(\theta)/\partial\theta'</span>, one Gauss-Newton direction is</p>
+<p><span class="math display">
 \Delta
 =
 (A+\rho\operatorname{diag}(A))^{-1}D'W\bar g,\qquad A=D'WD,
-\]</span></p>
-<p>where <span class="math inline">\(\rho\)</span> is dimensionless solver damping. The implementation normalizes by the square roots of <span class="math inline">\(A\)</span>’s diagonal before solving and rejects numerical rank deficiency. A backtracking line search accepts only criterion decreases. Convergence requires both the undamped relative Newton step and a moment-scale-normalized first-order residual to meet tolerance; a small damped step or absolute criterion change is insufficient. Exhausting the iteration budget raises.</p>
-<p>Identity weighting uses <span class="math inline">\(W=I_m\)</span>. Automatic weighting uses identity when <span class="math inline">\(m=p\)</span> and otherwise performs two steps: it first obtains <span class="math inline">\(\tilde\theta\)</span> under identity weighting, computes</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">\rho</span> is dimensionless solver damping. The implementation normalizes by the square roots of <span class="math inline">A</span>’s diagonal before solving and rejects numerical rank deficiency. A backtracking line search accepts only criterion decreases. Convergence requires both the undamped relative Newton step and a moment-scale-normalized first-order residual to meet tolerance; a small damped step or absolute criterion change is insufficient. Exhausting the iteration budget raises.</p>
+<p>Identity weighting uses <span class="math inline">W=I_m</span>. Automatic weighting uses identity when <span class="math inline">m=p</span> and otherwise performs two steps: it first obtains <span class="math inline">\tilde\theta</span> under identity weighting, computes</p>
+<p><span class="math display">
 \hat\Omega_1=\frac1n\sum_i g_i(\tilde\theta)g_i(\tilde\theta)',
 \qquad
 W=\hat\Omega_1^{-1},
-\]</span></p>
-<p>and re-optimizes from <span class="math inline">\(\tilde\theta\)</span>. This is iid two-step GMM; the fit-stage weight cannot be HAC or clustered.</p>
-<p>If no Jacobian callback is supplied, <span class="math inline">\(D\)</span> is computed by central differences with step <span class="math inline">\(h_j=\text{fd eps}\times\max\{|\theta_j|,1\}\)</span>. A supplied callback must return the Jacobian of the mean moments, with shape <span class="math inline">\(m\times p\)</span>, not per-observation derivatives.</p>
+</span></p>
+<p>and re-optimizes from <span class="math inline">\tilde\theta</span>. This is iid two-step GMM; the fit-stage weight cannot be HAC or clustered.</p>
+<p>If no Jacobian callback is supplied, <span class="math inline">D</span> is computed by central differences with step <span class="math inline">h_j=\text{fd eps}\times\max\{|\theta_j|,1\}</span>. A supplied callback must return the Jacobian of the mean moments, with shape <span class="math inline">m\times p</span>, not per-observation derivatives.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The callback bridge, numerical differentiation, Gauss-Newton loop, two-step weighting, sketch, and covariance assembly are package-owned.</p>
 <ol type="1">
-<li><p>The first callback evaluation at <span class="math inline">\(\theta_0\)</span> establishes <span class="math inline">\(n\)</span> and <span class="math inline">\(m\)</span> and must return a nonempty two-dimensional float array. The fit rejects <span class="math inline">\(m&lt;p\)</span>. Callback outputs are copied from NumPy into owned Rust arrays on every evaluation.</p></li>
-<li><p>Without a Jacobian callback, the solver first evaluates the base moment shape, then calls <code>moment_fn</code> at <span class="math inline">\(\theta\pm h_je_j\)</span> for every parameter and central-differences the column means. With a callback, the returned matrix is used directly and checked against <span class="math inline">\((m,p)\)</span> after any sketch projection.</p></li>
-<li><p>Each iteration evaluates finite moments and Jacobian with stable shapes. It computes the diagonally normalized damped direction and a separate undamped Newton direction. Convergence checks the latter relative to <span class="math inline">\(1+|\theta_j|\)</span>, together with the normalized first-order residual</p>
-<p><span class="math display">\[
+<li><p>The first callback evaluation at <span class="math inline">\theta_0</span> establishes <span class="math inline">n</span> and <span class="math inline">m</span> and must return a nonempty two-dimensional float array. The fit rejects <span class="math inline">m&lt;p</span>. Callback outputs are copied from NumPy into owned Rust arrays on every evaluation.</p></li>
+<li><p>Without a Jacobian callback, the solver first evaluates the base moment shape, then calls <code>moment_fn</code> at <span class="math inline">\theta\pm h_je_j</span> for every parameter and central-differences the column means. With a callback, the returned matrix is used directly and checked against <span class="math inline">(m,p)</span> after any sketch projection.</p></li>
+<li><p>Each iteration evaluates finite moments and Jacobian with stable shapes. It computes the diagonally normalized damped direction and a separate undamped Newton direction. Convergence checks the latter relative to <span class="math inline">1+|\theta_j|</span>, together with the normalized first-order residual</p>
+<p><span class="math display">
 \frac{\{\sum_j (D'W\bar g)_j^2/A_{jj}\}^{1/2}}
      {\{n^{-1}\sum_i g_i'Wg_i\}^{1/2}}.
-\]</span></p></li>
-<li><p>Otherwise the solver tries <span class="math inline">\(\theta-\alpha\Delta\)</span> for <span class="math inline">\(\alpha=1,1/2,1/4,\ldots\)</span> down to <span class="math inline">\(10^{-8}\)</span>. Every trial calls the Python moment function again. Only a strict criterion decrease is accepted; failure to find one raises rather than returning the current iterate.</p></li>
+</span></p></li>
+<li><p>Otherwise the solver tries <span class="math inline">\theta-\alpha\Delta</span> for <span class="math inline">\alpha=1,1/2,1/4,\ldots</span> down to <span class="math inline">10^{-8}</span>. Every trial calls the Python moment function again. Only a strict criterion decrease is accepted; failure to find one raises rather than returning the current iterate.</p></li>
 <li><p>The iteration counter increments after an accepted step. Both convergence checks are evaluated at the next iterate before checking the budget. Failure clears the old fit and does not install a partial solution.</p></li>
 <li><p>Two-step weighting uses the undamped inverse of the first-step iid moment outer product. Damping does not change the statistical weighting matrix or covariance bread. Reported iterations add both stages.</p></li>
-<li><p>Fitted moments and their Jacobian are owned snapshots. Summary and Wald inference use these arrays without calling Python again, reconstruct the undamped covariance bread, and form either <span class="math inline">\(A^{-1}/n\)</span> or the sandwich. No arbitrary Python data deep copy is attempted.</p></li>
+<li><p>Fitted moments and their Jacobian are owned snapshots. Summary and Wald inference use these arrays without calling Python again, reconstruct the undamped covariance bread, and form either <span class="math inline">A^{-1}/n</span> or the sandwich. No arbitrary Python data deep copy is attempted.</p></li>
 </ol>
 <p>The line search magnifies Python callback traffic. Numerical rank checks reject singular systems but do not establish strong statistical identification. Callback-based optimization is not detached from the GIL.</p>
 </section>
 <section id="moment-sketch" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="moment-sketch"><span class="header-section-number">4</span> Moment sketch</h2>
-<p>The sketch does not reduce the number of observations. It draws a dense Rademacher projection <span class="math inline">\(R\in\mathbb R^{m\times s}\)</span> with entries <span class="math inline">\(\pm1/\sqrt{s}\)</span> and replaces</p>
-<p><span class="math display">\[
+<p>The sketch does not reduce the number of observations. It draws a dense Rademacher projection <span class="math inline">R\in\mathbb R^{m\times s}</span> with entries <span class="math inline">\pm1/\sqrt{s}</span> and replaces</p>
+<p><span class="math display">
 g_i(\theta)\ \text{by}\ R'g_i(\theta),
 \qquad
 D\ \text{by}\ R'D.
-\]</span></p>
-<p>The sketch size must satisfy <span class="math inline">\(p\leq s\leq m\)</span>. The Python callback still constructs the full <span class="math inline">\(n\times m\)</span> moment matrix on every evaluation before projection, so sketching reduces weight-matrix and Jacobian linear algebra but not callback cost or full-moment allocation. Inference and the overidentification statistic apply to the projected moments.</p>
+</span></p>
+<p>The sketch size must satisfy <span class="math inline">p\leq s\leq m</span>. The Python callback still constructs the full <span class="math inline">n\times m</span> moment matrix on every evaluation before projection, so sketching reduces weight-matrix and Jacobian linear algebra but not callback cost or full-moment allocation. Inference and the overidentification statistic apply to the projected moments.</p>
 </section>
 <section id="inference" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="inference"><span class="header-section-number">5</span> Inference</h2>
-<p>Let <span class="math inline">\(A=D'WD\)</span> and let <span class="math inline">\(\hat\Omega\)</span> be the selected covariance of <span class="math inline">\(g_i(\hat\theta)\)</span>. The vanilla option returns</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">A=D'WD</span> and let <span class="math inline">\hat\Omega</span> be the selected covariance of <span class="math inline">g_i(\hat\theta)</span>. The vanilla option returns</p>
+<p><span class="math display">
 \widehat V_{\mathrm{vanilla}}=\frac1nA^{-1},
-\]</span></p>
-<p>which assumes the fitted <span class="math inline">\(W\)</span> is the inverse moment covariance. This option requires two-step iid weighting unless <code>assume_optimal_weighting=True</code> is explicitly supplied to <code>summary()</code> or <code>wald_test()</code>. The assertion does not repair a nonoptimal weight. The default sandwich option returns</p>
-<p><span class="math display">\[
+</span></p>
+<p>which assumes the fitted <span class="math inline">W</span> is the inverse moment covariance. This option requires two-step iid weighting unless <code>assume_optimal_weighting=True</code> is explicitly supplied to <code>summary()</code> or <code>wald_test()</code>. The assertion does not repair a nonoptimal weight. The default sandwich option returns</p>
+<p><span class="math display">
 \widehat V_{\mathrm{sandwich}}
 =
 \frac1n
 A^{-1}D'W\hat\Omega WD A^{-1}.
-\]</span></p>
-<p>Available <span class="math inline">\(\hat\Omega\)</span> estimators are uncentered iid moment outer products, Bartlett Newey-West autocovariances, and cluster sums. The cluster version has no finite-cluster correction. Default Newey-West lags are <span class="math inline">\(\max\{1,\lfloor4(n/100)^{2/9}\rfloor\}\)</span>. Covariance inversion is undamped.</p>
-<p>For <span class="math inline">\(m&gt;p\)</span>, the summary reports</p>
-<p><span class="math display">\[
+</span></p>
+<p>Available <span class="math inline">\hat\Omega</span> estimators are uncentered iid moment outer products, Bartlett Newey-West autocovariances, and cluster sums. The cluster version has no finite-cluster correction. Default Newey-West lags are <span class="math inline">\max\{1,\lfloor4(n/100)^{2/9}\rfloor\}</span>. Covariance inversion is undamped.</p>
+<p>For <span class="math inline">m&gt;p</span>, the summary reports</p>
+<p><span class="math display">
 J=n\,\bar g(\hat\theta)'W\bar g(\hat\theta)
-\]</span></p>
-<p>with <span class="math inline">\(m-p\)</span> degrees of freedom, but does not compute a <span class="math inline">\(p\)</span>-value. <code>j_test_valid</code> flags the intended two-step iid weighting regime, while <code>j_test_assumptions</code> lists additional unverified regularity assumptions. A raw <code>j_stat</code> under identity or dependent-data weighting is not automatically chi-square calibrated. Wald tests use the requested covariance.</p>
+</span></p>
+<p>with <span class="math inline">m-p</span> degrees of freedom, but does not compute a <span class="math inline">p</span>-value. <code>j_test_valid</code> flags the intended two-step iid weighting regime, while <code>j_test_assumptions</code> lists additional unverified regularity assumptions. A raw <code>j_stat</code> under identity or dependent-data weighting is not automatically chi-square calibrated. Wald tests use the requested covariance.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">6</span> Performance and numerical behavior</h2>
-<p>Each numerical-Jacobian evaluation calls Python at least <span class="math inline">\(2p+1\)</span> times, and each line-search trial calls it again. Dense fitting uses <span class="math inline">\(m\times m\)</span> weights and <span class="math inline">\(p\times p\)</span> parameter systems; snapshots retain <span class="math inline">\(n\times m\)</span> fitted moments. A callback Jacobian matters when moments are expensive. Damping is not a remedy for weak identification, and rank checks are not a statistical identification test.</p>
+<p>Each numerical-Jacobian evaluation calls Python at least <span class="math inline">2p+1</span> times, and each line-search trial calls it again. Dense fitting uses <span class="math inline">m\times m</span> weights and <span class="math inline">p\times p</span> parameter systems; snapshots retain <span class="math inline">n\times m</span> fitted moments. A callback Jacobian matters when moments are expensive. Damping is not a remedy for weak identification, and rank checks are not a statistical identification test.</p>
 </section>
 <section id="python-api" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="python-api"><span class="header-section-number">7</span> Python API</h2>
 <p>Constructor: <code>cm.GMM</code></p>
 <p>Construct with <code>GMM(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-6, ridge=1e-8, fd_eps=1e-6)</code>. <code>fit(data, theta0, weighting='auto')</code> stores the fitted parameters and raises when the iteration budget is exhausted without meeting the convergence tolerance. <code>fit_sketch(...)</code> projects the moment columns to a smaller dimension. <code>summary(vcov='sandwich', omega='iid', lags=None, clusters=None)</code> controls inference.</p>
-<div id="80f9c97c" class="cell" data-execution_count="2">
+<div id="15f4376d" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.GMM))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -606,7 +628,7 @@ J=n\,\bar g(\hat\theta)'W\bar g(\hat\theta)
 <pre><code>(moment_fn, jacobian_fn=None, max_iterations=100, tolerance=1e-06, ridge=1e-08, fd_eps=1e-06)</code></pre>
 </div>
 </div>
-<div id="a61d4944" class="cell" data-execution_count="3">
+<div id="76c2d207" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.GMM</span>
@@ -642,7 +664,7 @@ J=n\,\bar g(\hat\theta)'W\bar g(\hat\theta)
 </section>
 <section id="minimal-example" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">8</span> Minimal example</h2>
-<div id="3f82a000" class="cell" data-execution_count="4">
+<div id="d5f2c28c" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> moments(theta, data):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    resid <span class="op">=</span> data[<span class="st">'y'</span>] <span class="op">-</span> data[<span class="st">'x'</span>] <span class="op">*</span> theta[<span class="dv">0</span>]</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> data[<span class="st">'z'</span>] <span class="op">*</span> resid[:, <span class="va">None</span>]</span>
@@ -667,7 +689,7 @@ J=n\,\bar g(\hat\theta)'W\bar g(\hat\theta)
 <section id="summary-contract" class="level2" data-number="9">
 <h2 data-number="9" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">9</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="fc5a5012" class="cell" data-execution_count="5">
+<div id="c7981493" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> moments(theta, data):</span>
@@ -1192,13 +1214,18 @@ J=n\,\bar g(\hat\theta)'W\bar g(\hat\theta)
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

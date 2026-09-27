@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,15 +529,15 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Regression</p>
 <p><code>Logit</code> models a binary outcome through</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \Pr(Y_i=1\mid X_i=x_i)=\Lambda(\alpha+x_i'\beta),
-\]</span></p>
+</span></p>
 <p>with optional L2 regularization controlled by <code>alpha</code>. <code>predict(x)</code> returns probabilities for label 1; <code>predict_label(x)</code> returns class labels.</p>
 </section>
 <section id="likelihood-and-solver" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="likelihood-and-solver"><span class="header-section-number">2</span> Likelihood and solver</h2>
-<p>With <span class="math inline">\(\eta_i=\alpha_0+x_i'\beta\)</span> and <span class="math inline">\(p_i=\{1+\exp(-\eta_i)\}^{-1}\)</span>, the native fit minimizes the unnormalized penalized negative log-likelihood</p>
-<p><span class="math display">\[
+<p>With <span class="math inline">\eta_i=\alpha_0+x_i'\beta</span> and <span class="math inline">p_i=\{1+\exp(-\eta_i)\}^{-1}</span>, the native fit minimizes the unnormalized penalized negative log-likelihood</p>
+<p><span class="math display">
 Q(\alpha_0,\beta)
 =
 \sum_{i=1}^n
@@ -523,8 +545,8 @@ Q(\alpha_0,\beta)
 \log\{1+\exp(\eta_i)\}-y_i\eta_i
 \right]
 +\frac{\lambda}{2}\|\beta\|_2^2,
-\]</span></p>
-<p>where the constructor argument named <code>alpha</code> is <span class="math inline">\(\lambda\)</span> and the intercept is unpenalized. The implementation evaluates <span class="math inline">\(\log(1+\exp\eta)\)</span> with a branch-stable softplus and evaluates the logistic function without overflowing for large negative indices. It supplies the analytic gradient to ten-vector-memory L-BFGS with a More-Thuente line search, starts all parameters at zero, and stops only when Argmin reports solver convergence or a target cost.</p>
+</span></p>
+<p>where the constructor argument named <code>alpha</code> is <span class="math inline">\lambda</span> and the intercept is unpenalized. The implementation evaluates <span class="math inline">\log(1+\exp\eta)</span> with a branch-stable softplus and evaluates the logistic function without overflowing for large negative indices. It supplies the analytic gradient to ten-vector-memory L-BFGS with a More-Thuente line search, starts all parameters at zero, and stops only when Argmin reports solver convergence or a target cost.</p>
 <p>Reaching <code>max_iterations</code> is not convergence. <code>fit()</code> raises <code>ValueError</code> and clears any previous fitted state if the budget is exhausted or optimization otherwise fails. A successful <code>summary()</code> records <code>converged</code>, <code>iterations</code>, <code>termination_reason</code>, and the final penalized <code>objective</code>. The linear index and probability always refer to label 1.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
@@ -532,33 +554,33 @@ Q(\alpha_0,\beta)
 <p>This is a direct likelihood implementation, not a call to Linfa and not iteratively reweighted least squares (IRLS). The fit proceeds as follows.</p>
 <ol type="1">
 <li><code>fit()</code> first clears the stored model and training arrays, converts the NumPy inputs into owned Rust <code>ndarray</code> arrays, and checks finiteness, dimensions, the penalty, the iteration controls, and that both integer labels 0 and 1 occur. A failed refit therefore cannot leave a stale fitted model behind.</li>
-<li>The optimizer vector stores the <span class="math inline">\(p\)</span> slopes first and the intercept last. The objective callback walks over observations, computes <span class="math inline">\(\eta_i=x_i'\beta+\alpha_0\)</span>, and accumulates <code>softplus(eta) - y * eta</code>. The softplus is evaluated as <span class="math inline">\(\eta+\log(1+e^{-\eta})\)</span> for positive <span class="math inline">\(\eta\)</span> and <span class="math inline">\(\log(1+e^\eta)\)</span> otherwise. The sigmoid likewise branches on the sign of <span class="math inline">\(\eta\)</span>. These branches are what keep the likelihood and gradient finite when the linear index is large in magnitude.</li>
-<li>The analytic score callback accumulates <span class="math inline">\(x_i(p_i-y_i)\)</span> for the slopes and <span class="math inline">\(p_i-y_i\)</span> for the intercept, then adds <span class="math inline">\(\lambda\beta\)</span> only to the slopes. It does not construct an <span class="math inline">\(n\times p\)</span> working design or solve a weighted least-squares problem.</li>
-<li>Argmin’s L-BFGS stores ten correction pairs and obtains its step length from a More-Thuente line search. The initial vector is exactly zero, so the initial fitted probability is <span class="math inline">\(1/2\)</span> for every row. <code>gradient_tolerance</code> is passed directly to the L-BFGS gradient stopping test.</li>
+<li>The optimizer vector stores the <span class="math inline">p</span> slopes first and the intercept last. The objective callback walks over observations, computes <span class="math inline">\eta_i=x_i'\beta+\alpha_0</span>, and accumulates <code>softplus(eta) - y * eta</code>. The softplus is evaluated as <span class="math inline">\eta+\log(1+e^{-\eta})</span> for positive <span class="math inline">\eta</span> and <span class="math inline">\log(1+e^\eta)</span> otherwise. The sigmoid likewise branches on the sign of <span class="math inline">\eta</span>. These branches are what keep the likelihood and gradient finite when the linear index is large in magnitude.</li>
+<li>The analytic score callback accumulates <span class="math inline">x_i(p_i-y_i)</span> for the slopes and <span class="math inline">p_i-y_i</span> for the intercept, then adds <span class="math inline">\lambda\beta</span> only to the slopes. It does not construct an <span class="math inline">n\times p</span> working design or solve a weighted least-squares problem.</li>
+<li>Argmin’s L-BFGS stores ten correction pairs and obtains its step length from a More-Thuente line search. The initial vector is exactly zero, so the initial fitted probability is <span class="math inline">1/2</span> for every row. <code>gradient_tolerance</code> is passed directly to the L-BFGS gradient stopping test.</li>
 <li>The wrapper accepts Argmin’s best parameter only when its termination status is a genuine solver convergence or target-cost condition. Hitting the iteration budget is converted into an exception. Only then are the coefficients and original training arrays installed on the Python object.</li>
 <li><code>predict_lin()</code> performs one dense matrix-vector product and adds the fitted intercept. <code>predict()</code> applies the same stable sigmoid elementwise. <code>predict_label()</code> compares those probabilities with the requested cutoff, including equality on the label-1 side.</li>
 </ol>
-<p>The deliberate tradeoff is simplicity and a low-memory first-order iteration. IRLS would exploit the exact Hessian through a weighted least-squares solve at every iteration; this implementation instead spends <span class="math inline">\(O(np)\)</span> per objective/gradient call and lets L-BFGS approximate curvature. That avoids repeatedly forming and factorizing a <span class="math inline">\(p\times p\)</span> matrix, but it can take more iterations and has no special separation detector.</p>
+<p>The deliberate tradeoff is simplicity and a low-memory first-order iteration. IRLS would exploit the exact Hessian through a weighted least-squares solve at every iteration; this implementation instead spends <span class="math inline">O(np)</span> per objective/gradient call and lets L-BFGS approximate curvature. That avoids repeatedly forming and factorizing a <span class="math inline">p\times p</span> matrix, but it can take more iterations and has no special separation detector.</p>
 </section>
 <section id="inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference"><span class="header-section-number">4</span> Inference</h2>
-<p>Analytic inference is available only when <span class="math inline">\(\lambda=0\)</span>. Let <span class="math inline">\(\tilde X=[\mathbf1,X]\)</span> and <span class="math inline">\(W=\operatorname{diag}\{\hat p_i(1-\hat p_i)\}\)</span>. The returned model-based covariance is</p>
-<p><span class="math display">\[
+<p>Analytic inference is available only when <span class="math inline">\lambda=0</span>. Let <span class="math inline">\tilde X=[\mathbf1,X]</span> and <span class="math inline">W=\operatorname{diag}\{\hat p_i(1-\hat p_i)\}</span>. The returned model-based covariance is</p>
+<p><span class="math display">
 \widehat V
 =
 (\tilde X'W\tilde X)^{-1}.
-\]</span></p>
-<p>The inverse is computed through QR of <span class="math inline">\(W^{1/2}\tilde X\)</span>, without an inference ridge. Rank-deficient information leaves the point estimate available but returns <code>inference_available=False</code>, null covariance/SEs, and an <code>inference_reason</code>; Wald inference raises. There is no robust logit sandwich. The pairs bootstrap refits the same penalty and aborts on an unestimable resample.</p>
+</span></p>
+<p>The inverse is computed through QR of <span class="math inline">W^{1/2}\tilde X</span>, without an inference ridge. Rank-deficient information leaves the point estimate available but returns <code>inference_available=False</code>, null covariance/SEs, and an <code>inference_reason</code>; Wald inference raises. There is no robust logit sandwich. The pairs bootstrap refits the same penalty and aborts on an unestimable resample.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Each L-BFGS objective and gradient evaluation is <span class="math inline">\(O(np)\)</span>, with solver state linear in <span class="math inline">\(p\)</span>. Fisher covariance adds <span class="math inline">\(O(np^2+p^3)\)</span> QR/triangular-solve work. Complete or near separation can still make inference unreliable even if numerical rank checks pass. Bootstrap multiplies the optimization cost by the draw count; indices are streamed one replicate at a time.</p>
+<p>Each L-BFGS objective and gradient evaluation is <span class="math inline">O(np)</span>, with solver state linear in <span class="math inline">p</span>. Fisher covariance adds <span class="math inline">O(np^2+p^3)</span> QR/triangular-solve work. Complete or near separation can still make inference unreliable even if numerical rank checks pass. Bootstrap multiplies the optimization cost by the draw count; indices are streamed one replicate at a time.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.Logit</code></p>
 <p>Fit with integer labels using <code>fit(x, y_int32)</code>. Labels must be exactly 0 and 1, with both represented. <code>summary()</code> returns intercept and coefficient estimates plus fit diagnostics. Fisher-information standard errors are available only for the unpenalized fit (<code>alpha=0</code>); penalized fits are explicitly prediction-only. <code>bootstrap()</code> resamples observations and refits the classifier.</p>
-<div id="d1900f6a" class="cell" data-execution_count="2">
+<div id="c3edbae2" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.Logit))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -567,7 +589,7 @@ Q(\alpha_0,\beta)
 <pre><code>(alpha=0.0, max_iterations=100, gradient_tolerance=0.0001)</code></pre>
 </div>
 </div>
-<div id="4bd6cd8b" class="cell" data-execution_count="3">
+<div id="c54c5706" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.Logit</span>
@@ -612,7 +634,7 @@ Q(\alpha_0,\beta)
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="665123dc" class="cell" data-execution_count="4">
+<div id="694cd834" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">5</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">220</span>, <span class="dv">3</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>eta <span class="op">=</span> <span class="op">-</span><span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.7</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="fl">0.9</span>])</span>
@@ -634,7 +656,7 @@ Q(\alpha_0,\beta)
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="e6888f1e" class="cell" data-execution_count="5">
+<div id="533702e5" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">105</span>)</span>
@@ -1112,13 +1134,18 @@ Q(\alpha_0,\beta)
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -511,52 +533,52 @@ window.Quarto = {
 <section id="where-it-fits" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Transforms</p>
-<p><code>KernelBasis</code> stores a training design and transforms new rows into kernel similarities against that basis. For a Gaussian kernel, the transformed feature for training row <span class="math inline">\(j\)</span> is</p>
-<p><span class="math display">\[
+<p><code>KernelBasis</code> stores a training design and transforms new rows into kernel similarities against that basis. For a Gaussian kernel, the transformed feature for training row <span class="math inline">j</span> is</p>
+<p><span class="math display">
 \phi_j(x) = \exp\{-\|x-x_j\|^2/h\}.
-\]</span></p>
+</span></p>
 <p>The resulting feature matrix can be fed into any downstream regression estimator.</p>
 </section>
 <section id="kernel-definitions" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="kernel-definitions"><span class="header-section-number">2</span> Kernel definitions</h2>
 <p>The shared kernels are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 k_{\mathrm{Gaussian}}(x,z)
 =
 \exp\{-\|x-z\|_2^2/h\},
 \qquad
 k_{\mathrm{linear}}(x,z)=x'z,
-\]</span></p>
+</span></p>
 <p>and</p>
-<p><span class="math display">\[
+<p><span class="math display">
 k_{\mathrm{poly}}(x,z)=(x'z+c_0)^d.
-\]</span></p>
-<p>Here the bandwidth <span class="math inline">\(h\)</span> is the direct denominator of squared distance. It is not a Gaussian standard deviation and there is no extra factor of two.</p>
-<p><strong>KernelBasis</strong> stores all <span class="math inline">\(n\)</span> training rows and returns the exact cross-kernel matrix</p>
-<p><span class="math display">\[
+</span></p>
+<p>Here the bandwidth <span class="math inline">h</span> is the direct denominator of squared distance. It is not a Gaussian standard deviation and there is no extra factor of two.</p>
+<p><strong>KernelBasis</strong> stores all <span class="math inline">n</span> training rows and returns the exact cross-kernel matrix</p>
+<p><span class="math display">
 \Phi(x)=K(x,X_{\mathrm{train}})\in\mathbb R^{n_{\mathrm{new}}\times n}.
-\]</span></p>
+</span></p>
 <p>It is a feature map only; a downstream linear estimator determines the eventual loss and regularization.</p>
 </section>
 <section id="approximate-bases" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="approximate-bases"><span class="header-section-number">3</span> Approximate bases</h2>
-<p><strong>NystromBasis</strong> chooses <span class="math inline">\(m\)</span> landmark rows, forms <span class="math inline">\(K_{mm}\)</span>, and returns</p>
-<p><span class="math display">\[
+<p><strong>NystromBasis</strong> chooses <span class="math inline">m</span> landmark rows, forms <span class="math inline">K_{mm}</span>, and returns</p>
+<p><span class="math display">
 \Phi_{\mathrm{Nys}}(x)
 =
 K(x,X_m)(K_{mm}+\rho I)^{-1/2}.
-\]</span></p>
-<p>The inverse square root uses a symmetric eigendecomposition and floors eigenvalues at <span class="math inline">\(10^{-14}\)</span>. With no seed, the first <span class="math inline">\(m\)</span> rows are landmarks; with a seed, a reproducibly shuffled subset is used. Then <span class="math inline">\(\Phi_{\mathrm{Nys}}\Phi_{\mathrm{Nys}}'\)</span> approximates the full kernel matrix.</p>
+</span></p>
+<p>The inverse square root uses a symmetric eigendecomposition and floors eigenvalues at <span class="math inline">10^{-14}</span>. With no seed, the first <span class="math inline">m</span> rows are landmarks; with a seed, a reproducibly shuffled subset is used. Then <span class="math inline">\Phi_{\mathrm{Nys}}\Phi_{\mathrm{Nys}}'</span> approximates the full kernel matrix.</p>
 <p><strong>RandomFourierFeatures</strong> is available only for the Gaussian kernel above. It draws</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \omega_j\sim N(0,2I/h),
 \qquad
 b_j\sim\operatorname{Uniform}(0,2\pi),
-\]</span></p>
+</span></p>
 <p>and returns</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \phi_j(x)=\sqrt{\frac2m}\cos(x'\omega_j+b_j).
-\]</span></p>
+</span></p>
 <p>Its feature inner products approximate the Gaussian kernel in expectation. An omitted seed still uses a fixed internal seed, so repeated fits are reproducible rather than independently randomized.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="4">
@@ -574,31 +596,31 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 <section id="nystrombasis" class="level3" data-number="4.2">
 <h3 data-number="4.2" class="anchored" data-anchor-id="nystrombasis"><span class="header-section-number">4.2</span> <code>NystromBasis</code></h3>
 <ol type="1">
-<li>The landmark indices begin as <code>0..n</code>. With a seed they are shuffled once; without a seed they remain in data order. The vector is truncated to <span class="math inline">\(m\)</span> and then sorted, so <code>summary()</code> reports landmarks in original row order even when the subset was random.</li>
-<li>Native cross-kernel loops form <span class="math inline">\(K_{mm}\)</span>. The implementation adds <code>ridge</code> to its diagonal, runs a symmetric eigendecomposition, floors each resulting eigenvalue at <span class="math inline">\(10^{-14}\)</span>, and reconstructs <span class="math inline">\(U\operatorname{diag}(\lambda_j^{-1/2})U'\)</span>. The floor is applied after the requested ridge shift.</li>
-<li>A transform forms <span class="math inline">\(K(x,X_m)\)</span> with the same nested kernel loops and right-multiplies by the stored inverse square root. It retains landmarks and the dense <span class="math inline">\(m\times m\)</span> factor, but not the original full training sample.</li>
+<li>The landmark indices begin as <code>0..n</code>. With a seed they are shuffled once; without a seed they remain in data order. The vector is truncated to <span class="math inline">m</span> and then sorted, so <code>summary()</code> reports landmarks in original row order even when the subset was random.</li>
+<li>Native cross-kernel loops form <span class="math inline">K_{mm}</span>. The implementation adds <code>ridge</code> to its diagonal, runs a symmetric eigendecomposition, floors each resulting eigenvalue at <span class="math inline">10^{-14}</span>, and reconstructs <span class="math inline">U\operatorname{diag}(\lambda_j^{-1/2})U'</span>. The floor is applied after the requested ridge shift.</li>
+<li>A transform forms <span class="math inline">K(x,X_m)</span> with the same nested kernel loops and right-multiplies by the stored inverse square root. It retains landmarks and the dense <span class="math inline">m\times m</span> factor, but not the original full training sample.</li>
 </ol>
 </section>
 <section id="randomfourierfeatures" class="level3" data-number="4.3">
 <h3 data-number="4.3" class="anchored" data-anchor-id="randomfourierfeatures"><span class="header-section-number">4.3</span> <code>RandomFourierFeatures</code></h3>
 <ol type="1">
-<li><code>fit()</code> seeds a Rust standard RNG from the supplied seed or the fixed hexadecimal constant <code>0xF0471E5</code>. It draws standard-normal pairs with a Box-Muller transform, fills the <span class="math inline">\(p\times m\)</span> frequency matrix in row-major logical order, and scales every draw by <span class="math inline">\(\sqrt{2/h}\)</span>.</li>
-<li>It draws a separate length-<span class="math inline">\(m\)</span> phase vector uniformly on <span class="math inline">\([0,2\pi)\)</span>. Neither frequencies nor phases depend on the observed values of <span class="math inline">\(X\)</span>; fitting uses the input only to validate a nonempty sample and record <span class="math inline">\(p\)</span>.</li>
-<li><code>transform()</code> computes one dense matrix product <span class="math inline">\(X\Omega\)</span>, adds the stored phase columnwise, applies cosine, and multiplies by <span class="math inline">\(\sqrt{2/m}\)</span>. The transform is reproducible and stateless after those random arrays have been stored.</li>
+<li><code>fit()</code> seeds a Rust standard RNG from the supplied seed or the fixed hexadecimal constant <code>0xF0471E5</code>. It draws standard-normal pairs with a Box-Muller transform, fills the <span class="math inline">p\times m</span> frequency matrix in row-major logical order, and scales every draw by <span class="math inline">\sqrt{2/h}</span>.</li>
+<li>It draws a separate length-<span class="math inline">m</span> phase vector uniformly on <span class="math inline">[0,2\pi)</span>. Neither frequencies nor phases depend on the observed values of <span class="math inline">X</span>; fitting uses the input only to validate a nonempty sample and record <span class="math inline">p</span>.</li>
+<li><code>transform()</code> computes one dense matrix product <span class="math inline">X\Omega</span>, adds the stored phase columnwise, applies cosine, and multiplies by <span class="math inline">\sqrt{2/m}</span>. The transform is reproducible and stateless after those random arrays have been stored.</li>
 </ol>
-<p>The exact basis makes sample size the feature dimension. Nystrom makes selected observations the basis and pays an <span class="math inline">\(m^3\)</span> eigendecomposition once. Random Fourier features make random spectral draws the basis and reduce transformation to matrix multiplication plus cosine. None centers or standardizes <span class="math inline">\(X\)</span>, so distance scale remains the caller’s responsibility.</p>
+<p>The exact basis makes sample size the feature dimension. Nystrom makes selected observations the basis and pays an <span class="math inline">m^3</span> eigendecomposition once. Random Fourier features make random spectral draws the basis and reduce transformation to matrix multiplication plus cosine. None centers or standardizes <span class="math inline">X</span>, so distance scale remains the caller’s responsibility.</p>
 </section>
 </section>
 <section id="inference-and-performance" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="inference-and-performance"><span class="header-section-number">5</span> Inference and performance</h2>
-<p>None of these transforms estimates a response model or supplies statistical inference. KernelBasis fitting and storage are <span class="math inline">\(O(n^2p)\)</span> time and <span class="math inline">\(O(n^2+np)\)</span> memory because it materializes the full Gram matrix. Transforming <span class="math inline">\(r\)</span> new rows costs <span class="math inline">\(O(rnp)\)</span> and returns <span class="math inline">\(n\)</span> features.</p>
-<p>NystromBasis costs <span class="math inline">\(O(m^2p+m^3)\)</span> to fit and approximately <span class="math inline">\(O(rmp+rm^2)\)</span> to transform, with <span class="math inline">\(O(mp+m^2)\)</span> fitted storage. RandomFourierFeatures stores <span class="math inline">\(O(pm)\)</span> random weights and transforms in <span class="math inline">\(O(rpm)\)</span>. Kernel and random-feature outputs are dense; downstream ridge or OLS can still become expensive when <span class="math inline">\(m\)</span> or the exact training-basis width is large.</p>
+<p>None of these transforms estimates a response model or supplies statistical inference. KernelBasis fitting and storage are <span class="math inline">O(n^2p)</span> time and <span class="math inline">O(n^2+np)</span> memory because it materializes the full Gram matrix. Transforming <span class="math inline">r</span> new rows costs <span class="math inline">O(rnp)</span> and returns <span class="math inline">n</span> features.</p>
+<p>NystromBasis costs <span class="math inline">O(m^2p+m^3)</span> to fit and approximately <span class="math inline">O(rmp+rm^2)</span> to transform, with <span class="math inline">O(mp+m^2)</span> fitted storage. RandomFourierFeatures stores <span class="math inline">O(pm)</span> random weights and transforms in <span class="math inline">O(rpm)</span>. Kernel and random-feature outputs are dense; downstream ridge or OLS can still become expensive when <span class="math inline">m</span> or the exact training-basis width is large.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructors: <code>cm.KernelBasis</code>, <code>cm.NystromBasis</code>, and <code>cm.RandomFourierFeatures</code></p>
 <p>All three classes expose <code>fit</code>, <code>transform</code>, <code>fit_transform</code>, and <code>summary</code>. <code>KernelBasis</code> uses the full training sample as its basis. <code>NystromBasis(n_components, ...)</code> selects landmark rows and takes a kernel ridge for its inverse square root. <code>RandomFourierFeatures(n_components, bandwidth, seed)</code> draws a fixed-width Gaussian-kernel approximation.</p>
-<div id="54996f3c" class="cell" data-execution_count="2">
+<div id="669cbb0e" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.KernelBasis))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -607,7 +629,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 <pre><code>(kernel='gaussian', bandwidth=0.5, coef0=1.0, degree=2.0)</code></pre>
 </div>
 </div>
-<div id="b2ad0fa5" class="cell" data-execution_count="3">
+<div id="110bca82" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.KernelBasis</span>
@@ -640,7 +662,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </table>
 </div>
 </div>
-<div id="555b399a" class="cell" data-execution_count="4">
+<div id="c2c7066f" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cls <span class="kw">in</span> (cm.NystromBasis, cm.RandomFourierFeatures):</span>
@@ -709,7 +731,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="55dbd801" class="cell" data-execution_count="5">
+<div id="0facc787" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">23</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">2</span>))</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.sin(x[:, <span class="dv">0</span>]) <span class="op">+</span> rng.normal(scale<span class="op">=</span><span class="fl">0.1</span>, size<span class="op">=</span><span class="dv">80</span>)</span>
@@ -739,7 +761,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="a04d4884" class="cell" data-execution_count="6">
+<div id="76c39739" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">123</span>)</span>
@@ -790,7 +812,7 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 </table>
 </div>
 </div>
-<div id="f699869e" class="cell" data-execution_count="7">
+<div id="bd150482" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>nystrom <span class="op">=</span> cm.NystromBasis(<span class="dv">10</span>, kernel<span class="op">=</span><span class="st">'gaussian'</span>, bandwidth<span class="op">=</span><span class="fl">0.8</span>, seed<span class="op">=</span><span class="dv">123</span>)</span>
@@ -1297,13 +1319,18 @@ b_j\sim\operatorname{Uniform}(0,2\pi),
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

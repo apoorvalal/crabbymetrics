@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -511,60 +533,60 @@ window.Quarto = {
 </section>
 <section id="objective-and-algorithm" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="objective-and-algorithm"><span class="header-section-number">2</span> Objective and algorithm</h2>
-<p>Entries with treatment indicator below <span class="math inline">\(0.5\)</span> form the observed set <span class="math inline">\(\Omega\)</span>; treated entries are excluded from fitting. With optional unit effects <span class="math inline">\(a_i\)</span>, time effects <span class="math inline">\(b_t\)</span>, and low-rank matrix <span class="math inline">\(L\)</span>, the implemented objective is</p>
-<p><span class="math display">\[
+<p>Entries with treatment indicator below <span class="math inline">0.5</span> form the observed set <span class="math inline">\Omega</span>; treated entries are excluded from fitting. With optional unit effects <span class="math inline">a_i</span>, time effects <span class="math inline">b_t</span>, and low-rank matrix <span class="math inline">L</span>, the implemented objective is</p>
+<p><span class="math display">
 \min_{L,a,b}
 \frac{1}{|\Omega|}
 \sum_{(i,t)\in\Omega}
 (Y_{it}-a_i-b_t-L_{it})^2
 +\lambda_L\|L\|_*.
-\]</span></p>
-<p>The algorithm alternates observed-cell mean updates for <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> with singular-value thresholding. Its proximal step fills observed residuals into the current <span class="math inline">\(L\)</span> and shrinks singular values by</p>
-<p><span class="math display">\[
+</span></p>
+<p>The algorithm alternates observed-cell mean updates for <span class="math inline">a</span> and <span class="math inline">b</span> with singular-value thresholding. Its proximal step fills observed residuals into the current <span class="math inline">L</span> and shrinks singular values by</p>
+<p><span class="math display">
 \tau=\frac{\lambda_L|\Omega|}{2}.
-\]</span></p>
-<p>If <span class="math inline">\(\lambda_L\)</span> is omitted, the class first fits the requested additive effects with <span class="math inline">\(L=0\)</span> and sets</p>
-<p><span class="math display">\[
+</span></p>
+<p>If <span class="math inline">\lambda_L</span> is omitted, the class first fits the requested additive effects with <span class="math inline">L=0</span> and sets</p>
+<p><span class="math display">
 \lambda_L
 =
 \text{lambda fraction}\times
 \frac{2s_{\max}\{P_\Omega(Y-a-b)\}}{|\Omega|}.
-\]</span></p>
+</span></p>
 <p>Exact SVD applies the full proximal map. Randomized SVD with an explicit rank is a truncated approximation to that map and therefore need not minimize exactly the displayed nuclear-norm objective.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The class implements a masked soft-impute-style loop with explicit additive-effect coordinate updates.</p>
 <ol type="1">
-<li>The common panel parser validates treatment paths, then the fitting mask is set to <span class="math inline">\(M_{it}=1\{W_{it}&lt;0.5\}\)</span>. Only masked-in outcomes must be finite. Treated outcomes are copied as zero into the working matrix and never enter the objective or update residuals.</li>
-<li>When <span class="math inline">\(\lambda_L\)</span> is automatic, the code initializes <span class="math inline">\(L=0\)</span>, runs exactly 20 alternating observed-cell mean sweeps for requested unit and time effects, forms the masked residual matrix with zeros elsewhere, computes its largest exact singular value, and returns <span class="math inline">\(2s_{\max}/|\Omega|\)</span>. <code>lambda_fraction</code> multiplies this value.</li>
-<li>Every outer iteration first runs <code>effect_iterations</code> coordinate sweeps. A unit effect is the mean of <span class="math inline">\(Y_{it}-L_{it}-b_t\)</span> over that unit’s observed cells; a time effect is the analogous mean of <span class="math inline">\(Y_{it}-L_{it}-a_i\)</span>. After each sweep, a centering routine shifts constants between the two vectors without changing <span class="math inline">\(a_i+b_t\)</span> and leaves the time effects mean-zero.</li>
-<li>The projection matrix begins as the current <span class="math inline">\(L\)</span>. On observed cells only, the current residual <span class="math inline">\(Y-a-b-L\)</span> is added, producing <span class="math inline">\(L+P_\Omega(Y-a-b-L)\)</span>. Missing treated cells therefore retain their current low-rank value before thresholding.</li>
-<li>Exact mode computes a dense SVD, replaces every singular value <span class="math inline">\(s_j\)</span> by <span class="math inline">\((s_j-\lambda_L|\Omega|/2)_+\)</span>, and reconstructs <span class="math inline">\(L\)</span>. Randomized mode first obtains only the requested approximate singular triplets, applies the same threshold to them, and reconstructs inside that truncated range. Its seed, when supplied, is incremented by the outer-iteration number.</li>
+<li>The common panel parser validates treatment paths, then the fitting mask is set to <span class="math inline">M_{it}=1\{W_{it}&lt;0.5\}</span>. Only masked-in outcomes must be finite. Treated outcomes are copied as zero into the working matrix and never enter the objective or update residuals.</li>
+<li>When <span class="math inline">\lambda_L</span> is automatic, the code initializes <span class="math inline">L=0</span>, runs exactly 20 alternating observed-cell mean sweeps for requested unit and time effects, forms the masked residual matrix with zeros elsewhere, computes its largest exact singular value, and returns <span class="math inline">2s_{\max}/|\Omega|</span>. <code>lambda_fraction</code> multiplies this value.</li>
+<li>Every outer iteration first runs <code>effect_iterations</code> coordinate sweeps. A unit effect is the mean of <span class="math inline">Y_{it}-L_{it}-b_t</span> over that unit’s observed cells; a time effect is the analogous mean of <span class="math inline">Y_{it}-L_{it}-a_i</span>. After each sweep, a centering routine shifts constants between the two vectors without changing <span class="math inline">a_i+b_t</span> and leaves the time effects mean-zero.</li>
+<li>The projection matrix begins as the current <span class="math inline">L</span>. On observed cells only, the current residual <span class="math inline">Y-a-b-L</span> is added, producing <span class="math inline">L+P_\Omega(Y-a-b-L)</span>. Missing treated cells therefore retain their current low-rank value before thresholding.</li>
+<li>Exact mode computes a dense SVD, replaces every singular value <span class="math inline">s_j</span> by <span class="math inline">(s_j-\lambda_L|\Omega|/2)_+</span>, and reconstructs <span class="math inline">L</span>. Randomized mode first obtains only the requested approximate singular triplets, applies the same threshold to them, and reconstructs inside that truncated range. Its seed, when supplied, is incremented by the outer-iteration number.</li>
 <li>The objective and RMSE history are both evaluated after the new low-rank matrix. Relative objective change is checked from the second iteration onward, and an objective increase cannot certify convergence. Exact SVT reconstructs by scaling singular-vector columns rather than allocating a dense diagonal matrix.</li>
-<li>Completion adds stored unit and time effects to the final <span class="math inline">\(L\)</span> everywhere. The treatment-effect matrix is filled for every ever-treated unit and every period, including pre-periods, while ATT selects only cells where <span class="math inline">\(W=1\)</span>. A budget-exhausted iterate is retained with <code>converged=False</code> rather than discarded.</li>
+<li>Completion adds stored unit and time effects to the final <span class="math inline">L</span> everywhere. The treatment-effect matrix is filled for every ever-treated unit and every period, including pre-periods, while ATT selects only cells where <span class="math inline">W=1</span>. A budget-exhausted iterate is retained with <code>converged=False</code> rather than discarded.</li>
 </ol>
 <p>Exact mode is a recognizable proximal update for the displayed convex objective conditional on the effect block. Randomized truncation changes that update, and changing its seed each iteration means the approximate map itself varies over the optimization path.</p>
 </section>
 <section id="estimand-and-inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="estimand-and-inference"><span class="header-section-number">4</span> Estimand and inference</h2>
-<p>The completed counterfactual surface is <span class="math inline">\(\hat Y_{it}(0)=\hat a_i+\hat b_t+\hat L_{it}\)</span>. Reported treated-cell effects are <span class="math inline">\(Y_{it}-\hat Y_{it}(0)\)</span>, and ATT is their simple mean over cells marked treated. Event-study and group summaries aggregate the same cell differences.</p>
-<p>There is no analytic or resampling inference, rank selection, or penalty cross-validation. If <span class="math inline">\(Q_k\)</span> denotes the displayed objective after iteration <span class="math inline">\(k\)</span>, convergence requires</p>
-<p><span class="math display">\[
+<p>The completed counterfactual surface is <span class="math inline">\hat Y_{it}(0)=\hat a_i+\hat b_t+\hat L_{it}</span>. Reported treated-cell effects are <span class="math inline">Y_{it}-\hat Y_{it}(0)</span>, and ATT is their simple mean over cells marked treated. Event-study and group summaries aggregate the same cell differences.</p>
+<p>There is no analytic or resampling inference, rank selection, or penalty cross-validation. If <span class="math inline">Q_k</span> denotes the displayed objective after iteration <span class="math inline">k</span>, convergence requires</p>
+<p><span class="math display">
 0\leq\frac{Q_{k-1}-Q_k}{|Q_{k-1}|+10^{-12}}&lt;\text{tolerance}.
-\]</span></p>
+</span></p>
 <p>Unlike likelihood estimators in this package, <code>MatrixCompletion</code> retains the final iterate when the budget is exhausted because a partial completion can still be diagnostically useful. It does not call that outcome convergence: <code>summary()</code> reports <code>converged=False</code>, <code>iterations</code>, <code>termination_reason='Maximum number of iterations reached'</code>, and the final <code>objective</code>, together with both histories. Identification requires untreated observations to reveal the relevant low-rank and additive structure; optimizer convergence cannot diagnose failure of that causal assumption.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>Each exact iteration performs a dense SVD with roughly <span class="math inline">\(O(\min\{NT^2,N^2T\})\)</span> time and <span class="math inline">\(O(NT)\)</span> matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite. Iteration budgets, effect-update counts, and tolerances must be positive; invalid settings fail before fitting.</p>
+<p>Each exact iteration performs a dense SVD with roughly <span class="math inline">O(\min\{NT^2,N^2T\})</span> time and <span class="math inline">O(NT)</span> matrix storage, plus observed-cell scans and effect updates. Randomized SVD can reduce factorization work to a chosen low rank but remains dense and changes the update. Total cost scales with the number of outer iterations and requested effect-update sweeps. Treated outcome values may be nonfinite because they are excluded from fitting, but every untreated entry must be finite. Iteration budgets, effect-update counts, and tolerances must be positive; invalid settings fail before fitting.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.MatrixCompletion</code></p>
 <p>Call <code>MatrixCompletion(...).fit(y, w)</code>. <code>predict()</code> returns completed/counterfactual values and <code>summary()</code> reports ATT, completed matrices, treatment effects, low-rank components, singular values, objective and RMSE histories, fit diagnostics, and panel summaries. Check <code>converged</code> before treating the retained solution as numerically settled.</p>
 <p><code>summary(include_matrices=False)</code> omits <code>completed</code>, <code>counterfactual</code>, <code>treatment_effects</code>, and <code>low_rank</code> copies. The default remains <code>True</code>, with independent owned arrays even when two returned surfaces contain the same values.</p>
-<div id="50342b90" class="cell" data-execution_count="2">
+<div id="7afcda69" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MatrixCompletion))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -573,7 +595,7 @@ window.Quarto = {
 <pre><code>(lambda_l=None, lambda_fraction=0.25, fit_unit_effects=True, fit_time_effects=True, max_iterations=500, effect_iterations=2, tolerance=1e-06, svd_method=Ellipsis, svd_rank=None, svd_oversamples=10, svd_power_iter=1, svd_seed=None)</code></pre>
 </div>
 </div>
-<div id="9bf04164" class="cell" data-execution_count="3">
+<div id="e803bdeb" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.MatrixCompletion</span>
@@ -606,7 +628,7 @@ window.Quarto = {
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="29f114e7" class="cell" data-execution_count="4">
+<div id="14d87144" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">18</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>load <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">2</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>fac <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">2</span>, <span class="dv">14</span>))</span>
@@ -630,7 +652,7 @@ window.Quarto = {
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="045fdf3b" class="cell" data-execution_count="5">
+<div id="baaddbef" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">118</span>)</span>
@@ -1165,13 +1187,18 @@ window.Quarto = {
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

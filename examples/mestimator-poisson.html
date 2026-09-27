@@ -277,6 +277,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -349,6 +353,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -470,7 +478,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="objective-and-scores" class="level2">
 <h2 class="anchored" data-anchor-id="objective-and-scores">Objective and scores</h2>
 <p>The objective and gradient must be derivatives of the same function. Clipping the linear predictor while retaining the unclipped gradient breaks that contract. This moderate-scale example uses the exact exponential throughout.</p>
-<div id="c5a92faf" class="cell" data-execution_count="1">
+<div id="29fed06b" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -503,7 +511,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="fit-and-compare" class="level2">
 <h2 class="anchored" data-anchor-id="fit-and-compare">Fit and compare</h2>
-<div id="2d6ac6e1" class="cell" data-execution_count="2">
+<div id="0572bd06" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>theta0 <span class="op">=</span> np.r_[np.log(y.mean()), np.zeros(x.shape[<span class="dv">1</span>])]</span>
@@ -536,7 +544,7 @@ Native sandwich SE: [0.03853363 0.03069967 0.02974407 0.03195219]</code></pre>
 </section>
 <section id="bootstrap-interface" class="level2">
 <h2 class="anchored" data-anchor-id="bootstrap-interface">Bootstrap interface</h2>
-<div id="6059014d" class="cell" data-execution_count="3">
+<div id="452d7d77" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>draws <span class="op">=</span> custom.bootstrap(<span class="dv">20</span>, seed<span class="op">=</span><span class="dv">123</span>)</span>
@@ -958,13 +966,18 @@ Bootstrap coefficient mean: [ 0.17146892  0.17443593  0.39456996 -0.60330473]</c
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

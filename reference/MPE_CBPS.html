@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -514,36 +536,36 @@ window.Quarto = {
 </section>
 <section id="estimator" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="estimator"><span class="header-section-number">2</span> Estimator</h2>
-<p>Let <span class="math inline">\(D_i\in\{0,1\}\)</span> be the delay or treatment indicator, <span class="math inline">\(X_i\)</span> be pre-treatment covariates, and <span class="math inline">\(z_i=(1,X_i')'\)</span> after optional column standardization. Let <span class="math inline">\(W_i^{(a)}=1\{D_i=a\}\)</span> and let <span class="math inline">\(\dot\pi_i&gt;0\)</span> be the derivative of the treatment probability under the local policy perturbation. For each arm <span class="math inline">\(a\in\{0,1\}\)</span>, <code>MPE_CBPS</code> minimizes</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">D_i\in\{0,1\}</span> be the delay or treatment indicator, <span class="math inline">X_i</span> be pre-treatment covariates, and <span class="math inline">z_i=(1,X_i')'</span> after optional column standardization. Let <span class="math inline">W_i^{(a)}=1\{D_i=a\}</span> and let <span class="math inline">\dot\pi_i&gt;0</span> be the derivative of the treatment probability under the local policy perturbation. For each arm <span class="math inline">a\in\{0,1\}</span>, <code>MPE_CBPS</code> minimizes</p>
+<p><span class="math display">
 L_a(\theta_a)
 =\frac{1}{n}\sum_i\dot\pi_i
 \left[W_i^{(a)}e^{-z_i'\theta_a}
 +(1-W_i^{(a)})z_i'\theta_a\right].
-\]</span></p>
+</span></p>
 <p>The analytic gradient and Hessian are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \nabla L_a(\theta_a)
 =\frac{1}{n}\sum_i\dot\pi_i z_i
 \left[(1-W_i^{(a)})-W_i^{(a)}e^{-z_i'\theta_a}\right],
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 \nabla^2L_a(\theta_a)
 =\frac{1}{n}\sum_i\dot\pi_iW_i^{(a)}e^{-z_i'\theta_a}z_iz_i'.
-\]</span></p>
+</span></p>
 <p>For a constant policy derivative, the first-order condition implies exact full-sample balance under the raw inverse-logit weight</p>
-<p><span class="math display">\[
+<p><span class="math display">
 w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 \qquad
 \sum_iW_i^{(a)}w_i^{(a)}z_i=\sum_i z_i.
-\]</span></p>
-<p>Given cumulative future reward <span class="math inline">\(\Gamma_i^K\)</span> and a positive denominator <span class="math inline">\(B\)</span>, <code>estimate()</code> returns</p>
-<p><span class="math display">\[
+</span></p>
+<p>Given cumulative future reward <span class="math inline">\Gamma_i^K</span> and a positive denominator <span class="math inline">B</span>, <code>estimate()</code> returns</p>
+<p><span class="math display">
 \widehat\tau_K
 =\frac{1}{B}\sum_i\dot\pi_i
 \left[D_iw_i^{(1)}-(1-D_i)w_i^{(0)}\right]\Gamma_i^K.
-\]</span></p>
-<p>The default <span class="math inline">\(B=n\)</span> gives an average per observation. The released application sets <span class="math inline">\(\dot\pi_i=0.01\)</span> and uses total baseline spend as <span class="math inline">\(B\)</span> to report the value effect of a one-percentage-point delay-rate change relative to baseline value.</p>
+</span></p>
+<p>The default <span class="math inline">B=n</span> gives an average per observation. The released application sets <span class="math inline">\dot\pi_i=0.01</span> and uses total baseline spend as <span class="math inline">B</span> to report the value effect of a one-percentage-point delay-rate change relative to baseline value.</p>
 </section>
 <section id="canonical-parity" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="canonical-parity"><span class="header-section-number">3</span> Canonical parity</h2>
@@ -557,7 +579,7 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 <section id="python-api" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="python-api"><span class="header-section-number">4</span> Python API</h2>
 <p>Constructor: <code>cm.MPE_CBPS</code></p>
-<div id="09e70af1" class="cell" data-execution_count="2">
+<div id="8e52ba11" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.MPE_CBPS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -566,7 +588,7 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 <pre><code>(standardize=True, max_iterations=500, tolerance=1e-08, max_log_weight=50.0)</code></pre>
 </div>
 </div>
-<div id="c9a813c1" class="cell" data-execution_count="3">
+<div id="2fe67d9c" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">"Public method"</span>], public_methods(cm.MPE_CBPS))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -610,8 +632,8 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 <section id="methods" class="level3" data-number="4.2">
 <h3 data-number="4.2" class="anchored" data-anchor-id="methods"><span class="header-section-number">4.2</span> Methods</h3>
 <ul>
-<li><code>fit(covariates, treatment, policy_derivative=None)</code>: fit the two arm-specific convex programs. <code>covariates</code> is a finite <code>float64</code> matrix and <code>treatment</code> is a NumPy <code>int32</code> vector containing both 0 and 1. <code>policy_derivative</code> is an optional positive finite Python list of length <span class="math inline">\(n\)</span>; it defaults to one.</li>
-<li><code>estimate(outcome, denominator=None)</code>: aggregate a finite <code>float64</code> cumulative-outcome vector using the fitted policy derivative and weights. <code>denominator</code> defaults to <span class="math inline">\(n\)</span>.</li>
+<li><code>fit(covariates, treatment, policy_derivative=None)</code>: fit the two arm-specific convex programs. <code>covariates</code> is a finite <code>float64</code> matrix and <code>treatment</code> is a NumPy <code>int32</code> vector containing both 0 and 1. <code>policy_derivative</code> is an optional positive finite Python list of length <span class="math inline">n</span>; it defaults to one.</li>
+<li><code>estimate(outcome, denominator=None)</code>: aggregate a finite <code>float64</code> cumulative-outcome vector using the fitted policy derivative and weights. <code>denominator</code> defaults to <span class="math inline">n</span>.</li>
 <li><code>get_weights(arm)</code>: return the released implementation’s raw positive weight vector for arm 0 or 1. Apply the corresponding treatment-arm mask when forming weighted moments.</li>
 <li><code>summary()</code>: return coefficients, raw weights, policy-derivative-weighted balance and effective sample size, standardization, and solver diagnostics.</li>
 </ul>
@@ -619,7 +641,7 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 </section>
 <section id="minimal-example" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">5</span> Minimal example</h2>
-<div id="dba74c15" class="cell" data-execution_count="4">
+<div id="b9496eeb" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">2606</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">1200</span>, <span class="dv">4</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>propensity <span class="op">=</span> <span class="fl">1.0</span> <span class="op">/</span> (<span class="fl">1.0</span> <span class="op">+</span> np.exp(<span class="op">-</span>(<span class="op">-</span><span class="fl">0.2</span> <span class="op">+</span> x <span class="op">@</span> np.array([<span class="fl">0.5</span>, <span class="op">-</span><span class="fl">0.3</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>]))))</span>
@@ -647,7 +669,7 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 </section>
 <section id="summary-contract" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">6</span> <code>summary()</code> contract</h2>
-<div id="1a1fe642" class="cell" data-execution_count="5">
+<div id="bd64ce23" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>display(HTML(html_table([<span class="st">"summary() key"</span>, <span class="st">"shape"</span>], summary_shape_rows(fit))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -805,7 +827,7 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 </section>
 <section id="numerical-behavior-and-limitations" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="numerical-behavior-and-limitations"><span class="header-section-number">7</span> Numerical behavior and limitations</h2>
-<p>Each arm uses damped Newton steps with an analytic Hessian, a scale-relative <span class="math inline">\(10^{-12}\)</span> diagonal stabilization for the linear solve, and Armijo backtracking. One objective/gradient/Hessian evaluation costs <span class="math inline">\(O(np^2)\)</span> time and <span class="math inline">\(O(p^2)\)</span> working storage; solving the dense Newton system costs <span class="math inline">\(O(p^3)\)</span>. The two arms are fitted separately.</p>
+<p>Each arm uses damped Newton steps with an analytic Hessian, a scale-relative <span class="math inline">10^{-12}</span> diagonal stabilization for the linear solve, and Armijo backtracking. One objective/gradient/Hessian evaluation costs <span class="math inline">O(np^2)</span> time and <span class="math inline">O(p^2)</span> working storage; solving the dense Newton system costs <span class="math inline">O(p^3)</span>. The two arms are fitted separately.</p>
 <p>The class does not establish the dynamic identification assumptions, construct forward outcomes, choose a horizon, or compute standard errors. The <a href="../examples/chronos-ltv-balancing.html">Chronos LTV vignette</a> derives the policy-gradient reduction, constructs cumulative rewards, compares the exact and entropy-calibrated weights, and demonstrates unit-clustered bootstrap inference.</p>
 
 
@@ -1216,13 +1238,18 @@ w_i^{(a)}=1+e^{-z_i'\widehat\theta_a},
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

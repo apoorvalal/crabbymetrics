@@ -110,8 +110,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -312,6 +326,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -384,6 +402,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -523,8 +545,8 @@ window.Quarto = {
 <p>The methods use different observation orderings, so their array contracts are intentionally different.</p>
 <section id="contemporaneous-regression-blips" class="level3">
 <h3 class="anchored" data-anchor-id="contemporaneous-regression-blips">Contemporaneous regression blips</h3>
-<p><code>RegressionBlip</code> treats <span class="math inline">\(A_t\)</span> as capable of affecting <span class="math inline">\(Y_t\)</span>. Both arrays therefore have shape <code>(n_units, n_periods)</code>. Let <span class="math inline">\(\bar A_t=(A_0,\ldots,A_t)\)</span>. For an additive, history-invariant impulse response,</p>
-<p><span class="math display">\[
+<p><code>RegressionBlip</code> treats <span class="math inline">A_t</span> as capable of affecting <span class="math inline">Y_t</span>. Both arrays therefore have shape <code>(n_units, n_periods)</code>. Let <span class="math inline">\bar A_t=(A_0,\ldots,A_t)</span>. For an additive, history-invariant impulse response,</p>
+<p><span class="math display">
 b_t(\bar a_t,j;\gamma)
 =
 E\left[
@@ -532,98 +554,98 @@ Y_t(\bar a_{t-j},\bar 0_j)-Y_t(\bar a_{t-j-1},\bar 0_{j+1})
 \mid \bar A_{t-j}=\bar a_{t-j}
 \right]
 =\gamma_j a_{t-j}.
-\]</span></p>
-<p>After estimating lags <span class="math inline">\(0,\ldots,j-1\)</span>, define the partially blipped-down outcome</p>
-<p><span class="math display">\[
+</span></p>
+<p>After estimating lags <span class="math inline">0,\ldots,j-1</span>, define the partially blipped-down outcome</p>
+<p><span class="math display">
 \widetilde Y_t^{\,j}
 =Y_t-\sum_{s=0}^{j-1}\widehat\gamma_s A_{t-s}.
-\]</span></p>
-<p>At stage <span class="math inline">\(j\)</span>, the implementation regresses <span class="math inline">\(\widetilde Y_t^{\,j}\)</span> on <span class="math inline">\(A_{t-j}\)</span> and information available when <span class="math inline">\(A_{t-j}\)</span> was assigned: <span class="math inline">\(A_{t-j-1}\)</span>, <span class="math inline">\(Y_{t-j-1}\)</span>, optional user-supplied history <span class="math inline">\(L_{t-j}\)</span>, and optional outcome-time indicators. The coefficient on <span class="math inline">\(A_{t-j}\)</span> is <span class="math inline">\(\widehat\gamma_j\)</span>. The recursion avoids conditioning on <span class="math inline">\(L_t\)</span> when estimating the effect of <span class="math inline">\(A_{t-j}\)</span> if <span class="math inline">\(L_t\)</span> could have been caused by that treatment.</p>
-<p>The identifying restriction is sequential ignorability. For every treatment history and assignment time <span class="math inline">\(s\)</span>,</p>
-<p><span class="math display">\[
+</span></p>
+<p>At stage <span class="math inline">j</span>, the implementation regresses <span class="math inline">\widetilde Y_t^{\,j}</span> on <span class="math inline">A_{t-j}</span> and information available when <span class="math inline">A_{t-j}</span> was assigned: <span class="math inline">A_{t-j-1}</span>, <span class="math inline">Y_{t-j-1}</span>, optional user-supplied history <span class="math inline">L_{t-j}</span>, and optional outcome-time indicators. The coefficient on <span class="math inline">A_{t-j}</span> is <span class="math inline">\widehat\gamma_j</span>. The recursion avoids conditioning on <span class="math inline">L_t</span> when estimating the effect of <span class="math inline">A_{t-j}</span> if <span class="math inline">L_t</span> could have been caused by that treatment.</p>
+<p>The identifying restriction is sequential ignorability. For every treatment history and assignment time <span class="math inline">s</span>,</p>
+<p><span class="math display">
 \{Y_r(\bar a_r):r\ge s\}\perp A_s\mid V_s,
-\]</span></p>
-<p>where <span class="math inline">\(V_s\)</span> contains the treatment and covariate history sufficient to remove confounding of <span class="math inline">\(A_s\)</span>. The assumption permits <span class="math inline">\(A_s\)</span> to affect future covariates and future treatment.</p>
+</span></p>
+<p>where <span class="math inline">V_s</span> contains the treatment and covariate history sufficient to remove confounding of <span class="math inline">A_s</span>. The assumption permits <span class="math inline">A_s</span> to affect future covariates and future treatment.</p>
 </section>
 <section id="forward-parallel-trends-blips" class="level3">
 <h3 class="anchored" data-anchor-id="forward-parallel-trends-blips">Forward parallel-trends blips</h3>
-<p><code>ParallelTrendsSNMM</code> follows the paper’s ordering in which <span class="math inline">\(Y_m\)</span> is observed before <span class="math inline">\(A_m\)</span>, so <span class="math inline">\(A_m\)</span> first affects <span class="math inline">\(Y_{m+1}\)</span>. If treatment has <span class="math inline">\(T\)</span> columns, the outcome must have <span class="math inline">\(T+1\)</span> columns.</p>
-<p>For a reference regime <span class="math inline">\(g\)</span>, the general blip function is</p>
-<p><span class="math display">\[
+<p><code>ParallelTrendsSNMM</code> follows the paper’s ordering in which <span class="math inline">Y_m</span> is observed before <span class="math inline">A_m</span>, so <span class="math inline">A_m</span> first affects <span class="math inline">Y_{m+1}</span>. If treatment has <span class="math inline">T</span> columns, the outcome must have <span class="math inline">T+1</span> columns.</p>
+<p>For a reference regime <span class="math inline">g</span>, the general blip function is</p>
+<p><span class="math display">
 \gamma^g_{mk}(\bar l_m,\bar a_m)
 =E\left[
 Y_k(\bar a_m,g^{m+1})-Y_k(\bar a_{m-1},g^m)
 \mid \bar A_m=\bar a_m,\bar L_m=\bar l_m
 \right],\qquad k&gt;m.
-\]</span></p>
-<p>The implemented first-tier model uses the untreated regime, an additive linear blip, and a common coefficient by treatment-to-outcome horizon <span class="math inline">\(h=k-m\)</span>:</p>
-<p><span class="math display">\[
+</span></p>
+<p>The implemented first-tier model uses the untreated regime, an additive linear blip, and a common coefficient by treatment-to-outcome horizon <span class="math inline">h=k-m</span>:</p>
+<p><span class="math display">
 \gamma_{mk}(\bar L_m,\bar A_m;\psi)=A_m\psi_{k-m},
 \qquad h=1,\ldots,H.
-\]</span></p>
-<p>For <span class="math inline">\(m&lt;k\)</span>, define</p>
-<p><span class="math display">\[
+</span></p>
+<p>For <span class="math inline">m&lt;k</span>, define</p>
+<p><span class="math display">
 H_{mk}(\psi)=Y_k-\sum_{j=m}^{k-1}\gamma_{jk}(\psi),
 \qquad
 H^\dagger_{mk}(\psi)=H_{mk}(\psi)-H_{m,k-1}(\psi).
-\]</span></p>
-<p>At the true parameter, <span class="math inline">\(H^\dagger_{mk}(\psi_0)\)</span> behaves like the counterfactual untreated outcome increment. The identifying restriction is</p>
-<p><span class="math display">\[
+</span></p>
+<p>At the true parameter, <span class="math inline">H^\dagger_{mk}(\psi_0)</span> behaves like the counterfactual untreated outcome increment. The identifying restriction is</p>
+<p><span class="math display">
 E\left[
 Y_k(\bar A_{m-1},g^m)-Y_{k-1}(\bar A_{m-1},g^m)
 \mid A_m,\bar L_m,\bar A_{m-1}
 \right]
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 =E\left[
 Y_k(\bar A_{m-1},g^m)-Y_{k-1}(\bar A_{m-1},g^m)
 \mid A_m=g_m,\bar L_m,\bar A_{m-1}
 \right].
-\]</span></p>
-<p>This is a statement about <em>counterfactual trends</em>, not counterfactual levels. Time-constant unobserved causes of treatment and outcome levels are allowed if they do not also modify untreated trends. A supplied <code>history[:, m, :]</code> must be available at assignment time <span class="math inline">\(m\)</span>. In particular, conditioning on the current outcome level <span class="math inline">\(Y_m\)</span> can destroy the intended parallel-trends interpretation; lagged outcome increments may be admissible where levels are not.</p>
+</span></p>
+<p>This is a statement about <em>counterfactual trends</em>, not counterfactual levels. Time-constant unobserved causes of treatment and outcome levels are allowed if they do not also modify untreated trends. A supplied <code>history[:, m, :]</code> must be available at assignment time <span class="math inline">m</span>. In particular, conditioning on the current outcome level <span class="math inline">Y_m</span> can destroy the intended parallel-trends interpretation; lagged outcome increments may be admissible where levels are not.</p>
 </section>
 </section>
 <section id="orthogonal-estimating-equation" class="level2">
 <h2 class="anchored" data-anchor-id="orthogonal-estimating-equation">Orthogonal estimating equation</h2>
-<p>Let <span class="math inline">\(\pi_m(L_m)=E(A_m\mid L_m,\bar A_{m-1})\)</span> and</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">\pi_m(L_m)=E(A_m\mid L_m,\bar A_{m-1})</span> and</p>
+<p><span class="math display">
 \nu_{mk}(L_m;\psi)=E\{H^\dagger_{mk}(\psi)\mid L_m,\bar A_{m-1}\}.
-\]</span></p>
+</span></p>
 <p>Shahn et al.’s doubly robust moment is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 U_{mk}(\psi)
 =s_{mk}(L_m,\bar A_{m-1})
 \{A_m-\pi_m(L_m)\}
 \{H^\dagger_{mk}(\psi)-\nu_{mk}(L_m;\psi)\}.
-\]</span></p>
+</span></p>
 <p>Its expectation is zero if either the conditional treatment mean or the conditional blipped-trend mean is correctly specified. For a linear blip, write</p>
-<p><span class="math display">\[
+<p><span class="math display">
 H^\dagger_{mk}(\psi)=\Delta Y_k-D_{mk}'\psi.
-\]</span></p>
-<p>The implementation separately residualizes <span class="math inline">\(\Delta Y_k\)</span> and <span class="math inline">\(D_{mk}\)</span> on the history features. This produces a linear orthogonal equation,</p>
-<p><span class="math display">\[
+</span></p>
+<p>The implementation separately residualizes <span class="math inline">\Delta Y_k</span> and <span class="math inline">D_{mk}</span> on the history features. This produces a linear orthogonal equation,</p>
+<p><span class="math display">
 \sum_{i,m,k}
 Z_{imk}\left[
 \{\Delta Y_{ik}-\widehat q_{mk}(L_{im})\}
 -\{D_{imk}-\widehat r_{mk}(L_{im})\}'\psi
 \right]=0,
-\]</span></p>
-<p>where <span class="math inline">\(Z_{imk}\)</span> places <span class="math inline">\(A_{im}-\widehat\pi_m(L_{im})\)</span> in the coordinate for horizon <span class="math inline">\(k-m\)</span>. Treatment, trend, and blip-design conditional means are fitted with ridge regressions on training folds and evaluated on held-out units. The covariance is an influence-function sandwich over unit-level sums of the orthogonal scores.</p>
+</span></p>
+<p>where <span class="math inline">Z_{imk}</span> places <span class="math inline">A_{im}-\widehat\pi_m(L_{im})</span> in the coordinate for horizon <span class="math inline">k-m</span>. Treatment, trend, and blip-design conditional means are fitted with ridge regressions on training folds and evaluated on held-out units. The covariance is an influence-function sandwich over unit-level sums of the orthogonal scores.</p>
 </section>
 <section id="dynamic-covariate-balance" class="level2">
 <h2 class="anchored" data-anchor-id="dynamic-covariate-balance">Dynamic covariate balance</h2>
 <p>Viviano and Bradic target the mean final potential outcome under a complete treatment path,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mu_T(d_{1:T})=E\{Y_T(d_{1:T})\}.
-\]</span></p>
-<p>Let <span class="math inline">\(H_{it}\)</span> contain information observed before <span class="math inline">\(A_{it}\)</span>, including baseline covariates, prior treatment, and any relevant lagged outcomes or time-varying covariates. Their potential local-projection model is</p>
-<p><span class="math display">\[
+</span></p>
+<p>Let <span class="math inline">H_{it}</span> contain information observed before <span class="math inline">A_{it}</span>, including baseline covariates, prior treatment, and any relevant lagged outcomes or time-varying covariates. Their potential local-projection model is</p>
+<p><span class="math display">
 E\{Y_{iT}(d_{1:T})\mid H_{it}(d_{1:t-1})\}
 =H_{it}(d_{1:t-1})'\beta_d^{(t)}.
-\]</span></p>
-<p>The fitted projections are obtained backwards. At <span class="math inline">\(t=T\)</span>, regress <span class="math inline">\(Y_T\)</span> on <span class="math inline">\(H_T\)</span> among units with <span class="math inline">\(A_{1:T}=d_{1:T}\)</span>. At every earlier <span class="math inline">\(t\)</span>, regress the next fitted conditional mean <span class="math inline">\(H_{t+1}'\widehat\beta_d^{(t+1)}\)</span> on <span class="math inline">\(H_t\)</span> among units with <span class="math inline">\(A_{1:t}=d_{1:t}\)</span>. The implementation uses ridge regularization with an unpenalized intercept; the paper’s high-dimensional theory instead permits appropriately convergent lasso projections.</p>
-<p>Starting from <span class="math inline">\(\widehat\gamma_{i0}=1/n\)</span>, period-<span class="math inline">\(t\)</span> weights solve the exact-balance special case</p>
-<p><span class="math display">\[
+</span></p>
+<p>The fitted projections are obtained backwards. At <span class="math inline">t=T</span>, regress <span class="math inline">Y_T</span> on <span class="math inline">H_T</span> among units with <span class="math inline">A_{1:T}=d_{1:T}</span>. At every earlier <span class="math inline">t</span>, regress the next fitted conditional mean <span class="math inline">H_{t+1}'\widehat\beta_d^{(t+1)}</span> on <span class="math inline">H_t</span> among units with <span class="math inline">A_{1:t}=d_{1:t}</span>. The implementation uses ridge regularization with an unpenalized intercept; the paper’s high-dimensional theory instead permits appropriately convergent lasso projections.</p>
+<p>Starting from <span class="math inline">\widehat\gamma_{i0}=1/n</span>, period-<span class="math inline">t</span> weights solve the exact-balance special case</p>
+<p><span class="math display">
 \begin{aligned}
 \widehat\gamma_t
 =\arg\min_{\gamma\in\mathbb R^n}\;&amp;\sum_{i=1}^n\gamma_i^2\\
@@ -633,17 +655,17 @@ E\{Y_{iT}(d_{1:T})\mid H_{it}(d_{1:t-1})\}
 &amp;\sum_i\gamma_i=1,\qquad 0\leq\gamma_i\leq w_{\max},\\
 &amp;\gamma_i=0\quad\text{if }A_{i,1:t}\neq d_{1:t}.
 \end{aligned}
-\]</span></p>
+</span></p>
 <p>Thus the first-period path group is balanced to the whole sample. At later periods, the longer path group is balanced to the preceding path group after applying the previous period’s weights. <code>DynamicCovariateBalance</code> calls the same autoscaling, bounded quadratic dual map, solver sequence, normalization, and diagnostics used by <code>BalancingWeights(objective="quadratic")</code>; this is one shared calibration engine rather than a second weighting implementation.</p>
-<p>Given the recursive predictions <span class="math inline">\(\widehat q_{it}=H_{it}'\widehat\beta_d^{(t)}\)</span>, the augmented path-mean estimator is</p>
-<p><span class="math display">\[
+<p>Given the recursive predictions <span class="math inline">\widehat q_{it}=H_{it}'\widehat\beta_d^{(t)}</span>, the augmented path-mean estimator is</p>
+<p><span class="math display">
 \widehat\mu_T(d)
 =\sum_i\widehat\gamma_{iT}Y_{iT}
 -\sum_{t=2}^T\sum_i
 (\widehat\gamma_{it}-\widehat\gamma_{i,t-1})\widehat q_{it}
 -\sum_i(\widehat\gamma_{i1}-1/n)\widehat q_{i1}.
-\]</span></p>
-<p>The paper permits coordinatewise <span class="math inline">\(\ell_\infty\)</span> balance slack and explicit high-dimensional tuning. The first package implementation uses exact balance, ridge projections, and the existing scalar weight cap. It reports calibration diagnostics but deliberately does not report an analytic standard error yet; Monte Carlo dispersion or a unit bootstrap is required for uncertainty until the paper’s longitudinal influence-function variance is implemented.</p>
+</span></p>
+<p>The paper permits coordinatewise <span class="math inline">\ell_\infty</span> balance slack and explicit high-dimensional tuning. The first package implementation uses exact balance, ridge projections, and the existing scalar weight cap. It reports calibration diagnostics but deliberately does not report an analytic standard error yet; Monte Carlo dispersion or a unit bootstrap is required for uncertainty until the paper’s longitudinal influence-function variance is implemented.</p>
 </section>
 <section id="api" class="level2">
 <h2 class="anchored" data-anchor-id="api">API</h2>
@@ -681,25 +703,25 @@ E\{Y_{iT}(d_{1:T})\mid H_{it}(d_{1:t-1})\}
 <span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>dcb.potential_outcome</span>
 <span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>dcb.get_weights()  <span class="co"># n_units by n_periods</span></span>
 <span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>dcb.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>treatment_mode="blip"</code> uses the supplied period-specific treatment directly. <code>treatment_mode="initiation"</code> requires a binary absorbing treatment-status panel, constructs a first-treatment pulse internally, and restricts each assignment-time equation to units not treated before that time. In initiation mode, <span class="math inline">\(\psi_h\)</span> is the effect at horizon <span class="math inline">\(h\)</span> of initiating at <span class="math inline">\(m\)</span> rather than remaining untreated from <span class="math inline">\(m\)</span> onward, among the relevant initiation history.</p>
-<p><code>DynamicCovariateBalance.fit(...)</code> takes only the final outcome because its estimand is a path-specific final mean. The treatment panel and target path have the same number of periods; <code>history[:, t, :]</code> must contain only pre-treatment information for period <span class="math inline">\(t\)</span>. A path contrast requires two fitted objects, one for each path. <code>summary()</code> reports prefix support, effective sample size, maximum original-scale imbalance, per-period solver status, and the fitted path mean.</p>
+<p><code>treatment_mode="blip"</code> uses the supplied period-specific treatment directly. <code>treatment_mode="initiation"</code> requires a binary absorbing treatment-status panel, constructs a first-treatment pulse internally, and restricts each assignment-time equation to units not treated before that time. In initiation mode, <span class="math inline">\psi_h</span> is the effect at horizon <span class="math inline">h</span> of initiating at <span class="math inline">m</span> rather than remaining untreated from <span class="math inline">m</span> onward, among the relevant initiation history.</p>
+<p><code>DynamicCovariateBalance.fit(...)</code> takes only the final outcome because its estimand is a path-specific final mean. The treatment panel and target path have the same number of periods; <code>history[:, t, :]</code> must contain only pre-treatment information for period <span class="math inline">t</span>. A path contrast requires two fitted objects, one for each path. <code>summary()</code> reports prefix support, effective sample size, maximum original-scale imbalance, per-period solver status, and the fitted path mean.</p>
 </section>
 <section id="numerical-experiment-1-post-treatment-covariate-feedback" class="level2">
 <h2 class="anchored" data-anchor-id="numerical-experiment-1-post-treatment-covariate-feedback">Numerical experiment 1: post-treatment covariate feedback</h2>
-<p>The first design makes <span class="math inline">\(Z_t\)</span> a mediator of <span class="math inline">\(A_{t-1}\)</span> and a confounder for <span class="math inline">\(A_t\)</span>:</p>
-<p><span class="math display">\[
+<p>The first design makes <span class="math inline">Z_t</span> a mediator of <span class="math inline">A_{t-1}</span> and a confounder for <span class="math inline">A_t</span>:</p>
+<p><span class="math display">
 Z_t=0.8A_{t-1}+U_t,
 \qquad
 \Pr(A_t=1\mid Z_t,A_{t-1})=\operatorname{logit}^{-1}(-0.2+0.8Z_t+0.2A_{t-1}),
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 Y_t=2A_t+0.5A_{t-1}+1.5Z_t+\varepsilon_t.
-\]</span></p>
-<p>The contemporaneous blip is <span class="math inline">\(\gamma_0=2\)</span>. The first-lag blip includes both the direct path and the mediated path through <span class="math inline">\(Z_t\)</span>:</p>
-<p><span class="math display">\[
+</span></p>
+<p>The contemporaneous blip is <span class="math inline">\gamma_0=2</span>. The first-lag blip includes both the direct path and the mediated path through <span class="math inline">Z_t</span>:</p>
+<p><span class="math display">
 \gamma_1=0.5+1.5(0.8)=1.7.
-\]</span></p>
-<div id="33d344f1" class="cell" data-execution_count="1">
+</span></p>
+<div id="1a588d11" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -769,22 +791,22 @@ Y_t=2A_t+0.5A_{t-1}+1.5Z_t+\varepsilon_t.
 </div>
 </div>
 </div>
-<p>An ADL regression that includes <span class="math inline">\(Z_t\)</span> while interpreting the coefficient on <span class="math inline">\(A_{t-1}\)</span> as its total lagged effect blocks the mediated path and targets <span class="math inline">\(0.5\)</span>, not <span class="math inline">\(1.7\)</span>. Omitting <span class="math inline">\(Z_t\)</span> instead confounds the contemporaneous effect. The recursive blip regressions change the adjustment time with the causal lag.</p>
+<p>An ADL regression that includes <span class="math inline">Z_t</span> while interpreting the coefficient on <span class="math inline">A_{t-1}</span> as its total lagged effect blocks the mediated path and targets <span class="math inline">0.5</span>, not <span class="math inline">1.7</span>. Omitting <span class="math inline">Z_t</span> instead confounds the contemporaneous effect. The recursive blip regressions change the adjustment time with the causal lag.</p>
 </section>
 <section id="numerical-experiment-2-staggered-initiation-with-level-confounding" class="level2">
 <h2 class="anchored" data-anchor-id="numerical-experiment-2-staggered-initiation-with-level-confounding">Numerical experiment 2: staggered initiation with level confounding</h2>
-<p>The second design contains an unobserved <span class="math inline">\(U_i\)</span> that affects both treatment initiation and the untreated outcome <em>level</em>. It does not affect untreated increments. The observed history <span class="math inline">\(L_{im}\)</span> predicts both initiation and untreated increments:</p>
-<p><span class="math display">\[
+<p>The second design contains an unobserved <span class="math inline">U_i</span> that affects both treatment initiation and the untreated outcome <em>level</em>. It does not affect untreated increments. The observed history <span class="math inline">L_{im}</span> predicts both initiation and untreated increments:</p>
+<p><span class="math display">
 Y_{i0}(0)=2U_i+\varepsilon_{i0},
 \qquad
 Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 \Pr(T_i=m\mid T_i\ge m,L_{im},U_i)
 =\operatorname{logit}^{-1}(-1.2+0.55L_{im}+0.65U_i).
-\]</span></p>
-<p>The initiation response is <span class="math inline">\((1.0,1.6,2.1)\)</span> at horizons one through three. This violates level ignorability because <span class="math inline">\(U_i\)</span> confounds initiation and <span class="math inline">\(Y_{i0}(0)\)</span>, but it satisfies the simulated conditional parallel-trends restriction.</p>
-<div id="5dee5226" class="cell" data-execution_count="2">
+</span></p>
+<p>The initiation response is <span class="math inline">(1.0,1.6,2.1)</span> at horizons one through three. This violates level ignorability because <span class="math inline">U_i</span> confounds initiation and <span class="math inline">Y_{i0}(0)</span>, but it satisfies the simulated conditional parallel-trends restriction.</p>
+<div id="aaccbde6" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">91</span>)</span>
@@ -873,7 +895,7 @@ Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
 </div>
 </div>
 </div>
-<div id="4c4999da" class="cell" data-execution_count="3">
+<div id="61787267" class="cell" data-execution_count="3">
 <div class="cell-output cell-output-display" data-execution_count="3">
 <div>
 
@@ -911,34 +933,34 @@ Y_{i,m+1}(0)-Y_{im}(0)=0.35L_{im}+\varepsilon_{i,m+1},
 </section>
 <section id="comparative-simulation-study" class="level2">
 <h2 class="anchored" data-anchor-id="comparative-simulation-study">Comparative simulation study</h2>
-<p>The three estimators target different primitive objects. A common scalar comparison is possible in a linear distributed-lag design. There are four treatment decisions, <span class="math inline">\(t=0,1,2,3\)</span>, and the target contrasts are</p>
-<p><span class="math display">\[
+<p>The three estimators target different primitive objects. A common scalar comparison is possible in a linear distributed-lag design. There are four treatment decisions, <span class="math inline">t=0,1,2,3</span>, and the target contrasts are</p>
+<p><span class="math display">
 d^0=(0,0,0,0),\qquad d^1=(0,1,1,1).
-\]</span></p>
-<p>Because the final outcome is <span class="math inline">\(Y_4\)</span>, switching from <span class="math inline">\(d^0\)</span> to <span class="math inline">\(d^1\)</span> changes the treatments entering at horizons one, two, and three. The common target is therefore</p>
-<p><span class="math display">\[
+</span></p>
+<p>Because the final outcome is <span class="math inline">Y_4</span>, switching from <span class="math inline">d^0</span> to <span class="math inline">d^1</span> changes the treatments entering at horizons one, two, and three. The common target is therefore</p>
+<p><span class="math display">
 \tau=\mu_4(d^1)-\mu_4(d^0)
 =1+0.6+0.4=2.
-\]</span></p>
-<p>For each unit, draw mutually independent standard-normal <span class="math inline">\(X_i,U_i,L_{i,-1},\eta_{it},\varepsilon_{it}\)</span>. Let <span class="math inline">\(\Lambda(v)=1/(1+e^{-v})\)</span>, set <span class="math inline">\(A_{i,-1}=A_{i,-2}=0\)</span>, and generate</p>
-<p><span class="math display">\[
+</span></p>
+<p>For each unit, draw mutually independent standard-normal <span class="math inline">X_i,U_i,L_{i,-1},\eta_{it},\varepsilon_{it}</span>. Let <span class="math inline">\Lambda(v)=1/(1+e^{-v})</span>, set <span class="math inline">A_{i,-1}=A_{i,-2}=0</span>, and generate</p>
+<p><span class="math display">
 L_{it}=0.5X_i+\eta_{it},
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 A_{it}\mid X_i,L_{it},A_{i,t-1},U_i
 \sim\operatorname{Bernoulli}\left[
 \Lambda\{-0.1+0.35X_i+0.35L_{it}+0.2A_{i,t-1}+\rho U_i\}
 \right],
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 Y_{i0}=U_i+0.5X_i+0.4L_{i,-1}+\varepsilon_{i0},
-\]</span></p>
-<p><span class="math display">\[
+</span></p>
+<p><span class="math display">
 Y_{i,t+1}
 =U_i+0.5X_i+0.15(t+1)+0.4L_{it}
 +A_{it}+0.6A_{i,t-1}+0.4A_{i,t-2}+\varepsilon_{i,t+1}.
-\]</span></p>
-<p>The observed-selection design sets <span class="math inline">\(\rho=0\)</span>. The history <span class="math inline">\(H_{it}=(X_i,L_{it},L_{i,t-1},A_{i,t-1})\)</span> then contains the treatment predictors. The fixed <span class="math inline">\(U_i\)</span> shifts outcome levels but is independent of treatment.</p>
+</span></p>
+<p>The observed-selection design sets <span class="math inline">\rho=0</span>. The history <span class="math inline">H_{it}=(X_i,L_{it},L_{i,t-1},A_{i,t-1})</span> then contains the treatment predictors. The fixed <span class="math inline">U_i</span> shifts outcome levels but is independent of treatment.</p>
 <div class="cell" data-layout-align="default">
 <details class="code-fold">
 <summary>Code</summary>
@@ -971,7 +993,7 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<p>The hidden-selection design sets <span class="math inline">\(\rho=0.6\)</span>. The unobserved <span class="math inline">\(U_i\)</span> now causes both treatment and outcome <em>levels</em>. It does not enter the untreated trend because it cancels from <span class="math inline">\(Y_{i,t+1}(0)-Y_{it}(0)\)</span>. Sequential ignorability fails for the regression-blip and dynamic-balancing estimators, while the time-varying parallel-trends restriction remains plausible.</p>
+<p>The hidden-selection design sets <span class="math inline">\rho=0.6</span>. The unobserved <span class="math inline">U_i</span> now causes both treatment and outcome <em>levels</em>. It does not enter the untreated trend because it cancels from <span class="math inline">Y_{i,t+1}(0)-Y_{it}(0)</span>. Sequential ignorability fails for the regression-blip and dynamic-balancing estimators, while the time-varying parallel-trends restriction remains plausible.</p>
 <div class="cell" data-layout-align="default">
 <details class="code-fold">
 <summary>Code</summary>
@@ -1008,8 +1030,8 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<p>For each draw, <code>RegressionBlip</code> estimates <span class="math inline">\(\tau\)</span> as <span class="math inline">\(\widehat\gamma_0+\widehat\gamma_1+\widehat\gamma_2\)</span>. <code>ParallelTrendsSNMM</code> estimates it as <span class="math inline">\(\widehat\psi_1+\widehat\psi_2+\widehat\psi_3\)</span>. <code>DynamicCovariateBalance</code> fits <span class="math inline">\(\widehat\mu_4(d^1)\)</span> and <span class="math inline">\(\widehat\mu_4(d^0)\)</span> separately and differences them.</p>
-<div id="8f2cc459" class="cell" data-execution_count="4">
+<p>For each draw, <code>RegressionBlip</code> estimates <span class="math inline">\tau</span> as <span class="math inline">\widehat\gamma_0+\widehat\gamma_1+\widehat\gamma_2</span>. <code>ParallelTrendsSNMM</code> estimates it as <span class="math inline">\widehat\psi_1+\widehat\psi_2+\widehat\psi_3</span>. <code>DynamicCovariateBalance</code> fits <span class="math inline">\widehat\mu_4(d^1)</span> and <span class="math inline">\widehat\mu_4(d^0)</span> separately and differences them.</p>
+<div id="d7519475" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -1229,7 +1251,7 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<div id="c969462a" class="cell" data-execution_count="5">
+<div id="5c501f8d" class="cell" data-execution_count="5">
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -1239,7 +1261,7 @@ Y_{i,t+1}
 </div>
 </div>
 </div>
-<div id="c32ffc6c" class="cell" data-execution_count="6">
+<div id="29a161fc" class="cell" data-execution_count="6">
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -1250,8 +1272,8 @@ Y_{i,t+1}
 </div>
 </div>
 <p>Under selection on observables, all three sampling distributions are centered near two. The recursive regression is most efficient in this correctly specified low-dimensional outcome model; the parallel-trends estimator pays for orthogonalization and cross-fitting, while the path-specific dynamic-balancing contrast pays for estimating two increasingly selective path means.</p>
-<p>When <span class="math inline">\(U_i\)</span> enters treatment assignment, the regression-blip and dynamic-balancing estimates inherit the positive level confounding. The parallel-trends estimate remains close to the target because differencing removes <span class="math inline">\(U_i\)</span>. This is not generic robustness to hidden confounding: it relies specifically on <span class="math inline">\(U_i\)</span> being time invariant and absent from untreated outcome trends.</p>
-<div id="7f35aafd" class="cell" data-execution_count="7">
+<p>When <span class="math inline">U_i</span> enters treatment assignment, the regression-blip and dynamic-balancing estimates inherit the positive level confounding. The parallel-trends estimate remains close to the target because differencing removes <span class="math inline">U_i</span>. This is not generic robustness to hidden confounding: it relies specifically on <span class="math inline">U_i</span> being time invariant and absent from untreated outcome trends.</p>
+<div id="2dd265f9" class="cell" data-execution_count="7">
 <div class="cell-output cell-output-display" data-execution_count="7">
 <div>
 
@@ -1321,9 +1343,9 @@ Y_{i,t+1}
 </tr>
 <tr class="odd">
 <td>Outcome timing</td>
-<td><span class="math inline">\(A_t\)</span> may affect <span class="math inline">\(Y_t\)</span></td>
-<td><span class="math inline">\(A_m\)</span> first affects <span class="math inline">\(Y_{m+1}\)</span></td>
-<td>History precedes <span class="math inline">\(A_t\)</span>; final outcome supplied separately</td>
+<td><span class="math inline">A_t</span> may affect <span class="math inline">Y_t</span></td>
+<td><span class="math inline">A_m</span> first affects <span class="math inline">Y_{m+1}</span></td>
+<td>History precedes <span class="math inline">A_t</span>; final outcome supplied separately</td>
 </tr>
 <tr class="even">
 <td>Nuisance strategy</td>
@@ -1777,13 +1799,18 @@ Y_{i,t+1}
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

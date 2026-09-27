@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -494,7 +516,7 @@ window.Quarto = {
 
 
 <p>The full chapter studies several studentized statistics. This translation keeps the core contrast: when treatment effects are heterogeneous, the Neyman average-null and the Fisher sharp-null need not lead to the same finite-sample p-values.</p>
-<div id="cf963e1f" class="cell" data-execution_count="1">
+<div id="7e57a235" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
@@ -507,7 +529,7 @@ window.Quarto = {
 </div>
 <section id="a-simulation-with-zero-average-effect-but-heterogeneous-individual-effects" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="a-simulation-with-zero-average-effect-but-heterogeneous-individual-effects"><span class="header-section-number">1</span> A Simulation With Zero Average Effect But Heterogeneous Individual Effects</h2>
-<div id="5ad8f98a" class="cell" data-execution_count="2">
+<div id="7f264a71" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">8</span>)</span>
@@ -568,7 +590,7 @@ Share Neyman &lt;= 0.05: 0.0
 Share Fisher &lt;= 0.05: 0.0</code></pre>
 </div>
 </div>
-<div id="53dc40cf" class="cell" data-execution_count="3">
+<div id="26755463" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">4</span>))</span>
@@ -592,7 +614,7 @@ Share Fisher &lt;= 0.05: 0.0</code></pre>
 </div>
 </div>
 </div>
-<p>Here the finite-population average treatment effect is close to zero, so Neyman’s null is plausible. Fisher’s sharp null is false because the unit-level treatment effects vary with <span class="math inline">\(x\)</span>. The resulting p-value distributions do not line up perfectly, which is exactly the point of the chapter.</p>
+<p>Here the finite-population average treatment effect is close to zero, so Neyman’s null is plausible. Fisher’s sharp null is false because the unit-level treatment effects vary with <span class="math inline">x</span>. The resulting p-value distributions do not line up perfectly, which is exactly the point of the chapter.</p>
 
 
 </section>
@@ -1002,13 +1024,18 @@ Share Fisher &lt;= 0.05: 0.0</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

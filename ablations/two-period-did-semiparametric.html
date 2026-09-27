@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -488,18 +510,18 @@ window.Quarto = {
 
 
 <p>Semiparametric two-period DID estimators target the period-1 ATT. The design uses high-dimensional sparse covariates, a sparse propensity score, and two periods of potential outcomes. The target is the period-1 ATT,</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \tau_{ATT} = \mathbb{E}[Y^1(1) - Y^0(1) \mid D=1].
-\]</span></p>
+</span></p>
 <p>The comparison covers the usual two-period DID estimator together with outcome-modeling, IPW, and AIPW variants under two regimes:</p>
 <ul>
-<li><span class="math inline">\(\rho = 0\)</span>: unconditional parallel trends holds;</li>
-<li><span class="math inline">\(\rho = 2\)</span>: unconditional parallel trends fails, but conditional parallel trends holds after adjusting for <span class="math inline">\(X\)</span> through the propensity-index component in the untreated trend.</li>
+<li><span class="math inline">\rho = 0</span>: unconditional parallel trends holds;</li>
+<li><span class="math inline">\rho = 2</span>: unconditional parallel trends fails, but conditional parallel trends holds after adjusting for <span class="math inline">X</span> through the propensity-index component in the untreated trend.</li>
 </ul>
 <p>The nuisance fits use lightweight ridge/logistic-ridge learners so the page is self-contained in the Python docs environment. The estimator menu includes unadjusted DID, outcome-model DID, IPW DID, and AIPW DID, with plug-in and cross-fit versions of the nuisance-based estimators.</p>
 <section id="imports-and-helpers" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports-and-helpers"><span class="header-section-number">1</span> Imports And Helpers</h2>
-<div id="0c44c3a3" class="cell" data-execution_count="1">
+<div id="a2d7522f" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -540,34 +562,34 @@ window.Quarto = {
 </section>
 <section id="dgp" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="dgp"><span class="header-section-number">2</span> DGP</h2>
-<p>Let <span class="math inline">\(N=200\)</span>, <span class="math inline">\(p=100\)</span>, and <span class="math inline">\(s=5\)</span>. The covariates are</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">N=200</span>, <span class="math inline">p=100</span>, and <span class="math inline">s=5</span>. The covariates are</p>
+<p><span class="math display">
 X_i \sim \mathcal{N}(0, I_p),
-\]</span></p>
+</span></p>
 <p>and the sparse propensity index uses</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \gamma_0 = (1, 1/2, 1/3, 1/4, 1/5, 0, \ldots, 0)^\top.
-\]</span></p>
+</span></p>
 <p>Treatment is assigned by</p>
-<p><span class="math display">\[
+<p><span class="math display">
 D_i \sim \mathrm{Bernoulli}(e_i),
 \qquad
 e_i = \Lambda(X_i^\top \gamma_0).
-\]</span></p>
+</span></p>
 <p>The potential outcomes are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \begin{aligned}
 Y_i^0(0) &amp;= X_i^\top \beta_0 + \varepsilon_i, \\
 Y_i^0(1) &amp;= Y_i^0(0) + 1 + \rho e_i + \varepsilon_i, \\
 Y_i^1(1) &amp;= \theta_0 + Y_i^0(1) + \varepsilon_i,
 \end{aligned}
-\]</span></p>
-<p>where <span class="math inline">\(\beta_0 = \gamma_0 + 0.5\)</span>, <span class="math inline">\(\theta_0 = 3\)</span>, and <span class="math inline">\(\varepsilon_i \sim \mathcal{N}(0, 0.1^2)\)</span>. A common shock is used across the baseline, untreated-trend, and treated-outcome equations. The observed outcomes are <span class="math inline">\(Y_i(0)=Y_i^0(0)\)</span> and</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">\beta_0 = \gamma_0 + 0.5</span>, <span class="math inline">\theta_0 = 3</span>, and <span class="math inline">\varepsilon_i \sim \mathcal{N}(0, 0.1^2)</span>. A common shock is used across the baseline, untreated-trend, and treated-outcome equations. The observed outcomes are <span class="math inline">Y_i(0)=Y_i^0(0)</span> and</p>
+<p><span class="math display">
 Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
-\]</span></p>
-<p>When <span class="math inline">\(\rho = 0\)</span>, the untreated trend does not depend on the propensity score and the simple DID contrast is valid. When <span class="math inline">\(\rho \neq 0\)</span>, units with high treatment probability also have different untreated trends, so unconditional DID is biased unless the covariates are accounted for.</p>
-<div id="aee663d5" class="cell" data-execution_count="2">
+</span></p>
+<p>When <span class="math inline">\rho = 0</span>, the untreated trend does not depend on the propensity score and the simple DID contrast is valid. When <span class="math inline">\rho \neq 0</span>, units with high treatment probability also have different untreated trends, so unconditional DID is biased unless the covariates are accounted for.</p>
+<div id="2adcd5bb" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> semipar_did_dgp(n<span class="op">=</span><span class="dv">200</span>, p<span class="op">=</span><span class="dv">100</span>, s<span class="op">=</span><span class="dv">5</span>, theta<span class="op">=</span><span class="fl">3.0</span>, rho<span class="op">=</span><span class="fl">0.0</span>, rng<span class="op">=</span><span class="va">None</span>):</span>
@@ -644,27 +666,27 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 <ol type="1">
 <li><code>naive</code>: post-period treated-control difference;</li>
 <li><code>did</code>: unadjusted two-period DID;</li>
-<li><code>om</code>: outcome-model DID using fitted <span class="math inline">\(\mathbb{E}[Y_t \mid X,D=d]\)</span> surfaces;</li>
+<li><code>om</code>: outcome-model DID using fitted <span class="math inline">\mathbb{E}[Y_t \mid X,D=d]</span> surfaces;</li>
 <li><code>omXF</code>: cross-fit version of <code>om</code>;</li>
 <li><code>ipw</code>: Abadie-style IPW DID using a fitted propensity score;</li>
 <li><code>ipwXF</code>: cross-fit version of <code>ipw</code>;</li>
 <li><code>aipw</code>: double-robust DID using a propensity score and untreated-trend model;</li>
 <li><code>aipwXF</code>: cross-fit version of <code>aipw</code>.</li>
 </ol>
-<p>The estimating equations are easiest to see after defining <span class="math inline">\(\Delta Y_i = Y_i(1)-Y_i(0)\)</span> and <span class="math inline">\(\hat p = n^{-1}\sum_i D_i\)</span>. The IPW score is</p>
-<p><span class="math display">\[
+<p>The estimating equations are easiest to see after defining <span class="math inline">\Delta Y_i = Y_i(1)-Y_i(0)</span> and <span class="math inline">\hat p = n^{-1}\sum_i D_i</span>. The IPW score is</p>
+<p><span class="math display">
 \hat\tau^{IPW}
 = \frac{1}{n}\sum_i
 \frac{D_i - \hat e(X_i)}{\hat p(1-\hat e(X_i))}\Delta Y_i.
-\]</span></p>
-<p>The AIPW score subtracts the untreated-trend model <span class="math inline">\(\hat m_0(X_i) \approx \mathbb{E}[\Delta Y_i \mid X_i, D_i=0]\)</span> before applying the same balancing score:</p>
-<p><span class="math display">\[
+</span></p>
+<p>The AIPW score subtracts the untreated-trend model <span class="math inline">\hat m_0(X_i) \approx \mathbb{E}[\Delta Y_i \mid X_i, D_i=0]</span> before applying the same balancing score:</p>
+<p><span class="math display">
 \hat\tau^{AIPW}
 = \frac{1}{n}\sum_i
 \frac{D_i - \hat e(X_i)}{\hat p(1-\hat e(X_i))}
 \{\Delta Y_i - \hat m_0(X_i)\}.
-\]</span></p>
-<div id="7d537cbd" class="cell" data-execution_count="3">
+</span></p>
+<div id="b76249a4" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ridge_fit(x, y, penalty<span class="op">=</span><span class="fl">1.0</span>):</span>
@@ -829,8 +851,8 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 </section>
 <section id="monte-carlo" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="monte-carlo"><span class="header-section-number">4</span> Monte Carlo</h2>
-<p>The simulation compares <span class="math inline">\(\rho=0\)</span> and <span class="math inline">\(\rho=2\)</span>. The true effect is <span class="math inline">\(\theta_0=3\)</span> in both cases.</p>
-<div id="91c64515" class="cell" data-execution_count="4">
+<p>The simulation compares <span class="math inline">\rho=0</span> and <span class="math inline">\rho=2</span>. The true effect is <span class="math inline">\theta_0=3</span> in both cases.</p>
+<div id="1d7c02b3" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> summarize(vals, truth):</span>
@@ -1051,7 +1073,7 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 </table>
 </div>
 </div>
-<div id="f3be6b97" class="cell" data-execution_count="5">
+<div id="3c5d2f8b" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">2</span>, <span class="dv">1</span>, figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="dv">8</span>), constrained_layout<span class="op">=</span><span class="va">True</span>, sharex<span class="op">=</span><span class="va">True</span>)</span>
@@ -1077,9 +1099,9 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 </section>
 <section id="reading-the-results" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="reading-the-results"><span class="header-section-number">5</span> Reading The Results</h2>
-<p>When <span class="math inline">\(\rho=0\)</span>, unconditional parallel trends holds. The unadjusted DID estimator is therefore centered near the true effect, while the post-period naive contrast remains badly confounded because treated and control units differ in the sparse propensity-index covariates.</p>
-<p>When <span class="math inline">\(\rho=2\)</span>, unconditional DID breaks: the untreated trend itself contains the propensity score, so high-propensity units would have grown differently even without treatment. The adjusted estimators target the conditional parallel-trends structure. Outcome modeling works when the nuisance regressions recover the relevant high-dimensional linear signal. IPW works by reweighting the untreated trend changes toward the treated covariate distribution, but it is more variance-sensitive because the propensity score appears in the denominator. AIPW combines both pieces: it removes the fitted untreated trend and then balances the residual trend by the propensity score.</p>
-<p>The cross-fit columns avoid using each observation’s own outcome to construct its nuisance prediction. In this small-<span class="math inline">\(N\)</span>, high-<span class="math inline">\(p\)</span> design, cross-fitting is not guaranteed to reduce variance in every estimator, but it is the safer pattern for the doubly robust score.</p>
+<p>When <span class="math inline">\rho=0</span>, unconditional parallel trends holds. The unadjusted DID estimator is therefore centered near the true effect, while the post-period naive contrast remains badly confounded because treated and control units differ in the sparse propensity-index covariates.</p>
+<p>When <span class="math inline">\rho=2</span>, unconditional DID breaks: the untreated trend itself contains the propensity score, so high-propensity units would have grown differently even without treatment. The adjusted estimators target the conditional parallel-trends structure. Outcome modeling works when the nuisance regressions recover the relevant high-dimensional linear signal. IPW works by reweighting the untreated trend changes toward the treated covariate distribution, but it is more variance-sensitive because the propensity score appears in the denominator. AIPW combines both pieces: it removes the fitted untreated trend and then balances the residual trend by the propensity score.</p>
+<p>The cross-fit columns avoid using each observation’s own outcome to construct its nuisance prediction. In this small-<span class="math inline">N</span>, high-<span class="math inline">p</span> design, cross-fitting is not guaranteed to reduce variance in every estimator, but it is the safer pattern for the doubly robust score.</p>
 
 
 </section>
@@ -1489,13 +1511,18 @@ Y_i(1) = (1-D_i)Y_i^0(1) + D_iY_i^1(1).
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

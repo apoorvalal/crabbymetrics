@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -501,17 +523,17 @@ window.Quarto = {
 
 
 <p><code>BalancingWeights</code> solves the mean-balancing problem</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_{i \in \mathcal{C}} w_i = 1,
 \qquad
 \sum_{i \in \mathcal{C}} w_i X_i \approx \bar X_{\mathcal{T}},
-\]</span></p>
+</span></p>
 <p>while keeping the control weights close to uniform under either an entropy or a quadratic objective. In causal-inference terms, the common ATT use case is:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat{\tau}_{ATT}
 =
 \bar Y_{\mathcal{T}} - \sum_{i \in \mathcal{C}} w_i Y_i.
-\]</span></p>
+</span></p>
 <p>The examples below use two stress tests:</p>
 <ul>
 <li>Kang-Schafer, where the observed covariates are nonlinear transformations of latent Gaussian drivers.</li>
@@ -531,8 +553,8 @@ window.Quarto = {
 </section>
 <section id="entropy-balancing-cbps-and-tilting" class="level2">
 <h2 class="anchored" data-anchor-id="entropy-balancing-cbps-and-tilting">Entropy Balancing, CBPS, and Tilting</h2>
-<p>Let <span class="math inline">\(b_i = b(X_i)\)</span> be the balance basis supplied by the user, and let <span class="math inline">\(q_i &gt; 0\)</span> denote baseline control weights. <code>BalancingWeights.fit(...)</code> does not require an intercept column in <code>b_i</code>; it handles the sum-to-one constraint separately. For the ATT, entropy balancing solves</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">b_i = b(X_i)</span> be the balance basis supplied by the user, and let <span class="math inline">q_i &gt; 0</span> denote baseline control weights. <code>BalancingWeights.fit(...)</code> does not require an intercept column in <code>b_i</code>; it handles the sum-to-one constraint separately. For the ATT, entropy balancing solves</p>
+<p><span class="math display">
 \min_{\{w_i\}_{i \in \mathcal{C}}}
 \sum_{i \in \mathcal{C}} w_i \log\!\left(\frac{w_i}{q_i}\right)
 \quad
@@ -541,17 +563,17 @@ window.Quarto = {
 \sum_{i \in \mathcal{C}} w_i = 1,
 \qquad
 \sum_{i \in \mathcal{C}} w_i b_i = \bar b_{\mathcal{T}}.
-\]</span></p>
+</span></p>
 <p>The Lagrangian first-order conditions imply a log-linear dual solution</p>
-<p><span class="math display">\[
+<p><span class="math display">
 w_i(\lambda)
 =
 \frac{q_i \exp(\lambda^\top b_i)}
 {\sum_{j \in \mathcal{C}} q_j \exp(\lambda^\top b_j)},
-\]</span></p>
-<p>after the usual sign relabeling of the multipliers. This is the core Hainmueller result: entropy balancing chooses the multiplier <span class="math inline">\(\lambda\)</span> so that the tilted control distribution exactly matches the treated moments.</p>
-<p>Now write the ATT-CBPS balance equations with an augmented basis <span class="math inline">\(c_i = (1, b_i^\top)^\top\)</span> and a logit propensity score <span class="math inline">\(p_i = \Lambda(\beta^\top c_i)\)</span>:</p>
-<p><span class="math display">\[
+</span></p>
+<p>after the usual sign relabeling of the multipliers. This is the core Hainmueller result: entropy balancing chooses the multiplier <span class="math inline">\lambda</span> so that the tilted control distribution exactly matches the treated moments.</p>
+<p>Now write the ATT-CBPS balance equations with an augmented basis <span class="math inline">c_i = (1, b_i^\top)^\top</span> and a logit propensity score <span class="math inline">p_i = \Lambda(\beta^\top c_i)</span>:</p>
+<p><span class="math display">
 \frac{1}{n}
 \sum_{i=1}^n
 \left[
@@ -561,57 +583,57 @@ D_i c_i
 \right]
 =
 0.
-\]</span></p>
+</span></p>
 <p>Because the logit odds ratio satisfies</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \frac{p_i}{1-p_i}
 =
 \exp(\beta^\top c_i),
-\]</span></p>
+</span></p>
 <p>the implied unnormalized control weights are</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \tilde w_i(\beta)
 =
 (1-D_i)\exp(\beta^\top c_i).
-\]</span></p>
+</span></p>
 <p>The intercept moment pins down their total mass:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_{i \in \mathcal{C}} \tilde w_i(\beta)
 =
 \sum_{i=1}^n D_i
 =
 n_{\mathcal{T}}.
-\]</span></p>
-<p>Dividing by <span class="math inline">\(n_{\mathcal{T}}\)</span> yields normalized control weights</p>
-<p><span class="math display">\[
+</span></p>
+<p>Dividing by <span class="math inline">n_{\mathcal{T}}</span> yields normalized control weights</p>
+<p><span class="math display">
 w_i^{\mathrm{CBPS}}
 =
 \frac{\exp(\beta^\top c_i)}
 {\sum_{j \in \mathcal{C}} \exp(\beta^\top c_j)},
 \qquad i \in \mathcal{C},
-\]</span></p>
+</span></p>
 <p>and the remaining moments become</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_{i \in \mathcal{C}} w_i^{\mathrm{CBPS}} c_i
 =
 \bar c_{\mathcal{T}}.
-\]</span></p>
-<p>So with the same balance basis <span class="math inline">\(c(X)\)</span>, an intercept, and uniform baseline weights <span class="math inline">\(q_i\)</span>, ATT entropy balancing and just-identified logit CBPS deliver the same normalized weights. The practical difference is mostly primal versus dual parameterization: entropy balancing solves directly for calibration weights or multipliers, while CBPS solves for propensity-score coefficients whose logit odds generate those same weights.</p>
-<p>Graham’s inverse probability tilting step is the same balance-first idea in another parameterization. The 2012 IPT moments choose a logit index so the implied weights satisfy exact balance moments, which in the ATT specialization again produces inverse-odds weights proportional to <span class="math inline">\(\exp(\beta^\top c_i)\)</span>. AST adds a second layer of tilting on top of that baseline. Writing <span class="math inline">\(\hat p_i = \Lambda(r_i^\top \hat \delta)\)</span>, the auxiliary weights take the form</p>
-<p><span class="math display">\[
+</span></p>
+<p>So with the same balance basis <span class="math inline">c(X)</span>, an intercept, and uniform baseline weights <span class="math inline">q_i</span>, ATT entropy balancing and just-identified logit CBPS deliver the same normalized weights. The practical difference is mostly primal versus dual parameterization: entropy balancing solves directly for calibration weights or multipliers, while CBPS solves for propensity-score coefficients whose logit odds generate those same weights.</p>
+<p>Graham’s inverse probability tilting step is the same balance-first idea in another parameterization. The 2012 IPT moments choose a logit index so the implied weights satisfy exact balance moments, which in the ATT specialization again produces inverse-odds weights proportional to <span class="math inline">\exp(\beta^\top c_i)</span>. AST adds a second layer of tilting on top of that baseline. Writing <span class="math inline">\hat p_i = \Lambda(r_i^\top \hat \delta)</span>, the auxiliary weights take the form</p>
+<p><span class="math display">
 \hat \pi_i^a
 \propto
 (1-D_i)\frac{\hat p_i}
 {1 - \Lambda(r_i^\top \hat \delta + t_i^\top \hat \lambda_a)}.
-\]</span></p>
-<p>When the extra auxiliary tilt is unnecessary, <span class="math inline">\(\hat \lambda_a = 0\)</span>, this collapses to</p>
-<p><span class="math display">\[
+</span></p>
+<p>When the extra auxiliary tilt is unnecessary, <span class="math inline">\hat \lambda_a = 0</span>, this collapses to</p>
+<p><span class="math display">
 \hat \pi_i^a
 \propto
 (1-D_i)\frac{\hat p_i}{1-\hat p_i}
 =
 (1-D_i)\exp(r_i^\top \hat \delta),
-\]</span></p>
+</span></p>
 <p>which is exactly the same inverse-odds / entropy-balancing weight formula. With nontrivial study or auxiliary tilts, AST is a strict generalization rather than literally the same estimator.</p>
 <p>Quadratic balancing in this library keeps the same balance constraints and changes only the distance penalty. It therefore targets the same sample moments as entropy balancing, but it does not imply the same log-linear weight formula.</p>
 <p>The rest of the page uses small helper functions for the simulations and diagnostics.</p>
@@ -836,9 +858,9 @@ w_i^{\mathrm{CBPS}}
 </section>
 <section id="kang-schafer" class="level2">
 <h2 class="anchored" data-anchor-id="kang-schafer">Kang-Schafer</h2>
-<p>Kang-Schafer is useful here because balancing is asked to work on the transformed covariates <span class="math inline">\(X\)</span>, not the latent Gaussian drivers <span class="math inline">\(Z\)</span> that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.</p>
-<p>On this single draw, both balancing estimators substantially reduce the raw covariate imbalance. The <code>Max balance error</code> column is the largest absolute difference between the weighted control mean and treated mean in the fitted balance basis. The oracle version that balances on latent <span class="math inline">\(Z\)</span> shows the benchmark we would like to approach, but it uses variables that are not observed in the real Kang-Schafer problem.</p>
-<div id="6240403f" class="cell" data-execution_count="2">
+<p>Kang-Schafer is useful here because balancing is asked to work on the transformed covariates <span class="math inline">X</span>, not the latent Gaussian drivers <span class="math inline">Z</span> that generated treatment and outcomes. The true ATT is zero, so the gap between the estimator and zero is pure bias.</p>
+<p>On this single draw, both balancing estimators substantially reduce the raw covariate imbalance. The <code>Max balance error</code> column is the largest absolute difference between the weighted control mean and treated mean in the fitted balance basis. The oracle version that balances on latent <span class="math inline">Z</span> shows the benchmark we would like to approach, but it uses variables that are not observed in the real Kang-Schafer problem.</p>
+<div id="6420fc76" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>single_dataset <span class="op">=</span> evaluate_single_dataset()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -896,7 +918,7 @@ w_i^{\mathrm{CBPS}}
 </div>
 </div>
 </div>
-<div id="804a582a" class="cell" data-execution_count="3">
+<div id="1923ad96" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_kang_schafer_panel(n_rep<span class="op">=</span><span class="dv">80</span>, n<span class="op">=</span><span class="dv">1000</span>, seed<span class="op">=</span><span class="dv">2026</span>):</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> []</span>
@@ -983,12 +1005,12 @@ w_i^{\mathrm{CBPS}}
 </table>
 </div>
 </div>
-<p>The observed-<span class="math inline">\(X\)</span> versions still live inside the canonical misspecification problem, so they do not become oracle estimators just by balancing means. But they do move sharply toward zero relative to the naive treated-control difference.</p>
+<p>The observed-<span class="math inline">X</span> versions still live inside the canonical misspecification problem, so they do not become oracle estimators just by balancing means. But they do move sharply toward zero relative to the naive treated-control difference.</p>
 </section>
 <section id="hainmueller" class="level2">
 <h2 class="anchored" data-anchor-id="hainmueller">Hainmueller</h2>
 <p>The Hainmueller-style design below keeps the unit-level treatment effect at zero while varying overlap and the difficulty of the treatment and outcome models. The harder setting deliberately uses nonlinear assignment and outcome functions, but the outcome remains finite and stable enough that the RMSE table is still interpretable.</p>
-<div id="aad16fa1" class="cell" data-execution_count="4">
+<div id="c3543022" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_hainmueller_panel(setting_name, overlap_design, pscore_design, outcome_design, n_rep<span class="op">=</span><span class="dv">50</span>, n<span class="op">=</span><span class="dv">1500</span>, seed<span class="op">=</span><span class="dv">3030</span>):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> []</span>
@@ -1107,7 +1129,7 @@ w_i^{\mathrm{CBPS}}
 </table>
 </div>
 </div>
-<div id="5c2de5b2" class="cell" data-execution_count="5">
+<div id="890b2c45" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rmse_by_setting(rows):</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    settings <span class="op">=</span> <span class="bu">sorted</span>({row[<span class="dv">0</span>] <span class="cf">for</span> row <span class="kw">in</span> rows})</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    methods <span class="op">=</span> [<span class="st">"Naive"</span>, <span class="st">"Quadratic"</span>, <span class="st">"Entropy"</span>]</span>
@@ -1558,13 +1580,18 @@ w_i^{\mathrm{CBPS}}
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

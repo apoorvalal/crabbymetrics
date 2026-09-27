@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="./examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="./ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./ablations/panel-dgp-comparisons.html">
@@ -508,19 +530,19 @@ window.Quarto = {
 <section id="fit-and-inference" class="level2">
 <h2 class="anchored" data-anchor-id="fit-and-inference">Fit and inference</h2>
 <p><code>fit(data, theta0)</code> clears prior state, validates inputs, and runs L-BFGS with a More-Thuente line search. Exhausting the iteration budget raises an error. Before a successful fit returns, Rust evaluates the scores and constructs</p>
-<p><span class="math display">\[
+<p><span class="math display">
 A=\left.\frac{\partial\,n^{-1}\sum_i\psi_i(\theta)}
 {\partial\theta'}\right|_{\hat\theta},\qquad
 B=n^{-1}\sum_i\psi_i(\hat\theta)\psi_i(\hat\theta)',\qquad
 \widehat V=\frac1n A^{-1}BA^{-T}.
-\]</span></p>
-<p>The bread <span class="math inline">\(A\)</span> is the central-difference derivative of the <strong>mean scores</strong>, not a second copy of <span class="math inline">\(B\)</span>. The parameter-specific finite-difference step is <code>derivative_step * max(abs(theta[j]), 1)</code>. A singular bread or invalid callback output causes the fit to fail and clears the partial result.</p>
+</span></p>
+<p>The bread <span class="math inline">A</span> is the central-difference derivative of the <strong>mean scores</strong>, not a second copy of <span class="math inline">B</span>. The parameter-specific finite-difference step is <code>derivative_step * max(abs(theta[j]), 1)</code>. A singular bread or invalid callback output causes the fit to fail and clears the partial result.</p>
 <p><code>summary()</code> reuses the fit-time covariance. Mutating callback data afterward does not silently change that summary. <code>compute_vcov()</code> explicitly recomputes it using the retained data; bootstrap also reuses those data, so keep them immutable for the fitted object’s lifetime.</p>
 </section>
 <section id="a-complete-callback-example" class="level2">
 <h2 class="anchored" data-anchor-id="a-complete-callback-example">A complete callback example</h2>
 <p>This least-squares objective includes its own intercept column. <code>MEstimator</code> does not add one or reorder the parameters.</p>
-<div id="849d1367" class="cell" data-execution_count="1">
+<div id="cdafc262" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -971,13 +993,18 @@ Bootstrap draw shape: (20, 3)</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="./release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="./release-0.9.html">
 <p>v0.9 migration</p>

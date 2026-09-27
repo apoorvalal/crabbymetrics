@@ -104,8 +104,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -306,6 +320,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -378,6 +396,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -490,7 +512,7 @@ window.Quarto = {
 <li>cohort-level dynamic treatment-effect heterogeneity in a staggered-adoption event study.</li>
 </ol>
 <p>Both are linear-restriction problems. Estimate a model with the potentially heterogeneous terms included, then test whether those terms are jointly zero. In <code>crabbymetrics</code>, this is a fitted-estimator <code>wald_test(...)</code> call.</p>
-<div id="a77c5117" class="cell" data-execution_count="1">
+<div id="067f8d86" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -501,15 +523,15 @@ window.Quarto = {
 <section id="case-1-lin-style-treatment-effect-heterogeneity" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="case-1-lin-style-treatment-effect-heterogeneity"><span class="header-section-number">1</span> Case 1: Lin-Style Treatment Effect Heterogeneity</h2>
 <p>In a completely randomized experiment, a Lin-style specification augments the treatment indicator with covariates and treatment-by-covariate interactions:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i = \alpha + \tau W_i + X_i'\beta + W_i X_i'\gamma + \varepsilon_i.
-\]</span></p>
+</span></p>
 <p>The omnibus heterogeneity null is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 H_0: \gamma = 0.
-\]</span></p>
+</span></p>
 <p>If the true DGP has no explained heterogeneity, the joint test should usually not reject. If treatment effects vary with observed covariates, the same test should reject with enough signal and sample size.</p>
-<div id="e381e8d5" class="cell" data-execution_count="2">
+<div id="15d7628c" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lin_design(x, w):</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    w_col <span class="op">=</span> w.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.column_stack([w_col, x, w_col <span class="op">*</span> x])</span>
@@ -553,23 +575,23 @@ Heterogeneous DGP:
 <section id="case-2-when-is-a-pooled-event-study-good-enough" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="case-2-when-is-a-pooled-event-study-good-enough"><span class="header-section-number">2</span> Case 2: When Is A Pooled Event Study Good Enough?</h2>
 <p>The same idea applies to staggered-adoption panels. The simulation below is a compact DGP cooked for this vignette, inspired by the <code>FTestEventStudy</code> note rather than copied from the paper’s exact simulation code. A conventional two-way fixed-effect event study pools dynamic treatment effects across adoption cohorts:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_{it} = \alpha_i + \lambda_t + \sum_{s \ne -1} \gamma_s \Delta^s_{it} + \varepsilon_{it}.
-\]</span></p>
+</span></p>
 <p>A saturated cohort-by-event-time regression estimates separate dynamic paths by cohort. The useful reparameterization from the <code>FTestEventStudy</code> note writes the saturated model as:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_{it} = \alpha_i + \lambda_t
 + \sum_{s \ne -1} \gamma_s \Delta^s_{it}
 + \sum_{c \ne c_0} \sum_{s \ne -1} \delta_{cs} \Delta^{cs}_{it}
 + \varepsilon_{it}.
-\]</span></p>
-<p>The common event-study coefficients <span class="math inline">\(\gamma_s\)</span> describe the baseline dynamic path. The <span class="math inline">\(\delta_{cs}\)</span> coefficients are cohort-specific deviations from that path. The diagnostic null is:</p>
-<p><span class="math display">\[
+</span></p>
+<p>The common event-study coefficients <span class="math inline">\gamma_s</span> describe the baseline dynamic path. The <span class="math inline">\delta_{cs}</span> coefficients are cohort-specific deviations from that path. The diagnostic null is:</p>
+<p><span class="math display">
 H_0: \delta_{cs} = 0 \quad \text{for all included cohorts and event times.}
-\]</span></p>
+</span></p>
 <p>Failing to reject does not establish homogeneous effects or unbiased TWFE: the test can have low power. Rejection indicates that the fitted cohort paths are incompatible with a common path under the maintained specification.</p>
 <p>The event-time tails are binned at -2 and 3, and every treated cohort is observed through event time 3. Unit-constant covariates are absorbed by unit effects and must not also enter the slope matrix. Version 0.9 rejects inference for that rank-deficient design instead of reporting misleading SEs.</p>
-<div id="3fdb8d25" class="cell" data-execution_count="3">
+<div id="c6a1cf1a" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_panel(heterogeneous<span class="op">=</span><span class="va">False</span>, seed<span class="op">=</span><span class="dv">2025</span>):</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    n_per_group <span class="op">=</span> <span class="dv">90</span></span>
@@ -1122,13 +1144,18 @@ Heterogeneous cohort paths:
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

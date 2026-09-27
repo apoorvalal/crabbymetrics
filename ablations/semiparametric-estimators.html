@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -495,7 +517,7 @@ window.Quarto = {
 <p>As with the other ablation page, Quarto execution caching and document freezing are enabled so later site renders reuse the saved outputs until this file changes.</p>
 <section id="imports-and-helpers" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="imports-and-helpers"><span class="header-section-number">1</span> Imports And Helpers</h2>
-<div id="79e06ef2" class="cell" data-execution_count="1">
+<div id="1575b57f" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -615,7 +637,7 @@ window.Quarto = {
 <section id="monte-carlo-design" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="monte-carlo-design"><span class="header-section-number">2</span> Monte Carlo Design</h2>
 <p>The continuous-treatment section reports bias, RMSE, and 95 percent coverage because both estimators return influence-function standard errors. <code>BalancingWeights</code> is currently a weighting estimator rather than a full inference object, so the binary-treatment section focuses on point-estimate bias and RMSE.</p>
-<div id="d52df973" class="cell" data-execution_count="2">
+<div id="5663edb0" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sample_sizes <span class="op">=</span> [<span class="dv">300</span>, <span class="dv">800</span>, <span class="dv">1600</span>]</span>
@@ -662,26 +684,26 @@ window.Quarto = {
 <section id="continuous-treatment-eplm-versus-partially-linear-dml" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="continuous-treatment-eplm-versus-partially-linear-dml"><span class="header-section-number">3</span> Continuous Treatment: EPLM Versus Partially Linear DML</h2>
 <p>The data generating process is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 D_i = m(X_i) + V_i,
-\]</span></p>
+</span></p>
 <p>with</p>
-<p><span class="math display">\[
+<p><span class="math display">
 m(X_i)
 =
 0.45 X_{i1} - 0.35 X_{i2} + 0.25 X_{i3}
 + 0.7 \sin(X_{i1} X_{i2})
 + 0.45 \exp(0.35 X_{i4})
 - 0.45 (X_{i5}^2 - 1),
-\]</span></p>
+</span></p>
 <p>and</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i
 =
 1 + \tau D_i + g(X_i) + U_i,
-\]</span></p>
+</span></p>
 <p>where</p>
-<p><span class="math display">\[
+<p><span class="math display">
 g(X_i)
 =
 0.6 \sin(X_{i1})
@@ -691,11 +713,11 @@ g(X_i)
 + 0.3 \cos(X_{i1} X_{i2}),
 \qquad
 \tau = 1.25.
-\]</span></p>
-<p><code>EPLM</code> is intentionally given only the raw five covariates, so its linear nuisance model is misspecified on both the treatment and outcome side. <code>PartiallyLinearDML</code> instead gets the richer basis <span class="math inline">\(B(X)\)</span> defined above and uses three-fold cross-fitting with a log-spaced ridge grid. Within each fold, the outcome and treatment nuisances choose their own penalties from that common candidate set.</p>
+</span></p>
+<p><code>EPLM</code> is intentionally given only the raw five covariates, so its linear nuisance model is misspecified on both the treatment and outcome side. <code>PartiallyLinearDML</code> instead gets the richer basis <span class="math inline">B(X)</span> defined above and uses three-fold cross-fitting with a log-spaced ridge grid. Within each fold, the outcome and treatment nuisances choose their own penalties from that common candidate set.</p>
 <section id="representative-dataset" class="level3" data-number="3.1">
 <h3 data-number="3.1" class="anchored" data-anchor-id="representative-dataset"><span class="header-section-number">3.1</span> Representative Dataset</h3>
-<div id="c87a8d2b" class="cell" data-execution_count="3">
+<div id="80208bf8" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> continuous_treatment_dgp(n, rng, tau<span class="op">=</span><span class="fl">1.25</span>):</span>
@@ -778,7 +800,7 @@ g(X_i)
 </section>
 <section id="simulation-code" class="level3" data-number="3.2">
 <h3 data-number="3.2" class="anchored" data-anchor-id="simulation-code"><span class="header-section-number">3.2</span> Simulation Code</h3>
-<div id="e3f0c36a" class="cell" data-execution_count="4">
+<div id="ab2a8422" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_continuous(sample_sizes, reps, seed):</span>
@@ -930,7 +952,7 @@ g(X_i)
 </section>
 <section id="continuous-treatment-results" class="level3" data-number="3.3">
 <h3 data-number="3.3" class="anchored" data-anchor-id="continuous-treatment-results"><span class="header-section-number">3.3</span> Continuous-Treatment Results</h3>
-<div id="7bb12b8c" class="cell" data-execution_count="5">
+<div id="57e7dc0b" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">16</span>, <span class="fl">4.5</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
@@ -954,7 +976,7 @@ g(X_i)
 <section id="binary-treatment-regression-versus-balancing-weights-versus-aipw" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="binary-treatment-regression-versus-balancing-weights-versus-aipw"><span class="header-section-number">4</span> Binary Treatment: Regression Versus Balancing Weights Versus AIPW</h2>
 <p>Now the treatment is binary:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 D_i \sim \mathrm{Bernoulli}(\pi_i),
 \qquad
 \pi_i
@@ -966,9 +988,9 @@ D_i \sim \mathrm{Bernoulli}(\pi_i),
 + 0.45 X_{i3}
 - 0.3 X_{i4}
 \right).
-\]</span></p>
+</span></p>
 <p>The untreated potential outcome is nonlinear:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i(0)
 =
 0.5
@@ -976,22 +998,22 @@ Y_i(0)
 + 0.8 X_{i2} X_{i3}
 + 0.6 (X_{i4}^2 - 1)
 + 0.35 \sin(X_{i5}),
-\]</span></p>
+</span></p>
 <p>and the treatment effect is constant:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Y_i(1) = Y_i(0) + \tau,
 \qquad
 \tau = 1.
-\]</span></p>
+</span></p>
 <p>The comparison is intentionally asymmetric:</p>
 <ul>
 <li>Vanilla regression fits <code>OLS</code> on <code>[D, X]</code> and therefore relies on a linear outcome regression in the raw covariates.</li>
-<li>Entropy balancing reweights the treated and control groups separately to the pooled mean of a richer balance basis <span class="math inline">\(B(X)\)</span>.</li>
-<li><code>AIPW</code> uses that same <span class="math inline">\(B(X)\)</span> inside its cross-fit ridge nuisances, with a log-spaced penalty grid, <code>n_folds=3</code>, and <code>propensity_clip=0.1</code> to stabilize the propensity fit. The treated-outcome, control-outcome, and propensity regressions each choose their own penalties within each fold.</li>
+<li>Entropy balancing reweights the treated and control groups separately to the pooled mean of a richer balance basis <span class="math inline">B(X)</span>.</li>
+<li><code>AIPW</code> uses that same <span class="math inline">B(X)</span> inside its cross-fit ridge nuisances, with a log-spaced penalty grid, <code>n_folds=3</code>, and <code>propensity_clip=0.1</code> to stabilize the propensity fit. The treated-outcome, control-outcome, and propensity regressions each choose their own penalties within each fold.</li>
 </ul>
 <section id="representative-dataset-1" class="level3" data-number="4.1">
 <h3 data-number="4.1" class="anchored" data-anchor-id="representative-dataset-1"><span class="header-section-number">4.1</span> Representative Dataset</h3>
-<div id="1fc5d732" class="cell" data-execution_count="6">
+<div id="1eaa2520" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> binary_treatment_dgp(n, rng, tau<span class="op">=</span><span class="fl">1.0</span>):</span>
@@ -1102,7 +1124,7 @@ Y_i(1) = Y_i(0) + \tau,
 </table>
 </div>
 </div>
-<div id="aca61f93" class="cell" data-execution_count="7">
+<div id="b91b3c37" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>display(</span>
@@ -1141,7 +1163,7 @@ Y_i(1) = Y_i(0) + \tau,
 </section>
 <section id="simulation-code-1" class="level3" data-number="4.2">
 <h3 data-number="4.2" class="anchored" data-anchor-id="simulation-code-1"><span class="header-section-number">4.2</span> Simulation Code</h3>
-<div id="77257167" class="cell" data-execution_count="8">
+<div id="9b4d463e" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_binary(sample_sizes, reps, seed):</span>
@@ -1314,7 +1336,7 @@ Y_i(1) = Y_i(0) + \tau,
 </section>
 <section id="binary-treatment-results" class="level3" data-number="4.3">
 <h3 data-number="4.3" class="anchored" data-anchor-id="binary-treatment-results"><span class="header-section-number">4.3</span> Binary-Treatment Results</h3>
-<div id="5bd6e396" class="cell" data-execution_count="9">
+<div id="9d54bea2" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">2</span>, figsize<span class="op">=</span>(<span class="dv">12</span>, <span class="fl">4.5</span>), constrained_layout<span class="op">=</span><span class="va">True</span>)</span>
@@ -1747,13 +1769,18 @@ Y_i(1) = Y_i(0) + \tau,
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

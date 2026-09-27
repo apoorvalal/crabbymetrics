@@ -280,6 +280,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -352,6 +356,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -479,7 +487,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This vignette builds a staggered-adoption panel, fits a low-rank nuisance surface with <code>MatrixCompletion</code>, and compares outcome-only, balancing-only, and augmented specifications. See the <a href="../reference/AugmentedBalancing.html">AugmentedBalancing API page</a> for the complete constructor, output schema, and estimator formula.</p>
 <section id="simulate-a-staggered-factor-panel" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="simulate-a-staggered-factor-panel"><span class="header-section-number">1</span> Simulate A Staggered Factor Panel</h2>
-<div id="209bac18" class="cell" data-execution_count="1">
+<div id="3708a693" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -489,7 +497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>np.set_printoptions(precision<span class="op">=</span><span class="dv">4</span>, suppress<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The untreated surface combines unit effects, common time effects, and three latent factors. Eight treated units adopt in two cohorts. Treatment effects increase with exposure duration and vary modestly across units.</p>
-<div id="0c825696" class="cell" data-execution_count="2">
+<div id="04ef0344" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">611</span>)</span>
@@ -547,7 +555,7 @@ true ATT: 0.8568</code></pre>
 <section id="fit-an-untreated-outcome-surface" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="fit-an-untreated-outcome-surface"><span class="header-section-number">2</span> Fit An Untreated-Outcome Surface</h2>
 <p><code>AugmentedBalancing</code> deliberately does not own nuisance estimation. Any finite same-shaped prediction matrix can be supplied. Here <code>MatrixCompletion</code> estimates a low-rank surface using cells with <code>W == 0</code>; treated post-treatment cells are excluded from its fitting objective.</p>
-<div id="1e2ad2e8" class="cell" data-execution_count="3">
+<div id="080b92d7" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>outcome_fit <span class="op">=</span> cm.MatrixCompletion(</span>
@@ -576,7 +584,7 @@ outcome-model iterations: 14</code></pre>
 <section id="compare-the-estimator-family" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="compare-the-estimator-family"><span class="header-section-number">3</span> Compare The Estimator Family</h2>
 <p>One class spans several familiar estimators. Omitting <code>outcome_model</code> sets the nuisance surface to zero. Supplying it turns the same balancing correction into an augmented estimator.</p>
-<div id="962b468a" class="cell" data-execution_count="4">
+<div id="fed38f5d" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>specifications <span class="op">=</span> {</span>
@@ -686,7 +694,7 @@ outcome-model iterations: 14</code></pre>
 <section id="inspect-counterfactuals-and-event-time" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inspect-counterfactuals-and-event-time"><span class="header-section-number">4</span> Inspect Counterfactuals And Event Time</h2>
 <p><code>predict()</code> returns the fitted untreated counterfactual matrix and <code>treatment_effect()</code> returns <code>Y - predict()</code>. Rows for never-treated donors are <code>NaN</code> because the estimator targets treated-unit counterfactuals.</p>
-<div id="7926bd0f" class="cell" data-execution_count="5">
+<div id="177a7439" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>augmented_model, augmented <span class="op">=</span> fits[<span class="st">"Augmented double"</span>]</span>
@@ -706,7 +714,7 @@ estimated ATT: 0.8087</code></pre>
 </div>
 </div>
 <p>The weighted event-study summary aggregates cohort-specific effects using the number of treated observations represented by each row.</p>
-<div id="2788bfcd" class="cell" data-execution_count="6">
+<div id="e4e60a07" class="cell" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>event <span class="op">=</span> augmented[<span class="st">"event_study"</span>][<span class="st">"weighted"</span>]</span>
@@ -759,7 +767,7 @@ estimated ATT: 0.8087</code></pre>
 <section id="read-weight-targets-correctly" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="read-weight-targets-correctly"><span class="header-section-number">5</span> Read Weight Targets Correctly</h2>
 <p>With the default <code>unit_target="cohort"</code>, each row of <code>unit_weights</code> belongs to one adoption cohort. With <code>time_target="all"</code>, each row of <code>time_weights</code> belongs to one cohort and targets its average post-period donor outcome. Mapping arrays make these row semantics explicit.</p>
-<div id="b4c64ba1" class="cell" data-execution_count="7">
+<div id="fc630f9e" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>control_units <span class="op">=</span> np.asarray(augmented[<span class="st">"control_units"</span>])</span>
@@ -1276,13 +1284,18 @@ estimated ATT: 0.8087</code></pre>
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

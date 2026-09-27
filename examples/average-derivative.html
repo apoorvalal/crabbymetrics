@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -502,49 +524,49 @@ window.Quarto = {
 </header>
 
 
-<p><code>AverageDerivative</code> targets the average derivative of the outcome with respect to a scalar continuous treatment <span class="math inline">\(D\)</span>.</p>
+<p><code>AverageDerivative</code> targets the average derivative of the outcome with respect to a scalar continuous treatment <span class="math inline">D</span>.</p>
 <p>The working outcome model is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathbb{E}[Y \mid D, W]
 =
 \alpha
 + \gamma^\top (W - \mu_W)
 + D \left[\beta + \delta^\top (W - \mu_W)\right].
-\]</span></p>
+</span></p>
 <p>Under this parameterization, the conditional derivative is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \frac{\partial}{\partial D}\mathbb{E}[Y \mid D, W]
 =
 \beta + \delta^\top (W - \mu_W),
-\]</span></p>
-<p>so the average derivative is simply <span class="math inline">\(\beta\)</span> because <span class="math inline">\(\mathbb{E}[W - \mu_W] = 0\)</span>.</p>
+</span></p>
+<p>so the average derivative is simply <span class="math inline">\beta</span> because <span class="math inline">\mathbb{E}[W - \mu_W] = 0</span>.</p>
 <section id="the-three-estimators" class="level2">
 <h2 class="anchored" data-anchor-id="the-three-estimators">The Three Estimators</h2>
 <section id="oaxaca-blinder" class="level3">
 <h3 class="anchored" data-anchor-id="oaxaca-blinder">Oaxaca-Blinder</h3>
-<p><code>method="ob"</code> fits the interacted linear regression directly and reads off the coefficient on <span class="math inline">\(D\)</span>.</p>
+<p><code>method="ob"</code> fits the interacted linear regression directly and reads off the coefficient on <span class="math inline">D</span>.</p>
 </section>
 <section id="generalized-ipw" class="level3">
 <h3 class="anchored" data-anchor-id="generalized-ipw">Generalized IPW</h3>
 <p><code>method="ipw"</code> uses the normal working model</p>
-<p><span class="math display">\[
+<p><span class="math display">
 e(W) = \mathbb{E}[D \mid W],
 \qquad
 v(W) = \operatorname{Var}(D \mid W) = \sigma^2,
-\]</span></p>
+</span></p>
 <p>and solves</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathbb{E}\left[
 \frac{D_i - e(W_i)}{\sigma^2}\left(Y_i - \beta D_i\right)
 \right]
 =
 0.
-\]</span></p>
+</span></p>
 </section>
 <section id="doubly-robust" class="level3">
 <h3 class="anchored" data-anchor-id="doubly-robust">Doubly Robust</h3>
 <p><code>method="dr"</code> combines the two. It keeps the outcome regression basis from the Oaxaca-Blinder estimator and replaces the last instrument with the generalized IPW score:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 Z_i
 =
 \begin{bmatrix}
@@ -553,9 +575,9 @@ W_i - \mu_W \\
 (W_i - \mu_W)D_i \\
 \frac{D_i - e(W_i)}{\sigma^2}
 \end{bmatrix}.
-\]</span></p>
+</span></p>
 <p>The implementation treats all three estimators as exactly identified stacked-moment systems, so their reported standard errors come from a common sandwich calculation rather than ad hoc post-processing.</p>
-<div id="40137b77" class="cell" data-execution_count="1">
+<div id="68fc0cad" class="cell" data-execution_count="1">
 <details class="code-fold">
 <summary>Show code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> html <span class="im">import</span> escape</span>
@@ -1060,13 +1082,18 @@ W_i - \mu_W \\
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

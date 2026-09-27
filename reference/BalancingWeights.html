@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -507,36 +529,36 @@ window.Quarto = {
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Causal inference</p>
 <p><code>BalancingWeights</code> chooses weights for a source sample so weighted source covariate means match a target sample:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \sum_i w_i x_i / \sum_i w_i \approx \sum_j q_j x_j / \sum_j q_j.
-\]</span></p>
+</span></p>
 <p>The objective can be quadratic, entropy-like, or Cressie-Read power-divergence-like, with optional lower/upper bounds, approximate balance, and dual ridge stabilization.</p>
 </section>
 <section id="calibration-system-and-numerical-objective" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="calibration-system-and-numerical-objective"><span class="header-section-number">2</span> Calibration system and numerical objective</h2>
-<p>Let <span class="math inline">\(\bar x_T\)</span> be the optionally weighted target mean and define calibration rows</p>
-<p><span class="math display">\[
+<p>Let <span class="math inline">\bar x_T</span> be the optionally weighted target mean and define calibration rows</p>
+<p><span class="math display">
 z_i=(1,\ x_i-\bar x_T)'.
-\]</span></p>
-<p>Weights are normalized implicitly by solving <span class="math inline">\(Z'w=e_1\)</span>. For entropy calibration, the dual map is</p>
-<p><span class="math display">\[
+</span></p>
+<p>Weights are normalized implicitly by solving <span class="math inline">Z'w=e_1</span>. For entropy calibration, the dual map is</p>
+<p><span class="math display">
 w_i(\beta)=
 \begin{cases}
 \exp(z_i'\beta), &amp; \text{without baseline weights},\\
 q_i\exp(z_i'\beta-1), &amp; \text{with normalized baseline }q_i,
 \end{cases}
-\]</span></p>
+</span></p>
 <p>clipped to the configured box when the bounded phase is needed. For quadratic calibration it is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 w_i(\beta)=
 \begin{cases}
 z_i'\beta, &amp; \text{without baseline weights},\\
 q_i(1+z_i'\beta), &amp; \text{with baseline }q_i,
 \end{cases}
-\]</span></p>
+</span></p>
 <p>again clipped to the weight box. Thus the objective name selects the primal calibration geometry and corresponding dual weight map; it is not the literal function passed to the optimizer.</p>
-<p>For Cressie-Read calibration, missing baseline weights default to uniform source weights <span class="math inline">\(q_i=1/n\)</span>. The dual map is</p>
-<p><span class="math display">\[
+<p>For Cressie-Read calibration, missing baseline weights default to uniform source weights <span class="math inline">q_i=1/n</span>. The dual map is</p>
+<p><span class="math display">
 w_i(\beta)=q_i h_\lambda(z_i'\beta),
 \qquad
 h_\lambda(u)=
@@ -544,68 +566,68 @@ h_\lambda(u)=
 \exp(u), &amp; |\lambda|\approx 0,\\
 (1+\lambda u)_+^{1/\lambda}, &amp; \text{otherwise},
 \end{cases}
-\]</span></p>
-<p>where <span class="math inline">\(\lambda\)</span> is <code>divergence_power</code>. Thus <code>divergence_power=0</code> is the entropy/KL limit, while <code>divergence_power=1</code> is the Pearson chi-square member of the Cressie-Read family.</p>
-<p>Rényi divergence for two normalized weight vectors <span class="math inline">\(p\)</span> and <span class="math inline">\(q\)</span> is</p>
-<p><span class="math display">\[
+</span></p>
+<p>where <span class="math inline">\lambda</span> is <code>divergence_power</code>. Thus <code>divergence_power=0</code> is the entropy/KL limit, while <code>divergence_power=1</code> is the Pearson chi-square member of the Cressie-Read family.</p>
+<p>Rényi divergence for two normalized weight vectors <span class="math inline">p</span> and <span class="math inline">q</span> is</p>
+<p><span class="math display">
 D_\alpha(p\|q)=\frac{1}{\alpha-1}\log\sum_i p_i^\alpha q_i^{1-\alpha}.
-\]</span></p>
-<p>It shares the same power moment as Cressie-Read after setting <span class="math inline">\(\lambda=\alpha-1\)</span>. In the usual Cressie-Read statistic,</p>
-<p><span class="math display">\[
+</span></p>
+<p>It shares the same power moment as Cressie-Read after setting <span class="math inline">\lambda=\alpha-1</span>. In the usual Cressie-Read statistic,</p>
+<p><span class="math display">
 CR_\lambda(p,q)=\frac{2}{\lambda(\lambda+1)}
 \left\{\sum_i p_i^{\lambda+1}q_i^{-\lambda}-1\right\},
-\]</span></p>
-<p>so <span class="math inline">\(D_\alpha\)</span> and <span class="math inline">\(CR_{\alpha-1}\)</span> are monotone transformations of the same scalar moment, with the usual KL limit at <span class="math inline">\(\alpha=1,\lambda=0\)</span>. <code>BalancingWeights</code> currently implements the Cressie-Read calibration map; it does not yet expose a separate <code>objective="renyi"</code> optimizer.</p>
-<p>For allowed L2 imbalance <span class="math inline">\(\delta\)</span>, define</p>
-<p><span class="math display">\[
+</span></p>
+<p>so <span class="math inline">D_\alpha</span> and <span class="math inline">CR_{\alpha-1}</span> are monotone transformations of the same scalar moment, with the usual KL limit at <span class="math inline">\alpha=1,\lambda=0</span>. <code>BalancingWeights</code> currently implements the Cressie-Read calibration map; it does not yet expose a separate <code>objective="renyi"</code> optimizer.</p>
+<p>For allowed L2 imbalance <span class="math inline">\delta</span>, define</p>
+<p><span class="math display">
 s(\beta_{-0})
 =
 \begin{cases}
 \delta\,\beta_{-0}/\|\beta_{-0}\|_2,&amp;\|\beta_{-0}\|_2&gt;0,\\
 0,&amp;\text{otherwise}.
 \end{cases}
-\]</span></p>
+</span></p>
 <p>The numerical solver minimizes</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \frac12\|r(\beta)\|_2^2+\frac{\eta}{2}\|\beta_{-0}\|_2^2,
 \qquad
 r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
-\]</span></p>
-<p>Here <span class="math inline">\(\eta\)</span> is <code>dual_ridge</code>, which defaults to zero. Gauss-Newton uses the analytic residual Jacobian with a small <span class="math inline">\(10^{-8}\)</span> normal-equation ridge and backtracking. <code>solver="lbfgs"</code> uses argmin’s L-BFGS with the same analytic gradient. Automatic mode tries Gauss-Newton first, then L-BFGS, and falls back to BFGS only when needed. These are generic smooth optimizers for the residual criterion above. They are not the Bregman proximal-gradient algorithm from the Rényi paper, where the update itself is defined by a Bregman geometry and the gradient has a moment-gap form. A future Bregman solver would be a new solver path rather than a relabeling of BFGS/L-BFGS. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.</p>
+</span></p>
+<p>Here <span class="math inline">\eta</span> is <code>dual_ridge</code>, which defaults to zero. Gauss-Newton uses the analytic residual Jacobian with a small <span class="math inline">10^{-8}</span> normal-equation ridge and backtracking. <code>solver="lbfgs"</code> uses argmin’s L-BFGS with the same analytic gradient. Automatic mode tries Gauss-Newton first, then L-BFGS, and falls back to BFGS only when needed. These are generic smooth optimizers for the residual criterion above. They are not the Bregman proximal-gradient algorithm from the Rényi paper, where the update itself is defined by a Bregman geometry and the gradient has a moment-gap form. A future Bregman solver would be a new solver path rather than a relabeling of BFGS/L-BFGS. Entropy fits begin with relaxed bounds and rerun with clipping if the first solution violates the requested box.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
 <p>The class solves a package-owned nonlinear calibration system; the named objective determines the primal-to-dual weight map, while both solver choices minimize squared calibration residuals.</p>
 <ol type="1">
-<li>Optional baseline and target weights are validated and normalized to sum one. With autoscaling, each source column is mapped by its source minimum and range and the identical affine map is applied to target rows. A source range at or below <span class="math inline">\(10^{-12}\)</span> maps both samples to zero in that column; target values are allowed outside <span class="math inline">\([0,1]\)</span>.</li>
-<li>The target mean is computed in fitting coordinates and the dense design <span class="math inline">\(Z=[\mathbf1,X-\bar x_T]\)</span> is built. Entropy starts its dual vector at zero. Quadratic calibration instead solves a linearized calibration system for its starting vector, with a baseline-weight adjustment when supplied.</li>
-<li>Given <span class="math inline">\(\beta\)</span>, one pass computes <span class="math inline">\(Z\beta\)</span>, the entropy, quadratic, or Cressie-Read weight map, and the derivative of each weight with respect to its scalar index. Clipped weights receive derivative zero. The residual is <span class="math inline">\(Z'w-e_1\)</span> plus the radial L2 slack, and the analytic Jacobian is <span class="math inline">\(Z'\operatorname{diag}(w')Z\)</span> plus the slack Jacobian.</li>
-<li>Native Gauss-Newton forms <span class="math inline">\(J'J+10^{-8}I\)</span>, solves its least-squares system for the step, and halves the step until the residual sum of squares strictly decreases or the scale falls below <span class="math inline">\(10^{-8}\)</span>. Only the scaled residual norm reaching tolerance counts as convergence; small steps or small objective changes alone are explicitly labeled nonconverged.</li>
-<li>The L-BFGS and BFGS alternatives expose <span class="math inline">\(\|r(\beta)\|^2/2\)</span> and <span class="math inline">\(J'r\)</span> to Argmin and use More-Thuente search; BFGS initializes the inverse Hessian at identity, while L-BFGS retains a ten-update correction history. Either method is accepted as converged only when both Argmin’s status and the package’s residual-norm check pass.</li>
+<li>Optional baseline and target weights are validated and normalized to sum one. With autoscaling, each source column is mapped by its source minimum and range and the identical affine map is applied to target rows. A source range at or below <span class="math inline">10^{-12}</span> maps both samples to zero in that column; target values are allowed outside <span class="math inline">[0,1]</span>.</li>
+<li>The target mean is computed in fitting coordinates and the dense design <span class="math inline">Z=[\mathbf1,X-\bar x_T]</span> is built. Entropy starts its dual vector at zero. Quadratic calibration instead solves a linearized calibration system for its starting vector, with a baseline-weight adjustment when supplied.</li>
+<li>Given <span class="math inline">\beta</span>, one pass computes <span class="math inline">Z\beta</span>, the entropy, quadratic, or Cressie-Read weight map, and the derivative of each weight with respect to its scalar index. Clipped weights receive derivative zero. The residual is <span class="math inline">Z'w-e_1</span> plus the radial L2 slack, and the analytic Jacobian is <span class="math inline">Z'\operatorname{diag}(w')Z</span> plus the slack Jacobian.</li>
+<li>Native Gauss-Newton forms <span class="math inline">J'J+10^{-8}I</span>, solves its least-squares system for the step, and halves the step until the residual sum of squares strictly decreases or the scale falls below <span class="math inline">10^{-8}</span>. Only the scaled residual norm reaching tolerance counts as convergence; small steps or small objective changes alone are explicitly labeled nonconverged.</li>
+<li>The L-BFGS and BFGS alternatives expose <span class="math inline">\|r(\beta)\|^2/2</span> and <span class="math inline">J'r</span> to Argmin and use More-Thuente search; BFGS initializes the inverse Hessian at identity, while L-BFGS retains a ten-update correction history. Either method is accepted as converged only when both Argmin’s status and the package’s residual-norm check pass.</li>
 <li>In <code>solver='auto'</code>, a nonconverged Gauss-Newton result seeds L-BFGS. If L-BFGS does not improve the criterion, BFGS is tried from the Gauss-Newton iterate. A fallback replaces Gauss-Newton only when its objective is no larger; a finite nonconverged fit is therefore reportable for diagnostics.</li>
-<li>Entropy first permits weights up to <span class="math inline">\(10^8\)</span> and no lower clipping to preserve a smooth solve. If that result violates the requested box, the same solver sequence is rerun from its dual vector with bounded exponential clipping. Quadratic calibration uses the requested box from the start.</li>
-<li>Final <code>success</code> separately requires solver convergence, unit weight sum within <span class="math inline">\(10^{-6}\)</span>, finite weights, and box feasibility. Original-scale weighted means are recomputed from the unscaled covariates, so diagnostic balance is not inferred from the scaled residual.</li>
+<li>Entropy first permits weights up to <span class="math inline">10^8</span> and no lower clipping to preserve a smooth solve. If that result violates the requested box, the same solver sequence is rerun from its dual vector with bounded exponential clipping. Quadratic calibration uses the requested box from the start.</li>
+<li>Final <code>success</code> separately requires solver convergence, unit weight sum within <span class="math inline">10^{-6}</span>, finite weights, and box feasibility. Original-scale weighted means are recomputed from the unscaled covariates, so diagnostic balance is not inferred from the scaled residual.</li>
 </ol>
 <p>This design makes infeasibility observable rather than exceptional: the object can retain the best finite weights with <code>solver_converged=False</code> or <code>success=False</code>. The zero derivative at active clipping bounds also explains why tight boxes can stall either local solver.</p>
 </section>
 <section id="diagnostics-and-inference" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="diagnostics-and-inference"><span class="header-section-number">4</span> Diagnostics and inference</h2>
 <p>There is no outcome model, treatment-effect estimand, standard error, or covariance calculation. The fitted object returns normalized weights, original-scale mean differences, effective sample size</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \mathrm{ESS}=\frac{1}{\sum_i w_i^2},
-\]</span></p>
+</span></p>
 <p>the dual coefficient, and solver diagnostics. <code>solver_converged</code> means that the scaled calibration residual satisfies the requested tolerance and, for BFGS, that the optimizer also reports a converged status. The generic <code>converged</code>, <code>iterations</code>, and <code>termination_reason</code> keys describe that same scaled-coordinate solve. <code>success</code> additionally requires finite normalized weights whose sum and box constraints are feasible.</p>
 <p>With autoscaling, covariates are min-max scaled using source-sample minima and ranges before solving. Solver convergence is intentionally not reclassified by applying that scaled tolerance to unscaled covariates. <code>scaled_residual_norm</code> and <code>solver_objective</code> report the numerical problem; <code>original_balance_l2</code> and <code>original_balance_max_abs</code> report balance in the units supplied by the user. The legacy aliases <code>residual_norm</code>, <code>criterion</code>, <code>l2_diff</code>, and <code>max_abs_diff</code> remain available. Large original-unit imbalance can therefore coexist with solver convergence when feature scales are large, and should be judged substantively rather than against a dimensionless solver tolerance.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>For <span class="math inline">\(n\)</span> source rows and <span class="math inline">\(p\)</span> covariates, each residual/Jacobian construction forms dense weighted cross-products with about <span class="math inline">\(O(np^2)\)</span> work and <span class="math inline">\(O(np+p^2)\)</span> storage; the Gauss-Newton system costs up to <span class="math inline">\(O(p^3)\)</span>. L-BFGS/BFGS add repeated residual and gradient evaluations. Tight box constraints, a Cressie-Read dual index outside its natural domain, or an infeasible balance tolerance can leave a finite set of weights with <code>success=False</code> rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped. Very disparate original feature scales favor <code>autoscale=True</code>, but original-unit diagnostics must still be interpreted feature by feature.</p>
+<p>For <span class="math inline">n</span> source rows and <span class="math inline">p</span> covariates, each residual/Jacobian construction forms dense weighted cross-products with about <span class="math inline">O(np^2)</span> work and <span class="math inline">O(np+p^2)</span> storage; the Gauss-Newton system costs up to <span class="math inline">O(p^3)</span>. L-BFGS/BFGS add repeated residual and gradient evaluations. Tight box constraints, a Cressie-Read dual index outside its natural domain, or an infeasible balance tolerance can leave a finite set of weights with <code>success=False</code> rather than raising. Constant source columns are mapped to zero under autoscaling, and target values outside the source range are not clipped. Very disparate original feature scales favor <code>autoscale=True</code>, but original-unit diagnostics must still be interpreted feature by feature.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.BalancingWeights</code></p>
 <p>Use <code>fit(covariates, target_covariates, baseline_weights=None, target_weights=None)</code>. <code>get_weights()</code> returns the fitted source weights. The read-only <code>solver_converged</code> property reports scaled solver convergence, while <code>success</code> also checks weight feasibility. <code>summary()</code> reports both statuses, scaled numerical diagnostics, original-scale balance, the dual coefficients, and effective sample size.</p>
-<div id="39f585fc" class="cell" data-execution_count="2">
+<div id="bec38227" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.BalancingWeights))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -614,7 +636,7 @@ r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
 <pre><code>(objective='quadratic', solver='auto', autoscale=False, min_weight=0.0, max_weight=1.0, l2_norm=0.0, max_iterations=200, tolerance=1e-08, divergence_power=0.0, dual_ridge=0.0)</code></pre>
 </div>
 </div>
-<div id="cd6ea586" class="cell" data-execution_count="3">
+<div id="348e8c14" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.BalancingWeights</span>
@@ -647,7 +669,7 @@ r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="7186be69" class="cell" data-execution_count="4">
+<div id="24667968" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">10</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>x0 <span class="op">=</span> rng.normal(size<span class="op">=</span>(<span class="dv">180</span>, <span class="dv">3</span>))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> rng.normal(loc<span class="op">=</span>np.array([<span class="fl">0.4</span>, <span class="op">-</span><span class="fl">0.2</span>, <span class="fl">0.1</span>]), size<span class="op">=</span>(<span class="dv">80</span>, <span class="dv">3</span>))</span>
@@ -669,7 +691,7 @@ r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="54ad02e9" class="cell" data-execution_count="5">
+<div id="9f0ddaad" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">110</span>)</span>
@@ -1214,13 +1236,18 @@ r(\beta)=Z'w(\beta)-e_1+(0,s(\beta_{-0})')'.
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

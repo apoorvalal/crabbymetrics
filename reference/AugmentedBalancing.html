@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -549,29 +571,29 @@ window.Quarto = {
 </section>
 <section id="estimator" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="estimator"><span class="header-section-number">3</span> Estimator</h2>
-<p>For one treated unit <span class="math inline">\(i\)</span>, one target period <span class="math inline">\(t\)</span>, never-treated controls <span class="math inline">\(C\)</span>, and pre-treatment periods <span class="math inline">\(P\)</span>, define residuals</p>
-<p><span class="math display">\[
+<p>For one treated unit <span class="math inline">i</span>, one target period <span class="math inline">t</span>, never-treated controls <span class="math inline">C</span>, and pre-treatment periods <span class="math inline">P</span>, define residuals</p>
+<p><span class="math display">
 R_{js}=Y_{js}-\hat m_{js}.
-\]</span></p>
+</span></p>
 <p>The double-balanced counterfactual is</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \widehat Y_{it}(0)
 =
 \hat m_{it}
 +\sum_{j\in C}\hat\omega_j R_{jt}
 +\sum_{s\in P}\hat\lambda_s R_{is}
 -\sum_{j\in C}\sum_{s\in P}\hat\omega_j\hat\lambda_s R_{js}.
-\]</span></p>
-<p><code>balance="none"</code> returns <span class="math inline">\(\hat m_{it}\)</span> without a balancing correction. Every other mode uses the full formula. <code>balance="unit"</code> optimizes <span class="math inline">\(\omega\)</span> and uses uniform <span class="math inline">\(\lambda\)</span>; <code>balance="time"</code> uses uniform <span class="math inline">\(\omega\)</span> and optimizes <span class="math inline">\(\lambda\)</span>; <code>balance="double"</code> optimizes both. If no outcome-model matrix is supplied, <span class="math inline">\(\hat m=0\)</span>.</p>
-<p>For each treatment cohort, simplex unit weights match the cohort-average pre-period path by default. <code>unit_target="individual"</code> fits one unit-weight vector for each treated unit. <code>time_target="all"</code> fits one time-weight vector against the mean control post path; <code>time_target="period"</code> fits one vector for every post period. <code>balance_on="raw"</code> fits weights with <span class="math inline">\(Y\)</span> and then applies them to residuals <span class="math inline">\(R\)</span>. <code>balance_on="residual"</code> fits the same problems with <span class="math inline">\(R\)</span>.</p>
+</span></p>
+<p><code>balance="none"</code> returns <span class="math inline">\hat m_{it}</span> without a balancing correction. Every other mode uses the full formula. <code>balance="unit"</code> optimizes <span class="math inline">\omega</span> and uses uniform <span class="math inline">\lambda</span>; <code>balance="time"</code> uses uniform <span class="math inline">\omega</span> and optimizes <span class="math inline">\lambda</span>; <code>balance="double"</code> optimizes both. If no outcome-model matrix is supplied, <span class="math inline">\hat m=0</span>.</p>
+<p>For each treatment cohort, simplex unit weights match the cohort-average pre-period path by default. <code>unit_target="individual"</code> fits one unit-weight vector for each treated unit. <code>time_target="all"</code> fits one time-weight vector against the mean control post path; <code>time_target="period"</code> fits one vector for every post period. <code>balance_on="raw"</code> fits weights with <span class="math inline">Y</span> and then applies them to residuals <span class="math inline">R</span>. <code>balance_on="residual"</code> fits the same problems with <span class="math inline">R</span>.</p>
 <p><code>unit_loss="ridge"</code> uses the SDID ridge loss. <code>unit_loss="penalized_scm"</code> standardizes the donor matrix and adds the linear donor-distance penalty from the R <code>penSCM</code> implementation. <code>unit_penalty=1e-4</code> is its default. Time weights always use the SDID ridge loss.</p>
 <p>The unit and time weight problems use the same profiled-intercept simplex least-squares solver as <code>SyntheticDID</code>. Omitted penalties use the cohort-specific control first-difference scale:</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \zeta_\omega=(N_{\mathrm{target}}T_{\mathrm{post}})^{1/4}\hat\sigma,
 \qquad
 \zeta_\lambda=10^{-6}\hat\sigma.
-\]</span></p>
-<p>For individual targeting, <span class="math inline">\(N_{\mathrm{target}}=1\)</span>. The ATT is the simple mean of <span class="math inline">\(Y_{it}-\widehat Y_{it}(0)\)</span> over cells where <span class="math inline">\(W_{it}=1\)</span>.</p>
+</span></p>
+<p>For individual targeting, <span class="math inline">N_{\mathrm{target}}=1</span>. The ATT is the simple mean of <span class="math inline">Y_{it}-\widehat Y_{it}(0)</span> over cells where <span class="math inline">W_{it}=1</span>.</p>
 </section>
 <section id="configuration-map" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="configuration-map"><span class="header-section-number">4</span> Configuration map</h2>
@@ -639,7 +661,7 @@ R_{js}=Y_{js}-\hat m_{js}.
 <section id="python-api" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="python-api"><span class="header-section-number">7</span> Python API</h2>
 <p>Constructor: <code>cm.AugmentedBalancing</code></p>
-<div id="d3cc3150" class="cell" data-execution_count="2">
+<div id="f4f51be0" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.AugmentedBalancing))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -747,7 +769,7 @@ R_{js}=Y_{js}-\hat m_{js}.
 </tbody>
 </table>
 <p>Constructor choices are validated when the class is created. During <code>fit</code>, <code>y</code> and the optional outcome model must be finite, two-dimensional, and same-shaped. <code>w</code> must be a same-shaped binary absorbing-treatment matrix. Each treated cohort must have a pre-period and the panel must contain a never-treated donor. Invalid arrays, unsupported treatment paths, and solver failures raise <code>ValueError</code>.</p>
-<div id="c4a88409" class="cell" data-execution_count="3">
+<div id="f96bf475" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.AugmentedBalancing</span>
@@ -783,7 +805,7 @@ R_{js}=Y_{js}-\hat m_{js}.
 </section>
 <section id="minimal-example" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">8</span> Minimal example</h2>
-<div id="c8e50eb6" class="cell" data-execution_count="4">
+<div id="e8deec32" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">24</span>)</span>
@@ -902,7 +924,7 @@ R_{js}=Y_{js}-\hat m_{js}.
 </tbody>
 </table>
 <p>The live example below verifies the exact keys and runtime shapes against the installed extension.</p>
-<div id="8df298e2" class="cell" data-execution_count="5">
+<div id="11045864" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>summary <span class="op">=</span> model.summary()</span>
@@ -1430,13 +1452,18 @@ R_{js}=Y_{js}-\hat m_{js}.
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>

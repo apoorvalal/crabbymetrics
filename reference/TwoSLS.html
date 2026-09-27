@@ -107,8 +107,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -309,6 +323,10 @@ window.Quarto = {
  <span class="dropdown-text">TwoSLS</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/fe-imputation.html">
+ <span class="dropdown-text">FE Counterfactual Imputation</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/synthetic-control.html">
  <span class="dropdown-text">Synthetic Control</span></a>
   </li>  
@@ -381,6 +399,10 @@ window.Quarto = {
         <li>
     <a class="dropdown-item" href="../ablations/bridging-finite-and-superpopulation.html">
  <span class="dropdown-text">Bridging Finite And Superpopulation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../ablations/yqx-panel-fixes.html">
+ <span class="dropdown-text">Lecture-Motivated Panel Fixes</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../ablations/panel-dgp-comparisons.html">
@@ -506,71 +528,71 @@ window.Quarto = {
 <section id="where-it-fits" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="where-it-fits"><span class="header-section-number">1</span> Where it fits</h2>
 <p><strong>Group:</strong> Causal inference</p>
-<p><code>TwoSLS</code> estimates linear instrumental-variables models. With endogenous regressors <span class="math inline">\(X_e\)</span>, exogenous controls <span class="math inline">\(X_c\)</span>, instruments <span class="math inline">\(Z\)</span>, and outcome <span class="math inline">\(y\)</span>, it runs the projection of the second-stage design on the instrument span and then estimates</p>
-<p><span class="math display">\[
+<p><code>TwoSLS</code> estimates linear instrumental-variables models. With endogenous regressors <span class="math inline">X_e</span>, exogenous controls <span class="math inline">X_c</span>, instruments <span class="math inline">Z</span>, and outcome <span class="math inline">y</span>, it runs the projection of the second-stage design on the instrument span and then estimates</p>
+<p><span class="math display">
 y = \alpha + X_e\beta_e + X_c\beta_c + u.
-\]</span></p>
+</span></p>
 <p>It supports multiple endogenous regressors and excluded instruments.</p>
 </section>
 <section id="criterion-and-first-stage-projection" class="level2" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="criterion-and-first-stage-projection"><span class="header-section-number">2</span> Criterion and first-stage projection</h2>
 <p>Let</p>
-<p><span class="math display">\[
+<p><span class="math display">
 \tilde X=[\mathbf 1,\ X_{\mathrm{endog}},\ X_{\mathrm{exog}}],
 \qquad
 \tilde Z=[\mathbf 1,\ X_{\mathrm{exog}},\ Z_{\mathrm{excluded}}],
-\]</span></p>
-<p>with the intercept omitted from both matrices only when intercept fitting is disabled internally. The implementation first solves <span class="math inline">\(\tilde Z\Pi\approx\tilde X\)</span>, forms <span class="math inline">\(\hat X=\tilde Z\hat\Pi=P_Z\tilde X\)</span>, and then solves <span class="math inline">\(\hat X\theta\approx y\)</span>. Thus the point estimate is</p>
-<p><span class="math display">\[
+</span></p>
+<p>with the intercept omitted from both matrices only when intercept fitting is disabled internally. The implementation first solves <span class="math inline">\tilde Z\Pi\approx\tilde X</span>, forms <span class="math inline">\hat X=\tilde Z\hat\Pi=P_Z\tilde X</span>, and then solves <span class="math inline">\hat X\theta\approx y</span>. Thus the point estimate is</p>
+<p><span class="math display">
 \hat\theta
 =
 (\tilde X'P_Z\tilde X)^{-1}\tilde X'P_Zy.
-\]</span></p>
-<p>Weighted fitting applies <span class="math inline">\(\sqrt{w_i}\)</span> to <span class="math inline">\(y_i\)</span>, every regressor, and every instrument before constructing the projection. The sketched method applies one joint CountSketch to <span class="math inline">\(y\)</span>, <span class="math inline">\(\tilde X\)</span>, and <span class="math inline">\(\tilde Z\)</span> and performs both stages in the sketched sample; it is an approximate point estimate.</p>
+</span></p>
+<p>Weighted fitting applies <span class="math inline">\sqrt{w_i}</span> to <span class="math inline">y_i</span>, every regressor, and every instrument before constructing the projection. The sketched method applies one joint CountSketch to <span class="math inline">y</span>, <span class="math inline">\tilde X</span>, and <span class="math inline">\tilde Z</span> and performs both stages in the sketched sample; it is an approximate point estimate.</p>
 <p>Weights are analytic, not frequency weights. Zero-weight rows and zero-only clusters do not count toward summary, Wald, or Anderson-Rubin inference; HAC uses the active-row ordering. Prediction validates finite inputs and trained width, and failed refits clear old state. Sketched summaries record method, size, seed, original sample count, and <code>inference_approximate=True</code>; covariance does not account for sketch randomization.</p>
 </section>
 <section id="implementation-walkthrough" class="level2" data-number="3">
 <h2 data-number="3" class="anchored" data-anchor-id="implementation-walkthrough"><span class="header-section-number">3</span> Implementation walkthrough</h2>
-<p>The estimator implements 2SLS as two rectangular least-squares problems, avoiding an explicit <span class="math inline">\(n\times n\)</span> projection matrix.</p>
+<p>The estimator implements 2SLS as two rectangular least-squares problems, avoiding an explicit <span class="math inline">n\times n</span> projection matrix.</p>
 <ol type="1">
 <li>The package concatenates endogenous regressors before exogenous controls for the reported second-stage design. The instrument design contains exogenous controls before excluded instruments. A common intercept column is prepended to both. It rejects fewer excluded instruments than endogenous regressors and any total instrument width smaller than the regressor width.</li>
-<li>A weighted fit scales <span class="math inline">\(\tilde X\)</span>, <span class="math inline">\(\tilde Z\)</span>, and <span class="math inline">\(y\)</span> rowwise by the same <span class="math inline">\(\sqrt{w_i}\)</span>. It then solves the multi-response least-squares problem <span class="math inline">\(\tilde Z\Pi\approx\tilde X\)</span> and forms <span class="math inline">\(\hat X=\tilde Z\hat\Pi\)</span>. No projection matrix <span class="math inline">\(P_Z\)</span> is materialized.</li>
-<li>The second rectangular solve is <span class="math inline">\(\hat X\theta\approx y\)</span>. Algebraically it is the usual 2SLS estimator, but numerically both stages use the shared least-squares primitive rather than inverses of <span class="math inline">\(Z'Z\)</span> and <span class="math inline">\(X'P_ZX\)</span>.</li>
-<li>The CountSketch path first constructs the full aligned designs, then hashes every observation once to a bucket and sign. That same draw is accumulated jointly into <span class="math inline">\(S\tilde X\)</span>, <span class="math inline">\(S\tilde Z\)</span>, and <span class="math inline">\(Sy\)</span>, preserving their row alignment. Both least-squares stages occur entirely in the sketched sample. The sketch width must be at least the larger design width.</li>
-<li>After either fit, the wrapper splits the intercept and slopes but stores the original endogenous, exogenous, instrument, outcome, and optional weight arrays. Full-sample structural residuals <span class="math inline">\(y-\tilde X\hat\theta\)</span> drive every covariance and diagnostic, including after a sketched point estimate.</li>
-<li>Robust covariance is implemented through GMM-style parameter scores. It forms <span class="math inline">\(W=(Z'Z/n)^{-1}\)</span>, <span class="math inline">\(G=-Z'X/n\)</span>, transforms observation moments <span class="math inline">\(z_i\hat u_i\)</span> by <span class="math inline">\(WG(G'WG)^{-1}/n\)</span>, and passes those parameter-score rows to the shared HC1, HAC, or cluster aggregator.</li>
-<li>The Anderson-Rubin method for one endogenous regressor constructs <span class="math inline">\(y_0=y-\beta_0x_e\)</span>, residualizes the null regression against included exogenous variables, and tests the excluded-instrument block jointly. This test is recomputed for the supplied null rather than inferred from the 2SLS Wald covariance.</li>
+<li>A weighted fit scales <span class="math inline">\tilde X</span>, <span class="math inline">\tilde Z</span>, and <span class="math inline">y</span> rowwise by the same <span class="math inline">\sqrt{w_i}</span>. It then solves the multi-response least-squares problem <span class="math inline">\tilde Z\Pi\approx\tilde X</span> and forms <span class="math inline">\hat X=\tilde Z\hat\Pi</span>. No projection matrix <span class="math inline">P_Z</span> is materialized.</li>
+<li>The second rectangular solve is <span class="math inline">\hat X\theta\approx y</span>. Algebraically it is the usual 2SLS estimator, but numerically both stages use the shared least-squares primitive rather than inverses of <span class="math inline">Z'Z</span> and <span class="math inline">X'P_ZX</span>.</li>
+<li>The CountSketch path first constructs the full aligned designs, then hashes every observation once to a bucket and sign. That same draw is accumulated jointly into <span class="math inline">S\tilde X</span>, <span class="math inline">S\tilde Z</span>, and <span class="math inline">Sy</span>, preserving their row alignment. Both least-squares stages occur entirely in the sketched sample. The sketch width must be at least the larger design width.</li>
+<li>After either fit, the wrapper splits the intercept and slopes but stores the original endogenous, exogenous, instrument, outcome, and optional weight arrays. Full-sample structural residuals <span class="math inline">y-\tilde X\hat\theta</span> drive every covariance and diagnostic, including after a sketched point estimate.</li>
+<li>Robust covariance is implemented through GMM-style parameter scores. It forms <span class="math inline">W=(Z'Z/n)^{-1}</span>, <span class="math inline">G=-Z'X/n</span>, transforms observation moments <span class="math inline">z_i\hat u_i</span> by <span class="math inline">WG(G'WG)^{-1}/n</span>, and passes those parameter-score rows to the shared HC1, HAC, or cluster aggregator.</li>
+<li>The Anderson-Rubin method for one endogenous regressor constructs <span class="math inline">y_0=y-\beta_0x_e</span>, residualizes the null regression against included exogenous variables, and tests the excluded-instrument block jointly. This test is recomputed for the supplied null rather than inferred from the 2SLS Wald covariance.</li>
 </ol>
-<p>The explicit fitted-regressor route is easy to inspect and stable relative to normal equations, but it materializes another dense <span class="math inline">\(n\times p\)</span> matrix. The implementation checks order conditions, not statistical rank or instrument strength; near-collinearity is left to the numerical solve and diagnostics.</p>
+<p>The explicit fitted-regressor route is easy to inspect and stable relative to normal equations, but it materializes another dense <span class="math inline">n\times p</span> matrix. The implementation checks order conditions, not statistical rank or instrument strength; near-collinearity is left to the numerical solve and diagnostics.</p>
 </section>
 <section id="inference-and-weak-instrument-test" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="inference-and-weak-instrument-test"><span class="header-section-number">4</span> Inference and weak-instrument test</h2>
-<p>Define <span class="math inline">\(g_i=z_i\hat u_i\)</span>, <span class="math inline">\(G=-\tilde Z'\tilde X/n\)</span>, <span class="math inline">\(W=(\tilde Z'\tilde Z/n)^{-1}\)</span>, and <span class="math inline">\(A=G'WG\)</span>. The homoskedastic covariance is</p>
-<p><span class="math display">\[
+<p>Define <span class="math inline">g_i=z_i\hat u_i</span>, <span class="math inline">G=-\tilde Z'\tilde X/n</span>, <span class="math inline">W=(\tilde Z'\tilde Z/n)^{-1}</span>, and <span class="math inline">A=G'WG</span>. The homoskedastic covariance is</p>
+<p><span class="math display">
 \widehat V_{\mathrm{vanilla}}
 =
 \frac{\hat\sigma^2}{n}A^{-1},
 \qquad
 \hat\sigma^2=\frac{\hat u'\hat u}{n-p}.
-\]</span></p>
-<p>The robust estimator replaces <span class="math inline">\(\hat\sigma^2W^{-1}\)</span> with the empirical covariance <span class="math inline">\(\hat\Omega\)</span> of <span class="math inline">\(g_i\)</span>:</p>
-<p><span class="math display">\[
+</span></p>
+<p>The robust estimator replaces <span class="math inline">\hat\sigma^2W^{-1}</span> with the empirical covariance <span class="math inline">\hat\Omega</span> of <span class="math inline">g_i</span>:</p>
+<p><span class="math display">
 \widehat V
 =
 \frac1n A^{-1}G'W\hat\Omega WG A^{-1}.
-\]</span></p>
-<p>The implemented <span class="math inline">\(\hat\Omega\)</span> choices are HC1 iid scores, Bartlett Newey-West scores, and cluster sums with the same finite-sample corrections used by OLS. Wald tests use this covariance. The pairs bootstrap resamples all outcome, regressor, instrument, and weight rows together.</p>
-<p>For one endogenous regressor, the Anderson-Rubin method tests <span class="math inline">\(H_0:\beta=\beta_0\)</span> by regressing <span class="math inline">\(y-\beta_0x_{\mathrm{endog}}\)</span> on the included exogenous variables and excluded instruments and jointly testing the excluded-instrument coefficients. It is unavailable with multiple endogenous regressors.</p>
+</span></p>
+<p>The implemented <span class="math inline">\hat\Omega</span> choices are HC1 iid scores, Bartlett Newey-West scores, and cluster sums with the same finite-sample corrections used by OLS. Wald tests use this covariance. The pairs bootstrap resamples all outcome, regressor, instrument, and weight rows together.</p>
+<p>For one endogenous regressor, the Anderson-Rubin method tests <span class="math inline">H_0:\beta=\beta_0</span> by regressing <span class="math inline">y-\beta_0x_{\mathrm{endog}}</span> on the included exogenous variables and excluded instruments and jointly testing the excluded-instrument coefficients. It is unavailable with multiple endogenous regressors.</p>
 </section>
 <section id="performance-and-numerical-behavior" class="level2" data-number="5">
 <h2 data-number="5" class="anchored" data-anchor-id="performance-and-numerical-behavior"><span class="header-section-number">5</span> Performance and numerical behavior</h2>
-<p>The two least-squares stages scale with the instrument width as well as the regressor width, and inference forms dense instrument and parameter cross-products. Weak instruments do not necessarily cause a numerical error; they instead make <span class="math inline">\(\tilde X'P_Z\tilde X\)</span> poorly conditioned and conventional Wald inference unreliable, which is why the scalar Anderson-Rubin test is exposed. CountSketch reduces the rows used in both point-estimation stages, but the fitted object retains the full sample and evaluates residuals and covariance there. Large instrument sets still incur quadratic storage and cubic dense-factorization costs in their width.</p>
+<p>The two least-squares stages scale with the instrument width as well as the regressor width, and inference forms dense instrument and parameter cross-products. Weak instruments do not necessarily cause a numerical error; they instead make <span class="math inline">\tilde X'P_Z\tilde X</span> poorly conditioned and conventional Wald inference unreliable, which is why the scalar Anderson-Rubin test is exposed. CountSketch reduces the rows used in both point-estimation stages, but the fitted object retains the full sample and evaluates residuals and covariance there. Large instrument sets still incur quadratic storage and cubic dense-factorization costs in their width.</p>
 </section>
 <section id="python-api" class="level2" data-number="6">
 <h2 data-number="6" class="anchored" data-anchor-id="python-api"><span class="header-section-number">6</span> Python API</h2>
 <p>Constructor: <code>cm.TwoSLS</code></p>
 <p>Call <code>fit(x_endog, x_exog, z, y)</code>. The <code>predict(x)</code> method expects a second-stage design matrix matching the fitted endogenous+exogenous columns. The robust linear covariance options match <code>OLS</code>: <code>vanilla</code>, <code>hc1</code>, <code>newey_west</code>, and <code>cluster</code>.</p>
-<div id="212ff198" class="cell" data-execution_count="2">
+<div id="6c72223c" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(inspect.signature(cm.TwoSLS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -579,7 +601,7 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 <pre><code>()</code></pre>
 </div>
 </div>
-<div id="956fbe7c" class="cell" data-execution_count="3">
+<div id="f9581feb" class="cell" data-execution_count="3">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>cls <span class="op">=</span> cm.TwoSLS</span>
@@ -627,7 +649,7 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 </section>
 <section id="minimal-example" class="level2" data-number="7">
 <h2 data-number="7" class="anchored" data-anchor-id="minimal-example"><span class="header-section-number">7</span> Minimal example</h2>
-<div id="08445843" class="cell" data-execution_count="4">
+<div id="12dc8565" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">9</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="dv">400</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>z <span class="op">=</span> rng.normal(size<span class="op">=</span>(n, <span class="dv">2</span>))</span>
@@ -649,7 +671,7 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 <section id="summary-contract" class="level2" data-number="8">
 <h2 data-number="8" class="anchored" data-anchor-id="summary-contract"><span class="header-section-number">8</span> <code>summary()</code> contract</h2>
 <p>The table below is generated by fitting the live class in this repository and then inspecting <code>summary()</code>. Shapes are shown because most values are plain NumPy arrays or scalars.</p>
-<div id="c91fdbe2" class="cell" data-execution_count="5">
+<div id="92716f14" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>rng <span class="op">=</span> np.random.default_rng(<span class="dv">109</span>)</span>
@@ -1134,13 +1156,18 @@ y = \alpha + X_e\beta_e + X_c\beta_c + u.
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>crabbymetrics 0.9.0</p>
+<p>crabbymetrics 0.9.1</p>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
     </div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="../release-0.9.1.html">
+<p>v0.9.1 release</p>
+</a>
+  </li>  
     <li class="nav-item">
     <a class="nav-link" href="../release-0.9.html">
 <p>v0.9 migration</p>
