@@ -4,7 +4,7 @@
 
 This file is for coding agents and LLMs that need to use `crabbymetrics` correctly in applications. Prefer this file when you need a dense API map, data-shape conventions, estimator selection guidance, and links into the human documentation site.
 
-Documentation baseline: v0.9.0. See release-0.9.html for migration notes and reproducing.html for fresh execution and data provenance.
+Documentation baseline: v0.9.1. See release-0.9.1.html for the SCM/FE patch and release-0.9.html for migration notes and reproducing.html for fresh execution and data provenance.
 
 Canonical project locations:
 

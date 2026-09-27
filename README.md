@@ -11,8 +11,9 @@
 Rust-backed econometrics 🦀🔢 models with a scikit-adjacent Python API. Focus: extremely low runtime dependency footprint, simple NumPy-facing estimators, robust standard errors, and bootstrap support where it fits the estimator.
 
 ## Features
-- Linear, IV, and panel causal estimators: OLS, Ridge, FixedEffectsOLS, TwoSLS, HorizontalPanelRidge, SyntheticControl, SyntheticDID, AugmentedBalancing, MatrixCompletion, InteractiveFixedEffects
+- Linear, IV, and panel causal estimators: OLS, Ridge, FixedEffectsOLS, TwoSLS, HorizontalPanelRidge, SyntheticControl, SyntheticDID, AugmentedBalancing, MatrixCompletion, InteractiveFixedEffects, FEImputation
 - Common panel causal API: `HorizontalPanelRidge`, `SyntheticDID`, `AugmentedBalancing`, and `MatrixCompletion` use balanced outcome and absorbing treatment matrices, then expose ATT, counterfactuals, treatment effects, event-study summaries, and group means through `summary()`
+- `FEImputation` fits untreated-only unit/time effects with missing cells, reversals, covariates and weights; point estimates only. See the [worked example](https://apoorvalal.github.io/crabbymetrics/examples/fe-imputation.html).
 - Regularized and likelihood estimators: ElasticNet, Logit, Multinomial Logit, Poisson
 - Moment and semiparametric estimators: GMM, BalancingWeights, EPLM, AverageDerivative, PartiallyLinearDML, AIPW
 - Shared robust covariance options for the main linear estimators: vanilla, HC1, Newey-West, and cluster

@@ -45,6 +45,11 @@ def main():
     )
     shutil.copytree(repo / "docs", docs, dirs_exist_ok=True, ignore=ignored)
     shutil.copytree(repo / "benchmarks", source / "benchmarks", dirs_exist_ok=True, ignore=ignored)
+    # Historical audit pages read committed summaries, never ignored microdata.
+    replication = Path("replications/yqx_panel")
+    shutil.copytree(repo / replication / "results", source / replication / "results",
+                    dirs_exist_ok=True, ignore=ignored)
+    shutil.copy2(repo / replication / "coverage.csv", source / replication / "coverage.csv")
     config = yaml.safe_load((repo / "docs/_quarto.yml").read_text())
     site = docs / config["project"]["output-dir"]
     pages = sorted({
@@ -79,6 +84,8 @@ def main():
     shared += sorted((repo / "docs/ablations/data").glob("*"))
     shared += [repo / "benchmarks/scaling" / name
                for name in ("registry.py", "report_metadata.py")]
+    shared += sorted((repo / replication / "results").rglob("*"))
+    shared += [repo / replication / "coverage.csv"]
     shared_hash = hashlib.sha256(json.dumps(environment, sort_keys=True).encode())
     for path in shared:
         if path.is_file():

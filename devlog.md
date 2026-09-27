@@ -1,5 +1,24 @@
 # Devlog (crabbymetrics)
 
+## v0.9.1 release preparation (2026-09-26)
+
+- PR #23 is merged as `ffaf8f9`: corrected simplex SCM, FE inference controls,
+  level prediction and native untreated-only FE imputation.
+- Preparing version 0.9.1 through the existing Build wheels workflow. The version
+  and website labels are updated; publication remains pending until CI succeeds.
+- Updated the SCM and FE class references to match the merged implementation,
+  added release notes, and made the isolated docs build stage the committed
+  audit summaries. Historical audit outputs are explicitly labeled and no
+  longer require ignored raw data merely to render the website.
+- Preflight: release-mode extension built; 11 Rust tests passed. Python recorded
+  335 passes, 8 optional missing-data skips, and the existing macOS process-group
+  permission failure; both cleanup variants passed in isolation. Linux release
+  CI remains the publication gate. The 729,855-byte sdist contains no docs, HTML,
+  virtualenv or raw-data cache; its metadata reports 0.9.1. Six changed pages
+  executed successfully in the isolated staging tree.
+- The release site is rebuilt with fresh execution and KaTeX, then checked and
+  deployed separately to `gh-pages`. Source distributions continue to exclude docs.
+
 ## 2026-09-21 Panel-Lectures Empirical Replication Audit
 
 - Cloned `xuyiqing/panel-lectures` at `891412f` and created
@@ -43,7 +62,7 @@
 - docs are checked in as a Quarto site under `docs/`
 - the current surface is stronger on econometrics estimators and inference than on generic ML breadth
 
-Current release state: `v0.9.0` is published on PyPI and GitHub; release and clean-install verification are recorded below. Documentation is deployed separately through `gh-pages`.
+Current release state: `v0.9.0` remains published while v0.9.1 is prepared from merged PR #23. Publication and documentation deployment will be verified separately.
 
 Current development state: PR #21 was squash-merged into `master` as `bb4c6f2`, bringing the scaling inventory, external-reference parity tests, benchmark cleanup, and approved estimator hardening together with PR #22's `MPE_CBPS`. The documentation refresh replaces the historical scaling data with a fresh, explicitly bounded v0.9.0 run; the larger historical grid has not been rerun.
 

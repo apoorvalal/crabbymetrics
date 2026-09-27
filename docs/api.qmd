@@ -22,7 +22,7 @@ execute:
 `crabbymetrics` is a compact Rust-backed econometrics library exposed to Python through `pyo3` and packaged with `maturin`. The public API is intentionally small: estimator classes, transformer classes, an `Optimizers` helper namespace, `numpy` arrays as the only runtime dependency, and a scikit-adjacent `fit` / `predict` / `summary` pattern.
 
 The linked class pages describe each estimator's objective, assumptions, inference,
-and limitations. Tables below are generated from the installed v0.9.0 module.
+and limitations. Tables below are generated from the installed v0.9.1 module.
 
 ```{python}
 #| include: false

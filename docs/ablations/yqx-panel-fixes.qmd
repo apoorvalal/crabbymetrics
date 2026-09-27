@@ -24,7 +24,7 @@ new-estimator roadmap.
 [FE imputation documentation](../examples/fe-imputation.qmd) ·
 [Fixed-effects regression documentation](../examples/fixed-effects-ols.qmd) ·
 [Synthetic control documentation](../examples/synthetic-control.qmd) ·
-[Updated development specification](../../replications/yqx_panel/SPEC.md)
+[Updated development specification](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/SPEC.md)
 
 ## Synthetic control
 
@@ -156,17 +156,16 @@ print('Archive regressions:', verification['archive'])
   pipeline. Two are explicitly baseline-only, and the two huge datasets remain
   outside the current memory budget.
 
-## Full-suite status
+## Recorded implementation validation
 
-The full local suite records **343 passing tests and one intermittent failure**
+The September 21 implementation run recorded **343 passing tests and one intermittent failure**
 in the existing benchmark process-group cleanup test (`os.killpg` raises a macOS
 permission error after the parent exits). Both cleanup cases pass when rerun in
 isolation. All 24 new tests pass. No skip or change to that process runner was
 made, and the full suite is not labeled green. Details are in
-[test-status.json](test-status.json).
+[test-status.json](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/results/fixes/test-status.json).
 
-The release extension built successfully, and all four linked example/report
-pages were executed during rendering.
+The current release has separate [CI and package artifacts](https://github.com/apoorvalal/crabbymetrics/releases/tag/v0.9.1). The historical local result above is preserved rather than presented as a current CI failure.
 
 ## Remaining work
 
@@ -175,5 +174,4 @@ varying-slope absorption, multiway clustering, joint event-study inference,
 bootstrap imputation inference, augmented/predictor-V SCM, or factorial-DID
 nuisance orchestration. They remain explicitly proposed in the specification.
 The existing absorbing-only estimators have not been silently broadened to
-missing or reversing treatment panels. No package release or public push is part
-of this branch update.
+missing or reversing treatment panels. These implementations were merged in PR #23 and are included in v0.9.1.

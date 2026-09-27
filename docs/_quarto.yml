@@ -9,6 +9,7 @@ project:
     - index.qmd
     - api.qmd
     - release-0.9.qmd
+    - release-0.9.1.qmd
     - reproducing.qmd
     - reference/*.qmd
     - first-course-ding.qmd
@@ -22,6 +23,7 @@ project:
 format:
   html:
     theme: solar
+    html-math-method: katex
     css: styles.css
     code-overflow: wrap
 
@@ -31,8 +33,10 @@ website:
   title: "crabbymetrics"
   site-url: https://apoorvalal.github.io/crabbymetrics/
   page-footer:
-    left: "crabbymetrics 0.9.0"
+    left: "crabbymetrics 0.9.1"
     right:
+      - text: "v0.9.1 release"
+        href: release-0.9.1.qmd
       - text: "v0.9 migration"
         href: release-0.9.qmd
       - text: "Reproduction"

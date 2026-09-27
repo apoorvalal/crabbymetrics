@@ -8,6 +8,16 @@ This file is just bookkeeping for future extension work. It is not a release che
 - estimators should keep the current `fit` / `predict` / `summary` pattern when that makes sense
 - avoid bringing in pandas, patsy, scipy, or a formula system just to mimic larger libraries
 
+## Current release work (2026-09-26)
+
+PR #23 is merged as `ffaf8f9`. Version 0.9.1 packages its corrected synthetic
+control solver, FE prediction/inference controls, and native `FEImputation`.
+The existing CI publication workflow is retained. Documentation sources now
+match those APIs; historical replication tables remain labeled as historical.
+Release gates include a docs-excluded sdist, reference-backed tests, a fully
+executed isolated docs build and rendered-site link checks. Publication is
+pending. The previous dated sections below describe their original scope.
+
 ## Design Guardrails
 
 Any new work here should usually satisfy most of the following:

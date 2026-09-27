@@ -37,8 +37,9 @@ claim to have reproduced all empirical results in the decks. All six decks were
 inventoried. Published illustrations without matching microdata, methods without
 current APIs, and resource-limited cases remain explicitly identified.
 
-The branch is `replication/yqx-panel-lectures-2026-09-21`, based on upstream
-`0b56835` (v0.9.0). **No production estimator code was changed.**
+The initial audit used `0b56835` (v0.9.0) without estimator modifications.
+Its findings below are historical; PR #23 subsequently repaired the identified
+SCM defect and added FE imputation, released in [v0.9.1](../release-0.9.1.qmd).
 
 | Result | Evidence |
 |---|---|
@@ -54,8 +55,8 @@ The most valuable next changes are **SCM solver correctness**, followed by a
 Adding another in-sample low-rank decomposition would not address the central
 gap exposed by these lectures.
 
-Downloads: [implementation specification](SPEC.md) · [family inventory](coverage.csv)
-· [replication guide](README.md) · [code and numerical results](replication-bundle.zip).
+Downloads: [implementation specification](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/SPEC.md) · [family inventory](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/coverage.csv)
+· [replication guide](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/README.md) · [code and numerical results](https://github.com/apoorvalal/crabbymetrics/archive/refs/tags/v0.9.1.zip).
 
 ## Sources, samples, and verification
 
@@ -66,9 +67,7 @@ divorce, the Chinese famine, smoking, turnout, and coethnic donations.
 
 The Chiu–Lan–Liu–Xu [reanalysis archive](https://doi.org/10.7910/DVN/9RJFZF),
 version 1.0, supplies 49 study datasets and their scripts. Its 582 MB ZIP was
-checksum-verified. The archive was initially inaccessible but a later ordinary
-download succeeded; **the modern examples are not being labeled data-blocked
-merely because of that transient failure**.
+checksum-verified. The modern examples use the verified archive inputs.
 
 All raw inputs live in an ignored local cache. The branch records source URLs,
 hashes, source-derived model specifications, package versions, output tables,
@@ -288,21 +287,17 @@ CM returns the same suboptimal answer at 50, 500 and 5,000 iterations and sets
 augmentation or a different target. A constrained solver with boundary-optimum
 support and objective/KKT-based diagnostics is the first proposed fix.
 
+The table below displays the saved **pre-fix v0.9.0** results. It does not
+rerun the old optimizer using the newly installed library. The
+[implementation report](yqx-panel-fixes.qmd) gives the corrected estimates.
+
 ```{python}
-# A small executable reproduction using the unchanged public API.
-d = pd.read_csv(root / ".cache/smoking.csv")
-w = d.pivot(index="year", columns="state", values="cigsale").sort_index()
-pre = w.index < 1989
-x = w.drop(columns="California").to_numpy(dtype=float)
-y = w.California.to_numpy(dtype=float)
-model = cm.SyntheticControl(max_iterations=500)
-model.fit(x[pre], y[pre])
-s = model.summary()
-print({"pre_rmse": s["pre_rmse"], "reported_converged": s["converged"],
-       "post_gap": float((y-model.predict(x))[~pre].mean())})
+panel_audit = pd.read_csv(out / "panels-crabby.csv")
+display(panel_audit.loc[panel_audit.model.str.startswith("prop99_scm"),
+    ["model", "estimate", "pre_rmse", "reported_converged"]])
 ```
 
-![Prop99 gaps. Only the orange curve is current CM standalone SCM; the augmented curves are separately re-estimated R references.](data/yqx-panel/prop99.svg)
+![Prop99 gaps. The orange curve is the historical v0.9.0 standalone SCM; the augmented curves are separately re-estimated R references.](data/yqx-panel/prop99.svg)
 
 The three lecture-script augsynth variants yield -19.513629, -15.952567 and
 -12.710049. Their paths and pointwise bounds are saved. The separate canonical
@@ -339,7 +334,7 @@ that heatmap would not rerun its 21 experimental designs.
 
 ## Development priorities
 
-The [full specification](SPEC.md) defines APIs, statistical contracts,
+The [full specification](https://github.com/apoorvalal/crabbymetrics/blob/v0.9.1/replications/yqx_panel/SPEC.md) defines APIs, statistical contracts,
 acceptance cases, and an implementation sequence.
 
 1. **Fix standalone SCM numerical correctness and truthful convergence.**
@@ -373,7 +368,7 @@ display(Markdown("\n".join(lines)))
 
 ## Reproducibility and limitations
 
-The download bundle contains original audit code, numerical summaries,
+The release source archive contains original audit code, numerical summaries,
 specifications and manifests, but no third-party microdata. Follow its README
 to fetch the verified inputs and install the
 recorded R reference versions locally. `summarize.py` verifies coefficient
