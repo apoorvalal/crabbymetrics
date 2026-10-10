@@ -1,6 +1,9 @@
 use super::panel::{
-    cohort_units, ensure_panel_has_never_treated, infer_panel_treatment, panel_effect_dicts,
-    panel_group_pre_rmse, PanelTreatmentInfo,
+    cohort_units, ensure_panel_has_never_treated, infer_observed_panel_treatment,
+    panel_effect_dicts, panel_group_pre_rmse, PanelTreatmentInfo,
+};
+use super::panel_missing::{
+    available_average, finite_mean, fit_available_weights, observation_summary, observed_outcomes,
 };
 use crate::utils::{
     bootstrap_indices, pyarray1_from_f64, pyarray2_from_f64, take_rows, take_rows_vec, to_array1,
@@ -382,6 +385,7 @@ pub struct SyntheticDID {
     treatment_info: Option<PanelTreatmentInfo>,
     y: Option<Array2<f64>>,
     w: Option<Array2<f64>>,
+    missing_diagnostics: Vec<MaskedSdidDiagnostics>,
 }
 
 #[pymethods]
@@ -508,6 +512,207 @@ impl SyntheticControl {
     }
 }
 
+struct MaskedSdidDiagnostics {
+    cohort: usize,
+    unit_iterations: u64,
+    time_iterations: u64,
+    unit_objective: f64,
+    time_objective: f64,
+    unit_gradient: f64,
+    time_gradient: f64,
+}
+
+fn fit_synthetic_did_missing(
+    y: &Array2<f64>,
+    w: &Array2<f64>,
+    zeta_omega_opt: Option<f64>,
+    zeta_lambda_opt: Option<f64>,
+    max_iterations: u64,
+) -> PyResult<SyntheticDidFitResult> {
+    let info = infer_observed_panel_treatment(y, w)?;
+    ensure_panel_has_never_treated(&info)?;
+    if info.cohorts.contains(&0) {
+        return Err(PyValueError::new_err(
+            "SyntheticDID needs at least one pre-treatment period for every treated cohort",
+        ));
+    }
+    for zeta in [zeta_omega_opt, zeta_lambda_opt].into_iter().flatten() {
+        if !zeta.is_finite() || zeta < 0.0 {
+            return Err(PyValueError::new_err("zeta must be finite and nonnegative"));
+        }
+    }
+    let (n, periods) = y.dim();
+    let k = info.cohorts.len();
+    let mut cf = Array2::from_elem((n, periods), f64::NAN);
+    let mut effects = cf.clone();
+    let mut omega = Array2::zeros((k, n));
+    let mut lambda = Array2::zeros((k, periods));
+    let mut unit_intercepts = Array1::zeros(k);
+    let mut time_intercepts = Array1::zeros(k);
+    let mut zeta_omegas = Array1::zeros(k);
+    let mut zeta_lambdas = Array1::zeros(k);
+    let mut diagnostics = Vec::new();
+    let mut total = 0.0;
+    let mut total_count = 0;
+    for (c, &g) in info.cohorts.iter().enumerate() {
+        let treated = cohort_units(&info, g);
+        let means = Array1::from_iter(
+            (0..periods).map(|t| finite_mean(treated.iter().map(|i| y[[*i, t]]))),
+        );
+        let counts: Vec<usize> = (0..periods)
+            .map(|t| treated.iter().filter(|i| y[[**i, t]].is_finite()).count())
+            .collect();
+        let post_count: usize = counts[g..].iter().sum();
+        if post_count == 0 {
+            return Err(PyValueError::new_err(format!(
+                "SDID cohort {g} has no observed treated post outcomes"
+            )));
+        }
+        let pre: Vec<usize> = (0..g)
+            .filter(|t| {
+                means[*t].is_finite() && info.never_treated.iter().any(|i| y[[*i, *t]].is_finite())
+            })
+            .collect();
+        let donors: Vec<usize> = info
+            .never_treated
+            .iter()
+            .copied()
+            .filter(|i| pre.iter().any(|t| y[[*i, *t]].is_finite()))
+            .collect();
+        if pre.is_empty() || donors.is_empty() {
+            return Err(PyValueError::new_err(format!(
+                "SDID cohort {g} has no observed donor/treated pre-period overlap"
+            )));
+        }
+        let mut differences = Vec::new();
+        for &i in &donors {
+            for t in 1..g {
+                if y[[i, t]].is_finite() && y[[i, t - 1]].is_finite() {
+                    differences.push(y[[i, t]] - y[[i, t - 1]]);
+                }
+            }
+        }
+        let sigma = if differences.len() > 1 {
+            let mean = finite_mean(differences.iter().copied());
+            (differences.iter().map(|v| (v - mean).powi(2)).sum::<f64>()
+                / (differences.len() - 1) as f64)
+                .sqrt()
+        } else {
+            0.0
+        };
+        let zw = zeta_omega_opt.unwrap_or((post_count as f64).powf(0.25) * sigma);
+        let zl = zeta_lambda_opt.unwrap_or(1e-6 * sigma);
+        let unit_design =
+            Array2::from_shape_fn((pre.len(), donors.len()), |(t, j)| y[[donors[j], pre[t]]]);
+        let unit_fit = fit_available_weights(
+            &unit_design,
+            &means.select(Axis(0), &pre),
+            zw,
+            max_iterations,
+        )?;
+        let donor_post: Vec<(usize, f64)> = donors
+            .iter()
+            .copied()
+            .filter_map(|i| {
+                let available: Vec<usize> = (g..periods)
+                    .filter(|t| counts[*t] > 0 && y[[i, *t]].is_finite())
+                    .collect();
+                let mass: usize = available.iter().map(|t| counts[*t]).sum();
+                if mass == 0 {
+                    None
+                } else {
+                    Some((
+                        i,
+                        available
+                            .iter()
+                            .map(|t| counts[*t] as f64 * y[[i, *t]])
+                            .sum::<f64>()
+                            / mass as f64,
+                    ))
+                }
+            })
+            .collect();
+        // A pre-period absent for every time-weight training donor gets zero weight.
+        let time_pre: Vec<usize> = pre
+            .iter()
+            .copied()
+            .filter(|t| donor_post.iter().any(|(i, _)| y[[*i, *t]].is_finite()))
+            .collect();
+        let time_design = Array2::from_shape_fn((donor_post.len(), time_pre.len()), |(i, t)| {
+            y[[donor_post[i].0, time_pre[t]]]
+        });
+        let time_target = Array1::from_iter(donor_post.iter().map(|(_, v)| *v));
+        let time_fit = fit_available_weights(&time_design, &time_target, zl, max_iterations)?;
+        for (j, i) in donors.iter().enumerate() {
+            omega[[c, *i]] = unit_fit.weights[j];
+        }
+        for (j, t) in time_pre.iter().enumerate() {
+            lambda[[c, *t]] = time_fit.weights[j];
+        }
+        let synthetic = Array1::from_iter((0..periods).map(|t| {
+            available_average(
+                &Array1::from_iter(donors.iter().map(|i| y[[*i, t]])),
+                &unit_fit.weights,
+            )
+        }));
+        let pre_gaps = Array1::from_iter(time_pre.iter().map(|t| means[*t] - synthetic[*t]));
+        if pre_gaps.iter().any(|v| !v.is_finite()) {
+            return Err(PyValueError::new_err(format!(
+                "SDID cohort {g} has no positive donor weight for a pre-period contrast"
+            )));
+        }
+        let correction = time_fit.weights.dot(&pre_gaps);
+        for t in g..periods {
+            if counts[t] > 0 {
+                if !synthetic[t].is_finite() {
+                    return Err(PyValueError::new_err(format!(
+                        "SDID cohort {g}, period {t}: no observed positive-weight donors"
+                    )));
+                }
+                total += counts[t] as f64 * (means[t] - synthetic[t] - correction);
+                total_count += counts[t];
+            }
+        }
+        for i in treated {
+            for t in 0..periods {
+                cf[[i, t]] = synthetic[t] + unit_fit.intercept;
+                effects[[i, t]] = y[[i, t]] - cf[[i, t]];
+            }
+        }
+        unit_intercepts[c] = unit_fit.intercept;
+        time_intercepts[c] = time_fit.intercept;
+        zeta_omegas[c] = zw;
+        zeta_lambdas[c] = zl;
+        diagnostics.push(MaskedSdidDiagnostics {
+            cohort: g,
+            unit_iterations: unit_fit.iterations,
+            time_iterations: time_fit.iterations,
+            unit_objective: unit_fit.objective,
+            time_objective: time_fit.objective,
+            unit_gradient: unit_fit.projected_gradient,
+            time_gradient: time_fit.projected_gradient,
+        });
+    }
+    let pre_rmse = panel_group_pre_rmse(&effects, &info);
+    Ok(SyntheticDidFitResult {
+        att: total / total_count as f64,
+        unit_weights: omega,
+        time_weights: lambda,
+        counterfactual: cf,
+        treatment_effect: effects,
+        pre_rmse,
+        unit_intercept: unit_intercepts,
+        time_intercept: time_intercepts,
+        fitted_zeta_omega: zeta_omegas,
+        fitted_zeta_lambda: zeta_lambdas,
+        control_units: info.never_treated.clone(),
+        treated_units: info.ever_treated.clone(),
+        cohorts: info.cohorts.clone(),
+        treatment_info: info,
+        missing_diagnostics: diagnostics,
+    })
+}
+
 struct SyntheticDidFitResult {
     att: f64,
     unit_weights: Array2<f64>,
@@ -523,6 +728,7 @@ struct SyntheticDidFitResult {
     treated_units: Vec<usize>,
     cohorts: Vec<usize>,
     treatment_info: PanelTreatmentInfo,
+    missing_diagnostics: Vec<MaskedSdidDiagnostics>,
 }
 
 fn fit_synthetic_did_panel(
@@ -532,7 +738,10 @@ fn fit_synthetic_did_panel(
     zeta_lambda_opt: Option<f64>,
     max_iterations: u64,
 ) -> PyResult<SyntheticDidFitResult> {
-    let treatment_info = infer_panel_treatment(y, w)?;
+    if y.iter().any(|v| !v.is_finite()) {
+        return fit_synthetic_did_missing(y, w, zeta_omega_opt, zeta_lambda_opt, max_iterations);
+    }
+    let treatment_info = infer_observed_panel_treatment(y, w)?;
     ensure_panel_has_never_treated(&treatment_info)?;
     if treatment_info.cohorts.iter().any(|cohort| *cohort == 0) {
         return Err(PyValueError::new_err(
@@ -676,6 +885,7 @@ fn fit_synthetic_did_panel(
         treated_units: treatment_info.ever_treated.clone(),
         cohorts: treatment_info.cohorts.clone(),
         treatment_info,
+        missing_diagnostics: Vec::new(),
     })
 }
 
@@ -709,7 +919,7 @@ fn sdid_bootstrap_se(
     if replications < 2 {
         return Err(PyValueError::new_err("replications must be at least 2"));
     }
-    let info = infer_panel_treatment(y, w)?;
+    let info = infer_observed_panel_treatment(y, w)?;
     if info.ever_treated.len() == 1 {
         return Ok(f64::NAN);
     }
@@ -739,7 +949,7 @@ fn sdid_jackknife_se(
     zeta_lambda: Option<f64>,
     max_iterations: u64,
 ) -> PyResult<f64> {
-    let info = infer_panel_treatment(y, w)?;
+    let info = infer_observed_panel_treatment(y, w)?;
     if info.ever_treated.len() == 1 {
         return Ok(f64::NAN);
     }
@@ -785,7 +995,7 @@ fn sdid_placebo_se(
     if replications < 2 {
         return Err(PyValueError::new_err("replications must be at least 2"));
     }
-    let info = infer_panel_treatment(y, w)?;
+    let info = infer_observed_panel_treatment(y, w)?;
     let n_control = info.never_treated.len();
     let n_treated = info.ever_treated.len();
     if n_control <= n_treated {
@@ -846,11 +1056,19 @@ impl SyntheticDID {
             treatment_info: None,
             y: None,
             w: None,
+            missing_diagnostics: Vec::new(),
         }
     }
 
-    fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
+    #[pyo3(signature = (y, w, *, observed=None))]
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray2<f64>,
+        w: PyReadonlyArray2<f64>,
+        observed: Option<PyReadonlyArray2<bool>>,
+    ) -> PyResult<()> {
         self.att = None;
+        self.missing_diagnostics.clear();
         self.unit_weights = None;
         self.time_weights = None;
         self.counterfactual = None;
@@ -866,7 +1084,13 @@ impl SyntheticDID {
         self.treatment_info = None;
         self.y = None;
         self.w = None;
-        let y = to_array2(&y);
+        let y = observed_outcomes(
+            to_array2(&y),
+            observed.map(|m| {
+                let a = m.as_array();
+                Array2::from_shape_fn((a.nrows(), a.ncols()), |ij| a[ij])
+            }),
+        )?;
         let w = to_array2(&w);
         let fit = fit_synthetic_did_panel(
             &y,
@@ -876,6 +1100,7 @@ impl SyntheticDID {
             self.max_iterations,
         )?;
 
+        self.missing_diagnostics = fit.missing_diagnostics;
         self.att = Some(fit.att);
         self.unit_weights = Some(fit.unit_weights);
         self.time_weights = Some(fit.time_weights);
@@ -926,6 +1151,28 @@ impl SyntheticDID {
         let (event_study, group_means) = panel_effect_dicts(py, y, counterfactual, treatment_info)?;
 
         let dict = pyo3::types::PyDict::new(py);
+        observation_summary(&dict, y, self.w.as_ref().unwrap())?;
+        let diagnostics = pyo3::types::PyList::empty(py);
+        for d in &self.missing_diagnostics {
+            let entry = pyo3::types::PyDict::new(py);
+            entry.set_item("cohort", d.cohort)?;
+            entry.set_item("unit_iterations", d.unit_iterations)?;
+            entry.set_item("time_iterations", d.time_iterations)?;
+            entry.set_item("unit_objective", d.unit_objective)?;
+            entry.set_item("time_objective", d.time_objective)?;
+            entry.set_item("unit_projected_gradient", d.unit_gradient)?;
+            entry.set_item("time_projected_gradient", d.time_gradient)?;
+            diagnostics.append(entry)?;
+        }
+        dict.set_item("missing_diagnostics", diagnostics)?;
+        dict.set_item(
+            "missing_method",
+            if self.missing_diagnostics.is_empty() {
+                "complete panel"
+            } else {
+                "available-case normalized weights"
+            },
+        )?;
         dict.set_item("att", att)?;
         dict.set_item("unit_weights", pyarray2_from_f64(py, unit_weights))?;
         dict.set_item("time_weights", pyarray2_from_f64(py, time_weights))?;

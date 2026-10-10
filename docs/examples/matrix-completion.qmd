@@ -12,7 +12,7 @@ execute:
 jupyter: python3
 ---
 
-`MatrixCompletion` treats untreated panel cells as observed entries and treated cells as missing counterfactuals. The public panel API is the same as the other high-level panel estimators: `fit(Y, W)` where `Y` is a balanced outcome matrix and `W` is a same-shaped absorbing-treatment indicator.
+`MatrixCompletion` fits observed untreated cells and predicts treated-cell counterfactuals. The public panel API is the same as the other high-level panel estimators: `fit(Y, W)` where `Y` is an N × T outcome matrix and `W` is a same-shaped absorbing-treatment indicator.
 
 This example uses a genuinely low-rank untreated panel, adds unit and time effects, masks treated cells through `W`, and asks `MatrixCompletion` to fill the counterfactual surface.
 
@@ -21,6 +21,8 @@ increase no longer satisfies the convergence check. `summary(include_matrices=Fa
 omits the four large arrays `completed`, `low_rank`, `counterfactual`, and
 `treatment_effect`; diagnostics, effects summaries, and one-dimensional arrays
 remain available. The default still returns independent owned matrices.
+
+For incomplete panels, use NaNs or `fit(Y, W, observed=mask)`. The [missing-outcome example](missing-panel-outcomes.qmd) explains the estimator-specific fitting rules.
 
 ## Simulate A Low-Rank Panel
 

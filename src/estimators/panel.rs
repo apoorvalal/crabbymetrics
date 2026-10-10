@@ -1,3 +1,4 @@
+use super::panel_missing::{observation_summary, observed_outcomes};
 use crate::fit::FitDiagnostics;
 use crate::rla::randomized_svd_impl;
 use crate::utils::{add_intercept, invert_matrix, pyarray1_from_f64, pyarray2_from_f64, to_array2};
@@ -491,7 +492,26 @@ pub(crate) fn infer_panel_treatment(
         return Err(PyValueError::new_err("W must have the same shape as Y"));
     }
     validate_finite("Y", y).map_err(PyValueError::new_err)?;
-    validate_finite("W", w).map_err(PyValueError::new_err)?;
+    infer_observed_panel_treatment(y, w)
+}
+
+pub(crate) fn infer_observed_panel_treatment(
+    y: &Array2<f64>,
+    w: &Array2<f64>,
+) -> PyResult<PanelTreatmentInfo> {
+    if y.is_empty() || y.dim() != w.dim() {
+        return Err(PyValueError::new_err(
+            "Y and W must be non-empty matrices with the same shape",
+        ));
+    }
+    if y.iter().any(|v| v.is_infinite()) {
+        return Err(PyValueError::new_err(
+            "Y must contain finite outcomes or NaN",
+        ));
+    }
+    if w.iter().any(|v| !v.is_finite()) {
+        return Err(PyValueError::new_err("W must be known at every cell; reconstruct the treatment schedule from adoption dates, not missing outcomes"));
+    }
 
     let mut first_treat = Vec::with_capacity(w.nrows());
     let mut ever_treated = Vec::new();
@@ -638,8 +658,16 @@ fn summarize_panel_effects(
         let units = cohort_units(info, *cohort);
         for t in 0..y.ncols() {
             let event = t as i64 - *cohort as i64;
-            let treated_values: Vec<f64> = units.iter().map(|idx| y[[*idx, t]]).collect();
-            let cf_values: Vec<f64> = units.iter().map(|idx| counterfactual[[*idx, t]]).collect();
+            let supported: Vec<usize> = units
+                .iter()
+                .copied()
+                .filter(|idx| y[[*idx, t]].is_finite() && counterfactual[[*idx, t]].is_finite())
+                .collect();
+            let treated_values: Vec<f64> = supported.iter().map(|idx| y[[*idx, t]]).collect();
+            let cf_values: Vec<f64> = supported
+                .iter()
+                .map(|idx| counterfactual[[*idx, t]])
+                .collect();
             let effects: Vec<f64> = units
                 .iter()
                 .map(|idx| y[[*idx, t]] - counterfactual[[*idx, t]])
@@ -1046,6 +1074,50 @@ pub fn panel_fe<'py>(
     Ok(dict.into())
 }
 
+fn validate_completion_support(mask: &Array2<bool>, connected: bool) -> PyResult<()> {
+    for i in 0..mask.nrows() {
+        if !mask.row(i).iter().any(|v| *v) {
+            return Err(PyValueError::new_err(format!(
+                "unit {i} has no observed untreated outcomes"
+            )));
+        }
+    }
+    for t in 0..mask.ncols() {
+        if !mask.column(t).iter().any(|v| *v) {
+            return Err(PyValueError::new_err(format!(
+                "period {t} has no observed untreated outcomes"
+            )));
+        }
+    }
+    if connected {
+        let n = mask.nrows();
+        let mut visited = vec![false; n + mask.ncols()];
+        let mut stack = vec![0];
+        visited[0] = true;
+        while let Some(node) = stack.pop() {
+            if node < n {
+                for t in 0..mask.ncols() {
+                    if mask[[node, t]] && !visited[n + t] {
+                        visited[n + t] = true;
+                        stack.push(n + t);
+                    }
+                }
+            } else {
+                for i in 0..n {
+                    if mask[[i, node - n]] && !visited[i] {
+                        visited[i] = true;
+                        stack.push(i);
+                    }
+                }
+            }
+        }
+        if visited.iter().any(|v| !v) {
+            return Err(PyValueError::new_err("observed untreated unit-period graph is disconnected; two-way fixed effects cannot link its components"));
+        }
+    }
+    Ok(())
+}
+
 #[pyclass]
 pub struct MatrixCompletion {
     lambda_l: Option<f64>,
@@ -1158,7 +1230,13 @@ impl MatrixCompletion {
         })
     }
 
-    fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
+    #[pyo3(signature = (y, w, *, observed=None))]
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray2<f64>,
+        w: PyReadonlyArray2<f64>,
+        observed: Option<PyReadonlyArray2<bool>>,
+    ) -> PyResult<()> {
         self.completed = None;
         self.low_rank = None;
         self.unit_effects = None;
@@ -1171,11 +1249,22 @@ impl MatrixCompletion {
         self.treatment_info = None;
         self.treatment_effect = None;
         self.att = None;
-        let y_input = to_array2(&y);
+        self.history_objective.clear();
+        self.history_rmse.clear();
+        let y_input = observed_outcomes(
+            to_array2(&y),
+            observed.map(|m| {
+                let a = m.as_array();
+                Array2::from_shape_fn((a.nrows(), a.ncols()), |ij| a[ij])
+            }),
+        )?;
         let w_input = to_array2(&w);
-        let treatment_info = infer_panel_treatment(&y_input, &w_input)?;
+        let treatment_info = infer_observed_panel_treatment(&y_input, &w_input)?;
 
-        let mask_arr = w_input.mapv(|value| value < 0.5);
+        let mask_arr = Array2::from_shape_fn(y_input.dim(), |ij| {
+            w_input[ij] < 0.5 && y_input[ij].is_finite()
+        });
+        validate_completion_support(&mask_arr, self.fit_unit_effects && self.fit_time_effects)?;
         if !mask_arr.iter().any(|value| *value) {
             return Err(PyValueError::new_err(
                 "W leaves no untreated observed entries",
@@ -1383,6 +1472,8 @@ impl MatrixCompletion {
             dict.set_item("counterfactual", pyarray2_from_f64(py, completed))?;
             dict.set_item("treatment_effect", pyarray2_from_f64(py, treatment_effect))?;
         }
+        observation_summary(&dict, y, self.w.as_ref().unwrap())?;
+        dict.set_item("training_mask_rule", "observed & (W == 0)")?;
         dict.set_item("include_matrices", include_matrices)?;
         dict.set_item("unit_effects", pyarray1_from_f64(py, unit_effects))?;
         dict.set_item("time_effects", pyarray1_from_f64(py, time_effects))?;
@@ -1408,11 +1499,82 @@ impl MatrixCompletion {
     }
 }
 
+struct RidgeOverlap {
+    cohort: usize,
+    periods: Vec<usize>,
+    donors: Vec<usize>,
+    training: Vec<usize>,
+    intercept: f64,
+    coef: Array1<f64>,
+}
+
+fn fit_ridge_overlap(
+    y: &Array2<f64>,
+    controls: &[usize],
+    treated: &[usize],
+    cohort: usize,
+    penalty: f64,
+) -> PyResult<(Array1<f64>, Vec<RidgeOverlap>)> {
+    let means = Array1::from_iter(
+        (0..cohort).map(|t| super::panel_missing::finite_mean(treated.iter().map(|i| y[[*i, t]]))),
+    );
+    let mut path = Array1::from_elem(y.ncols(), f64::NAN);
+    let mut models: Vec<RidgeOverlap> = Vec::new();
+    for t in 0..y.ncols() {
+        let donors: Vec<usize> = controls
+            .iter()
+            .copied()
+            .filter(|i| {
+                y[[*i, t]].is_finite()
+                    && (0..cohort).any(|s| means[s].is_finite() && y[[*i, s]].is_finite())
+            })
+            .collect();
+        let training: Vec<usize> = (0..cohort)
+            .filter(|s| means[*s].is_finite() && donors.iter().all(|i| y[[*i, *s]].is_finite()))
+            .collect();
+        if donors.is_empty() || training.is_empty() {
+            if t >= cohort && treated.iter().any(|i| y[[*i, t]].is_finite()) {
+                return Err(PyValueError::new_err(format!("ridge cohort {cohort}, period {t}: no donor/pre-period overlap for observed treated outcomes")));
+            }
+            continue;
+        }
+        let index = if let Some(index) = models.iter().position(|m| m.donors == donors) {
+            index
+        } else {
+            let design = Array2::from_shape_fn((training.len(), donors.len()), |(s, j)| {
+                y[[donors[j], training[s]]]
+            });
+            let target = means.select(Axis(0), &training);
+            let (intercept, coef) = fit_ridge_with_intercept(&design, &target, penalty)?;
+            models.push(RidgeOverlap {
+                cohort,
+                periods: Vec::new(),
+                donors: donors.clone(),
+                training,
+                intercept,
+                coef,
+            });
+            models.len() - 1
+        };
+        let model = &mut models[index];
+        model.periods.push(t);
+        path[t] = model.intercept
+            + model
+                .donors
+                .iter()
+                .enumerate()
+                .map(|(j, i)| model.coef[j] * y[[*i, t]])
+                .sum::<f64>();
+    }
+    Ok((path, models))
+}
+
 #[pyclass]
 pub struct HorizontalPanelRidge {
     penalty: f64,
     cohort_intercepts: Option<Array1<f64>>,
     cohort_coef: Option<Array2<f64>>,
+    overlap_models: Vec<RidgeOverlap>,
     counterfactual: Option<Array2<f64>>,
     treatment_effect: Option<Array2<f64>>,
     att: Option<f64>,
@@ -1439,6 +1601,7 @@ impl HorizontalPanelRidge {
             penalty,
             cohort_intercepts: None,
             cohort_coef: None,
+            overlap_models: Vec::new(),
             counterfactual: None,
             treatment_effect: None,
             att: None,
@@ -1452,9 +1615,16 @@ impl HorizontalPanelRidge {
         })
     }
 
-    fn fit(&mut self, y: PyReadonlyArray2<f64>, w: PyReadonlyArray2<f64>) -> PyResult<()> {
+    #[pyo3(signature = (y, w, *, observed=None))]
+    fn fit(
+        &mut self,
+        y: PyReadonlyArray2<f64>,
+        w: PyReadonlyArray2<f64>,
+        observed: Option<PyReadonlyArray2<bool>>,
+    ) -> PyResult<()> {
         self.cohort_intercepts = None;
         self.cohort_coef = None;
+        self.overlap_models.clear();
         self.counterfactual = None;
         self.treatment_effect = None;
         self.att = None;
@@ -1465,9 +1635,15 @@ impl HorizontalPanelRidge {
         self.treatment_info = None;
         self.y = None;
         self.w = None;
-        let y = to_array2(&y);
+        let y = observed_outcomes(
+            to_array2(&y),
+            observed.map(|m| {
+                let a = m.as_array();
+                Array2::from_shape_fn((a.nrows(), a.ncols()), |ij| a[ij])
+            }),
+        )?;
         let w = to_array2(&w);
-        let treatment_info = infer_panel_treatment(&y, &w)?;
+        let treatment_info = infer_observed_panel_treatment(&y, &w)?;
         ensure_panel_has_never_treated(&treatment_info)?;
         if treatment_info.cohorts.iter().any(|cohort| *cohort == 0) {
             return Err(PyValueError::new_err(
@@ -1482,10 +1658,32 @@ impl HorizontalPanelRidge {
         let mut treatment_effect = Array2::<f64>::from_elem((n_units, n_periods), f64::NAN);
         let mut cohort_intercepts = Array1::<f64>::zeros(n_cohorts);
         let mut cohort_coef = Array2::<f64>::zeros((n_cohorts, n_units));
+        let mut overlap_models = Vec::new();
 
         for (c_idx, cohort) in treatment_info.cohorts.iter().enumerate() {
             let treated_units = cohort_units(&treatment_info, *cohort);
             let control_units = &treatment_info.never_treated;
+            if y.iter().any(|v| !v.is_finite()) {
+                let (path, models) =
+                    fit_ridge_overlap(&y, control_units, &treated_units, *cohort, self.penalty)?;
+                if models.len() == 1 {
+                    cohort_intercepts[c_idx] = models[0].intercept;
+                    for (j, unit) in models[0].donors.iter().enumerate() {
+                        cohort_coef[[c_idx, *unit]] = models[0].coef[j];
+                    }
+                } else {
+                    cohort_intercepts[c_idx] = f64::NAN;
+                    cohort_coef.row_mut(c_idx).fill(f64::NAN);
+                }
+                for unit in treated_units {
+                    for t in 0..n_periods {
+                        counterfactual[[unit, t]] = path[t];
+                        treatment_effect[[unit, t]] = y[[unit, t]] - path[t];
+                    }
+                }
+                overlap_models.extend(models);
+                continue;
+            }
             let control_panel = y.select(Axis(0), control_units);
             let treated_panel = y.select(Axis(0), &treated_units);
             let treated_mean = treated_panel
@@ -1512,6 +1710,7 @@ impl HorizontalPanelRidge {
         let att = panel_att_from_effects(&w, &treatment_effect);
         let pre_rmse = panel_group_pre_rmse(&treatment_effect, &treatment_info);
 
+        self.overlap_models = overlap_models;
         self.cohort_intercepts = Some(cohort_intercepts);
         self.cohort_coef = Some(cohort_coef);
         self.counterfactual = Some(counterfactual);
@@ -1575,6 +1774,23 @@ impl HorizontalPanelRidge {
         let (event_study, group_means) = panel_summaries_to_dict(py, &summaries)?;
 
         let dict = pyo3::types::PyDict::new(py);
+        observation_summary(&dict, y, self.w.as_ref().unwrap())?;
+        let models = pyo3::types::PyList::empty(py);
+        for model in &self.overlap_models {
+            let entry = PyDict::new(py);
+            entry.set_item("cohort", model.cohort)?;
+            entry.set_item("periods", model.periods.clone())?;
+            entry.set_item("donors", model.donors.clone())?;
+            entry.set_item("training_periods", model.training.clone())?;
+            entry.set_item("intercept", model.intercept)?;
+            entry.set_item("coef", pyarray1_from_f64(py, &model.coef))?;
+            models.append(entry)?;
+        }
+        dict.set_item("overlap_models", models)?;
+        dict.set_item(
+            "missing_method",
+            "available donors with complete-case pre-period training",
+        )?;
         dict.set_item("att", att)?;
         dict.set_item("intercept", cohort_intercepts[0])?;
         dict.set_item(

@@ -12,9 +12,11 @@ execute:
 jupyter: python3
 ---
 
-`HorizontalPanelRidge` is the horizontal-regression member of the panel causal family. The public API is deliberately small: pass a balanced outcome matrix `Y` and a same-shaped absorbing-treatment matrix `W` to `fit(Y, W)`. The estimator infers treated units, never-treated donors, first-treatment cohorts, pre-period windows, and post-treatment event summaries.
+`HorizontalPanelRidge` is the horizontal-regression member of the panel causal family. The public API is deliberately small: pass an N × T outcome matrix `Y` and a same-shaped absorbing-treatment matrix `W` to `fit(Y, W)`. The estimator infers treated units, never-treated donors, first-treatment cohorts, pre-period windows, and post-treatment event summaries.
 
 This example simulates a staggered panel where treated paths are predictable from donor histories before treatment, then recovers the average post-treatment effect.
+
+For incomplete panels, use NaNs or `fit(Y, W, observed=mask)`. The [missing-outcome example](missing-panel-outcomes.qmd) explains the estimator-specific fitting rules.
 
 ## Simulate A Balanced Panel
 

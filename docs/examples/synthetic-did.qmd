@@ -17,6 +17,8 @@ Synthetic difference-in-differences combines two adjustments. Unit weights make 
 
 This page uses a factor-model donor panel and treated units whose untreated path is a sparse convex combination of high-score donors. That selection makes a raw donor average and a plain DiD contrast visibly biased, while still leaving a good weighted comparison inside the donor pool.
 
+The [missing-outcome example](missing-panel-outcomes.qmd) covers observation masks and available-case weight normalization.
+
 ## Generate A Selected Panel
 
 ```{python}

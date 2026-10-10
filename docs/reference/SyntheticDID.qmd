@@ -1,6 +1,6 @@
 ---
 title: "SyntheticDID"
-subtitle: "Synthetic difference-in-differences for balanced panels"
+subtitle: "Synthetic difference-in-differences with complete or missing outcomes"
 format:
   html:
     toc: true
@@ -44,7 +44,7 @@ $$
 +\frac{\zeta_\lambda^2}{2}\|\lambda\|_2^2.
 $$
 
-Both simplex problems use softmax L-BFGS, so finite solutions have strictly positive weights. If penalties are omitted, $\hat\sigma$ is the sample standard deviation of first differences among control pre-period outcomes and
+On complete panels both simplex problems use the active-set quadratic solver, allowing exact zero weights. If penalties are omitted, $\hat\sigma$ is the sample standard deviation of first differences among control pre-period outcomes and
 
 $$
 \zeta_\omega=(N_gT_{\mathrm{post}})^{1/4}\hat\sigma,
@@ -62,14 +62,15 @@ and the overall ATT averages cohort estimates with weights $N_gT_{\mathrm{post}}
 
 ## Implementation walkthrough
 
-The implementation fits staggered adoption cohort by cohort and reuses one native softmax least-squares solver for both simplex problems.
+The implementation fits staggered adoption cohort by cohort. Complete panels retain the simplex quadratic solver; incomplete panels use the normalized available-case objective described in [missing panel outcomes](../examples/missing-panel-outcomes.qmd).
 
 1. The shared panel parser enforces binary absorbing treatment, infers first-treatment periods, and requires never-treated controls plus at least one pre-period for every cohort. For cohort $g$, rows are reordered as all never-treated controls followed by units first treated at $g$.
 2. The default noise scale pools first differences $Y_{i,t}-Y_{i,t-1}$ over control units and cohort-specific pre-periods and uses their sample standard deviation. This one $\hat\sigma_g$ generates both default penalties. With fewer than two differences it is zero, so the defaults can become unregularized.
 3. Time weights use $Y_{C,\mathrm{pre}}$ as a $C\times T_0$ design and the control post-period mean by unit as its target. Unit weights use $Y_{C,\mathrm{pre}}'$ as a $T_0\times C$ design and the treated-cohort pre-period mean by time as its target.
-4. In either problem, softmax maps a zero-initialized unconstrained vector to a uniform simplex. The residual is demeaned internally, profiling out an intercept. The gradient adds $\zeta^2w$ in weight coordinates and applies the softmax Jacobian as $w\odot(g_w-w'g_w)$. Seven-pair L-BFGS uses More-Thuente search and fixed $10^{-8}$ gradient and $10^{-12}$ cost tolerances.
+4. On complete data, centering profiles out the intercept and produces a simplex quadratic problem. On incomplete data, each average divides by its available weight mass. The intercept is profiled out and projected gradient descent with backtracking starts at uniform weights. It must reach a scaled projected-gradient residual below $10^{-8}$ or the fit fails. The masked objective is nonlinear and may have multiple local minima; this criterion establishes stationarity, not a global optimum.
 5. After weights converge, the profiled intercept is recomputed as the mean target-minus-fit residual. The unit intercept and weights generate the displayed full cohort counterfactual $a_g+Y_C'\omega_g$. The fitted time intercept is retained for diagnostics but is not used in that path.
-6. Separately, signed unit weights $(-\omega,1/N_g)$ and signed time weights $(-\lambda,1/T_{\mathrm{post}})$ are multiplied through the reordered cohort panel to obtain $\hat\tau_g$. Cohort estimates are accumulated with $N_gT_{\mathrm{post}}$ weights. This is why ATT cannot generally be recovered by averaging the displayed diagnostic effect matrix.
+6. On complete panels, signed unit weights $(-\omega,1/N_g)$ and signed time weights $(-\lambda,1/T_{\mathrm{post}})$ are multiplied through the reordered cohort panel to obtain $\hat\tau_g$. Cohort estimates are accumulated with $N_gT_{\mathrm{post}}$ weights. This is why ATT cannot generally be recovered by averaging the displayed diagnostic effect matrix.
+   With missing outcomes, the ATT instead uses observed-treated-count-weighted post gaps minus the available-case time-weighted pre-gap; cohort weights are observed treated post-cell counts.
 7. Weight matrices are stored in original panel coordinates: control-unit columns or pre-period columns receive fitted values and all irrelevant positions remain zero. Event summaries are computed later from displayed counterfactual cells.
 8. Bootstrap samples whole unit rows and silently skips invalid refits. Placebo shuffles never-treated units, assigns the observed treated timing rows to the last pseudo-treated subset, and also skips failed fits. Both return the sample standard deviation of successful estimates multiplied by $\sqrt{(R-1)/R}$ using the requested replication count $R$, even when fewer fits succeeded. Jackknife instead returns NaN at the first invalid leave-one-out panel and uses the usual $\sqrt{(N-1)\sum(\tau_{-i}-\bar\tau)^2/N}$ formula.
 
@@ -83,13 +84,13 @@ These procedures address sampling variability under different resampling stories
 
 ## Performance and numerical behavior
 
-Every cohort requires two simplex L-BFGS fits, each with dense panel multiplications. Resampling multiplies the entire cohort-fitting cost by the requested replications; jackknife performs one full fit per unit. The class stores cohort-by-unit and cohort-by-time weight matrices plus panel-sized counterfactual and effect matrices. Softmax can represent very small but not exact zero weights, and weakly identified weight vectors may vary substantially even when ATT is stable.
+Every cohort requires two weight fits, each using its observed control/pre-treatment data. Resampling multiplies the entire cohort-fitting cost by the requested replications; jackknife performs one full fit per unit. The class stores cohort-by-unit and cohort-by-time weight matrices plus panel-sized counterfactual and effect matrices. Both solvers can return exact zero weights. The masked solver rejects zero available-weight denominators.
 
 ## Python API
 
 Constructor: `cm.SyntheticDID`
 
-Use `SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)`. `fit(y, w)` infers cohorts and donors. `predict()`, `treatment_effect()`, `summary()`, `vcov()`, and `se()` expose fitted counterfactuals and uncertainty helpers.
+Use `SyntheticDID(zeta_omega=None, zeta_lambda=None, max_iterations=1000)`. `fit(y, w, observed=None)` infers cohorts and donors. NaNs or an explicit Boolean mask specify missing outcomes; `W` must remain known and absorbing. ATT uses observed treated cells. Masked-fit diagnostics are in `missing_diagnostics`, alongside observation counts. The diagnostic counterfactual/event path retains the unit-fit intercept; ATT separately subtracts the time-weighted pre-gap. `predict()`, `treatment_effect()`, `summary()`, `vcov()`, and `se()` expose fitted counterfactuals and uncertainty helpers.
 
 ```{python}
 print(inspect.signature(cm.SyntheticDID))
