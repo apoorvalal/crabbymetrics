@@ -8,6 +8,49 @@ This file is just bookkeeping for future extension work. It is not a release che
 - estimators should keep the current `fit` / `predict` / `summary` pattern when that makes sense
 - avoid bringing in pandas, patsy, scipy, or a formula system just to mimic larger libraries
 
+## Missing panel outcomes — current branch (2026-10-09)
+
+Branch `feat/missing-panel-outcomes` extends `MatrixCompletion`, `SyntheticDID`
+and `HorizontalPanelRidge` with `fit(Y, W, *, observed=None)`. `NaN` means an
+unobserved outcome; a Boolean mask can explicitly exclude finite placeholders.
+The treatment schedule remains fully known, binary and absorbing. Reconstruct
+it from known adoption dates rather than confusing absent outcomes with controls.
+
+- **Matrix completion:** intersect the untreated mask with outcome availability
+  throughout loss, FE updates, gradient/SVT, lambda scaling and diagnostics.
+  Require observed untreated support in each row/column and connected support
+  when both FE families are enabled. Predict missing counterfactuals, not missing
+  observed effects.
+- **SDID:** retain the complete-panel QP. For incomplete panels fit unit/time
+  weights using self-normalized available-observation averages, a profiled
+  intercept and the existing quadratic penalty. Use projected gradient with
+  backtracking, deterministic uniform initialization and a scaled projected-gradient
+  residual below 1e-8. This nonlinear extension can have local minima; report
+  diagnostics and reject nonconvergence/zero available weight mass. Count-weight
+  observed post gaps and cohort aggregation. Estimate default noise only from
+  adjacent observed donor pre-period differences.
+- **Horizontal ridge:** use donors available at prediction time and their jointly
+  observed training pre-periods. Cache fits by donor-availability pattern; expose
+  each model's coefficients, donors and training/prediction periods. Reject
+  unsupported observed post outcomes instead of changing the target silently.
+  Do not impute missing regressors or call zero-filled ridge a masked regression.
+- **Outputs:** report observation counts and observed-treated-cell ATT target;
+  retain NaN at unobserved effects. Group means use joint outcome/prediction
+  support. SDID's diagnostic counterfactual retains the unit-fit intercept;
+  its ATT separately uses the time-weighted pre-gap, as before.
+
+No cell precision weighting, missing-treatment inference, automatic low-rank
+choice, change to resampling failure conventions, archive-wide rerun or release
+is included. Other panel classes retain their existing data contracts. The
+replication repo symlinks this canonical checkout; its installed package and
+published estimates are unchanged.
+
+Acceptance evidence: independent observed-only FE, ridge and SDID references,
+low-rank recovery, no treated-post outcome leakage, placeholder invariance,
+complete-panel parity, mask/overlap errors, and mask-preserving unit resampling.
+The real S04-P001 preparation gives 142 x 13, with 324 absent outcomes and 799
+observed treated cells; all three new paths fit without filling outcomes.
+
 ## Current release work (2026-09-26)
 
 PR #23 is merged as `ffaf8f9`. Version 0.9.1 packages its corrected synthetic

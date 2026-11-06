@@ -26,7 +26,7 @@ from _api_doc_utils import *
 
 `HorizontalPanelRidge` implements a horizontal panel-prediction design. For each adoption cohort, never-treated donor outcomes at time $t$ become features for treated outcomes at time $t$ in the pre-period. Ridge then extrapolates counterfactual treated paths into the treated post-period.
 
-The public panel contract is `fit(Y, W)`: balanced outcomes plus a same-shaped absorbing treatment matrix.
+The public panel contract is `fit(Y, W, observed=None)`: N × T outcomes plus a known, same-shaped absorbing treatment matrix. NaNs or `observed=False` mark unobserved outcomes. See [missing panel outcomes](../examples/missing-panel-outcomes.qmd).
 
 ## Cohort objective and estimand
 
@@ -49,11 +49,27 @@ $$
 
 and that same path is assigned to every treated unit in cohort $g$. The overall ATT is the simple average of $Y_{it}-\hat Y_{g,t}(0)$ over all treated unit-period cells, so cohorts receive weight proportional to treated units times post-treatment periods.
 
+## Missing donor predictors
+
+For an incomplete panel, a separate ridge regression is fitted for each distinct
+available-donor set in a cohort. At prediction period $t$, donors must be observed
+at $t$ and at least one usable pre-period. Training uses only pre-periods where
+all those donors and at least one treated outcome are observed. Cohort targets
+are the means of observed treated outcomes. No absent predictor is filled with
+zero or a mean. Donor-availability patterns with the same donor set share a fit.
+
+`summary()["overlap_models"]` exports each model's cohort, prediction periods,
+donors, training periods, intercept and coefficients. When a cohort needs
+multiple models, its legacy `cohort_coef`/`cohort_intercepts` entries are NaN;
+use the explicit models instead. A period with observed treated outcomes but no
+training overlap raises an error rather than silently reducing the ATT sample.
+The ATT averages observed treated cells; missing outcomes have NaN effects.
+
 ## Implementation walkthrough
 
 This estimator is a direct panel-specific construction rather than a wrapper around the public `Ridge` class.
 
-1. A shared panel validator checks equal nonempty shapes, finite $Y$ and $W$, binary treatment within $10^{-10}$, and absorbing treatment paths. It records each unit's first treated period, the sorted adoption cohorts, and ever- versus never-treated unit indices.
+1. A shared panel validator checks equal nonempty shapes, observed finite $Y$ and known finite $W$, binary treatment within $10^{-10}$, and absorbing treatment paths. It records each unit's first treated period, the sorted adoption cohorts, and ever- versus never-treated unit indices.
 2. For cohort $g$, the code selects all cohort units and all never-treated controls. It averages cohort outcomes across units first, yielding one length-$T$ target path. The donor panel remains one row per control unit.
 3. The pre-period design is the transpose of the donor panel restricted to columns $0,\ldots,g-1$: periods are observations and donor units are regressors. An intercept column is prepended, $X'X$ is formed, $\lambda$ is added only to donor diagonals, and the code explicitly computes $(X'X+P_\lambda)^{-1}X'y$.
 4. The resulting donor coefficients are applied to the transpose of the full control panel, including post-treatment periods, and the intercept is added. This produces one cohort-level counterfactual path; no treated unit's own pre-period outcomes enter as features after the cohort average has been formed.

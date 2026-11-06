@@ -121,7 +121,7 @@ event_study = out["event_study"]
 group_means = out["group_means"]
 ```
 
-`Y` is the observed balanced outcome panel. `W` is a same-shaped binary absorbing treatment matrix where `W[i, t] == 1` means unit `i` is treated at time `t`. Never-treated donor units have all-zero rows in `W`. Do not pass long/dataframe inputs to the panel causal estimators.
+`Y` is the N × T outcome panel. For MatrixCompletion, SyntheticDID and HorizontalPanelRidge, NaN marks missing outcomes; `fit(Y, W, observed=mask)` accepts an explicit Boolean mask. W must be known throughout. MC masks its loss; SDID normalizes available weights; ridge fits overlap-specific regressions. ATT uses observed treated cells. See examples/missing-panel-outcomes.qmd. `W` is a same-shaped binary absorbing treatment matrix where `W[i, t] == 1` means unit `i` is treated at time `t`. Never-treated donor units have all-zero rows in `W`. Do not pass long/dataframe inputs to the panel causal estimators.
 
 First-class panel causal estimators using `fit(Y, W)`:
 
@@ -709,7 +709,7 @@ uv run python docs/_check_site.py /tmp/crabbymetrics-docs-build/source/docs/_sit
 ## Common mistakes to avoid
 
 - Do not pass pandas DataFrames directly if you need predictable behavior; convert to NumPy arrays first.
-- Do not use long panel data for `HorizontalPanelRidge`, `SyntheticDID`, or `MatrixCompletion`; use balanced `(n_units, n_periods)` matrices `Y` and `W`.
+- Do not use long panel data for `HorizontalPanelRidge`, `SyntheticDID`, or `MatrixCompletion`; use `(n_units, n_periods)` matrices `Y` and known `W`; NaN outcomes or an explicit observation mask represent an incomplete panel.
 - Do not treat `SyntheticControl` and `SyntheticDID` as the same API. `SyntheticControl.fit(donors, treated)` is a low-level one-treated-path donor-weight API; `SyntheticDID.fit(Y, W)` is a panel causal estimator.
 - Do not expect uniform `summary()` keys across estimators. Check the relevant estimator page or the API reference.
 - Do not expect scipy result objects or sklearn estimators. The API is scikit-adjacent but intentionally lightweight.

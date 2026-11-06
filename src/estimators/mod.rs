@@ -8,6 +8,7 @@ mod linear;
 mod mle;
 mod mpe_cbps;
 mod panel;
+mod panel_missing;
 mod regularized;
 mod semiparametric;
 mod survival;

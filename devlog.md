@@ -1,5 +1,50 @@
 # Devlog (crabbymetrics)
 
+## Missing panel outcomes (2026-10-09; PR branch)
+
+- Created `feat/missing-panel-outcomes` from `896ceaf` in the canonical
+  `~/Desktop/code/crabbymetrics` checkout and symlinked it from the private
+  `econ-panel-replication` workspace. Kept that workspace's installed package,
+  cached results and published reports unchanged.
+- Added optional Boolean outcome masks/NaN handling in Rust for MC, SDID and
+  horizontal ridge. Treatment remains a known absorbing schedule. Masked cells
+  cannot enter fitting through a finite placeholder, and missing treated
+  outcomes do not enter the reported ATT or acquire fabricated effects.
+- MC now uses observed untreated cells throughout its existing nuclear-norm
+  objective, effects updates, lambda scaling and diagnostics. Added row/column
+  and connected two-way FE support checks.
+- SDID now has a separate available-case extension: normalized donor and time
+  averages, profiled intercept, simplex-projected gradient with backtracking,
+  deterministic initialization and explicit convergence diagnostics. It is a
+  nonlinear local optimization, not a claimed global solution to the standard
+  complete-panel SDID problem. Complete data still take the original QP path.
+  Observed treated post counts determine the post-period and cohort weights.
+- Ridge now fits a separate observed design for each donor-availability pattern;
+  matching prediction periods reuse a fit. `overlap_models` exposes the donor
+  sets, training periods and coefficients. No mean/zero filling of regressors.
+- Fixed group means to use matching observed outcome/counterfactual support.
+  Resampling carries the missingness pattern with whole unit histories; its
+  pre-existing invalid-refit conventions are unchanged.
+- Release-mode extension built successfully. Python: **355 passed, 8 skipped**
+  (existing optional lecture-data skips). Rust: **12 passed**, including a
+  finite-difference check of the normalized-weight analytic gradient. New tests
+  include independent NumPy observed-only FE/ridge and SciPy SDID objectives,
+  low-rank recovery, mask invariance, leakage, unchanged complete-panel fits,
+  missing-support errors, staggered cohort aggregation and SDID bootstrap execution.
+- Prepared actual Market Integration S04-P001 with the existing archive sample
+  code: **142 x 13, 324 missing outcomes, 799 observed treated cells**. All three
+  estimators fit; MC reports convergence, SDID meets both gradient checks, and
+  ridge uses eight overlap models. This is a local smoke check with default
+  tuning (larger iteration budgets), not a replacement of the published fits.
+- Added an executable missing-outcomes guide and updated the three examples,
+  three class references and `llms.txt`. The review preview executes these seven
+  changed pages against this branch; unchanged pages come from the published
+  `gh-pages` snapshot. No new full-site simulation rerun is claimed.
+- Review site: [missing panel outcomes](https://lalten.org/drafts/crabbymetrics-missing-panels/examples/missing-panel-outcomes.html).
+  The site checker passes all 107 pages and 309 images. The seven changed pages
+  pass 390px/1440px browser checks with no overflow, broken images, JS errors or
+  KaTeX errors. Generated HTML/caches and private example inputs remain outside Git.
+
 ## v0.9.1 verified publication (2026-09-26)
 
 - Release commit `40f6526` includes merged PR #23 (`ffaf8f9`). Ran
