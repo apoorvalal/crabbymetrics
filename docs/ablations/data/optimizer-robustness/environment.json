@@ -1,0 +1,23 @@
+{
+  "source_sha256": {
+    "src/optimizers.rs": "a9f2e7790f3db045f2032d49f3a7a5b0f0e825894ba25abed58dbbf4e1804cc3",
+    "src/optimizers/bhhh.rs": "f20f31c473922a978530fc8101357468da7240b8f96d77d8b90034100089f649",
+    "src/optimizers/common.rs": "471f04c796d5fd41470f1e75913eb288f0a83ddc5d5dd026fb450d3b932e4d2f",
+    "src/optimizers/quasi_newton.rs": "c63eff344de8f4590e45282b73884fdc237d7153536ee002a724609d97600049",
+    "src/optimizers/trust_region.rs": "d2ac05f7ea1a73dddede6b5d76033ca58a62701f3048b06122dff486756bf43f"
+  },
+  "extension_sha256": "f0e4dee111b4d4b4369cd2c15020c370d5b84ee30b588914aae2fee1aef9812a",
+  "python": "3.12.9",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "versions": {
+    "crabbymetrics": "0.9.1",
+    "numpy": "2.5.2",
+    "scipy": "1.18.1"
+  },
+  "cpu": "Apple M4",
+  "threads": 1,
+  "repetitions": 3,
+  "timed_fits": 1044,
+  "diagnostic_fits": 348,
+  "data_sha256": "162496b577897ab852f9bad9a10c9835441c964a837768927347d07f7d100283"
+}

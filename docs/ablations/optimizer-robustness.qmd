@@ -1,0 +1,647 @@
+---
+title: "Robust Smooth Optimization Without Extra Dependencies"
+subtitle: "BFGS safeguards, dense trust regions and likelihood-score curvature"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    code-summary: "Show the computation"
+    html-math-method: katex
+    include-in-header:
+      text: |
+        <style>
+        .katex-display{max-width:100%;overflow-x:auto}main img{max-width:100%;height:auto}
+        .cell-output-display{max-width:100%;overflow-x:auto}table{font-size:.9rem}
+        </style>
+execute:
+  cache: true
+  freeze: auto
+  echo: true
+  warning: false
+  message: false
+keep-ipynb: true
+jupyter: python3
+---
+
+## Purpose
+
+Smooth econometric criteria can fail numerically because of coordinate scaling,
+inaccurate curvature or an unreliable trial step. This experiment evaluates three
+changes to CrabbyMetrics' generic optimization interface: safeguarded BFGS/L-BFGS,
+a dense exact-Hessian trust-region method, and BHHH likelihood-score curvature.
+These optimizer additions are unreleased development APIs and require a source
+build of the proposed branch. The numerical work is implemented in Rust using the existing dependency stack;
+the runtime Python requirement remains NumPy. Native estimator defaults and
+statistical covariance calculations are unchanged.
+
+The six unconstrained families and their 72 size/stress/seed instances match
+[the econometric optimizer comparison](https://lalten.org/quomodoc/docs/econometric-optimizer-comparison).
+Synthetic control remains on its existing constrained solver. The reference
+solutions here are independently computed from residual-form least squares and
+SciPy's optimization routines; GALAHAD is not a dependency of this experiment.
+Timings below are fresh measurements of the proposed implementations, not the
+historical GALAHAD measurements.
+
+## The optimizer contracts
+
+### Safeguarded BFGS and L-BFGS
+
+The original positional calls continue to work. `tolerance` is the gradient
+threshold unless `gtol` is explicitly supplied. The independent relative
+cost-stagnation threshold `ftol` defaults to zero, disabling that stop. A small
+cost change with a large gradient returns `success=False`.
+
+Strong-Wolfe bracketing and bisection zoom reject nonfinite numerical trials.
+Python exceptions and malformed arrays propagate. Degenerate curvature updates
+are skipped, and an unusable curvature direction is reset. BFGS retains a dense
+inverse approximation; L-BFGS keeps seven correction pairs. Their final public
+objective and gradient are evaluated at the actual returned vector.
+
+### Dense trust regions
+
+The step minimizes $g's+s'Hs/2$ subject to $\|s\|\le\Delta$. A spectral solve
+finds the curvature shift, including the hard case where a negative-curvature
+direction is orthogonal to the gradient. Agreement between actual and predicted
+reduction controls acceptance and the radius. Small gradients at strict saddles
+do not count as successful termination. This is a native dense implementation,
+with $O(p^2)$ storage and $O(p^3)$ eigendecomposition; it does not claim all of
+GALAHAD TRU's sparse, iterative or production safeguards.
+
+### BHHH
+
+For a mean negative log likelihood, the gradient and curvature are
+$g=n^{-1}\sum_i s_i$ and $C=n^{-1}\sum_i s_i s_i'$, where the rows of `scores`
+are **negative-log-likelihood gradients**. `reduction="sum"` uses sums instead.
+BHHH solves a damped positive-curvature system and uses the same strong-Wolfe
+step acceptance. The information identity motivates this curvature at a correctly
+specified truth; it need not resemble the observed Hessian far from an optimum.
+
+For a memory-bounded alternative, `score_stats(theta)` returns
+`(score_sum, outer_sum, n_observations)` accumulated over batches. These are sums
+before the chosen reduction. An objective penalty belongs in `fun` and is added
+to derivatives through the paired `penalty_grad` and `penalty_hess` callbacks;
+it is not inserted into each observation's score. The numerical damping is not
+an inferential covariance estimator.
+
+### Scaling and diagnostic interpretation
+
+`x_scale` defines $x=\operatorname{diag}(\texttt{x\_scale})z$. The solver's
+`optimality` is $\|\nabla_z f\|_\infty$; `jac` and `grad_norm` remain in original
+coordinates. Scaling changes the stopping metric and trust-region geometry.
+It must be reported explicitly. The scaled L-BFGS run below uses reciprocal
+regressor RMS values and is a separate configuration.
+
+All four methods retain the original result keys and additionally expose the
+final gradient, evaluation counts, rejected trials and applicable reset/skip
+counts. Budget exhaustion and stagnation return a finite diagnostic iterate
+with `success=False`; invalid initial data and callback errors raise.
+
+## Experimental design
+
+Each family has two sizes (2,000/8 and 20,000/24 observations/coefficients),
+three stresses and two simulation seeds. OLS/ridge vary collinearity, logit
+varies signal strength, Poisson changes regressor units, IV/GMM weakens an
+instrument, and NLS changes the starting point. BHHH covers the five likelihood
+families and has a 60-instance denominator. For Gaussian criteria it uses known
+simulation variance; the objective and deterministic penalty are normalized
+consistently with the individual likelihood scores.
+
+Each applicable configuration has an untimed diagnostic fit and three timed
+fits with tracing disabled. Timed configuration order is shuffled within each
+instance. Reference construction and independent rescoring are outside the
+clock; criterion preparation, callbacks and final solver diagnostics are inside.
+All runs use one numerical thread, `gtol=1e-8`, a 1,000-iteration limit and a
+10-second callback deadline. BHHH uses the batched-statistics interface.
+
+The external pass rule is shared across methods: relative objective excess at
+most $10^{-8}$ and regressor-RMS-scaled gradient at most $10^{-6}$, evaluated
+from the original criterion. It is distinct from native stopping, particularly
+when likelihood normalization or coordinate scaling differs. An instance passes
+only if all three repetitions pass. Repetition medians describe a single named
+configuration on a single instance; timing summaries include accepted instances
+only, with the denominator shown.
+
+```{python}
+#| code-summary: "Imports, thread limits and experiment constants"
+import os
+for variable in ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+                 "VECLIB_MAXIMUM_THREADS", "RAYON_NUM_THREADS"]:
+    os.environ[variable] = "1"
+from pathlib import Path
+from time import perf_counter
+from importlib import metadata
+import json, hashlib, platform
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.special import expit
+from scipy.linalg import solve_triangular
+from scipy.optimize import minimize, least_squares
+from threadpoolctl import threadpool_limits
+from IPython.display import display, Markdown
+import crabbymetrics as cm
+threadpool_limits(1)
+FAMILIES = ["OLS", "Ridge", "Logit", "Poisson", "IV-GMM", "NLS", "SCM"]
+METHODS = ["BFGS", "L-BFGS", "Trust region", "BHHH", "L-BFGS scaled"]
+COLORS = dict(zip(METHODS, ["#355c9a", "#8b5ea4", "#008b8b", "#c34b45", "#799e3f"]))
+OUTPUT = Path("data/optimizer-robustness")
+OUTPUT.mkdir(parents=True, exist_ok=True)
+plt.rcParams.update({"font.size": 10, "axes.spines.top": False, "axes.spines.right": False})
+```
+
+
+```{python}
+#| code-summary: "Simulate the original size, stress and seed instances"
+def make_problem(family, size, level, seed):
+    group = 0 if family in ["OLS", "Ridge"] else FAMILIES.index(family)
+    rng = np.random.default_rng(20261021 + 100 * group + 10 * size + seed)
+    n, p = [(2000, 8), (20000, 24)][size]
+    if family == "SCM":
+        n, p = [(100, 12), (500, 50)][size]
+        factors, loadings = rng.normal(size=(n, 3)), rng.normal(size=(3, p))
+        X = factors @ loadings / np.sqrt(3) + [1, .1, .01][level] * rng.normal(size=(n, p))
+        beta = np.r_[.2, .3, .5, np.zeros(p - 3)]
+        y = X @ beta + .05 * rng.normal(size=n)
+        return dict(family=family, X=X, y=y, beta=beta, x0=np.full(p, 1 / p),
+                    penalty=np.zeros(p), Z=None)
+    features = rng.normal(size=(n, p - 1))
+    if family in ["OLS", "Ridge"]:
+        Q, _ = np.linalg.qr(features - features.mean(axis=0))
+        V, _ = np.linalg.qr(rng.normal(size=(p - 1, p - 1)))
+        singular = np.geomspace(1, 1 / [1, 100, 10000][level], p - 1)
+        features = np.sqrt(n) * (Q * singular) @ V.T
+    X = np.column_stack([np.ones(n), features])
+    beta = rng.normal(size=p)
+    beta[1:] *= .4 / np.linalg.norm(beta[1:])
+    beta[0] = .2
+    Z = None
+    if family == "Logit":
+        beta[1:] *= [1, 4, 12][level] / .4
+        y = rng.binomial(1, expit(X @ beta)).astype(float)
+    elif family == "Poisson":
+        scales = np.r_[1, np.geomspace(1, [1, 100, 10000][level], p - 1)]
+        X *= scales
+        beta /= scales
+        y = rng.poisson(np.exp(X @ beta)).astype(float)
+    elif family == "IV-GMM":
+        Z = np.column_stack([np.ones(n), rng.normal(size=(n, p + 3))])
+        v = rng.normal(size=(n, p - 1))
+        strength = np.ones(p - 1)
+        strength[0] = [1, .1, .01][level]
+        X[:, 1:] = Z[:, 1:p] * strength + v
+        y = X @ beta + .7 * v[:, 0] + np.sqrt(1 - .7**2) * rng.normal(size=n)
+    elif family == "NLS":
+        y = np.exp(X @ beta) + .1 * rng.normal(size=n)
+    else:
+        y = X @ beta + .25 * rng.normal(size=n)
+    penalty = np.r_[0., np.full(p - 1, .01 if family == "Ridge" else 0.)]
+    x0 = [0, 4, -6][level] * beta if family == "NLS" else np.zeros(p)
+    return dict(family=family, X=np.ascontiguousarray(X), y=y, beta=beta,
+                x0=x0, penalty=penalty, Z=Z)
+```
+
+
+```{python}
+#| code-summary: "Evaluate criteria, exact gradients and exact Hessians"
+class Criterion:
+    def __init__(self, problem, trace=False, origin=None):
+        self.d = problem
+        self.kind, self.X, self.y = problem["family"], problem["X"], problem["y"]
+        self.n, self.p = self.X.shape
+        self.penalty = problem["penalty"]
+        self.last = self.value = self.gradient = None
+        self.nfg = self.nh = self.nopg = 0
+        self.trace = [] if trace else None
+        self.origin = perf_counter() if origin is None else origin
+        self.scales = np.sqrt(np.mean(self.X**2, axis=0)) if trace else None
+        self.deadline = float("inf")
+        self.H = None
+        if self.kind == "IV-GMM":
+            Z = problem["Z"]
+            L = np.linalg.cholesky(Z.T @ Z / self.n)
+            self.A = solve_triangular(L, Z.T @ self.X / self.n, lower=True)
+            self.b = solve_triangular(L, Z.T @ self.y / self.n, lower=True)
+        elif self.kind in ["OLS", "Ridge", "SCM"]:
+            self.A, self.b = self.X / np.sqrt(self.n), self.y / np.sqrt(self.n)
+        if self.kind in ["OLS", "Ridge", "IV-GMM", "SCM"]:
+            self.H = self.A.T @ self.A + np.diag(self.penalty)
+            self.linear = self.A.T @ self.b
+            self.constant = .5 * self.b @ self.b
+
+    @np.errstate(over="ignore", invalid="ignore")
+    def fg(self, x):
+        if perf_counter() > self.deadline:
+            raise TimeoutError("10-second callback budget reached")
+        if self.last is None or not np.array_equal(x, self.last):
+            self.nfg += 1
+            if self.H is not None:
+                g = self.H @ x - self.linear
+                f = .5 * x @ self.H @ x - self.linear @ x + self.constant
+            else:
+                eta = self.X @ x
+                if self.kind == "Logit":
+                    mu = expit(eta)
+                    f, residual = np.mean(np.logaddexp(0, eta) - self.y * eta), mu - self.y
+                elif self.kind == "Poisson":
+                    mu = np.exp(eta)
+                    f, residual = np.mean(mu - self.y * eta), mu - self.y
+                else:
+                    mu = np.exp(eta)
+                    f, residual = .5 * np.mean((mu - self.y)**2), mu * (mu - self.y)
+                g = self.X.T @ residual / self.n
+            self.last, self.value, self.gradient = x.copy(), float(f), g
+            if self.trace is not None:
+                self.trace.append(dict(evaluation=self.nfg, elapsed=perf_counter() - self.origin,
+                                       objective=float(f), scaled_gradient=float(np.max(np.abs(g / self.scales))),
+                                       fw_gap=float(g @ x - g.min()) if self.kind == "SCM" else np.nan,
+                                       hessian_evaluations=self.nh, opg_evaluations=self.nopg))
+        return self.value, self.gradient
+
+    @np.errstate(over="ignore", invalid="ignore")
+    def hessian(self, x):
+        self.nh += 1
+        if self.H is not None:
+            return self.H
+        eta = self.X @ x
+        if self.kind == "Logit":
+            mu = expit(eta)
+            weights = mu * (1 - mu)
+        else:
+            mu = np.exp(eta)
+            weights = mu if self.kind == "Poisson" else mu * (2 * mu - self.y)
+        return self.X.T @ (weights[:, None] * self.X) / self.n
+
+    def fun(self, x):
+        return self.fg(x)[0]
+
+    def grad(self, x):
+        return self.fg(x)[1]
+
+    @np.errstate(over="ignore", invalid="ignore")
+    def opg(self, x):
+        self.nopg += 1
+        eta = self.X @ x
+        if self.kind == "Logit":
+            scores = (expit(eta) - self.y)[:, None] * self.X
+            variance = 1.
+        elif self.kind == "Poisson":
+            scores = (np.exp(eta) - self.y)[:, None] * self.X
+            variance = 1.
+        else:
+            mu = np.exp(eta) if self.kind == "NLS" else eta
+            derivative = mu if self.kind == "NLS" else np.ones(self.n)
+            scores = (derivative * (mu - self.y))[:, None] * self.X
+            variance = .1**2 if self.kind == "NLS" else .25**2
+        return scores.T @ scores / (self.n * variance) + np.diag(self.penalty)
+```
+
+
+```{python}
+#| code-summary: "Compute independent sample optima and externally score returned vectors"
+def reference_solution(d):
+    c = Criterion(d)
+    scales = np.sqrt(np.mean(d["X"]**2, axis=0))
+    if d["family"] in ["OLS", "Ridge", "IV-GMM"]:
+        A = np.vstack([c.A, np.diag(np.sqrt(d["penalty"]))])
+        b = np.r_[c.b, np.zeros(c.p)]
+        x = np.linalg.lstsq(A, b, rcond=None)[0]
+    elif d["family"] == "SCM":
+        result = minimize(c.fun, d["x0"], jac=c.grad, method="SLSQP",
+                          bounds=[(0, 1)] * c.p,
+                          constraints={"type": "eq", "fun": lambda x: x.sum() - 1,
+                                       "jac": lambda x: np.ones(c.p)},
+                          options={"ftol": 1e-14, "maxiter": 3000})
+        x = result.x
+    elif d["family"] == "NLS":
+        X, y = d["X"], d["y"]
+        fits = [least_squares(lambda x: (np.exp(X @ x) - y) / np.sqrt(c.n), start,
+                             jac=lambda x: np.exp(X @ x)[:, None] * X / np.sqrt(c.n),
+                             ftol=1e-12, xtol=1e-12, gtol=1e-12, max_nfev=2000)
+                for start in [np.zeros(c.p), d["beta"], d["x0"]]]
+        x = min(fits, key=lambda fit: np.dot(fit.fun, fit.fun)).x
+    else:
+        result = minimize(lambda z: c.fun(z / scales), np.zeros(c.p),
+                          jac=lambda z: c.grad(z / scales) / scales,
+                          hess=lambda z: c.hessian(z / scales) / np.outer(scales, scales),
+                          method="trust-exact", options={"gtol": 1e-11, "maxiter": 1000})
+        x = result.x / scales
+    return x
+
+@np.errstate(over="ignore", invalid="ignore")
+def evaluate_solution(d, x, ref):
+    c = Criterion(d)
+    f, g = c.fg(x)
+    fref = c.fun(ref)
+    # Score quadratic fits from residuals, independently of the Gram-form callback.
+    if c.H is not None:
+        residual, reference_residual = c.A @ x - c.b, c.A @ ref - c.b
+        f = .5 * (residual @ residual + np.dot(c.penalty, x**2))
+        fref = .5 * (reference_residual @ reference_residual + np.dot(c.penalty, ref**2))
+        g = c.A.T @ residual + c.penalty * x
+    scale = np.sqrt(np.mean(d["X"]**2, axis=0))
+    score = np.max(np.abs(g / scale))
+    gap = (f - fref) / max(1, abs(fref))
+    feasibility = max(0., -float(x.min()), abs(float(x.sum()) - 1)) if c.kind == "SCM" else 0.
+    fw_gap = float(g @ x - g.min()) if c.kind == "SCM" else np.nan
+    passed = (fw_gap <= 1e-7 and feasibility <= 1e-8) if c.kind == "SCM" else (gap <= 1e-8 and score <= 1e-6)
+    passed = bool(passed and np.isfinite(f) and np.isfinite(score) and np.all(np.isfinite(x)))
+    eta, eta_ref = d["X"] @ x, d["X"] @ ref
+    transform = expit if c.kind == "Logit" else np.exp if c.kind in ["Poisson", "NLS"] else lambda a: a
+    pred, predref = transform(eta), transform(eta_ref)
+    return dict(objective=f, objective_gap=gap, scaled_gradient=score,
+                fw_gap=fw_gap, feasibility=feasibility, accepted=passed,
+                coefficient_error=np.linalg.norm(x - ref) / max(1, np.linalg.norm(ref)),
+                prediction_error=np.sqrt(np.mean((pred - predref)**2)) / max(1, np.sqrt(np.mean(predref**2))))
+```
+
+
+```{python}
+#| code-summary: "Likelihood score statistics and a direct call to each public optimizer"
+def run_fit(d, method, tracing=False):
+    started = perf_counter()
+    c = Criterion(d, trace=tracing, origin=started)
+    c.deadline = started + 10.0
+    options = dict(max_iterations=1000, gtol=1e-8)
+    variance = .1**2 if c.kind == "NLS" else .25**2 if c.kind in ["OLS", "Ridge"] else 1.
+    if method == "BHHH":
+        # Raw score sums and cross-products; Rust applies the mean reduction.
+        def score_stats(b):
+            total, outer = np.zeros(c.p), np.zeros((c.p, c.p))
+            if perf_counter() > c.deadline:
+                raise TimeoutError("10-second callback budget reached")
+            for begin in range(0, c.n, 4096):
+                X, y = c.X[begin:begin+4096], c.y[begin:begin+4096]
+                eta = X @ b
+                if c.kind == "Logit":
+                    scalar = expit(eta) - y
+                elif c.kind == "Poisson":
+                    scalar = np.exp(eta) - y
+                else:
+                    mu = np.exp(eta) if c.kind == "NLS" else eta
+                    derivative = mu if c.kind == "NLS" else 1.
+                    scalar = derivative * (mu - y) / variance
+                scores = X * scalar[:, None]
+                total += scores.sum(axis=0)
+                outer += scores.T @ scores
+            return total, outer, c.n
+        if np.any(c.penalty):
+            options.update(penalty_grad=lambda b: c.penalty * b / variance,
+                           penalty_hess=lambda b: np.diag(c.penalty) / variance)
+        result = cm.Optimizers.minimize_bhhh(
+            lambda b: c.fun(b) / variance, d["x0"], score_stats=score_stats, **options)
+    elif method == "Trust region":
+        result = cm.Optimizers.minimize_trust_region(c.fun, d["x0"], c.grad, c.hessian, **options)
+    else:
+        if method == "L-BFGS scaled":
+            options["x_scale"] = 1 / np.sqrt(np.mean(d["X"]**2, axis=0))
+        solver = cm.Optimizers.minimize_bfgs if method == "BFGS" else cm.Optimizers.minimize_lbfgs
+        result = solver(c.fun, d["x0"], c.grad, **options)
+    elapsed = perf_counter() - started
+    # BHHH returns an NLL; the external evaluator always uses the original criterion.
+    return result, elapsed, c.trace
+```
+
+```{python}
+#| code-summary: "Execute all diagnostic fits and independently check every timed fit"
+rows, diagnostic_rows, paths = [], [], []
+data_hasher = hashlib.sha256()
+for family in FAMILIES[:-1]:
+    for size in range(2):
+        for level in range(3):
+            for seed in range(2):
+                d = make_problem(family, size, level, seed)
+                for key in ["X", "y", "beta", "x0"]:
+                    data_hasher.update(np.ascontiguousarray(d[key]).tobytes())
+                ref = reference_solution(d)
+                assert evaluate_solution(d, ref, ref)["accepted"]
+                available = [m for m in METHODS if not (m == "BHHH" and family == "IV-GMM")]
+                case = f"{family}-{size}-{level}-{seed}"
+                for method in available:
+                    try:
+                        result, elapsed, trace = run_fit(d, method, tracing=True)
+                        checked = evaluate_solution(d, result["x"], ref)
+                        diagnostic_rows.append(dict(case=case, family=family, method=method,
+                            status=result["status"], native_success=result["success"],
+                            parameters=json.dumps(result["x"].tolist()), reference_parameters=json.dumps(ref.tolist()), **checked))
+                        if size == 1 and level == 2 and seed == 0:
+                            reference_value = Criterion(d).fun(ref)
+                            for point in trace:
+                                point.update(family=family, method=method,
+                                    excess=max(0., (point["objective"]-reference_value)
+                                               / max(1., abs(reference_value))))
+                                paths.append(point)
+                    except Exception as exc:
+                        diagnostic_rows.append(dict(case=case, family=family, method=method,
+                            accepted=False, native_success=False, status=str(exc)))
+                order = [(method, repeat) for method in available for repeat in range(3)]
+                np.random.default_rng(20261114 + 100*FAMILIES.index(family) + 10*size + 3*level + seed).shuffle(order)
+                for method, repeat in order:
+                    record = dict(case=case, family=family, size=size, level=level, seed=seed,
+                                  method=method, repeat=repeat)
+                    try:
+                        result, elapsed, _ = run_fit(d, method)
+                        checked = evaluate_solution(d, result["x"], ref)
+                        record.update(seconds=elapsed, native_success=result["success"],
+                            status=result["status"], nit=result["nit"], nfev=result["nfev"],
+                            njev=result["njev"], nhev=result["nhev"], nscorev=result["nscorev"],
+                            returned_optimality=result["optimality"], parameters=json.dumps(result["x"].tolist()),
+                            reference_parameters=json.dumps(ref.tolist()), **checked)
+                    except Exception as exc:
+                        record.update(seconds=np.nan, accepted=False, native_success=False,
+                                      status=str(exc))
+                    rows.append(record)
+results = pd.DataFrame(rows)
+diagnostics = pd.DataFrame(diagnostic_rows)
+traces = pd.DataFrame(paths)
+paired = results.groupby(["case", "family", "size", "level", "seed", "method"], as_index=False).agg(
+    accepted=("accepted", "all"), native_success=("native_success", "all"),
+    seconds=("seconds", "median"), objective_gap=("objective_gap", "max"),
+    scaled_gradient=("scaled_gradient", "max"))
+for name, frame in [("results", results), ("paired", paired), ("diagnostics", diagnostics), ("traces", traces)]:
+    frame.to_csv(OUTPUT / (f"{name}.csv.gz" if name == "traces" else f"{name}.csv"), index=False)
+repo = Path.cwd().resolve()
+while not (repo / "Cargo.toml").exists() and repo != repo.parent:
+    repo = repo.parent
+source_hashes = {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest()
+                 for path in [repo / "src/optimizers.rs", *sorted((repo / "src/optimizers").glob("*.rs"))]
+                 if path.exists()}
+extension = next(Path(cm.__file__).parent.glob("*.so"), Path(cm.__file__))
+provenance = dict(source_sha256=source_hashes,
+    extension_sha256=hashlib.sha256(extension.read_bytes()).hexdigest(), python=platform.python_version(), platform=platform.platform(),
+    versions={name: metadata.version(name) for name in ["crabbymetrics", "numpy", "scipy"]},
+    cpu="Apple M4", threads=1, repetitions=3, timed_fits=len(results),
+    diagnostic_fits=len(diagnostics), data_sha256=data_hasher.hexdigest())
+(OUTPUT / "environment.json").write_text(json.dumps(provenance, indent=2))
+```
+
+## Results
+
+### External accuracy and native termination
+
+```{python}
+#| code-summary: "Summarize the same-instance accuracy rule and returned stopping flags"
+summary = paired.groupby("method", sort=False).agg(
+    passed=("accepted", "sum"), attempted=("accepted", "size"),
+    native_passed=("native_success", "sum"))
+summary["passed / attempted"] = summary.passed.astype(str) + " / " + summary.attempted.astype(str)
+display(summary[["passed / attempted", "native_passed"]].rename(
+    columns={"native_passed": "Native gradient certificate"}))
+display(Markdown(f"The experiment completed **{len(results):,} timed fits** and "
+                 f"**{len(diagnostics):,} diagnostic fits**. A native certificate and the common "
+                 "external rule can differ; neither is silently substituted for the other."))
+```
+
+BFGS and the dense trust-region method satisfy the external rule on all 72
+instances. Unscaled L-BFGS satisfies it on 65; explicit scaling raises that to 70,
+recovering all Poisson cases while leaving two ill-conditioned OLS cases. BHHH
+passes 52 of its 60 likelihood cases: all OLS, ridge, logit and Poisson cases,
+and four of twelve NLS cases. Its stricter native gradient certificate can fail
+even after the common external accuracy target is met; both counts are shown.
+
+The stress cases distinguish coordinate scaling, Hessian conditioning and the
+accuracy of score-based curvature. Explicit scaling can help limited-memory
+optimization without recovering the directions lost to severe collinearity.
+BHHH remains a likelihood-specific option whose information-matrix motivation
+does not guarantee good curvature at a distant nonlinear-least-squares start.
+The rejected configurations remain in the exported results.
+
+```{python}
+#| code-summary: "Family-by-family external accuracy counts"
+counts = paired.assign(pass_count=paired.accepted.astype(int)).pivot_table(
+    index="family", columns="method", values="pass_count", aggfunc="sum").reindex(FAMILIES[:-1])
+display(counts.astype("Int64"))
+```
+
+Each entry is a count out of twelve. The blank IV/GMM BHHH cell is deliberately
+inapplicable. The native trust-region implementation should be judged by these
+observed results and the hard-case tests; success in this small dense suite does
+not establish equivalence to the full GALAHAD implementation.
+
+### Timing across every estimator family
+
+The following figure uses the median of three clean timed repetitions for each
+method/instance. Filled points pass the common accuracy rule; crosses fail it.
+Colors distinguish solver configurations. Timings for rejected fits are shown
+for diagnosis and do not count as accepted speed advantages.
+
+```{python}
+#| label: fig-optimizer-timings
+#| fig-cap: "Clean fit times for all six unconstrained estimator families. Each dot is a three-repetition median for one solver and size/stress/seed instance. Crosses fail the external rule. BHHH has no IV/GMM observations."
+#| code-summary: "Plot every paired fit time with its independent accuracy flag"
+fig, axes = plt.subplots(3, 2, figsize=(11, 11), constrained_layout=True)
+for ax, family in zip(axes.flat, FAMILIES[:-1]):
+    for j, method in enumerate(METHODS):
+        subset = paired[(paired.family == family) & (paired.method == method)]
+        for index, (_, row) in enumerate(subset.iterrows()):
+            ax.scatter(1000*row.seconds, j + .025*(index-5.5), color=COLORS[method],
+                       marker="o" if row.accepted else "x", s=22, alpha=.8)
+    ax.set(title=family, xscale="log", xlabel="Median complete-fit milliseconds",
+           yticks=range(len(METHODS)), yticklabels=METHODS)
+    ax.grid(axis="x", alpha=.15)
+plt.show()
+```
+
+### Convergence and instrumented time by estimator
+
+Each panel below retains the larger, stress-2, seed-0 diagnostic path. These
+curves include tracing overhead and plot the best evaluated objective, which
+can include trial points. They explain numerical behavior; the clean timing
+figure above supplies runtime comparisons. The raw trace records and the
+independently checked returned vectors are both downloadable.
+
+```{python}
+#| code-summary: "Define the common convergence-panel formatting"
+def convergence_panel(family):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.7), constrained_layout=True)
+    for method in METHODS:
+        sub = traces[(traces.family == family) & (traces.method == method)]
+        if sub.empty:
+            continue
+        envelope = np.maximum(np.minimum.accumulate(sub.excess.to_numpy()), 1e-16)
+        for ax, key in zip(axes, ["evaluation", "elapsed"]):
+            ax.plot(sub[key], envelope, label=method, color=COLORS[method], linewidth=1.5)
+    for ax in axes:
+        ax.set(yscale="log", ylabel="Best evaluated objective excess", ylim=(1e-16, None))
+        ax.grid(alpha=.15)
+    axes[0].set_xlabel("Objective evaluation")
+    axes[1].set_xlabel("Instrumented seconds")
+    axes[0].legend(fontsize=8)
+    fig.suptitle(family)
+    plt.show()
+```
+
+
+#### OLS
+
+```{python}
+#| label: fig-optimizer-path-ols
+#| fig-cap: "OLS: diagnostic evaluation and elapsed-time paths on the larger stress-2, seed-0 instance."
+convergence_panel("OLS")
+```
+
+
+#### Ridge
+
+```{python}
+#| label: fig-optimizer-path-ridge
+#| fig-cap: "Ridge: diagnostic evaluation and elapsed-time paths on the larger stress-2, seed-0 instance."
+convergence_panel("Ridge")
+```
+
+
+#### Logit
+
+```{python}
+#| label: fig-optimizer-path-logit
+#| fig-cap: "Logit: diagnostic evaluation and elapsed-time paths on the larger stress-2, seed-0 instance."
+convergence_panel("Logit")
+```
+
+
+#### Poisson
+
+```{python}
+#| label: fig-optimizer-path-poisson
+#| fig-cap: "Poisson: diagnostic evaluation and elapsed-time paths on the larger stress-2, seed-0 instance."
+convergence_panel("Poisson")
+```
+
+
+#### IV-GMM
+
+```{python}
+#| label: fig-optimizer-path-ivgmm
+#| fig-cap: "IV-GMM: diagnostic evaluation and elapsed-time paths on the larger stress-2, seed-0 instance."
+convergence_panel("IV-GMM")
+```
+
+
+#### NLS
+
+```{python}
+#| label: fig-optimizer-path-nls
+#| fig-cap: "NLS: diagnostic evaluation and elapsed-time paths on the larger stress-2, seed-0 instance."
+convergence_panel("NLS")
+```
+
+
+## Reproduction and limitations
+
+This document contains all simulation, likelihood, reference, fitting, checking
+and plotting code. It executes without saved result inputs or local helper
+modules once the proposed CrabbyMetrics version and the existing test/docs
+extras are installed. The data-generating process is fixed across solvers;
+three timing repetitions do not constitute three independent simulated samples.
+
+These methods are unconstrained local optimizers. The supplied derivatives and
+normalization must match the objective, separation or weak identification remain
+statistical issues, and a gradient certificate alone does not certify a global
+optimum. Trust-region checks of final negative curvature provide an additional
+local safeguard. No solver curvature is automatically exposed as a covariance.
+
+[All timed fits](data/optimizer-robustness/results.csv) ·
+[Paired instance results](data/optimizer-robustness/paired.csv) ·
+[Diagnostic fits](data/optimizer-robustness/diagnostics.csv) ·
+[Convergence traces](data/optimizer-robustness/traces.csv.gz) ·
+[Environment](data/optimizer-robustness/environment.json)

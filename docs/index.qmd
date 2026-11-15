@@ -62,6 +62,8 @@ and inference behavior. A dense machine-readable guide is available in
 
 ## Simulations and case studies
 
+- [Optimizer robustness and timings](ablations/optimizer-robustness.qmd): BFGS safeguards, dense trust regions, BHHH and coordinate scaling across six estimator families.
+
 - [Variance estimators](ablations/variance-estimators.qmd): Monte Carlo coverage under heteroskedasticity and overdispersion.
 - [Semiparametric estimators](ablations/semiparametric-estimators.qmd): misspecification, cross-fitting, and balancing.
 - [Panel DGP comparisons](ablations/panel-dgp-comparisons.qmd) and [real panel cases](ablations/same-root-panel-cases.qmd).

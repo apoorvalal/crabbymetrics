@@ -1,0 +1,266 @@
+{
+  "verified_at": "2026-11-15T03:26:52.640809+00:00",
+  "base_commit": "ad134e7",
+  "python_tests": {
+    "passed": 393,
+    "skipped_optional_data": 8
+  },
+  "rust_tests_passed": 17,
+  "optimizer_tests_passed": 43,
+  "dependency_manifests_unchanged": true,
+  "timed_fits": 1044,
+  "diagnostic_fits": 348,
+  "paired_accuracy": {
+    "BFGS": {
+      "passed": 72,
+      "attempted": 72,
+      "native": 72
+    },
+    "BHHH": {
+      "passed": 52,
+      "attempted": 60,
+      "native": 47
+    },
+    "L-BFGS": {
+      "passed": 65,
+      "attempted": 72,
+      "native": 61
+    },
+    "L-BFGS scaled": {
+      "passed": 70,
+      "attempted": 72,
+      "native": 70
+    },
+    "Trust region": {
+      "passed": 72,
+      "attempted": 72,
+      "native": 72
+    }
+  },
+  "browser_checks": [
+    {
+      "route": "ablations/optimizer-robustness.html",
+      "width": 1440,
+      "overflow": false,
+      "math": 10,
+      "mathErrors": 0,
+      "brokenImages": [],
+      "images": [
+        {
+          "src": "../logo.png",
+          "width": 52
+        },
+        {
+          "src": "../logo.png",
+          "width": 0
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-timings-output-1.png",
+          "width": 799
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-ols-output-1.png",
+          "width": 799
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-ridge-output-1.png",
+          "width": 799
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-logit-output-1.png",
+          "width": 799
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-poisson-output-1.png",
+          "width": 799
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-ivgmm-output-1.png",
+          "width": 799
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-nls-output-1.png",
+          "width": 799
+        }
+      ],
+      "tables": [
+        7,
+        8
+      ],
+      "details": 16,
+      "errors": []
+    },
+    {
+      "route": "examples/optimizers.html",
+      "width": 1440,
+      "overflow": false,
+      "math": 0,
+      "mathErrors": 0,
+      "brokenImages": [],
+      "images": [
+        {
+          "src": "../logo.png",
+          "width": 52
+        },
+        {
+          "src": "../logo.png",
+          "width": 0
+        },
+        {
+          "src": "optimizers_files/figure-html/cell-4-output-1.png",
+          "width": 1135
+        },
+        {
+          "src": "optimizers_files/figure-html/cell-8-output-1.png",
+          "width": 720
+        },
+        {
+          "src": "optimizers_files/figure-html/cell-10-output-1.png",
+          "width": 720
+        }
+      ],
+      "tables": [],
+      "details": 0,
+      "errors": []
+    },
+    {
+      "route": "reference/Optimizers.html",
+      "width": 1440,
+      "overflow": false,
+      "math": 15,
+      "mathErrors": 0,
+      "brokenImages": [],
+      "images": [
+        {
+          "src": "../logo.png",
+          "width": 52
+        },
+        {
+          "src": "../logo.png",
+          "width": 0
+        }
+      ],
+      "tables": [
+        9,
+        2
+      ],
+      "details": 3,
+      "errors": []
+    },
+    {
+      "route": "ablations/optimizer-robustness.html",
+      "width": 390,
+      "overflow": false,
+      "math": 10,
+      "mathErrors": 0,
+      "brokenImages": [],
+      "images": [
+        {
+          "src": "../logo.png",
+          "width": 52
+        },
+        {
+          "src": "../logo.png",
+          "width": 0
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-timings-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-ols-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-ridge-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-logit-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-poisson-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-ivgmm-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizer-robustness_files/figure-html/fig-optimizer-path-nls-output-1.png",
+          "width": 339
+        }
+      ],
+      "tables": [
+        7,
+        8
+      ],
+      "details": 16,
+      "errors": []
+    },
+    {
+      "route": "examples/optimizers.html",
+      "width": 390,
+      "overflow": false,
+      "math": 0,
+      "mathErrors": 0,
+      "brokenImages": [],
+      "images": [
+        {
+          "src": "../logo.png",
+          "width": 52
+        },
+        {
+          "src": "../logo.png",
+          "width": 0
+        },
+        {
+          "src": "optimizers_files/figure-html/cell-4-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizers_files/figure-html/cell-8-output-1.png",
+          "width": 339
+        },
+        {
+          "src": "optimizers_files/figure-html/cell-10-output-1.png",
+          "width": 339
+        }
+      ],
+      "tables": [],
+      "details": 0,
+      "errors": []
+    },
+    {
+      "route": "reference/Optimizers.html",
+      "width": 390,
+      "overflow": false,
+      "math": 15,
+      "mathErrors": 0,
+      "brokenImages": [],
+      "images": [
+        {
+          "src": "../logo.png",
+          "width": 52
+        },
+        {
+          "src": "../logo.png",
+          "width": 0
+        }
+      ],
+      "tables": [
+        9,
+        2
+      ],
+      "details": 3,
+      "errors": []
+    }
+  ],
+  "sdist_bytes": 753953,
+  "sdist_contains_optimizer_modules": true,
+  "sdist_excludes_docs": true,
+  "preview_base": "Published gh-pages 3159f0e plus six freshly executed pages; remaining pages are historical published outputs",
+  "math_delivery": "Existing shared-asset/CDN website policy; browser mathematics checked with normal network access",
+  "clippy": "Completes with 37 pre-existing style warnings; none in the added optimizer modules"
+}

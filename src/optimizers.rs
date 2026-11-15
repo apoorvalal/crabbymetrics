@@ -1,3 +1,8 @@
+mod bhhh;
+mod common;
+mod quasi_newton;
+mod trust_region;
+
 use crate::fit::optimization_success;
 use crate::utils::{pyarray1_from_f64, to_array1, to_array2};
 use argmin::core::{
@@ -6,8 +11,7 @@ use argmin::core::{
 };
 use argmin::solver::{
     conjugategradient::{beta::PolakRibierePlus, NonlinearConjugateGradient},
-    linesearch::{condition::ArmijoCondition, BacktrackingLineSearch, MoreThuenteLineSearch},
-    quasinewton::{BFGS, LBFGS},
+    linesearch::{condition::ArmijoCondition, BacktrackingLineSearch},
     simulatedannealing::{Anneal, SATempFunc, SimulatedAnnealing},
 };
 use ndarray::{Array1, Array2};
@@ -17,14 +21,6 @@ use pyo3::prelude::*;
 use rand09::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::sync::{Arc, Mutex};
-
-fn identity_matrix(n: usize) -> Array2<f64> {
-    let mut eye = Array2::<f64>::zeros((n, n));
-    for i in 0..n {
-        eye[[i, i]] = 1.0;
-    }
-    eye
-}
 
 fn extract_array1_from_pyany(
     value: Bound<'_, PyAny>,
@@ -310,30 +306,159 @@ pub struct Optimizers;
 
 #[pymethods]
 impl Optimizers {
+    /// Safeguarded BFGS with independent gradient/cost tolerances and a final
+    /// gradient certificate. x_scale defines x = diag(x_scale) z.
     #[staticmethod]
-    #[pyo3(signature = (fun, x0, grad, max_iterations=100, tolerance=1e-6))]
-    fn minimize_lbfgs<'py>(
-        py: Python<'py>,
+    #[pyo3(signature = (fun, x0, grad, max_iterations=100, tolerance=1e-6, *, gtol=None, ftol=0.0, c1=1e-4, c2=0.9, max_linesearch=80, x_scale=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn minimize_bfgs(
+        py: Python<'_>,
         fun: Py<PyAny>,
         x0: PyReadonlyArray1<f64>,
         grad: Py<PyAny>,
         max_iterations: usize,
         tolerance: f64,
+        gtol: Option<f64>,
+        ftol: f64,
+        c1: f64,
+        c2: f64,
+        max_linesearch: usize,
+        x_scale: Option<PyReadonlyArray1<f64>>,
     ) -> PyResult<Py<PyAny>> {
-        minimize_lbfgs(py, fun, x0, grad, max_iterations, tolerance)
+        run_quasi(
+            py,
+            fun,
+            x0,
+            grad,
+            max_iterations,
+            tolerance,
+            gtol,
+            ftol,
+            c1,
+            c2,
+            max_linesearch,
+            x_scale,
+            false,
+        )
     }
 
+    /// Limited-memory BFGS with seven safeguarded correction pairs.
     #[staticmethod]
-    #[pyo3(signature = (fun, x0, grad, max_iterations=100, tolerance=1e-6))]
-    fn minimize_bfgs<'py>(
-        py: Python<'py>,
+    #[pyo3(signature = (fun, x0, grad, max_iterations=100, tolerance=1e-6, *, gtol=None, ftol=0.0, c1=1e-4, c2=0.9, max_linesearch=80, x_scale=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn minimize_lbfgs(
+        py: Python<'_>,
         fun: Py<PyAny>,
         x0: PyReadonlyArray1<f64>,
         grad: Py<PyAny>,
         max_iterations: usize,
         tolerance: f64,
+        gtol: Option<f64>,
+        ftol: f64,
+        c1: f64,
+        c2: f64,
+        max_linesearch: usize,
+        x_scale: Option<PyReadonlyArray1<f64>>,
     ) -> PyResult<Py<PyAny>> {
-        minimize_bfgs(py, fun, x0, grad, max_iterations, tolerance)
+        run_quasi(
+            py,
+            fun,
+            x0,
+            grad,
+            max_iterations,
+            tolerance,
+            gtol,
+            ftol,
+            c1,
+            c2,
+            max_linesearch,
+            x_scale,
+            true,
+        )
+    }
+
+    /// Exact-Hessian dense trust regions, including indefinite and singular
+    /// subproblems. This is a native Rust solver, not a GALAHAD binding.
+    #[staticmethod]
+    #[pyo3(signature = (fun, x0, grad, hess, max_iterations=100, tolerance=1e-6, *, gtol=None, ftol=0.0, initial_radius=1.0, max_radius=1e6, eta=0.1, x_scale=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn minimize_trust_region(
+        py: Python<'_>,
+        fun: Py<PyAny>,
+        x0: PyReadonlyArray1<f64>,
+        grad: Py<PyAny>,
+        hess: Py<PyAny>,
+        max_iterations: usize,
+        tolerance: f64,
+        gtol: Option<f64>,
+        ftol: f64,
+        initial_radius: f64,
+        max_radius: f64,
+        eta: f64,
+        x_scale: Option<PyReadonlyArray1<f64>>,
+    ) -> PyResult<Py<PyAny>> {
+        let (z, scale) = common::coordinates(to_array1(&x0), x_scale.as_ref().map(to_array1))?;
+        let problem = common::PythonObjective {
+            fun,
+            grad,
+            hess: Some(hess),
+            scale,
+            counts: common::Counts::default(),
+        };
+        let controls = common::Controls {
+            max_iterations,
+            gtol: gtol.unwrap_or(tolerance),
+            ftol,
+            c1: 1e-4,
+            c2: 0.9,
+            max_linesearch: 80,
+        };
+        trust_region::solve(py, problem, z, controls, initial_radius, max_radius, eta)
+    }
+
+    /// BHHH for negative-log-likelihood scores. score_stats is an optional
+    /// memory-bounded alternative returning (score_sum, outer_sum, n_observations).
+    #[staticmethod]
+    #[pyo3(signature = (fun, x0, scores=None, max_iterations=100, tolerance=1e-6, *, score_stats=None, reduction="mean", penalty_grad=None, penalty_hess=None, gtol=None, ftol=0.0, damping=1e-8, c1=1e-4, c2=0.9, max_linesearch=80, x_scale=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn minimize_bhhh(
+        py: Python<'_>,
+        fun: Py<PyAny>,
+        x0: PyReadonlyArray1<f64>,
+        scores: Option<Py<PyAny>>,
+        max_iterations: usize,
+        tolerance: f64,
+        score_stats: Option<Py<PyAny>>,
+        reduction: &str,
+        penalty_grad: Option<Py<PyAny>>,
+        penalty_hess: Option<Py<PyAny>>,
+        gtol: Option<f64>,
+        ftol: f64,
+        damping: f64,
+        c1: f64,
+        c2: f64,
+        max_linesearch: usize,
+        x_scale: Option<PyReadonlyArray1<f64>>,
+    ) -> PyResult<Py<PyAny>> {
+        let (z, scale) = common::coordinates(to_array1(&x0), x_scale.as_ref().map(to_array1))?;
+        let problem = bhhh::ScoreObjective::new(
+            fun,
+            scores,
+            score_stats,
+            penalty_grad,
+            penalty_hess,
+            reduction,
+            scale,
+        )?;
+        let controls = common::Controls {
+            max_iterations,
+            gtol: gtol.unwrap_or(tolerance),
+            ftol,
+            c1,
+            c2,
+            max_linesearch,
+        };
+        bhhh::solve(py, problem, z, controls, damping)
     }
 
     #[staticmethod]
@@ -400,94 +525,39 @@ impl Optimizers {
     }
 }
 
-#[pyfunction]
-#[pyo3(signature = (fun, x0, grad, max_iterations=100, tolerance=1e-6))]
-pub fn minimize_lbfgs<'py>(
-    py: Python<'py>,
+#[allow(clippy::too_many_arguments)]
+fn run_quasi(
+    py: Python<'_>,
     fun: Py<PyAny>,
     x0: PyReadonlyArray1<f64>,
     grad: Py<PyAny>,
     max_iterations: usize,
     tolerance: f64,
+    gtol: Option<f64>,
+    ftol: f64,
+    c1: f64,
+    c2: f64,
+    max_linesearch: usize,
+    x_scale: Option<PyReadonlyArray1<f64>>,
+    limited_memory: bool,
 ) -> PyResult<Py<PyAny>> {
-    let x0 = to_array1(&x0);
-    let fun_eval = Python::attach(|py| fun.clone_ref(py));
-    let problem = ScalarObjectiveProblem {
-        objective_fn: fun,
-        gradient_fn: grad,
+    let (z, scale) = common::coordinates(to_array1(&x0), x_scale.as_ref().map(to_array1))?;
+    let problem = common::PythonObjective {
+        fun,
+        grad,
+        hess: None,
+        scale,
+        counts: common::Counts::default(),
     };
-    let linesearch = MoreThuenteLineSearch::new();
-    let solver = LBFGS::new(linesearch, 7)
-        .with_tolerance_grad(tolerance)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?
-        .with_tolerance_cost(tolerance)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-    let result = Executor::new(problem, solver)
-        .configure(|state| state.param(x0).max_iters(max_iterations as u64))
-        .run()
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-    let x = result
-        .state
-        .get_best_param()
-        .cloned()
-        .ok_or_else(|| PyValueError::new_err("LBFGS did not produce a parameter vector"))?;
-    let fun_value = call_objective_array1(&fun_eval, &x)?;
-    optimize_result_dict(
-        py,
-        &x,
-        fun_value,
-        result.state.get_iter(),
-        result.state.get_termination_status(),
-        "lbfgs",
-    )
-}
-
-#[pyfunction]
-#[pyo3(signature = (fun, x0, grad, max_iterations=100, tolerance=1e-6))]
-pub fn minimize_bfgs<'py>(
-    py: Python<'py>,
-    fun: Py<PyAny>,
-    x0: PyReadonlyArray1<f64>,
-    grad: Py<PyAny>,
-    max_iterations: usize,
-    tolerance: f64,
-) -> PyResult<Py<PyAny>> {
-    let x0 = to_array1(&x0);
-    let fun_eval = Python::attach(|py| fun.clone_ref(py));
-    let problem = ScalarObjectiveProblem {
-        objective_fn: fun,
-        gradient_fn: grad,
+    let controls = common::Controls {
+        max_iterations,
+        gtol: gtol.unwrap_or(tolerance),
+        ftol,
+        c1,
+        c2,
+        max_linesearch,
     };
-    let linesearch = MoreThuenteLineSearch::new();
-    let solver = BFGS::new(linesearch)
-        .with_tolerance_grad(tolerance)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?
-        .with_tolerance_cost(tolerance)
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-    let inv_hessian = identity_matrix(x0.len());
-    let result = Executor::new(problem, solver)
-        .configure(|state| {
-            state
-                .param(x0)
-                .inv_hessian(inv_hessian)
-                .max_iters(max_iterations as u64)
-        })
-        .run()
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
-    let x = result
-        .state
-        .get_best_param()
-        .cloned()
-        .ok_or_else(|| PyValueError::new_err("BFGS did not produce a parameter vector"))?;
-    let fun_value = call_objective_array1(&fun_eval, &x)?;
-    optimize_result_dict(
-        py,
-        &x,
-        fun_value,
-        result.state.get_iter(),
-        result.state.get_termination_status(),
-        "bfgs",
-    )
+    quasi_newton::solve(py, problem, z, controls, limited_memory)
 }
 
 #[pyfunction]
