@@ -8,6 +8,30 @@ This file is just bookkeeping for future extension work. It is not a release che
 - estimators should keep the current `fit` / `predict` / `summary` pattern when that makes sense
 - avoid bringing in pandas, patsy, scipy, or a formula system just to mimic larger libraries
 
+## Robust smooth optimizers — PR branch (2026-11-14)
+
+Branch `feat/robust-second-order-optimizers` starts from `ad134e7` on master.
+The scope is generic callback optimizers; native estimator defaults and inference
+remain unchanged. Cargo.toml, pyproject.toml and dependency features are unchanged.
+
+- **BFGS/L-BFGS:** package-owned strong-Wolfe bracketing/zoom, nonfinite trial
+  rejection, roundoff-equal objective handling, descent resets and curvature
+  update checks. Preserve positional arguments; add independent `gtol`/`ftol`,
+  Wolfe/budget controls and explicit coordinate scaling. Require a freshly
+  checked final gradient for success, including after cost/budget termination.
+- **Dense trust regions:** exact symmetric Hessian callback, spectral shifted
+  solve, interior/singular and negative-curvature hard cases, actual/predicted
+  reduction radius control. Reject final detectable negative curvature. Intended
+  for modest dense dimensions; no GALAHAD code, binding or dependency is added.
+- **BHHH:** mean/sum individual negative-log-likelihood score gradients or batched
+  raw score-sum/outer-sum/count statistics. Separate paired penalty derivatives,
+  positive spectral numerical damping, shared strong-Wolfe acceptance and honest
+  final diagnostics. No automatic inference from the numerical curvature.
+- **Review evidence:** independent SciPy/closed-form targets, saddle/overflow/
+  conditioning regressions, existing estimator tests, and executable six-family
+  stress/timing/convergence ablation. Keep all timing panels in that document.
+  Generated HTML/cache output stays outside the source branch.
+
 ## Missing panel outcomes — current branch (2026-10-09)
 
 Branch `feat/missing-panel-outcomes` extends `MatrixCompletion`, `SyntheticDID`

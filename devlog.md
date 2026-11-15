@@ -1,5 +1,51 @@
 # Devlog (crabbymetrics)
 
+## Robust generic smooth optimizers (2026-11-14; PR branch)
+
+- Created `feat/robust-second-order-optimizers` from current master `ad134e7` in
+  the canonical checkout. Preserved all native estimator algorithms/defaults,
+  panel work and inference. Dependency manifests/features remain unchanged.
+- Replaced generic Argmin BFGS/L-BFGS dispatch with safeguarded native loops.
+  Reproduced overflow in the original Poisson line search and cost-based early
+  termination; added independent tolerances, checked updates/resets, explicit
+  scaling, bounded finite-trial Wolfe search and final gradient certificates.
+  A summed-logit example exposed roundoff-equal objective values; the new Wolfe
+  zoom accepts ties while retaining slope and sufficient-decrease checks.
+- Removed the unused dense inverse allocation from L-BFGS so its correction
+  history really has linear parameter storage, including reset paths. Added a
+  20,000-parameter quadratic smoke check.
+- Added `Optimizers.minimize_trust_region` with dense spectral subproblems,
+  singular/interior solutions and the indefinite hard case. The implementation
+  uses existing nalgebra and ndarray and does not vendor or link GALAHAD.
+- Added `Optimizers.minimize_bhhh`, including batched sufficient score statistics,
+  mean/sum normalization, separate penalty derivatives and numerical damping.
+  Curvature matrices are not exposed as statistical covariance estimates.
+- Final local Python suite: **393 passed, 8 optional lecture-data skips**;
+  optimizer-focused tests: **43 passed**. Rust: **17 passed**, including five
+  trust-region subproblem tests. `cargo fmt --check` and dependency-manifest
+  comparison pass. Clippy completes with 37 pre-existing style warnings, none
+  in the added optimizer modules; a blanket `-D warnings` is not a clean baseline.
+- Earlier full-suite attempts reproduced the already documented intermittent
+  macOS process-group PermissionError in scaling-runner cleanup. Both isolated
+  cleanup tests and the final complete suite passed without changing that code
+  or deselecting any tests. No unrelated runner change is included.
+- Added source examples, class reference, agent API notes and a standalone
+  executable six-family ablation. The final idle-build timing run contains 1,044 timed and 348 diagnostic fits on
+  the original 72 smooth instances, each with three repeats plus one diagnostic.
+  BFGS and trust regions pass 72/72, L-BFGS 65/72, scaled L-BFGS 70/72;
+  BHHH passes the shared external rule on 52/60 (47 native certificates), including
+  only 4/12 distant-start NLS cases. All returned vectors and references are saved.
+- Source and compiled-extension hashes bind the final timing run to this code.
+  Source distribution includes all four new Rust modules and excludes docs.
+  The rendered review site combines published gh-pages 3159f0e with six freshly
+  executed pages. Link/search/image validation passes 107 pages and 315 images;
+  changed optimizer pages pass 390px/1440px checks with working folds, all seven
+  main timing/convergence figures, tables no larger than eight rows, and no
+  JavaScript/KaTeX errors, broken images or horizontal overflow.
+- Review preview: https://lalten.org/drafts/crabbymetrics-robust-optimizers/ablations/optimizer-robustness.html .
+  The shared-asset website policy is retained; no embedded-resources exception
+  or generated HTML/cache files are committed. GitHub test checks run on push.
+
 ## Missing panel outcomes (2026-10-09; PR branch)
 
 - Created `feat/missing-panel-outcomes` from `896ceaf` in the canonical
