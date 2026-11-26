@@ -162,6 +162,8 @@ website:
             text: Estimator Scaling And References
       - text: Optimization
         menu:
+          - href: ablations/optimizer-robustness.qmd
+            text: Optimizer Robustness And Timings
           - href: examples/optimizers.qmd
             text: Optimizers
           - href: examples/gmm-with-optimizers.qmd

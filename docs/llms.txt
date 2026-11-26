@@ -484,15 +484,38 @@ Both expose `fit`, `transform`, `fit_transform`, and `summary`. Nystrom uses sam
 
 ### Optimizers
 
+The new trust-region/BHHH methods and revised BFGS/L-BFGS controls below are
+unreleased development APIs; install a source build containing this feature.
+
 `cm.Optimizers` exposes scipy-style static methods returning dictionaries with fields such as `x`, `fun`, `nit`, `success`, `message`, and `method`.
 
 ```python
 cm.Optimizers.minimize_lbfgs(fun, x0, grad, max_iterations=100, tolerance=1e-6)
 cm.Optimizers.minimize_bfgs(fun, x0, grad, max_iterations=100, tolerance=1e-6)
+cm.Optimizers.minimize_trust_region(fun, x0, grad, hess, max_iterations=100, tolerance=1e-6)
+cm.Optimizers.minimize_bhhh(fun, x0, scores=None, max_iterations=100, tolerance=1e-6, *, score_stats=None, reduction="mean")
 cm.Optimizers.minimize_nonlinear_cg(fun, x0, grad, max_iterations=100, restart_iters=10, restart_orthogonality=0.1, tolerance=1e-6)
 cm.Optimizers.minimize_gauss_newton_ls(residual_fn, x0, jacobian_fn, max_iterations=100, tolerance=1e-6)
 cm.Optimizers.minimize_simulated_annealing(fun, x0, lower=None, upper=None, temp=15.0, step_size=0.1, max_iterations=5000, seed=None)
 ```
+
+BFGS/L-BFGS, trust regions and BHHH also accept `gtol=None`, `ftol=0.0`
+and positive vector `x_scale=None`. `gtol` overrides legacy `tolerance`.
+`optimality` is the infinity norm of the gradient in coordinates
+`x = x_scale * z`; `jac` and `grad_norm` remain in original coordinates.
+A final gradient certificate is required for success; cost/step stagnation and
+iteration exhaustion alone are not success. Trust regions additionally check
+for final negative curvature. Objective/gradient trials that are nonfinite are
+rejected; malformed arrays and Python callback errors propagate.
+
+BHHH row scores are gradients of **negative** individual log likelihoods.
+`fun` must match the `mean`/`sum` reduction. The memory-bounded `score_stats`
+alternative returns raw `(score_sum, outer_sum, n_observations)` before reduction.
+Supply exactly one score interface. Penalties belong in `fun` and are added once
+through paired `penalty_grad`/`penalty_hess`; do not add them to row scores.
+`damping` stabilizes numerical curvature and is not a covariance estimate.
+See reference/Optimizers.html and ablations/optimizer-robustness.html for controls,
+validation, fresh timings and coverage. Native estimator solvers are unchanged.
 
 ## Minimal working examples
 

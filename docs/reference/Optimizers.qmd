@@ -20,6 +20,10 @@ jupyter: python3
 from _api_doc_utils import *
 ```
 
+
+The trust-region/BHHH additions and revised BFGS/L-BFGS controls described here
+are unreleased development APIs. Build the proposed source branch to use them.
+
 ## Where it fits
 
 **Group:** Estimation interfaces
@@ -32,7 +36,64 @@ All methods bridge Python callbacks into Rust and normalize the result into the 
 
 ### BFGS and L-BFGS
 
-Both call `fun(theta)` and `grad(theta)` separately, use a More-Thuente line search, and apply `tolerance` to gradient and cost stopping. BFGS initializes a dense inverse-Hessian approximation at identity and updates the full matrix. L-BFGS retains seven correction pairs instead. Both return Argmin's best parameter and classify success only from its termination status; reaching the iteration budget returns a dictionary with `success=False` rather than raising.
+Both call `fun(theta)` and `grad(theta)` in original coordinates. The package now
+owns the generic optimizer loops, including strong-Wolfe bracketing/bisection zoom,
+rejection of nonfinite trials, curvature-update checks and non-descent resets.
+BFGS stores a dense inverse approximation initialized at identity; L-BFGS retains
+seven correction pairs. Native estimator classes retain their existing solvers.
+
+The old positional signature is retained. `gtol` overrides the legacy gradient
+`tolerance`; independent relative cost-stagnation `ftol` defaults to zero (off).
+A cost stop, line-search failure or exhausted budget cannot itself report
+success: the returned point is independently gradient-checked. `c1`, `c2` and
+`max_linesearch` expose step controls. Invalid initial arrays and Python callback
+exceptions raise; numerical nonfiniteness at a trial is rejected.
+
+### Dense exact-Hessian trust regions
+
+`minimize_trust_region(fun, x0, grad, hess, ...)` minimizes a quadratic model
+inside a Euclidean ball. `hess(theta)` returns a finite symmetric float64 matrix
+of shape `(p, p)`. A dense spectral subproblem solve uses a safeguarded curvature
+shift, including singular/interior solutions and the hard case with negative
+curvature orthogonal to the gradient. Actual/predicted reduction controls the
+radius and acceptance. A small gradient with detected negative curvature is
+not successful termination. This native Rust method is intended for modest
+parameter dimensions and is not a GALAHAD binding.
+
+### BHHH likelihood-score curvature
+
+`minimize_bhhh(fun, x0, scores, ...)` uses rows of **negative-log-likelihood
+gradients**, not positive log-likelihood scores. For `reduction="mean"` (default),
+the gradient and curvature are the mean row score and mean outer product;
+`reduction="sum"` uses sums. `fun` must use the same normalization.
+
+Instead of materializing an observation-by-parameter matrix, pass
+`score_stats=callback` with `scores=None`. This callback returns
+`(score_sum, outer_sum, n_observations)` accumulated over batches, before the
+selected reduction. The two callback interfaces are mutually exclusive.
+`penalty_grad` and `penalty_hess` are optional paired callbacks: their derivatives
+are added once, after likelihood normalization, and the penalty belongs in `fun`.
+They must not already be included in the row scores.
+
+BHHH applies a positive spectral curvature floor controlled by `damping` and a
+strong-Wolfe line search. Its information-identity motivation is local and
+model-specific. It is not a generic GMM solver, an inference procedure or a
+guarantee of good curvature at a distant start.
+
+### Scaling and certified results
+
+For all four methods above, optional positive `x_scale` defines
+$x=\operatorname{diag}(\texttt{x\_scale})z$. Callbacks receive original $x$.
+`optimality` is $\|\nabla_z f\|_\infty$, while `jac` and `grad_norm` describe
+original-coordinate gradients. The final certificate is `optimality <= gtol`;
+trust regions additionally reject detectable final negative curvature.
+
+The original dictionary keys remain. New diagnostics include `status`, `jac`,
+`optimality`, `grad_norm`, `nfev`, `njev`, `nhev`, `nscorev`, `rejected_steps`,
+`resets` and `skipped_updates`. Counters include final checking evaluations;
+`nscorev` counts actual score callbacks, while `njev` counts gradient requests.
+Trust regions also report the final `radius` and scaled `min_eigenvalue`.
+Numerical curvature and damping are not returned as statistical covariance.
 
 ### Nonlinear conjugate gradient
 
@@ -48,7 +109,15 @@ The proposal modifies at least one randomly selected coordinate, adds a uniform 
 
 ## Performance and failure behavior
 
-Every objective, gradient, residual, or Jacobian evaluation crosses the Python-Rust boundary and copies NumPy results. BFGS stores $O(p^2)$ curvature state, L-BFGS and nonlinear CG use $O(p)$ state aside from callback data, and native Gauss-Newton forms and inverts a dense $p\times p$ normal matrix. The wrappers return the best parameter, then reevaluate the public objective to populate `fun`; a callback that is stochastic or stateful can therefore report a value different from the one attached to the optimizer's best state.
+Every objective, gradient, residual or Jacobian callback crosses the
+Python-Rust boundary. BFGS and dense trust regions store $O(p^2)$ numerical
+state, L-BFGS keeps $O(p)$ state for a fixed history, and BHHH forms an
+$O(p^2)$ score cross-product. Row-score callbacks may materialize $O(np)$
+input; `score_stats` supports bounded batches. Dense spectral solves cost
+$O(p^3)$. Callbacks should be deterministic and consistently normalized.
+
+The [executed stress comparison](../ablations/optimizer-robustness.qmd) reports
+six estimator families, accuracy, fresh timings and convergence paths.
 
 ## Python API
 

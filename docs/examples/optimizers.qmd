@@ -13,6 +13,10 @@ jupyter: python3
 
 This page shows the direct optimizer wrappers in the style they are meant to be used: a Python callback for the objective, a starting value, optional derivative callbacks, and a plain dictionary back with the minimizer and objective value. The first section rebuilds a Bernoulli logit fit from its likelihood, then the page moves to two rougher test functions where nonlinear conjugate gradient and simulated annealing are more natural tools.
 
+
+The trust-region/BHHH additions and revised BFGS/L-BFGS controls described here
+are unreleased development APIs. Build the proposed source branch to use them.
+
 ## Imports
 
 ```{python}
@@ -108,6 +112,75 @@ plt.show()
 ```
 
 This is the simplest pattern for custom M-estimation in the package today: write the objective and gradient, run a direct optimizer, and treat the returned `x` as the estimate. For smooth likelihoods, `BFGS` is a strong default.
+
+## Trust Regions And BHHH On The Same Likelihood
+
+The exact logit Hessian supplies a dense trust-region step. Individual negative
+log-likelihood gradients supply BHHH curvature. The example uses a **summed**
+likelihood, so BHHH explicitly selects the summed score reduction.
+
+```{python}
+def bernoulli_hess(theta):
+    probability = sigmoid(X @ theta)
+    return X.T @ ((probability * (1 - probability))[:, None] * X)
+
+def bernoulli_scores(theta):
+    return X * (sigmoid(X @ theta) - y)[:, None]
+
+trust_result = Optimizers.minimize_trust_region(
+    bernoulli_nll, np.zeros(k + 1), bernoulli_grad, bernoulli_hess,
+    max_iterations=300, gtol=1e-6,
+)
+bhhh_result = Optimizers.minimize_bhhh(
+    bernoulli_nll, np.zeros(k + 1), bernoulli_scores, reduction="sum",
+    max_iterations=300, gtol=1e-6,
+)
+for name, result in [("BFGS", bfgs_result), ("Trust region", trust_result), ("BHHH", bhhh_result)]:
+    print(name, {key: result[key] for key in ["success", "nit", "optimality", "nfev", "njev"]})
+    print("max coefficient difference from native Logit:", np.max(np.abs(result["x"] - logit_theta)))
+    assert result["success"]
+    np.testing.assert_allclose(result["x"], logit_theta, atol=1e-5)
+```
+
+### Batched Score Statistics
+
+For large datasets, aggregate raw score sums and cross-products by batch. Rust
+applies the requested reduction. This example uses no full-sample score matrix.
+
+```{python}
+def batched_scores(theta):
+    total = np.zeros(k + 1)
+    outer = np.zeros((k + 1, k + 1))
+    for begin in range(0, n, 256):
+        design, outcome = X[begin:begin + 256], y[begin:begin + 256]
+        block = design * (sigmoid(design @ theta) - outcome)[:, None]
+        total += block.sum(axis=0)
+        outer += block.T @ block
+    return total, outer, n
+
+batched_result = Optimizers.minimize_bhhh(
+    bernoulli_nll, np.zeros(k + 1), score_stats=batched_scores,
+    reduction="sum", max_iterations=300, gtol=1e-6,
+)
+np.testing.assert_allclose(batched_result["x"], bhhh_result["x"], atol=1e-7)
+print("Batched BHHH final gradient:", batched_result["optimality"])
+```
+
+For a penalty, include its value in `fun` and pass its derivatives separately
+as `penalty_grad` and `penalty_hess`. Keep individual likelihood scores free of
+penalty terms. Numerical damping does not determine standard errors.
+
+### Stopping And Coordinate Scaling
+
+BFGS, L-BFGS, trust regions and BHHH have separate `gtol` and `ftol` controls.
+`ftol=0` disables cost-stagnation stopping; otherwise a cost stop with an
+insufficiently small final gradient returns `success=False`.
+
+If regressor units differ substantially, pass `x_scale=1 / np.sqrt(np.mean(X**2,
+axis=0))`. This optimizes in rescaled coordinates. The returned coefficients and
+`jac` stay in original units; `optimality` and trust-region radius describe the
+rescaled problem. Scaling should be part of the stated numerical specification.
+See the [six-family stress and timing comparison](../ablations/optimizer-robustness.qmd).
 
 ## Nonlinear Conjugate Gradient On Beale's Function
 
@@ -235,6 +308,8 @@ Here the annealer starts far from the origin and still finds a point essentially
 ## Takeaway
 
 - Use `Optimizers.minimize_bfgs` or `Optimizers.minimize_lbfgs` for smooth likelihood-style objectives when you can write a stable gradient.
+- Use `Optimizers.minimize_trust_region` when exact Hessians are available and robust local step control matters.
+- Use `Optimizers.minimize_bhhh` for a correctly normalized likelihood with individual score gradients or batched score statistics.
 - Use `Optimizers.minimize_nonlinear_cg` when memory is tighter and you still have a reliable gradient for a smooth but awkward surface.
 - Use `Optimizers.minimize_simulated_annealing` when the real problem is multimodality rather than local curvature.
 
